@@ -1,0 +1,646 @@
+{
+	"alias": "FEDORA-EPEL-2011-5213",
+	"bugs": [
+		{
+			"bug_id": 609856,
+			"title": "cacti: no httpd restrictions for log and rra directories",
+			"bugzilla": {
+				"bug_id": "609856",
+				"creation_ts": "2010-07-01 10:39:32 +0000",
+				"short_desc": "cacti: no httpd restrictions for log and rra directories",
+				"delta_ts": "2011-12-29 22:02:19 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "2971559",
+						"comment_count": "0",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2010-07-01 10:39:32 +0000",
+						"thetext": "Description of problem:\nUpstream cacti tarballs have log and rra as subdirs in main cacti directory.  They both contain .htaccess file that prevents access to files in those directories via httpd.\n\nIn Fedora cacti packages, those directories are replaced by symlinks to directories created elsewhere (in /var), but there's no restriction equivalent to .htaccess files provided by upstream.  So it is possible to download log or rra files (if you can guess their names).\n\nDefault cacti-httpd.conf only allows localhost to access cacti, but I believe this restriction is more of a safe default before cacti can be configured and expected to be removed.  It may be a good idea to extend default httpd config to clarify purpose of default localhost restriction and add additional restrictions on log and rra (and scripts possibly too) not expected to be removed after initial configuration.\n\nVersion-Release number of selected component (if applicable):\ncacti-0.8.7f-1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3045044",
+						"comment_count": "1",
+						"who": {
+							"text": "triage",
+							"name": "Bug Zapper"
+						},
+						"bug_when": "2010-07-30 12:21:48 +0000",
+						"thetext": "\nThis bug appears to have been reported against 'rawhide' during the Fedora 14 development cycle.\nChanging version to '14'.\n\nMore information and reason for this action is here:\nhttp://fedoraproject.org/wiki/BugZappers/HouseKeeping"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3651820",
+						"comment_count": "2",
+						"who": {
+							"text": "ktdreyer",
+							"name": "Ken Dreyer"
+						},
+						"bug_when": "2011-04-05 02:52:32 +0000",
+						"thetext": "(This is still present in rawhide, so I'm bumping the version back up.)\n\nWhen I looked into this problem a while ago, I came up with a \"blacklist\" of things that should never be loaded. Here's a snippet of my httpd.conf\n\n<Directory /var/www/cacti/>\n<FilesMatch (cmd|copy_cacti_user|poller|poller_commands|poller_export|poller_reindex_hosts|rebuild_poller_cache|script_server).php>\n        order deny,allow\n        Deny from all\n</FilesMatch>\n</Directory>\n\n<Directory /var/www/cacti/scripts>\n    order deny,allow\n    Deny from all\n</Directory>\n<Directory /var/www/cacti/include>\n    order deny,allow\n    Deny from all\n    <FilesMatch (.gif|.css|.js)$>\n        order allow,deny\n        Allow from all\n    </FilesMatch>\n</Directory>\n\nFeel free to use this for inspiration. You could certainly add /rra and /log to the blacklist."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3653038",
+						"comment_count": "3",
+						"who": {
+							"text": "fedora-admin-xmlrpc",
+							"name": "Fedora Admin XMLRPC Client"
+						},
+						"bug_when": "2011-04-05 14:09:54 +0000",
+						"thetext": "This package has changed ownership in the Fedora Package Database.  Reassigning to the new owner of this component."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3653370",
+						"comment_count": "4",
+						"who": {
+							"text": "gwync",
+							"name": "Gwyn Ciesla"
+						},
+						"bug_when": "2011-04-05 15:48:46 +0000",
+						"thetext": "Please test this update.  It's built for F-14, but I'd like it tested before I put it in rawhide or older.\n\nThanks!\n\nhttp://zanoni.jcomserv.net/fedora/cacti/cacti-0.8.7g-3.fc14.noarch.rpm"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3655478",
+						"comment_count": "5",
+						"who": {
+							"text": "ktdreyer",
+							"name": "Ken Dreyer"
+						},
+						"bug_when": "2011-04-06 09:46:36 +0000",
+						"thetext": "Jon,\n\nI took a look at that RPM. Here are my three suggestions:\n\n1. On the original subject of this bug, I don't see the /log or /rra directories denied anywhere. You should probably insert the following additional sections to /etc/httpd/conf.d/cacti.conf:\n\n<Directory /usr/share/cacti/log>\n    order deny,allow\n    Deny from all\n</Directory>\n<Directory /usr/share/cacti/rra>\n    order deny,allow\n    Deny from all\n</Directory>\n\n2. To keep with the \"localhost only, out of the box\" convention, you should probably modify my suggested configuration from \"Allow from all\" to \"allow from 127.0.0.1\" in the /include directory. It would look like this:\n\n<Directory /usr/share/cacti/include>\n    order deny,allow\n    Deny from all\n    <FilesMatch (.gif|.css|.js)$>\n        order allow,deny\n        Allow from 127.0.0.1\n    </FilesMatch>\n</Directory>\n\n3. To help out the user, it would be useful to add a note in either README.cacti or etc/httpd/conf.d/cacti.conf (my preference). Something like:\n\n# Users: Change \"Allow from 127.0.0.1\" to open up cacti to other network devices. For example, change \"Allow from 127.0.0.1\" to \"Allow from all\".\n# The sections marked \"deny from all\" should not be modified. These are in place in order to harden cacti."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4112777",
+						"comment_count": "6",
+						"who": {
+							"text": "ktdreyer",
+							"name": "Ken Dreyer"
+						},
+						"bug_when": "2011-10-27 22:52:04 +0000",
+						"thetext": "Initial fix committed in 236450cab3."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4142790",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-11-11 16:16:06 +0000",
+						"thetext": "cacti-0.8.7h-2.fc16 has been submitted as an update for Fedora 16.\nhttps://admin.fedoraproject.org/updates/cacti-0.8.7h-2.fc16"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4169020",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-11-25 02:25:38 +0000",
+						"thetext": "cacti-0.8.7h-2.fc16 has been pushed to the Fedora 16 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4246042",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-12-12 15:24:40 +0000",
+						"thetext": "cacti-0.8.7i-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/cacti-0.8.7i-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4246059",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-12-12 15:27:00 +0000",
+						"thetext": "cacti-0.8.7i-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/cacti-0.8.7i-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4246068",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-12-12 15:30:04 +0000",
+						"thetext": "cacti-0.8.7i-1.el4 has been submitted as an update for Fedora EPEL 4.\nhttps://admin.fedoraproject.org/updates/cacti-0.8.7i-1.el4"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4279867",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-12-29 22:00:20 +0000",
+						"thetext": "cacti-0.8.7i-2.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4279880",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-12-29 22:02:04 +0000",
+						"thetext": "cacti-0.8.7i-2.el4.1 has been pushed to the Fedora EPEL 4 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4279882",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-12-29 22:02:19 +0000",
+						"thetext": "cacti-0.8.7i-2.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 766573,
+			"title": "cacti-0.8.7i is available",
+			"bugzilla": {
+				"bug_id": "766573",
+				"creation_ts": "2011-12-12 11:08:56 +0000",
+				"short_desc": "cacti-0.8.7i is available",
+				"delta_ts": "2012-04-04 13:58:48 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "FutureFeature, Triaged",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "4245325",
+						"comment_count": "0",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2011-12-12 11:08:56 +0000",
+						"thetext": "Latest upstream release: 0.8.7i\nCurrent version in Fedora Rawhide: 0.8.7h\nURL: http://www.cacti.net/downloads/\n\nPlease consult the package updates policy before you issue an update to a stable branch: https://fedoraproject.org/wiki/Updates_Policy\n\nMore information about the service that created this bug can be found at:\nhttps://fedoraproject.org/wiki/Upstream_release_monitoring"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4245901",
+						"comment_count": "1",
+						"who": {
+							"text": "ktdreyer",
+							"name": "Ken Dreyer"
+						},
+						"bug_when": "2011-12-12 14:46:44 +0000",
+						"thetext": "Release notes claim more security fixes (http://www.cacti.net/release_notes_0_8_7i.php):\n\n\" bug#0002062: Multiple security vulnerabilities\"\n\nWhich is http://bugs.cacti.net/view.php?id=2062 ."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4246027",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-12-12 15:20:28 +0000",
+						"thetext": "cacti-0.8.7i-1.fc16 has been submitted as an update for Fedora 16.\nhttps://admin.fedoraproject.org/updates/cacti-0.8.7i-1.fc16"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4246033",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-12-12 15:21:58 +0000",
+						"thetext": "cacti-0.8.7i-1.fc15 has been submitted as an update for Fedora 15.\nhttps://admin.fedoraproject.org/updates/cacti-0.8.7i-1.fc15"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4246038",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-12-12 15:24:35 +0000",
+						"thetext": "cacti-0.8.7i-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/cacti-0.8.7i-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4246058",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-12-12 15:26:55 +0000",
+						"thetext": "cacti-0.8.7i-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/cacti-0.8.7i-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4246067",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-12-12 15:29:58 +0000",
+						"thetext": "cacti-0.8.7i-1.el4 has been submitted as an update for Fedora EPEL 4.\nhttps://admin.fedoraproject.org/updates/cacti-0.8.7i-1.el4"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4274714",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-12-22 22:34:06 +0000",
+						"thetext": "cacti-0.8.7i-2.fc16 has been pushed to the Fedora 16 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4274737",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-12-22 22:37:51 +0000",
+						"thetext": "cacti-0.8.7i-2.fc15 has been pushed to the Fedora 15 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4279866",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-12-29 22:00:14 +0000",
+						"thetext": "cacti-0.8.7i-2.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4279879",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-12-29 22:01:59 +0000",
+						"thetext": "cacti-0.8.7i-2.el4.1 has been pushed to the Fedora EPEL 4 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4279881",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-12-29 22:02:14 +0000",
+						"thetext": "cacti-0.8.7i-2.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4284627",
+						"comment_count": "12",
+						"who": {
+							"text": "phaleintx",
+							"name": "Phil Hale"
+						},
+						"bug_when": "2012-01-03 23:52:32 +0000",
+						"thetext": "I've been using the EPEL package for cacti and applying the Plugin Archch patches that used to be available from: http://www.cacti.net/downloads/pia/.  As of 0.8.7i, the upstream are no longer making people patch Cacti to use the plugin architecture (see http://forums.cacti.net/viewtopic.php?f=4&t=45871).  The now offer an additional download (Cacti 0.8.7i with Plugin Architecture version 3.1).  Is there a way to offer this package in EPEL as well?  Maybe as a package called cacti-pia?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4284652",
+						"comment_count": "13",
+						"who": {
+							"text": "ktdreyer",
+							"name": "Ken Dreyer"
+						},
+						"bug_when": "2012-01-04 00:18:29 +0000",
+						"thetext": "Hi Phil,\n\nI did see that in the release announcement. I don't have experience with PIA and I'm unfamiliar with upstream's plans. Is PIA eventually going to be merged into the mainline cacti distribution?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4284684",
+						"comment_count": "14",
+						"who": {
+							"text": "phaleintx",
+							"name": "Phil Hale"
+						},
+						"bug_when": "2012-01-04 00:37:17 +0000",
+						"thetext": "Thanks for replying Ken,\n\nIt is my understanding that it will be merged into the mainline code in the future.  In the past, I would simply apply the separate patch file they provided.  As it stands now, I can't do that.  I might try to do a custom rpm build based on your cacti.spec file using the provided combined download file and see what the results are.  As it stands now, I've got the base cacti updated, but the plugins are not working."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4293162",
+						"comment_count": "15",
+						"who": {
+							"text": "bflad417",
+							"name": "Brian Flad"
+						},
+						"bug_when": "2012-01-08 02:36:12 +0000",
+						"thetext": "Hi Ken,\n\nThanks for getting upstream updated quickly. Our environment is setup similar to Phil's where we install the EPEL Cacti package and run the Plugin Architecture patch script that upstream provides. Since upstream no longer provides the patch script, there's no way to include PIA anymore. Unfortunately in my case, since we use the thresholds plugin extensively for monitoring, we're left without those monitors until its patched with PIA.\n\nI would also suggest the creation of a separate package that includes PIA baked in as a stopgap until the codebases are completely merged, which looks a few months off still. Unless Phil has already had success, I can attempt to create and install a modified Cacti+PIA package using the current Cacti SPEC file as the template."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4300197",
+						"comment_count": "16",
+						"who": {
+							"text": "ktdreyer",
+							"name": "Ken Dreyer"
+						},
+						"bug_when": "2012-01-10 23:13:37 +0000",
+						"thetext": "Hi Brian,\n\nYeah, the PIA situation isn't good for packaging. The upstream project has basically created a fork here. I'm hoping PIA gets merged soon, but until that point I'm hesitant to add this into the official EPEL package."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4573288",
+						"comment_count": "17",
+						"who": {
+							"text": "ktdreyer",
+							"name": "Ken Dreyer"
+						},
+						"bug_when": "2012-04-04 13:58:48 +0000",
+						"thetext": "Hi all,\n\nPlease see Bug 809753 for PIA in Cacti."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "cacti-0.8.7i-2.el5",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "cacti",
+						"version": "0.8.7i",
+						"release": "2.el5",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "cacti",
+						"version": "0.8.7i",
+						"release": "2.el5",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 156307,
+			"text": "This update has been submitted for testing by ktdreyer. ",
+			"timestamp": "2011-12-12 15:27:03",
+			"update_id": 20671,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 156308,
+			"text": "This update is currently being pushed to the Fedora EPEL 5 testing updates repository.",
+			"timestamp": "2011-12-12 18:10:22",
+			"update_id": 20671,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 156309,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2011-12-12 19:27:59",
+			"update_id": 20671,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 156310,
+			"text": "ktdreyer has edited this update. New build(s): cacti-0.8.7i-2.el5. Removed build(s): cacti-0.8.7i-1.el5.",
+			"timestamp": "2011-12-13 17:14:29",
+			"update_id": 20671,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 156311,
+			"text": "This update has been submitted for testing by ktdreyer. ",
+			"timestamp": "2011-12-13 17:14:49",
+			"update_id": 20671,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 156312,
+			"text": "This update is currently being pushed to the Fedora EPEL 5 testing updates repository.",
+			"timestamp": "2011-12-13 18:22:04",
+			"update_id": 20671,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 156313,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2011-12-13 19:58:22",
+			"update_id": 20671,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 156314,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2011-12-27 22:05:49",
+			"update_id": 20671,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 156315,
+			"text": "This update has been submitted for stable by ktdreyer. ",
+			"timestamp": "2011-12-28 20:12:54",
+			"update_id": 20671,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 156316,
+			"text": "This update is currently being pushed to the Fedora EPEL 5 stable updates repository.",
+			"timestamp": "2011-12-29 19:58:31",
+			"update_id": 20671,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 156317,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2011-12-29 22:02:21",
+			"update_id": 20671,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2011-12-13 17:14:47",
+	"date_pushed": "2011-12-29 22:02:21",
+	"date_stable": "2011-12-29 22:02:21",
+	"date_submitted": "2011-12-12 15:26:49",
+	"date_testing": "2011-12-13 19:58:22",
+	"meets_testing_requirements": true,
+	"notes": "Update to 0.8.7i. Upstream release notes are at http://www.cacti.net/release_notes_0_8_7i.php. Notably \"Multiple security vulnerabilities\".\r\n\r\nAlso, merge some changes that were in Fedora: add mod_security overrides, and block HTTP access to log and rra directories.",
+	"pushed": true,
+	"release": {
+		"branch": "el5",
+		"candidate_tag": "dist-5E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "dist-5E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 5",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-5",
+		"override_tag": "dist-5E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-5E-epel",
+		"state": "archived",
+		"testing_tag": "dist-5E-epel-testing",
+		"version": "5"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "cacti-0.8.7i-2.el5",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2011-5213",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2011-5213",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/321c853f5ae66967c865bac38115b92eb4a7080d9223b779bb513a99ff5fd3be?s=24&d=retro",
+		"email": "ktdreyer@ktdreyer.com",
+		"groups": [
+			{
+				"name": "qa"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "centosproject-email-aliases"
+			},
+			{
+				"name": "sig-storage"
+			},
+			{
+				"name": "ceph"
+			},
+			{
+				"name": "gitlab-centos-sig-storage"
+			}
+		],
+		"id": 154,
+		"name": "ktdreyer",
+		"openid": "ktdreyer.id.fedoraproject.org"
+	},
+	"version_hash": "e9bcaa2ad2879594ff1d834be2f42844bc6e2937"
+}

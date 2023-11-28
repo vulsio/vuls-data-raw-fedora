@@ -1,0 +1,424 @@
+{
+	"alias": "FEDORA-2015-d423b3276f",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1293372,
+			"security": true,
+			"title": "CVE-2015-7555 mingw-giflib: giflib: Heap-based buffer overflow in giffix utility [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1293372",
+				"creation_ts": "2015-12-21 15:15:12 +0000",
+				"short_desc": "CVE-2015-7555 mingw-giflib: giflib: Heap-based buffer overflow in giffix utility [fedora-all]",
+				"delta_ts": "2016-01-03 21:19:04 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1290785",
+						"alias": "CVE-2015-7555",
+						"creation_ts": "2015-12-11 13:02:20 +0000",
+						"short_desc": "CVE-2015-7555 giflib: Heap-based buffer overflow in giffix utility",
+						"delta_ts": "2023-05-12 21:12:54 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "WONTFIX",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1293371",
+							"1293372"
+						],
+						"blocked": [
+							{
+								"bug_id": "1290786",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "8911227",
+								"comment_count": "0",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2015-12-11 13:02:20 +0000",
+								"thetext": "A heap-based buffer overflow vulnerability was found in giffix utility of giflib when processing records of the type `IMAGE_DESC_RECORD_TYPE' due to the allocated size of `LineBuffer' equaling the value of the logical screen width, `GifFileIn->SWidth', while subsequently having `GifFileIn->Image.Width' bytes of data written to it.\n\nVulnerable code:\n\ngiflib-5.1.1/util/giffix.c #35..194:\n| int main(int argc, char **argv)\n| {\n| [...]\n| if ((LineBuffer = (GifRowType) malloc(GifFileIn->SWidth)) == NULL)\n| GIF_EXIT(\"Failed to allocate memory required, aborted.\");\n|\n| /* Scan the content of the GIF file and load the image(s) in: */\n| do {\n| [...]\n| switch (RecordType) {\n| case IMAGE_DESC_RECORD_TYPE:\n| if (DGifGetImageDesc(GifFileIn) == GIF_ERROR)\n| QuitGifError(GifFileIn, GifFileOut);\n| [...]\n| Width = GifFileIn->Image.Width;\n| Height = GifFileIn->Image.Height;\n| [...]\n| /* Find the darkest color in color map to use as a filler. */\n| ColorMap = (GifFileIn->Image.ColorMap ? GifFileIn->Image.ColorMap :\n| GifFileIn->SColorMap);\n| for (i = 0; i < ColorMap->ColorCount; i++) {\n| j = ((int) ColorMap->Colors[i].Red) * 30 +\n| ((int) ColorMap->Colors[i].Green) * 59 +\n| ((int) ColorMap->Colors[i].Blue) * 11;\n| if (j < ColorIntens) {\n| ColorIntens = j;\n| DarkestColor = i;\n| }\n| }\n|\n| /* Load the image, and dump it. */\n| for (i = 0; i < Height; i++) {\n| GifQprintf(\"\\b\\b\\b\\b%-4d\", i);\n| if (DGifGetLine(GifFileIn, LineBuffer, Width)\n| == GIF_ERROR) break;\n| if (EGifPutLine(GifFileOut, LineBuffer, Width)\n| == GIF_ERROR) QuitGifError(GifFileIn, GifFileOut);\n| }\n|\n| if (i < Height) {\n| [...]\n| /* Fill in with the darkest color in color map. */\n| for (j = 0; j < Width; j++)\n| LineBuffer[j] = DarkestColor;\n| for (; i < Height; i++)\n| if (EGifPutLine(GifFileOut, LineBuffer, Width)\n| == GIF_ERROR) QuitGifError(GifFileIn, GifFileOut);\n| }\n| break;\n| [...]\n| }\n| }\n| while (RecordType != TERMINATE_RECORD_TYPE);\n| [..]\n| }"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8934471",
+								"comment_count": "2",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2015-12-21 15:13:59 +0000",
+								"thetext": "Public via:\n\nhttp://seclists.org/oss-sec/2015/q4/548"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8934488",
+								"comment_count": "3",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2015-12-21 15:15:22 +0000",
+								"thetext": "\nCreated giflib tracking bugs for this issue:\n\nAffects: fedora-all [bug 1293371]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8934489",
+								"comment_count": "4",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2015-12-21 15:15:31 +0000",
+								"thetext": "\nCreated mingw-giflib tracking bugs for this issue:\n\nAffects: fedora-all [bug 1293372]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8936616",
+								"comment_count": "5",
+								"who": {
+									"text": "scorneli",
+									"name": "Stefan Cornelius"
+								},
+								"bug_when": "2015-12-22 10:18:53 +0000",
+								"thetext": "GIF images contain two kinds of image dimension records. One is used to store the width and height of the logical screen and the other one is the image descriptor used to store the width and height of the image.\n\nThe problem is that the giffix utility uses the logical screen width to allocate memory for the GIF image, but then uses the image descriptor width to fill up said memory. This can lead to a heap-based buffer overflow when processing a specially crafted GIF image using the giffix utility.\n\n\nAcknowledgements:\n\nRed Hat would like to thank Hans Jerry Illikainen for reporting this issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8940027",
+								"comment_count": "7",
+								"who": {
+									"text": "kseifried",
+									"name": "Kurt Seifried"
+								},
+								"bug_when": "2015-12-23 17:53:48 +0000",
+								"thetext": "PhantomJS embeds part of giflib, but not the giffix utility, thus PhantomJS is not affected."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8940028",
+								"comment_count": "8",
+								"who": {
+									"text": "kseifried",
+									"name": "Kurt Seifried"
+								},
+								"bug_when": "2015-12-23 17:54:59 +0000",
+								"thetext": "Statement:\n\nThis issue affects the versions of giflib as shipped with Red Hat Enterprise Linux 5, 6 and 7. Red Hat Product Security has rated this issue as having Moderate security impact. A future update may address this issue. For additional information, refer to the Issue Severity Classification: https://access.redhat.com/security/updates/classification/."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8934485",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2015-12-21 15:15:12 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8934487",
+						"comment_count": "1",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2015-12-21 15:15:19 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1290785,1293372\n\n# Description of your update\nnotes=Security fix for CVE-2015-7555\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link(s) instead:\n\nhttps://bodhi.fedoraproject.org/updates/new?type_=security&bugs=1290785,1293372"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8937142",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-12-22 12:57:07 +0000",
+						"thetext": "mingw-giflib-5.0.5-4.fc23 has been submitted as an update to Fedora 23. https://bodhi.fedoraproject.org/updates/FEDORA-2015-44fb3501cc"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8938359",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-12-23 00:10:14 +0000",
+						"thetext": "mingw-giflib-5.0.5-4.fc23 has been pushed to the Fedora 23 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2015-44fb3501cc"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8942555",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-12-26 23:52:02 +0000",
+						"thetext": "mingw-giflib-5.0.5-4.fc22 has been pushed to the Fedora 22 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2015-d423b3276f"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8948956",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-01-03 20:22:36 +0000",
+						"thetext": "mingw-giflib-5.0.5-4.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8949004",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-01-03 21:19:02 +0000",
+						"thetext": "mingw-giflib-5.0.5-4.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "mingw-giflib-5.0.5-4.fc22",
+			"release_id": 12,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "mingw32-giflib-debuginfo",
+						"version": "5.0.5",
+						"release": "4.fc22",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw64-giflib-debuginfo",
+						"version": "5.0.5",
+						"release": "4.fc22",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw32-giflib",
+						"version": "5.0.5",
+						"release": "4.fc22",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw64-giflib",
+						"version": "5.0.5",
+						"release": "4.fc22",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw32-giflib-static",
+						"version": "5.0.5",
+						"release": "4.fc22",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw32-giflib-tools",
+						"version": "5.0.5",
+						"release": "4.fc22",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw64-giflib-static",
+						"version": "5.0.5",
+						"release": "4.fc22",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw64-giflib-tools",
+						"version": "5.0.5",
+						"release": "4.fc22",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "mingw-giflib",
+						"version": "5.0.5",
+						"release": "4.fc22",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 369169,
+			"text": "This update has been submitted for testing by smani. ",
+			"timestamp": "2015-12-22 12:56:57",
+			"update_id": 47404,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 370364,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2015-12-26 23:52:36",
+			"update_id": 47404,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 372339,
+			"text": "This update has reached 7 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2016-01-03 00:00:16",
+			"update_id": 47404,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 372342,
+			"text": "This update has been submitted for stable by smani. ",
+			"timestamp": "2016-01-03 00:04:47",
+			"update_id": 47404,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 372343,
+			"text": "Taskotron: upgradepath test FAILED on noarch. Result log: https://taskotron.fedoraproject.org/resultsdb/results/5352551 (results are informative only)",
+			"timestamp": "2016-01-03 00:05:50",
+			"update_id": 47404,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 372641,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2016-01-03 21:21:11",
+			"update_id": 47404,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2016-01-03 17:15:01",
+	"date_stable": "2016-01-03 17:15:01",
+	"date_submitted": "2015-12-22 12:56:57",
+	"date_testing": "2015-12-26 23:27:02",
+	"meets_testing_requirements": true,
+	"notes": "Security fix for CVE-2015-7555.",
+	"pushed": true,
+	"release": {
+		"branch": "f22",
+		"candidate_tag": "f22-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f22",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 22",
+		"mail_template": "fedora_errata_template",
+		"name": "F22",
+		"override_tag": "f22-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f22-updates-pending",
+		"pending_testing_tag": "f22-updates-testing-pending",
+		"stable_tag": "f22-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f22-updates-testing",
+		"version": "22"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "mingw-giflib-5.0.5-4.fc22",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-d423b3276f",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-d423b3276f",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/45d3b000186539c7dfca915d2fa0176ec9db448e552c9cf548251f4922e664bd?s=24&d=retro",
+		"email": "manisandro@gmail.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 117,
+		"name": "smani",
+		"openid": "smani.id.fedoraproject.org"
+	},
+	"version_hash": "c5d2fc3dc29f9fb479db6270c6d77f5f29544b27"
+}

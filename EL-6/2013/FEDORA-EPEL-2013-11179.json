@@ -1,0 +1,843 @@
+{
+	"alias": "FEDORA-EPEL-2013-11179",
+	"bugs": [
+		{
+			"bug_id": 615088,
+			"parent": true,
+			"security": true,
+			"title": "libtommath: weakness in mp_prime_next_prime()",
+			"bugzilla": {
+				"bug_id": "615088",
+				"creation_ts": "2010-07-15 21:45:53 +0000",
+				"short_desc": "libtommath: weakness in mp_prime_next_prime()",
+				"delta_ts": "2019-09-29 12:37:35 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "CURRENTRELEASE",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"994505"
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "3010310",
+						"comment_count": "0",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2010-07-15 21:45:53 +0000",
+						"thetext": "A bug in libtommath was reported to Gentoo [1] where the mp_prime_next_prime() is supposed to find the next prime number based on a given prime number.  The prime testing code has a bug and will test t times the same prime from ltm_prime_tab, resulting in potentially weaker prime testing.\n\nThe offset in ltm_prime_tab is supposed to be x (the incrementing value in the for loop), rather than t, which does not change.\n\n144       /* is this prime? */\n145       for (x = 0; x < t; x++) {\n146           mp_set(&b, ltm_prime_tab[t]);\n147           if ((err = mp_prime_miller_rabin(a, &b, &res)) != MP_OKAY) {\n148              goto LBL_ERR;\n149           }\n150           if (res == MP_NO) {\n151              break;\n152           }\n153       }\n\n\nlibtommath is also embedded in dropbear, which is an ssh server/client, and as a result may affect the integrity of generated keys (I don't know this for sure, but a comment in the Gentoo bz [2] implies this may be a problem, as upstream is considering the possibility).\n\nSimilar code exists in silc-toolkit's lib/silcmath/tma.c, but it properly uses x (silc-toolkit-1.0.2/lib/silcmath/tma.c):\n\n5602       for (x = PRIME_SIZE - 2; x >= 0; x--) {\n5603           if (mp_cmp_d(a, ltm_prime_tab[x]) != MP_LT) {\n\n\nClamav has similar code as well in libclamav/bignum.c but is similar to that in silc-toolkit (looks identical).\n\nThe fix is to change \"ltm_prime_tab[t]\" to \"ltm_prime_tab[x]\".\n\nI also believe that having libtommath embedded in dropbear would be against our policies, so we should try to make dropbear use the system libtommath.  dropbear is not compiled static, so we should be able to make it use the system libtommath rather than its own internal copy.\n\n[1] http://bugs.gentoo.org/show_bug.cgi?id=328383\n[2] http://bugs.gentoo.org/show_bug.cgi?id=328409#c2"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3010324",
+						"comment_count": "1",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2010-07-15 21:51:02 +0000",
+						"thetext": "The CVSSv2 score is likely nonsense because I'm not sure what the full impact of this issue is.\n\nCan someone investigate whether it is possible to make dropbear link against the system libtommath?  That would be the ideal solution to fix dropbear, and then libtommath can be patched to correct this.\n\nI'm also going to ask upstream about this as well, and for clarification on the key issue as noted in the Gentoo report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3011255",
+						"comment_count": "2",
+						"who": {
+							"text": "buytenh",
+							"name": "Lennert Buytenhek"
+						},
+						"bug_when": "2010-07-16 08:31:52 +0000",
+						"thetext": "If either p or q is inadvertently composite, the computation of phi(n) as (p-1)(q-1) will likely be incorrect, and the computed decryption exponent as e^-1 mod (p-1)(q-1) will likely not satisfy d * e = 1 mod phi(n).\n\nI.e. there's a good chance that if p or q do happen to be composite numbers, the produced public and private keys will not be a valid key pair, and things encrypted with the public key will fail to decrypt with the private key.\n\n(If d = e^-1 mod (p-1)(q-1) does happen to also satisfy d * e = 1 mod phi(n), then you would have a valid key pair, but one that is weaker (i.e. one where n is not the product of two large primes that are similar in magnitude, which would make n easier to factor). I'll have to think a bit more about how likely this would be.)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3012774",
+						"comment_count": "3",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2010-07-16 18:30:09 +0000",
+						"thetext": "Ok, talking with upstream, the reasoning behind embedding libtommath in dropbear was because a lot of distros, at the time, did not ship libtommath.  He is going to be adding a compile argument to allow for it, and says that it should be fine to use system libtommath.\n\nHe also indicates that, while he is still investigating, he doesn't feel that key collisions are feasible since it is still generating random values, although it may be possible to determine the private key from the public key (although this is just theoretical speculation).\n\nAt any rate, updating libtommath with this fix and making dropbear use the system libtommath seems to be the way to proceed with this."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3038886",
+						"comment_count": "4",
+						"who": {
+							"text": "buytenh",
+							"name": "Lennert Buytenhek"
+						},
+						"bug_when": "2010-07-28 19:28:05 +0000",
+						"thetext": "Although I can't formally prove it, it seems unlikely that if p or q or both are composite you would end up with an actual valid public/private key pair.\n\nIn other words, I don't think one needs to worry about there being \"bad\" keys out there."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3040568",
+						"comment_count": "5",
+						"who": {
+							"text": "matt",
+							"name": "Matt Johnston"
+						},
+						"bug_when": "2010-07-29 12:18:00 +0000",
+						"thetext": "As a different measure I've generated 3.9 million Dropbear DSA keys over the past week and no bad primes were seen. I tested after each mp_prime_next_prime() call with mp_prime_is_prime(), the latter doesn't suffer from this bug.\n\nI would expect calculating the q parameter for DSA to be a lot more susceptible to prime generation failure since it is only a 160 bit value - it needs 18 rounds of Miller-Rabin versus 8 for RSA (512 bit minimum size).\n\nOf course that many key-generation iterations doesn't prove it isn't a problem, but it does suggest that it won't be a widespread issue to worry about.\n\nUsing the system libtommath/libtomcrypt for Dropbear won't work straight away due to symbol conflicts with \"rsa_key\" - it's straightforward to fix, hopefully will get a release out not too long.\n\nMatt\nDropbear developer"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6178681",
+						"comment_count": "6",
+						"who": {
+							"text": "i",
+							"name": "Christopher Meng"
+						},
+						"bug_when": "2013-08-05 05:18:12 +0000",
+						"thetext": "(In reply to Matt Johnston from comment #5)\nHi Matt,\n\nCan I use system libraries now?\n\nThanks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6187984",
+						"comment_count": "7",
+						"who": {
+							"text": "matt",
+							"name": "Matt Johnston"
+						},
+						"bug_when": "2013-08-07 00:54:29 +0000",
+						"thetext": "Dropbear 0.53 (Feb 2011) builds against system libtomcrypt/libtommath if available and also fixes the bundled libtommath. That is problematic on Fedora - it doesn't look like system libtommath ever got the fix for this bug?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6192695",
+						"comment_count": "8",
+						"who": {
+							"text": "i",
+							"name": "Christopher Meng"
+						},
+						"bug_when": "2013-08-08 02:52:19 +0000",
+						"thetext": "(In reply to Matt Johnston from comment #7)\n> Dropbear 0.53 (Feb 2011) builds against system libtomcrypt/libtommath if\n> available and also fixes the bundled libtommath. That is problematic on\n> Fedora - it doesn't look like system libtommath ever got the fix for this\n> bug?\n\nI have notified the maintainer of tommath, hope he will update it soon.\n\nThanks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6194738",
+						"comment_count": "9",
+						"who": {
+							"text": "negativo17",
+							"name": "Simone Caronni"
+						},
+						"bug_when": "2013-08-08 13:33:59 +0000",
+						"thetext": "Working on it, give me some time. I'm still struggling with all the latex/texlive/java issues after the mass rebuild."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6195270",
+						"comment_count": "10",
+						"who": {
+							"text": "negativo17",
+							"name": "Simone Caronni"
+						},
+						"bug_when": "2013-08-08 15:18:16 +0000",
+						"thetext": "libtommath is built, waiting on another component to release updates in updates-testing.\n\nI never noticed this bug, a bug on libtommath has never been opened. I will reference this in the update."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6222946",
+						"comment_count": "11",
+						"who": {
+							"text": "negativo17",
+							"name": "Simone Caronni"
+						},
+						"bug_when": "2013-08-19 07:23:19 +0000",
+						"thetext": "Update landed in stable for f18 and f19 (el6 pending); don't know why the ticket has not been closed by Bodhi:\n\nhttps://admin.fedoraproject.org/updates/FEDORA-2013-14482/libtommath-0.42.0-2.fc19,libtomcrypt-1.17-20.fc19\n\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2013-11179/libtommath-0.42.0-2.el6,libtomcrypt-1.17-20.el6\n\nhttps://admin.fedoraproject.org/updates/FEDORA-2013-14488/libtommath-0.42.0-2.fc18,libtomcrypt-1.17-20.fc18"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 994505,
+			"title": "New version request",
+			"bugzilla": {
+				"bug_id": "994505",
+				"creation_ts": "2013-08-07 12:18:11 +0000",
+				"short_desc": "New version request",
+				"delta_ts": "2013-08-31 19:17:45 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "urgent",
+				"bug_severity": "urgent",
+				"blocked": [
+					{
+						"bug_id": "615088",
+						"creation_ts": "2010-07-15 21:45:53 +0000",
+						"short_desc": "libtommath: weakness in mp_prime_next_prime()",
+						"delta_ts": "2019-09-29 12:37:35 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "CURRENTRELEASE",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"994505"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "3010310",
+								"comment_count": "0",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2010-07-15 21:45:53 +0000",
+								"thetext": "A bug in libtommath was reported to Gentoo [1] where the mp_prime_next_prime() is supposed to find the next prime number based on a given prime number.  The prime testing code has a bug and will test t times the same prime from ltm_prime_tab, resulting in potentially weaker prime testing.\n\nThe offset in ltm_prime_tab is supposed to be x (the incrementing value in the for loop), rather than t, which does not change.\n\n144       /* is this prime? */\n145       for (x = 0; x < t; x++) {\n146           mp_set(&b, ltm_prime_tab[t]);\n147           if ((err = mp_prime_miller_rabin(a, &b, &res)) != MP_OKAY) {\n148              goto LBL_ERR;\n149           }\n150           if (res == MP_NO) {\n151              break;\n152           }\n153       }\n\n\nlibtommath is also embedded in dropbear, which is an ssh server/client, and as a result may affect the integrity of generated keys (I don't know this for sure, but a comment in the Gentoo bz [2] implies this may be a problem, as upstream is considering the possibility).\n\nSimilar code exists in silc-toolkit's lib/silcmath/tma.c, but it properly uses x (silc-toolkit-1.0.2/lib/silcmath/tma.c):\n\n5602       for (x = PRIME_SIZE - 2; x >= 0; x--) {\n5603           if (mp_cmp_d(a, ltm_prime_tab[x]) != MP_LT) {\n\n\nClamav has similar code as well in libclamav/bignum.c but is similar to that in silc-toolkit (looks identical).\n\nThe fix is to change \"ltm_prime_tab[t]\" to \"ltm_prime_tab[x]\".\n\nI also believe that having libtommath embedded in dropbear would be against our policies, so we should try to make dropbear use the system libtommath.  dropbear is not compiled static, so we should be able to make it use the system libtommath rather than its own internal copy.\n\n[1] http://bugs.gentoo.org/show_bug.cgi?id=328383\n[2] http://bugs.gentoo.org/show_bug.cgi?id=328409#c2"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "3010324",
+								"comment_count": "1",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2010-07-15 21:51:02 +0000",
+								"thetext": "The CVSSv2 score is likely nonsense because I'm not sure what the full impact of this issue is.\n\nCan someone investigate whether it is possible to make dropbear link against the system libtommath?  That would be the ideal solution to fix dropbear, and then libtommath can be patched to correct this.\n\nI'm also going to ask upstream about this as well, and for clarification on the key issue as noted in the Gentoo report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "3011255",
+								"comment_count": "2",
+								"who": {
+									"text": "buytenh",
+									"name": "Lennert Buytenhek"
+								},
+								"bug_when": "2010-07-16 08:31:52 +0000",
+								"thetext": "If either p or q is inadvertently composite, the computation of phi(n) as (p-1)(q-1) will likely be incorrect, and the computed decryption exponent as e^-1 mod (p-1)(q-1) will likely not satisfy d * e = 1 mod phi(n).\n\nI.e. there's a good chance that if p or q do happen to be composite numbers, the produced public and private keys will not be a valid key pair, and things encrypted with the public key will fail to decrypt with the private key.\n\n(If d = e^-1 mod (p-1)(q-1) does happen to also satisfy d * e = 1 mod phi(n), then you would have a valid key pair, but one that is weaker (i.e. one where n is not the product of two large primes that are similar in magnitude, which would make n easier to factor). I'll have to think a bit more about how likely this would be.)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "3012774",
+								"comment_count": "3",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2010-07-16 18:30:09 +0000",
+								"thetext": "Ok, talking with upstream, the reasoning behind embedding libtommath in dropbear was because a lot of distros, at the time, did not ship libtommath.  He is going to be adding a compile argument to allow for it, and says that it should be fine to use system libtommath.\n\nHe also indicates that, while he is still investigating, he doesn't feel that key collisions are feasible since it is still generating random values, although it may be possible to determine the private key from the public key (although this is just theoretical speculation).\n\nAt any rate, updating libtommath with this fix and making dropbear use the system libtommath seems to be the way to proceed with this."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "3038886",
+								"comment_count": "4",
+								"who": {
+									"text": "buytenh",
+									"name": "Lennert Buytenhek"
+								},
+								"bug_when": "2010-07-28 19:28:05 +0000",
+								"thetext": "Although I can't formally prove it, it seems unlikely that if p or q or both are composite you would end up with an actual valid public/private key pair.\n\nIn other words, I don't think one needs to worry about there being \"bad\" keys out there."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "3040568",
+								"comment_count": "5",
+								"who": {
+									"text": "matt",
+									"name": "Matt Johnston"
+								},
+								"bug_when": "2010-07-29 12:18:00 +0000",
+								"thetext": "As a different measure I've generated 3.9 million Dropbear DSA keys over the past week and no bad primes were seen. I tested after each mp_prime_next_prime() call with mp_prime_is_prime(), the latter doesn't suffer from this bug.\n\nI would expect calculating the q parameter for DSA to be a lot more susceptible to prime generation failure since it is only a 160 bit value - it needs 18 rounds of Miller-Rabin versus 8 for RSA (512 bit minimum size).\n\nOf course that many key-generation iterations doesn't prove it isn't a problem, but it does suggest that it won't be a widespread issue to worry about.\n\nUsing the system libtommath/libtomcrypt for Dropbear won't work straight away due to symbol conflicts with \"rsa_key\" - it's straightforward to fix, hopefully will get a release out not too long.\n\nMatt\nDropbear developer"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6178681",
+								"comment_count": "6",
+								"who": {
+									"text": "i",
+									"name": "Christopher Meng"
+								},
+								"bug_when": "2013-08-05 05:18:12 +0000",
+								"thetext": "(In reply to Matt Johnston from comment #5)\nHi Matt,\n\nCan I use system libraries now?\n\nThanks."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6187984",
+								"comment_count": "7",
+								"who": {
+									"text": "matt",
+									"name": "Matt Johnston"
+								},
+								"bug_when": "2013-08-07 00:54:29 +0000",
+								"thetext": "Dropbear 0.53 (Feb 2011) builds against system libtomcrypt/libtommath if available and also fixes the bundled libtommath. That is problematic on Fedora - it doesn't look like system libtommath ever got the fix for this bug?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6192695",
+								"comment_count": "8",
+								"who": {
+									"text": "i",
+									"name": "Christopher Meng"
+								},
+								"bug_when": "2013-08-08 02:52:19 +0000",
+								"thetext": "(In reply to Matt Johnston from comment #7)\n> Dropbear 0.53 (Feb 2011) builds against system libtomcrypt/libtommath if\n> available and also fixes the bundled libtommath. That is problematic on\n> Fedora - it doesn't look like system libtommath ever got the fix for this\n> bug?\n\nI have notified the maintainer of tommath, hope he will update it soon.\n\nThanks."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6194738",
+								"comment_count": "9",
+								"who": {
+									"text": "negativo17",
+									"name": "Simone Caronni"
+								},
+								"bug_when": "2013-08-08 13:33:59 +0000",
+								"thetext": "Working on it, give me some time. I'm still struggling with all the latex/texlive/java issues after the mass rebuild."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6195270",
+								"comment_count": "10",
+								"who": {
+									"text": "negativo17",
+									"name": "Simone Caronni"
+								},
+								"bug_when": "2013-08-08 15:18:16 +0000",
+								"thetext": "libtommath is built, waiting on another component to release updates in updates-testing.\n\nI never noticed this bug, a bug on libtommath has never been opened. I will reference this in the update."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6222946",
+								"comment_count": "11",
+								"who": {
+									"text": "negativo17",
+									"name": "Simone Caronni"
+								},
+								"bug_when": "2013-08-19 07:23:19 +0000",
+								"thetext": "Update landed in stable for f18 and f19 (el6 pending); don't know why the ticket has not been closed by Bodhi:\n\nhttps://admin.fedoraproject.org/updates/FEDORA-2013-14482/libtommath-0.42.0-2.fc19,libtomcrypt-1.17-20.fc19\n\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2013-11179/libtommath-0.42.0-2.el6,libtomcrypt-1.17-20.el6\n\nhttps://admin.fedoraproject.org/updates/FEDORA-2013-14488/libtommath-0.42.0-2.fc18,libtomcrypt-1.17-20.fc18"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6190190",
+						"comment_count": "0",
+						"who": {
+							"text": "i",
+							"name": "Christopher Meng"
+						},
+						"bug_when": "2013-08-07 12:18:11 +0000",
+						"thetext": "I need to unbundle dropbear bundled libraries.\n\nPlease update to the latest for all branches. 0.42 contains a CVE fix."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6195179",
+						"comment_count": "1",
+						"who": {
+							"text": "negativo17",
+							"name": "Simone Caronni"
+						},
+						"bug_when": "2013-08-08 14:58:16 +0000",
+						"thetext": "libtommath has been built, waiting on another component and will push updates for all branches."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6195317",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-08-08 15:29:17 +0000",
+						"thetext": "libtommath-0.42.0-2.el6,libtomcrypt-1.17-20.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/libtommath-0.42.0-2.el6,libtomcrypt-1.17-20.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6195320",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-08-08 15:29:46 +0000",
+						"thetext": "libtommath-0.42.0-2.fc18,libtomcrypt-1.17-20.fc18 has been submitted as an update for Fedora 18.\nhttps://admin.fedoraproject.org/updates/libtommath-0.42.0-2.fc18,libtomcrypt-1.17-20.fc18"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6195323",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-08-08 15:30:20 +0000",
+						"thetext": "libtommath-0.42.0-2.fc19,libtomcrypt-1.17-20.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/libtommath-0.42.0-2.fc19,libtomcrypt-1.17-20.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6196628",
+						"comment_count": "5",
+						"who": {
+							"text": "i",
+							"name": "Christopher Meng"
+						},
+						"bug_when": "2013-08-09 01:02:03 +0000",
+						"thetext": "Yeah, if you can change stable karma to 1 I can push them to stable today.\n\nBut you didn't."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6197420",
+						"comment_count": "6",
+						"who": {
+							"text": "negativo17",
+							"name": "Simone Caronni"
+						},
+						"bug_when": "2013-08-09 07:19:41 +0000",
+						"thetext": "Can you test all branches?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6197751",
+						"comment_count": "7",
+						"who": {
+							"text": "i",
+							"name": "Christopher Meng"
+						},
+						"bug_when": "2013-08-09 09:00:46 +0000",
+						"thetext": "I can test f19 and el6.\n\ndropbear need its latest version, which was released almost 3 years ago. I tihnk there should have no problem."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6199227",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-08-09 17:06:07 +0000",
+						"thetext": "Package libtommath-0.42.0-2.fc19, libtomcrypt-1.17-20.fc19:\n* should fix your issue,\n* was pushed to the Fedora 19 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing libtommath-0.42.0-2.fc19 libtomcrypt-1.17-20.fc19'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2013-14482/libtommath-0.42.0-2.fc19,libtomcrypt-1.17-20.fc19\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6209729",
+						"comment_count": "9",
+						"who": {
+							"text": "i",
+							"name": "Christopher Meng"
+						},
+						"bug_when": "2013-08-14 04:22:00 +0000",
+						"thetext": "Hi,\n\nI don't know how you installed the headers, comparing with Debian I found this library has different location.\n\nhttp://pkgs.org/debian-sid/debian-main-amd64/libtommath-dev_0.42.0-1_amd64.deb.html\n\nhttp://pkgs.org/fedora-rawhide/fedora-i386/libtommath-devel-0.42.0-2.fc20.i686.rpm.html\n\nAnd because dropbear author develops software under non-Fedora OS, and since this library is not used by any other softwares in Fedora, will you change the location?\n\nIf not I will write patches again..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6222030",
+						"comment_count": "10",
+						"who": {
+							"text": "negativo17",
+							"name": "Simone Caronni"
+						},
+						"bug_when": "2013-08-18 18:04:26 +0000",
+						"thetext": "(In reply to Christopher Meng from comment #9)\n> And because dropbear author develops software under non-Fedora OS, and since\n> this library is not used by any other softwares in Fedora, will you change\n> the location?\n\nI inherited ownership of the working package a couple of months ago so I did not made any bug change to it. I don't see any problem in this, I just need to simplify the spec file; both tommath and tomcrypt have very specific prefixes in header files."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6222036",
+						"comment_count": "11",
+						"who": {
+							"text": "negativo17",
+							"name": "Simone Caronni"
+						},
+						"bug_when": "2013-08-18 18:17:15 +0000",
+						"thetext": "(In reply to Simone Caronni from comment #10)\n> not made any bug change to it.\n\n*big* change, sorry."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6222216",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-08-18 21:30:07 +0000",
+						"thetext": "libtommath-0.42.0-2.fc18, libtomcrypt-1.17-20.fc18 has been pushed to the Fedora 18 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6222264",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-08-18 21:38:26 +0000",
+						"thetext": "libtommath-0.42.0-2.fc19, libtomcrypt-1.17-20.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6263064",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-08-31 19:17:45 +0000",
+						"thetext": "libtommath-0.42.0-2.el6, libtomcrypt-1.17-20.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "libtomcrypt-1.17-20.el6",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"i686": [
+					{
+						"name": "libtomcrypt-devel",
+						"version": "1.17",
+						"release": "20.el6",
+						"arch": "i686"
+					},
+					{
+						"name": "libtomcrypt",
+						"version": "1.17",
+						"release": "20.el6",
+						"arch": "i686"
+					},
+					{
+						"name": "libtomcrypt-debuginfo",
+						"version": "1.17",
+						"release": "20.el6",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "libtomcrypt-doc",
+						"version": "1.17",
+						"release": "20.el6",
+						"arch": "noarch"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "libtomcrypt",
+						"version": "1.17",
+						"release": "20.el6",
+						"arch": "ppc64"
+					},
+					{
+						"name": "libtomcrypt-debuginfo",
+						"version": "1.17",
+						"release": "20.el6",
+						"arch": "ppc64"
+					},
+					{
+						"name": "libtomcrypt-devel",
+						"version": "1.17",
+						"release": "20.el6",
+						"arch": "ppc64"
+					}
+				],
+				"src": [
+					{
+						"name": "libtomcrypt",
+						"version": "1.17",
+						"release": "20.el6",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "libtomcrypt-debuginfo",
+						"version": "1.17",
+						"release": "20.el6",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libtomcrypt",
+						"version": "1.17",
+						"release": "20.el6",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libtomcrypt-devel",
+						"version": "1.17",
+						"release": "20.el6",
+						"arch": "x86_64"
+					}
+				]
+			}
+		},
+		{
+			"epoch": 0,
+			"nvr": "libtommath-0.42.0-2.el6",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"i686": [
+					{
+						"name": "libtommath",
+						"version": "0.42.0",
+						"release": "2.el6",
+						"arch": "i686"
+					},
+					{
+						"name": "libtommath-debuginfo",
+						"version": "0.42.0",
+						"release": "2.el6",
+						"arch": "i686"
+					},
+					{
+						"name": "libtommath-devel",
+						"version": "0.42.0",
+						"release": "2.el6",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "libtommath-doc",
+						"version": "0.42.0",
+						"release": "2.el6",
+						"arch": "noarch"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "libtommath-debuginfo",
+						"version": "0.42.0",
+						"release": "2.el6",
+						"arch": "ppc64"
+					},
+					{
+						"name": "libtommath",
+						"version": "0.42.0",
+						"release": "2.el6",
+						"arch": "ppc64"
+					},
+					{
+						"name": "libtommath-devel",
+						"version": "0.42.0",
+						"release": "2.el6",
+						"arch": "ppc64"
+					}
+				],
+				"src": [
+					{
+						"name": "libtommath",
+						"version": "0.42.0",
+						"release": "2.el6",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "libtommath-debuginfo",
+						"version": "0.42.0",
+						"release": "2.el6",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libtommath",
+						"version": "0.42.0",
+						"release": "2.el6",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libtommath-devel",
+						"version": "0.42.0",
+						"release": "2.el6",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 50092,
+			"text": "This update has been submitted for testing by slaanesh. ",
+			"timestamp": "2013-08-08 15:29:24",
+			"update_id": 7184,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 50093,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 testing updates repository.",
+			"timestamp": "2013-08-14 16:22:33",
+			"update_id": 7184,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 50094,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 testing updates repository.",
+			"timestamp": "2013-08-14 16:38:54",
+			"update_id": 7184,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 50095,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 testing updates repository.",
+			"timestamp": "2013-08-14 16:46:17",
+			"update_id": 7184,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 50096,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2013-08-16 17:06:26",
+			"update_id": 7184,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 50097,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2013-08-30 22:06:07",
+			"update_id": 7184,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 50098,
+			"text": "This update has been submitted for stable by slaanesh. ",
+			"timestamp": "2013-08-31 12:57:59",
+			"update_id": 7184,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 50099,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 stable updates repository.",
+			"timestamp": "2013-08-31 16:56:10",
+			"update_id": 7184,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 50100,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2013-08-31 19:17:53",
+			"update_id": 7184,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2013-08-09 11:40:09",
+	"date_pushed": "2013-08-31 19:17:53",
+	"date_stable": "2013-08-31 19:17:53",
+	"date_submitted": "2013-08-08 15:28:49",
+	"date_testing": "2013-08-16 17:06:26",
+	"meets_testing_requirements": true,
+	"notes": "Fixes a bug in mp_prime_next_prime(); makes the doc package noarch.",
+	"pushed": true,
+	"release": {
+		"branch": "el6",
+		"candidate_tag": "dist-6E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "dist-6E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 6",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-6",
+		"override_tag": "dist-6E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-6E-epel",
+		"state": "archived",
+		"testing_tag": "dist-6E-epel-testing",
+		"version": "6"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "libtomcrypt-1.17-20.el6 libtommath-0.42.0-2.el6",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2013-11179",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2013-11179",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/a1a8fe8861a82eb339018627585385dc75a3a37dcbd05a0ec41a251e462d0c59?s=24&d=retro",
+		"email": "negativo17@gmail.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 443,
+		"name": "slaanesh",
+		"openid": "slaanesh.id.fedoraproject.org"
+	},
+	"version_hash": "42f44bfff8a0f4d29f333fcc49fd565b861ca1fb"
+}

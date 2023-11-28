@@ -1,0 +1,335 @@
+{
+	"alias": "FEDORA-2022-dbb274913a",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2048630,
+			"security": true,
+			"title": "CVE-2021-43310 CVE-2022-23948 CVE-2022-23949 CVE-2022-23950 CVE-2022-23951 CVE-2022-23952 keylime: Multiple security vulnerabilities fixed in keylime 6.3.x [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2048630",
+				"creation_ts": "2022-01-31 16:11:00 +0000",
+				"short_desc": "CVE-2021-43310 CVE-2022-23948 CVE-2022-23949 CVE-2022-23950 CVE-2022-23951 CVE-2022-23952 keylime: Multiple security vulnerabilities fixed in keylime 6.3.x [fedora-all]",
+				"delta_ts": "2022-02-04 01:22:27 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "2048629",
+						"alias": "CVE-2022-23952",
+						"creation_ts": "2022-01-31 16:10:55 +0000",
+						"short_desc": "CVE-2021-43310 CVE-2022-23948 CVE-2022-23949 CVE-2022-23950 CVE-2022-23951 CVE-2022-23952 keylime: Multiple security vulnerabilities fixed in keylime 6.3.x",
+						"delta_ts": "2022-01-31 17:01:03 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "UPSTREAM",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"2048630"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "15903275",
+								"comment_count": "0",
+								"who": {
+									"text": "psampaio",
+									"name": "Pedro Sampaio"
+								},
+								"bug_when": "2022-01-31 16:10:55 +0000",
+								"thetext": "From OSS-security:\n\nHello list,\n\nI have been reviewing the Keylime TPM remote attestation solution [1]\nwhich resulted in a number of security related findings, including an\narbitrary remote code execution in the Keylime Agent component. The\nupstream project published security advisories, fixes and an update\nstrategy to Keylime version 6.3.X today. Please find the details in the\nfollowing full report:\n\n1) Scope of Review\n==================\n\nI've been looking into the four main components of Keylime: the Agent,\nRegistrar, Verifier and Tenant applications. I have been looking into\nversion 6.2.0. Any source code locations mentioned in this report relate\nto this version.\n\n2) Findings in the Agent Component\n==================================\n\na) `check_mounted()` Function Logic can be Fooled by Unprivileged Mounts (CVE-2022-23948)\n-----------------------------------------------------------------------------------------\n\nThe `check_mounted()` function in `secure_mount.py` attempts to make\nsure that a \"secure\" tmpfs is mounted at `/var/lib/keylime/secure` to\nstore sensitive data on that never gets written to disk. To do so the\nfunction parses the output of the `mount` utility to determine whether\nthis file system is already mounted at the desired location.\n\nThere can exist the possibility of unprivileged users performing certain\nmount operations, one of the most prominent examples being the\n`fusermount` setuid-root binary for mounting FUSE file systems. In view\nof this, parsing mount table output needs prudence. I described the\nbasic issue previously already in another report [2].\n\nThe following is a reproducer using `fusermount` that shows the basic local\nattack vector:\n\n    user$ export _FUSE_COMMFD=0\n    user$ fusermount some/path/ -ononempty,fsname=\"tmpfs on /var/lib/keylime/secure\"\n\nThis will fool the parsing logic in `check_mounted()` and thus the\nfunction assumes that the \"secure\" tmpfs is already mounted, while it\nactually isn't.  Thus this will allow a local attacker on the system to\nprevent this security feature to be effective, *if* the local attacker\nmanages to create such a mount entry before the `keylime_agent` is\nstarting up.\n\nThe attack vector can also be used to perform a local DoS against\n`keylime_agent` by claiming a different `fsname` than tmpfs.\n`check_mounted()` will throw an Exception in this case and the Agent\nwon't start.\n\nOn a side note there are calls to `secure_mount.mount()` spread\nthroughout the Keylime codebase (for example three times in\n`keylime_agent.py`, two times in `tpm_main.py` and two times in\n`ca_impl_cfssl.py`. There is no code to *clean up* this mount again,\nhowever. So it potentially leaves behind a stale mount after services\nare shutdown. Furthermore, if multiple Keylime processes should operate\nin parallel this could result in a race condition where the \"secure\"\ntmpfs is mounted twice, in the worst case mounting a fresh tmpfs over\npreviously stored content there.\n\nMy recommendation is to parse the `/proc/self/mountinfo` pseudo file for\nmount table information instead. Whitespace is specially encoded in this\nfile. Furthermore the responsibility of mounting and unmounting this\nfile system should be more clearly defined during startup/shutdown of\nprocesses and maybe a reference counting / locking scheme to prevent\nrace conditions should be used.\n\n### Upstream Security Advisory\n\nhttps://github.com/keylime/keylime/security/advisories/GHSA-wj36-qcfg-5j52\n\n### Upstream Fixes\n\nhttps://github.com/keylime/keylime/commit/1a4f31a6368d651222683c9debe7d6832db6f607\nhttps://github.com/keylime/keylime/commit/d37c406e69cb6689baa2fb7964bad75209703724\n\nb) Possible Information Leaks via Unauthenticated Agent Quote Interface\n-----------------------------------------------------------------------\n\nA TPM quote can be requested without authentication from the Agent service via\nthe network:\n\n    $ curl \"keyagent-host:9002/?api_version=500\"es=myquote&nonce=mynonce\"\n    {\n        \"code\": 200,\n        \"status\": \"Success\",\n        \"results\": {\n            \"quote\": <base64-data>, \"hash_alg\": \"sha256\", \"enc_alg\": \"rsa\", \"sign_alg\": \"rsassa\",\n            \"pubkey\": <PEM key>\", \"boottime\": 1639999864\n        }\n    }\n\nThis exposes for example the *boottime* of the host where the Agent is\nrunning, information that is not otherwise easily publicly available.\nFurthermore: Could the contents of the TPM quote data also be\ninteresting data? Could it for example allow deductions about which kind\nof operating system kernel is running on the host?\n\nI recommend to somehow authenticate and cryptographically secure this\nAgent interface to prevent information leaks of this kind.\n\n### Upstream Fixes\n\nThis issue did not receive a dedicated CVE and fix. It is covered\ntogether with the following issue 2.c).\n\nc) Arbitrary Remote Code Execution in the Agent via Unauthenticated Bootstrap Interface (CVE-2021-43310)\n--------------------------------------------------------------------------------------------------------\n\nNote that this issue has been discovered in parallel also by Thore\nSommer, a Keylime upstream developer.\n\nIt looks like it is possible to simply post arbitrary new values for the\nU and V key parts and provide a new configuration payload to the Agent,\nonly knowing the Agent's UUID. The Agent's UUID can be public or\nsemi-public information like when `agent_uuid=hostname` is configured.\nFrom the Keylime paper [3] (section 3.2.2) it sounds like the UUID HMAC\ncheck is not considered a security feature but only a sanity check:\n\n> This provides the node with a quick check to determine if Kb is correct.\n\nWhen `extract_payload_script=true` (default) and\n`payload_script=autorun.sh` (default) are configured in `keylime.conf`\nthen the provided payload will be unzipped and a potentially contained\n`autorun.sh` script is executed with full root privileges. Attached you\ncan find a reproducer script `post_key.py` that demonstrates the issue\nby creating a file `/tmp/evil` on the Agent host by only providing the\nAgent hostname and UUID as input parameters.\n\nEven if `payload_script` is disabled then the extraction of a ZIP file\nas _root_ might result in a remote root exploit by extracting files\noutside of the intended target directory. I did not test this variant of\nthe attack vector, though. Furthermore by providing a ZIP bomb as\npayload the Agent process can be subjected to a remote DoS through\nmemory exhaustion.\n\nRetrieving the full symmetric key previously stored in\n`/var/lib/keylime/secure/derived_tci_key` should not be possible this\nway, because when performing the bootstrap protocol, the previous data\nis removed in `keylime_agent.py:242`. A skillful attacker might attempt\nto first compromise the Agent node and then wait for the Tenant to\nre-deploy the Agent using authentic keys and payload. Should this\nsucceed then the attacker can obtain the secret symmetric key from the\ncompromised Agent node after all.\n\nSimilar to issue b) I recommend to somehow authenticate and\ncryptographically secure this Agent interface to prevent these attacks.\nAs a hotfix disabling the relevant configuration features should at\nleast prevent the remote code execution and memory exhaustion attack\nvectors. Setting non-predictable UUID values can also help (but one\nshould also consider item 3.a in this context).  Even then this\ninterface still allows to disrupt the operational state of the Agent\nhost by simply overwriting its current configuration.\n\n### Upstream Security Advisory\n\nhttps://github.com/keylime/keylime/security/advisories/GHSA-2m39-75g9-ff5r\n\n### Upstream Fixes\n\nThe fix consists of a larger number of upstream commits regarding\nintroduction of \"mTLS\" for the Agent interface. This means the\nconnection towards the Agent will in the future be cryptographically\nsecured and thus only trusted actors can use the Agent interface.\n\nThe upgrade path is a bit complicated because of this (see upstream\nadvisory).  Upstream version 6.3.X will introduce the new mTLS support\nbut not enforce it, to allow upgrading of all Keylime components on all\nnodes. Only upstream version 6.4.x will enforce the new protocol.\n\nd) Key Exchange and Bootstrap Protocol Susceptible to Replay Attacks\n--------------------------------------------------------------------\n\nAuthentic payloads being passed from the Tenant to the Agent should be\nreasonably safe from attackers (when not considering issue c)), since\nthe two halves of the symmetric key are encrypted using the per-agent\nnode RSA public key. The bootstrap protocol seems to be susceptible to\ncertain replay attacks, however. Since the interface does not employ\ntransport security, the bootstrap protocol can simply be recorded and\nreplayed to activate an authentic configuration payload. This could e.g.\nbe used by an attacker to activate an outdated or even insecure older\nconfiguration of the Agent node.\n\n### Upstream Fixes\n\nThis issue did not receive a dedicated CVE and fix. It is covered\ntogether with the previous issue 2.c).\n\n3) Findings in the Registrar Component\n======================================\n\na) UUID of Agents is Received on Unprotected HTTP Interface\n-----------------------------------------------------------\n\nThe Registrar provides two separate HTTP interfaces, a TLS protected one\nand an unprotected one. Part of the unprotected interface is the Agent\nregistration.  As part of the Agent registration the Agent UUID is\npassed unencrypted (processed in `registrar_common.py:229`).\n\nThis is not a security issue in its own but relates to issue 2.c where\nthe knowledge of the UUID facilitates remote code execution on the Agent\nnodes.  This means if an attacker can listen in on the Registrar's Agent\nregistration communication then even unpredictable Agent UUIDs no longer\nhinder the attack described in issue 2.c).\n\nAs outlined in 2.c) the UUID does not seem to have been thought of as a\nsecurity property in the first place so I see no urge to change anything\nhere. Although when the bootstrap protocol should get TLS protection\nthen for completeness it could also make sense to protect this Registrar\ninterface as well the same way.\n\n### Upstream Fixes\n\nThis specific aspect is covered by the following commit:\n\nhttps://github.com/keylime/keylime/commit/e5f033c66403a899685b81a3af03cd59f76e455f\n\nThere is no dedicated CVE but it is covered together with the\noverarching introduction of mTLS as outlined in issue 2.c).\n\nb) Unsanitized UUID passed on Unprotected HTTP Interface Facilitates Log Spoofing (CVE-2022-23949)\n--------------------------------------------------------------------------------------------------\n\nSince the Registrar's unprotected HTTP interface requires no\nauthentication, anybody can post arbitrary Agent registrations with\narbitrary parameters. The Agent ID (UUID) parameter is not sanitized in\nany way and is used unfiltered in log messages (e.g.\n`registrar_common.py:107`).\n\nAs a result the Agent ID parameter can be used to inject seemingly valid\nadditional log lines that appear e.g. in `journalctl -u\nkeylime_registrar.service`. The attached reproducer script\n`post_agent.py` can be used to demonstrate this:\n\n    $ ./post_agent.py --host registrar-host --log-line \"Please run rm -rf /* to protect your system\"\n\nIn the journal we will then see:\n\n    Dec 21 11:44:22 registrar-host keylime_registrar[1426]: 2021-12-21 11:44:22.281 - keylime.registrar - WARNING - POST for trusted-agent\n    Dec 21 11:44:22 registrar-host keylime_registrar[1426]: 2021-12-21 11:44:22.931 - keylime.registrar - WARNING - Please run rm -rf /* to protect your system\n    Dec 21 11:44:22 registrar-host keylime_registrar[1426]: 2021-12-21 11:44:22.940 - keylime.registrar - DEBUG - returning 400 response. [...]\n\nSuch log spoofing could be used to entice Administrators to perform\nactions that can be harmful or otherwise in the interest of an attacker.\n\nMy recommendation is on the one hand to diligently sanitize untrusted\ninput parameters. On the other hand it might make sense to authenticate\nthis currently untrusted interface.\n\n### Upstream Advisory\n\nhttps://github.com/keylime/keylime/security/advisories/GHSA-87gh-qc28-j9mm\n\n### Upstream Fixes\n\nThe UUID sanitazion is introduced via these commits:\n\nhttps://github.com/keylime/keylime/commit/387e320dc22c89f4f47c68cb37eb9eec2137f34b\nhttps://github.com/keylime/keylime/commit/e429e95329fc60608713ddfb82f4a92ee3b3d2d9\nhttps://github.com/keylime/keylime/commit/65c2b737129b5837f4a03660aeb1191ced275a57\n\nOtherwise the introduction of mTLS as outlined in issues 3.a) and 2.c)\nfurther protect this.\n\n4) Findings in the Verifier Component\n=====================================\n\na) Revocation Notifier Uses Fixed /tmp Path for UNIX Domain Socket (CVE-2022-23950)\n-----------------------------------------------------------------------------------\n\nIn *revocation_notifier.py* a fixed path in the world writable location\n*/tmp/keylime.verifier.ipc* is used. The code (in this case the third\nparty `zeromq` Python module) forcefully removes any file object found\nthere earlier.  Should the program be running as non-root, or if another\nlocal user simply places a *directory* at this location, then this\nserves as a local DoS attack against the revocation notifier process,\nbecause the socket cannot be created.\n\nThis situation doesn't even seem to be noticed by the Verifier main\nprocess, because the child process `broker_proc` is never waited on.\nThis means that the local attacker could even replace the \"blocking\"\ndirectory by his own UNIX domain socket later on and will then receive\nrevocation events from invocations of the `notify()` function in the\nmain Verifier process.  The full impact of this would have to be\nresearched further. It looks like failed quote notifications would\nlonger be sent out.\n\nI recommend to place UNIX domains sockets in a dedicated safe directory\nin /run that cannot be staged with attacks by other local users in the\nsystem.\n\n### Upstream Advisory\n\nhttps://github.com/keylime/keylime/security/advisories/GHSA-9r9r-f8xc-m875\n\n### Upstream Fixes\n\nThis fix places the socket into a private /run/keylime directory:\n\nhttps://github.com/keylime/keylime/commit/ea5d0373fa2c050d5d95404eb779be7e8327b911\n\nb) Get Quote Response Contains Possibly Untrusted ZIP Data (CVE-2022-23951)\n---------------------------------------------------------------------------\n\nThe Verifier process periodically performs quote operations on\nregistered Agents. As part of this `process_quote_response()` is called\nand furthermore `check_quote()` and finally `_tpm2_checkquote()`. In\n`tpm_main.py:1018` a couple of ZIP data streams are uncompressed via\n`zlib.decompress()`.\n\nSince this is processing possibly untrusted data - the Verifier is\nattempting to verify the current trust status of the node after all - it\nneeds to be assumed that malicous data can also be supplied here.\n\nTherefore the question arises whether `zlib.decompress()` is robust\nagainst processing invalid ZIP data streams. One thing I already found\nout is that it is not robust against delivering ZIP bombs that will\ncause a memory exhaustion in the Verifier process.\n\nThis finding also is valid similarly for all other Keylime interface\nthat process ZIP data, like in the Agent.\n\n### Upstream Advisory\n\nhttps://github.com/keylime/keylime/security/advisories/GHSA-6xx7-m45w-76m2\n\n### Upstream Fixes\n\nThis fix simply removes the ZIP compression from the Verifier interface:\n\nhttps://github.com/keylime/keylime/commit/6e44758b64b0ee13564fc46e807f4ba98091c355\n\n5) General Findings\n===================\n\nThis section contains findings that apply to all keylime components\nalike.\n\na) World-Readable keylime.conf Contains Potentially Sensitive Data (CVE-2022-23952)\n-----------------------------------------------------------------------------------\n\nThe configuration `/etc/keylime.conf` is installed world-readable:\n\n    $ ls -l /etc/keylime.conf\n    -rw-r--r-- 1 root root 26770 Dec 16 14:54 /etc/keylime.conf\n\nThis is the case for installations performed manually via the provided\n`installer.sh` script as well as for the RPM packaging found in both\nopenSUSE Tumbleweed and Fedora 35 Linux distributions. Further\ndistributions might be affected.\n\n`keylime.conf` contains a lot of information, some of it sensitive like\nthe TPM ownership password (`tpm_ownerpassword`), TLS certificate\nprivate key passwords (`private_key_pw`, `registrar_private_key_pw`) or\nthe database password for the Registrar (`database_password`). Thus this\nis a local information leak, because arbitrary local users can obtain\nthese passwords from the configuration file.\n\nMy recommendation is to make this file only accessible to _root_ and\nadjust all installation routines and possibly documentation. The Keylime\ncode could perform a sanity check of the permissions of the\nconfiguration file before reading it in.\n\n### Upstream Advisory\n\nhttps://github.com/keylime/keylime/security/advisories/GHSA-fchm-5w2v-qfm8\n\n### Upstream Fixes\n\nThe following fix explicitly sets the permissions for the configuration\nfile in the installer:\n\nhttps://github.com/keylime/keylime/commit/883085d6a4bcea3012729014d5b8e15ecd65fc7c\n\nb) Lack of Privilege Separation\n-------------------------------\n\nAll keylime services are currently designed to run as root all the time\n(except for testing purposes, see `REQUIRE_ROOT` in `config.py`). Only\nfew bits of the keylime components actually should need root privileges.\nMost notably the bootstrapping scripts in the Agent component or the\nability to bind privileged ports.\n\nImplementing a privilege separation approach would increase the defense\nin depth for keylime considerably, avoiding smaller security issues to\nbecome severe fast.\n\n### Upstream Statement\n\nKeylime upstream states that it is already possible to run Keylime as\nnon-root. The `REQUIRE_ROOT` bits are not strictly necessary any more\nand can be removed from the code. The Debian packaging already makes use\nof the privilege separation.\n\n6) Timeline\n===========\n\n2021-12-09: I started the review on the code\n2021-12-23: I contacted the upstream security contact and upstream\n\t    developer Thore Sommer privately by email and provided them\n\t    the report results, offering coordinates disclosure.\n2022-01-04: Upstream confirmed most of my findings and work on the fixes\n\t    began. Alberto Planas, a SUSE colleague and maintainer of\n\t    the SUSE Keylime packaging also contributed some fixes.\n2022-01-28: Publication of the security advisories and fixes by upstream\n\t    took place. Upstream also discovered some further security\n\t    issues themselves in the meanwhile.\n\n[1]: https://github.com/keylime/keylime\n[2]: https://www.openwall.com/lists/oss-security/2020/06/04/5\n[3]: https://www.ll.mit.edu/sites/default/files/publication/doc/2018-04/2016_12_07_SchearN_ACSAC_FP.pdf\n\nCheers\n\nMatthias"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15903278",
+								"comment_count": "1",
+								"who": {
+									"text": "psampaio",
+									"name": "Pedro Sampaio"
+								},
+								"bug_when": "2022-01-31 16:11:08 +0000",
+								"thetext": "Created keylime tracking bugs for this issue:\n\nAffects: fedora-all [bug 2048630]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15903496",
+								"comment_count": "2",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2022-01-31 17:01:02 +0000",
+								"thetext": "This CVE Bugzilla entry is for community support informational purposes only as it does not affect a package in a commercially supported Red Hat product. Refer to the dependent bugs for status of those individual community products."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "15903276",
+						"comment_count": "0",
+						"who": {
+							"text": "psampaio",
+							"name": "Pedro Sampaio"
+						},
+						"bug_when": "2022-01-31 16:11:00 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15903277",
+						"comment_count": "1",
+						"who": {
+							"text": "psampaio",
+							"name": "Pedro Sampaio"
+						},
+						"bug_when": "2022-01-31 16:11:02 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=high\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2048629,2048630\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15903991",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-01-31 18:34:42 +0000",
+						"thetext": "FEDORA-2022-5770dad5f8 has been submitted as an update to Fedora 35. https://bodhi.fedoraproject.org/updates/FEDORA-2022-5770dad5f8"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15903997",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-01-31 18:37:13 +0000",
+						"thetext": "FEDORA-2022-dbb274913a has been submitted as an update to Fedora 34. https://bodhi.fedoraproject.org/updates/FEDORA-2022-dbb274913a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15920489",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-02-04 01:22:24 +0000",
+						"thetext": "FEDORA-2022-5770dad5f8 has been pushed to the Fedora 35 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15920491",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-02-04 01:22:27 +0000",
+						"thetext": "FEDORA-2022-dbb274913a has been pushed to the Fedora 34 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "keylime-6.3.0-2.fc34",
+			"release_id": 47,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "keylime",
+						"version": "6.3.0",
+						"release": "2.fc34",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "keylime",
+						"version": "6.3.0",
+						"release": "2.fc34",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 2382528,
+			"text": "This update has been submitted for testing by scorreia. ",
+			"timestamp": "2022-01-27 17:42:55",
+			"update_id": 374584,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2382529,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2022-01-27 17:42:56",
+			"update_id": 374584,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2382531,
+			"text": "scorreia edited this update.",
+			"timestamp": "2022-01-27 17:43:23",
+			"update_id": 374584,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2383221,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2022-01-27 22:34:20",
+			"update_id": 374584,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2387987,
+			"text": "scorreia edited this update.",
+			"timestamp": "2022-01-31 18:37:10",
+			"update_id": 374584,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2392513,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2022-02-03 22:34:46",
+			"update_id": 374584,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2392835,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2022-02-04 01:22:52",
+			"update_id": 374584,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2022-01-31 18:37:10",
+	"date_pushed": "2022-02-04 01:20:59",
+	"date_stable": "2022-02-04 01:20:59",
+	"date_submitted": "2022-01-27 17:42:55",
+	"date_testing": "2022-01-27 22:32:41",
+	"meets_testing_requirements": true,
+	"notes": "Update to keylime v6.3.0\n\nFixes the following security advisories:\n\n  - https://github.com/keylime/keylime/security/advisories/GHSA-2m39-75g9-ff5r\n  - https://github.com/keylime/keylime/security/advisories/GHSA-wj36-qcfg-5j52\n  - https://github.com/keylime/keylime/security/advisories/GHSA-87gh-qc28-j9mm\n  - https://github.com/keylime/keylime/security/advisories/GHSA-9r9r-f8xc-m875\n  - https://github.com/keylime/keylime/security/advisories/GHSA-6xx7-m45w-76m2\n\n",
+	"pushed": true,
+	"release": {
+		"branch": "f34",
+		"candidate_tag": "f34-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f34",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 34",
+		"mail_template": "fedora_errata_template",
+		"name": "F34",
+		"override_tag": "f34-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f34-signing-pending",
+		"pending_stable_tag": "f34-updates-pending",
+		"pending_testing_tag": "f34-updates-testing-pending",
+		"stable_tag": "f34-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f34-updates-testing",
+		"version": "34"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "high",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "keylime-6.3.0-2.fc34",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2022-dbb274913a",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2022-dbb274913a",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/1e22c939b7e2707c741577efe1cbcf591d48a19f29734ffd2d45cabffd854ab6?s=24&d=retro",
+		"email": "scorreia@redhat.com",
+		"groups": [
+			{
+				"name": "qa"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 5041,
+		"name": "scorreia",
+		"openid": "scorreia.id.fedoraproject.org"
+	},
+	"version_hash": "77f82371d8b4d398ef4b12a7866cfbda43205d93"
+}

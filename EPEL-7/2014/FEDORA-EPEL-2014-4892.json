@@ -1,0 +1,660 @@
+{
+	"alias": "FEDORA-EPEL-2014-4892",
+	"bugs": [
+		{
+			"bug_id": 1107557,
+			"security": true,
+			"title": "CVE-2014-0191 mingw-libxml2: libxml2: external parameter entity loaded when entity substitution is disabled [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1107557",
+				"creation_ts": "2014-06-10 08:00:28 +0000",
+				"short_desc": "CVE-2014-0191 mingw-libxml2: libxml2: external parameter entity loaded when entity substitution is disabled [fedora-all]",
+				"delta_ts": "2015-04-08 10:20:42 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1090976",
+						"alias": "CVE-2014-0191",
+						"creation_ts": "2014-04-24 13:59:12 +0000",
+						"short_desc": "CVE-2014-0191 libxml2: external parameter entity loaded when entity substitution is disabled",
+						"delta_ts": "2023-05-12 13:13:33 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1093090",
+							"1093091",
+							"1107556",
+							"1107557",
+							"1191425",
+							"1195649",
+							"1195650"
+						],
+						"blocked": [
+							{
+								"bug_id": "1086699",
+								"creation_ts": "2014-04-11 10:53:15 +0000",
+								"short_desc": "libguestfs should parse XML with XML_PARSE_NONET flags",
+								"delta_ts": "2014-05-06 17:28:33 +0000",
+								"bug_status": "CLOSED",
+								"resolution": "UPSTREAM",
+								"priority": "unspecified",
+								"bug_severity": "unspecified",
+								"depends_on": [
+									"1088290",
+									"1090976"
+								],
+								"long_desc": [
+									{
+										"isprivate": "0",
+										"commentid": "7003588",
+										"comment_count": "0",
+										"who": {
+											"text": "rjones",
+											"name": "Richard W.M. Jones"
+										},
+										"bug_when": "2014-04-11 10:53:15 +0000",
+										"thetext": "Description of problem:\n\nlibguestfs parses XML files in various places:\n\n - libvirt capabilities XML\n - libvirt domain XML\n - libosinfo XML database files\n\nIn the unlikely case that either libvirt or libosinfo included\nexternal entities then this means we could open network\nconnections unintentionally.\n\nIt's not clear that this is exploitable, but it's best to\navoid it.\n\nFor comparison of how to do it correctly, see libvirt\nsrc/util/virxml.c.\n\nVersion-Release number of selected component (if applicable):\n\nlibguestfs 1.27.3\n\nAdditional info:\n\nhttps://www.owasp.org/index.php/XML_External_Entity_%28XXE%29_Processing\n\nNote that \"XML_PARSE_NOENT\" is very confusing.  Setting this\nflag causes entities to be *parsed*!!\n\nIt seems we should set XML_PARSE_NONET (disable network connections).  It's\nnot clear to me if this is the default or not.\n\nAreas of concern:\n\n$ git grep xmlParse\nfish/uri.c:  uri = xmlParseURI (arg);\nsrc/launch-libvirt.c:  doc = xmlParseMemory (capabilities_xml, strlen (capabilities_xml));\nsrc/libvirt-domain.c:  doc = xmlParseMemory (xml, strlen (xml));\nsrc/osinfo.c:  doc = xmlParseFile (pathname);\nv2v/xml-c.c:  doc = xmlParseMemory (String_val (xmlv), caml_string_length (xmlv));\nv2v/xml.mli:(** xmlParseMemory *)"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "7004306",
+										"comment_count": "1",
+										"who": {
+											"text": "ptoscano",
+											"name": "Pino Toscano"
+										},
+										"bug_when": "2014-04-11 14:28:10 +0000",
+										"thetext": "(In reply to Richard W.M. Jones from comment #0)\n> Areas of concern:\n> [...]\n> fish/uri.c:  uri = xmlParseURI (arg);\n\nThis just parses an URI string, so should not matter.\n\n> v2v/xml-c.c:  doc = xmlParseMemory (String_val (xmlv), caml_string_length\n> (xmlv));\n> v2v/xml.mli:(** xmlParseMemory *)\n\nThese don't exist in master yet.\n\n> src/launch-libvirt.c:  doc = xmlParseMemory (capabilities_xml, strlen\n> (capabilities_xml));\n> src/libvirt-domain.c:  doc = xmlParseMemory (xml, strlen (xml));\n> src/osinfo.c:  doc = xmlParseFile (pathname);\n\nIt seems these don't do entities expansion by default, so\nhttps://www.owasp.org/index.php/XML_External_Entity_%28XXE%29_Processing\nshould not apply.\n\nHowever, to be sure, I replaced xmlParse{File,Memory} with xmlRead{File,Memory}, so we can explicitly set XML_PARSE_NONET (and other flags may be added, if needed). The result seems unchanged."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "7004311",
+										"comment_count": "2",
+										"who": {
+											"text": "ptoscano",
+											"name": "Pino Toscano"
+										},
+										"bug_when": "2014-04-11 14:29:41 +0000",
+										"thetext": "Created attachment 885457\nxmlParse{File,Memory} -> xmlRead{File,Memory}"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "7004334",
+										"comment_count": "3",
+										"who": {
+											"text": "rjones",
+											"name": "Richard W.M. Jones"
+										},
+										"bug_when": "2014-04-11 14:37:36 +0000",
+										"thetext": "ACK.  Let's not push this yet until the libvirt patch has been\nmade public."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "7015055",
+										"comment_count": "4",
+										"who": {
+											"text": "rjones",
+											"name": "Richard W.M. Jones"
+										},
+										"bug_when": "2014-04-16 12:30:37 +0000",
+										"thetext": "This bug is also embargoed until the dependent libvirt bug is published."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "7052945",
+										"comment_count": "5",
+										"who": {
+											"text": "rjones",
+											"name": "Richard W.M. Jones"
+										},
+										"bug_when": "2014-04-30 15:25:23 +0000",
+										"thetext": "The publication date is: Tuesday May 6th at 1200 UTC."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "7066552",
+										"comment_count": "6",
+										"who": {
+											"text": "ptoscano",
+											"name": "Pino Toscano"
+										},
+										"bug_when": "2014-05-06 17:28:33 +0000",
+										"thetext": "Patch committed as\nhttps://github.com/libguestfs/libguestfs/commit/845daded5fddc70fc5e822769bc1e2a8cbead7ca\nwhich is in libguestfs >= 1.27.9."
+									}
+								]
+							},
+							{
+								"bug_id": "1090982",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:0749",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7036595",
+								"comment_count": "0",
+								"who": {
+									"text": "scorneli",
+									"name": "Stefan Cornelius"
+								},
+								"bug_when": "2014-04-24 13:59:12 +0000",
+								"thetext": "It was discovered that libxml2, a library providing support to read, modify and write XML files, incorrectly performs entity substituton in the doctype prolog, even if the application using libxml2 disabled any entity substitution. A remote attacker could provide a specially-crafted XML file that, when processed, would lead to the exhaustion of CPU and memory resources or file descriptors."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7036646",
+								"comment_count": "1",
+								"who": {
+									"text": "scorneli",
+									"name": "Stefan Cornelius"
+								},
+								"bug_when": "2014-04-24 14:09:41 +0000",
+								"thetext": "Acknowledgements:\n\nThis issue was discovered by Daniel P. Berrange of Red Hat."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7066245",
+								"comment_count": "12",
+								"who": {
+									"text": "scorneli",
+									"name": "Stefan Cornelius"
+								},
+								"bug_when": "2014-05-06 15:53:29 +0000",
+								"thetext": "Upstream patch:\nhttps://git.gnome.org/browse/libxml2/commit/?id=9cd1c3cfbd32655d60572c0a413e017260c854df"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7066262",
+								"comment_count": "13",
+								"who": {
+									"text": "scorneli",
+									"name": "Stefan Cornelius"
+								},
+								"bug_when": "2014-05-06 15:56:38 +0000",
+								"thetext": "Public via:\nhttp://www.openwall.com/lists/oss-security/2014/05/06/4"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7066744",
+								"comment_count": "14",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-05-06 19:01:23 +0000",
+								"thetext": "This issue is related to the handling of external parameter entities.  Even when libxml2 was instructed to parse XML document without preforming entity substitutions (i.e. when parser was run without the XML_PARSE_NOENT option, which is the default), libxml2 loaded external entities, which could lead to some XML eXternal Entities (XXE) attacks.\n\nSimilar problem was previously corrected in libxml2 for general entities via:\nhttps://git.gnome.org/browse/libxml2/commit/?id=4629ee02ac649c27f9c0cf98ba017c6b5526070f"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7099073",
+								"comment_count": "21",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-05-19 11:13:33 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2014:0513 https://rhn.redhat.com/errata/RHSA-2014-0513.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7162791",
+								"comment_count": "22",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2014-06-09 17:22:20 +0000",
+								"thetext": "Ubuntu just released http://www.ubuntu.com/usn/usn-2214-2/ to note a regression in the upstream fix for this issue, described as:\n\n\"\"\"\nUSN-2214-1 fixed vulnerabilities in libxml2. The upstream fix introduced a\nregression when using xmllint with the --postvalid option. This update\nfixes the problem.\n\"\"\"\n\nGiven that we have fixed in RHEL6, do we suffer from the same regression?  See also https://bugs.launchpad.net/ubuntu/+source/libxml2/+bug/1321869 and https://mail.gnome.org/archives/xml/2014-May/msg00002.html which contains a patch attached (presumably what was used in Ubuntu); also see the upstream report here:\n\nhttps://bugzilla.gnome.org/show_bug.cgi?id=730290"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7165926",
+								"comment_count": "23",
+								"who": {
+									"text": "redhat-bugzilla",
+									"name": "Michael Chapman"
+								},
+								"bug_when": "2014-06-10 00:05:32 +0000",
+								"thetext": "Vincent"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7165930",
+								"comment_count": "24",
+								"who": {
+									"text": "redhat-bugzilla",
+									"name": "Michael Chapman"
+								},
+								"bug_when": "2014-06-10 00:06:07 +0000",
+								"thetext": "Vincent, I think we do have the same regression. See https://bugzilla.redhat.com/show_bug.cgi?id=1104864 ."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7167728",
+								"comment_count": "25",
+								"who": {
+									"text": "scorneli",
+									"name": "Stefan Cornelius"
+								},
+								"bug_when": "2014-06-10 08:00:40 +0000",
+								"thetext": "\nCreated libxml2 tracking bugs for this issue:\n\nAffects: fedora-all [bug 1107556]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7167729",
+								"comment_count": "26",
+								"who": {
+									"text": "scorneli",
+									"name": "Stefan Cornelius"
+								},
+								"bug_when": "2014-06-10 08:00:44 +0000",
+								"thetext": "\nCreated mingw-libxml2 tracking bugs for this issue:\n\nAffects: fedora-all [bug 1107557]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7167763",
+								"comment_count": "27",
+								"who": {
+									"text": "scorneli",
+									"name": "Stefan Cornelius"
+								},
+								"bug_when": "2014-06-10 08:09:21 +0000",
+								"thetext": "(In reply to Vincent Danen from comment #22)\n> Given that we have fixed in RHEL6, do we suffer from the same regression? \n> See also https://bugs.launchpad.net/ubuntu/+source/libxml2/+bug/1321869 and\n> https://mail.gnome.org/archives/xml/2014-May/msg00002.html which contains a\n> patch attached (presumably what was used in Ubuntu); also see the upstream\n> report here:\n> \n> https://bugzilla.gnome.org/show_bug.cgi?id=730290\n\nThis is a bug we've introduced with this security patch, but from what I can tell it's not a new security issue. As Michael Chapman pointed out in comment 24, this is already being handled in bug 1104864."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7202019",
+								"comment_count": "28",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2014-06-17 16:02:34 +0000",
+								"thetext": "Statement:\n\nRed Hat Enterprise Linux 5 is now in Production 3 Phase of the support and maintenance life cycle. This has been rated as having Moderate security impact and is not currently planned to be addressed in future updates. For additional information, refer to the Red Hat Enterprise Linux Life Cycle: https://access.redhat.com/support/policy/updates/errata/."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7926671",
+								"comment_count": "29",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-02-11 10:23:16 +0000",
+								"thetext": "\nCreated mingw32-libxml2 tracking bugs for this issue:\n\nAffects: epel-7 [bug 1191425]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7926683",
+								"comment_count": "30",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-02-11 10:25:40 +0000",
+								"thetext": "Bug 915149 comment 8 has notes on related issue that affected general external entities."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8095476",
+								"comment_count": "32",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-03-30 06:18:06 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:0749 https://rhn.redhat.com/errata/RHSA-2015-0749.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8117940",
+								"comment_count": "34",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-04-07 07:30:12 +0000",
+								"thetext": "libxml2-2.9.1-7.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8132677",
+								"comment_count": "35",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-04-11 09:07:31 +0000",
+								"thetext": "libxml2-2.9.1-4.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7167725",
+						"comment_count": "0",
+						"who": {
+							"text": "scorneli",
+							"name": "Stefan Cornelius"
+						},
+						"bug_when": "2014-06-10 08:00:28 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen creating a Bodhi update request, use the bodhi submission link noted\nin the next comment(s).  This will include the bug IDs of this tracking\nbug as well as the relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nBodhi notes field when available.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7167727",
+						"comment_count": "1",
+						"who": {
+							"text": "scorneli",
+							"name": "Stefan Cornelius"
+						},
+						"bug_when": "2014-06-10 08:00:38 +0000",
+						"thetext": "\nUse the following update submission link to create the Bodhi request for\nthis issue as it contains the top-level parent bug(s) as well as this\ntracking bug.  This will ensure that all associated bugs get updated when\nnew packages are pushed to stable.\n\nIMPORTANT: ensure that the \"Close bugs when update is stable\" option\nremains checked.\n\nBodhi update submission link:\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1090976,1107557"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7730122",
+						"comment_count": "2",
+						"who": {
+							"text": "pj.pandit",
+							"name": "pjp"
+						},
+						"bug_when": "2014-12-03 18:28:23 +0000",
+						"thetext": "Hello rjones,\n\nCould you please fix this soon?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7787807",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-23 14:47:37 +0000",
+						"thetext": "mingw-libxml2-2.9.2-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/mingw-libxml2-2.9.2-1.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7787815",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-23 14:48:27 +0000",
+						"thetext": "mingw-libxml2-2.9.2-1.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/mingw-libxml2-2.9.2-1.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7787817",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-23 14:48:53 +0000",
+						"thetext": "mingw-libxml2-2.9.2-1.el7 has been submitted as an update for Fedora EPEL 7.\nhttps://admin.fedoraproject.org/updates/mingw-libxml2-2.9.2-1.el7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7790007",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-24 17:39:26 +0000",
+						"thetext": "Package mingw-libxml2-2.9.2-1.el7:\n* should fix your issue,\n* was pushed to the Fedora EPEL 7 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=epel-testing mingw-libxml2-2.9.2-1.el7'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2014-4892/mingw-libxml2-2.9.2-1.el7\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7797575",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-02 05:01:40 +0000",
+						"thetext": "mingw-libxml2-2.9.2-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7797578",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-02 05:02:00 +0000",
+						"thetext": "mingw-libxml2-2.9.2-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7821035",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-09 02:57:08 +0000",
+						"thetext": "mingw-libxml2-2.9.2-1.el7 has been pushed to the Fedora EPEL 7 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "mingw-libxml2-2.9.2-1.el7",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "mingw32-libxml2-debuginfo",
+						"version": "2.9.2",
+						"release": "1.el7",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw64-libxml2",
+						"version": "2.9.2",
+						"release": "1.el7",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw32-libxml2-static",
+						"version": "2.9.2",
+						"release": "1.el7",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw64-libxml2-debuginfo",
+						"version": "2.9.2",
+						"release": "1.el7",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw64-libxml2-static",
+						"version": "2.9.2",
+						"release": "1.el7",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw32-libxml2",
+						"version": "2.9.2",
+						"release": "1.el7",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "mingw-libxml2",
+						"version": "2.9.2",
+						"release": "1.el7",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 264882,
+			"text": "This update has been submitted for testing by epienbro. ",
+			"timestamp": "2014-12-23 14:49:02",
+			"update_id": 32300,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 264883,
+			"text": "This update is currently being pushed to the Fedora EPEL 7 testing updates repository.",
+			"timestamp": "2014-12-24 17:12:28",
+			"update_id": 32300,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 264884,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-12-24 17:39:18",
+			"update_id": 32300,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 264885,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2015-01-07 18:37:52",
+			"update_id": 32300,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 264886,
+			"text": "This update has been submitted for stable by epienbro. ",
+			"timestamp": "2015-01-07 20:14:28",
+			"update_id": 32300,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 264887,
+			"text": "This update is currently being pushed to the Fedora EPEL 7 stable updates repository.",
+			"timestamp": "2015-01-09 01:13:06",
+			"update_id": 32300,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 264888,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-01-09 02:56:45",
+			"update_id": 32300,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2015-01-09 02:56:45",
+	"date_stable": "2015-01-09 02:56:45",
+	"date_submitted": "2014-12-23 14:48:56",
+	"date_testing": "2014-12-24 17:39:18",
+	"meets_testing_requirements": true,
+	"notes": "Update to libxml2 2.9.2",
+	"pushed": true,
+	"release": {
+		"branch": "epel7",
+		"candidate_tag": "epel7-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "epel7",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 7",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EPEL-7",
+		"override_tag": "epel7-override",
+		"package_manager": "unspecified",
+		"pending_signing_tag": "epel7-signing-pending",
+		"pending_stable_tag": "epel7-pending",
+		"pending_testing_tag": "epel7-testing-pending",
+		"stable_tag": "epel7",
+		"state": "current",
+		"testing_tag": "epel7-testing",
+		"version": "7"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "mingw-libxml2-2.9.2-1.el7",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2014-4892",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2014-4892",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/0b2e2432af444125caa89c1c84824761f3445d04a83c5f6543199d8f2e328199?s=24&d=retro",
+		"email": "erik-fedora@vanpienbroek.nl",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			}
+		],
+		"id": 282,
+		"name": "epienbro",
+		"openid": "epienbro.id.fedoraproject.org"
+	},
+	"version_hash": "02291bfe79f5199539479aa6edb25437b7309dd1"
+}

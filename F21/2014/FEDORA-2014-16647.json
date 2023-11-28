@@ -1,0 +1,1013 @@
+{
+	"alias": "FEDORA-2014-16647",
+	"bugs": [
+		{
+			"bug_id": 1166878,
+			"title": "unbound-1.5.0-1.fc22 crashing often",
+			"bugzilla": {
+				"bug_id": "1166878",
+				"creation_ts": "2014-11-21 20:42:12 +0000",
+				"short_desc": "unbound-1.5.0-1.fc22 crashing often",
+				"delta_ts": "2014-12-20 08:36:43 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7697340",
+						"comment_count": "0",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2014-11-21 20:42:12 +0000",
+						"thetext": "Unbound 1.5.0-1.fc22 seems to be crashing a lot here. \n\nI can't seem to see any pattern to the crashes, and sadly, abrt doesn't seem to pick up on them. :( \n\n\nNov 21 13:35:09 voldemort.scrye.com systemd[1]: unbound.service: main process exited, code=killed, status=11/SEGV\nNov 21 13:35:09 voldemort.scrye.com systemd[1]: Unit unbound.service entered failed state.\nNov 21 13:35:09 voldemort.scrye.com systemd[1]: unbound.service failed.\nNov 21 13:38:34 voldemort.scrye.com runuser[4855]: pam_unix(runuser:session): session opened for user unbound by (uid=0)\nNov 21 13:38:34 voldemort.scrye.com runuser[4855]: pam_unix(runuser:session): session closed for user unbound\nNov 21 13:38:34 voldemort.scrye.com unbound-checkconf[4858]: unbound-checkconf: no errors in /etc/unbound/unbound.conf\nNov 21 13:38:34 voldemort.scrye.com unbound[4861]: Nov 21 13:38:34 unbound[4861:0] warning: increased limit(open files) from 1024 to 8290\nNov 21 13:38:34 voldemort.scrye.com unbound[4861]: [4861:0] warning: did not exit gracefully last time (30859)\nNov 21 13:38:34 voldemort.scrye.com unbound[4861]: [4861:0] notice: init module 0: validator\nNov 21 13:38:34 voldemort.scrye.com unbound[4861]: [4861:0] notice: init module 1: iterator\nNov 21 13:38:34 voldemort.scrye.com unbound[4861]: [4861:0] info: start of service (unbound 1.5.0).\n\n[334209.703923] unbound[26854]: segfault at 7f7ace385444 ip 00007f79ce3ddf23 sp 00007f79cacc3550 error 4 in unbound[7f79ce38b000+d0000]\n[338071.162154] unbound[30866]: segfault at 7f3e4472d444 ip 00007f3d44785f23 sp 00007f3d4106b4b0 error 4 in unbound[7f3d44733000+d0000]\n\nI can try and run it in gdb and see if I can get a stack trace..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7700146",
+						"comment_count": "1",
+						"who": {
+							"text": "thozza",
+							"name": "Tomáš Hozza"
+						},
+						"bug_when": "2014-11-24 08:26:07 +0000",
+						"thetext": "Hi.\n\nPlease install the debuginfo package to get some stack trace. There seems to be a race condition in the new arc4random fallback code. However I would like to check if this is really the cause.\n\nThanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7700879",
+						"comment_count": "2",
+						"who": {
+							"text": "pwouters",
+							"name": "Paul Wouters"
+						},
+						"bug_when": "2014-11-24 11:37:16 +0000",
+						"thetext": "A patch or link to svn was posted on the unbound mailing list. Currently in transit but will look at building updated packages later today if someone else hasn't picked this up by then."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7700899",
+						"comment_count": "3",
+						"who": {
+							"text": "thozza",
+							"name": "Tomáš Hozza"
+						},
+						"bug_when": "2014-11-24 11:45:29 +0000",
+						"thetext": "(In reply to Paul Wouters from comment #2)\n> A patch or link to svn was posted on the unbound mailing list. Currently in\n> transit but will look at building updated packages later today if someone\n> else hasn't picked this up by then.\n\nThat's where I got the information posed in comment #1. But I want to have a backtrace to be sure that it is really the issue!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7702939",
+						"comment_count": "4",
+						"who": {
+							"text": "valdis.kletnieks",
+							"name": "Valdis Kletnieks"
+						},
+						"bug_when": "2014-11-24 20:17:00 +0000",
+						"thetext": "Am seeing this in -2 as well.   dmesg reports:\n\nNov 23 18:58:17 turing-police kernel: [159160.906004] unbound[63601]: segfault at 7f71130fc444 ip 00007f7013154f23 sp 00007fffcc4c1af0 error 4 in unbound[7f7013102000+d0000]\nNov 24 01:54:11 turing-police kernel: [184148.239571] unbound[119936]: segfault at 7fad3cb59444 ip 00007fac3cbb1f23 sp 00007fac39497550 error 4 in unbound[7fac3cb5f000+d0000]\nNov 24 08:18:02 turing-police kernel: [207210.400281] unbound[170769]: segfault at 7f1d74d93444 ip 00007f1c74debf23 sp 00007f1c716d1650 error 4\nNov 24 08:18:02 turing-police kernel: [207210.400287] unbound[170767]: segfault at 7f1d74d93444 ip 00007f1c74debf23 sp 00007fff1e1e5e90 error 4 in unbound[7f1c74d99000+d0000] in unbound[7f1c74d99000+d0000]\nNov 24 11:12:12 turing-police kernel: [  265.725841] unbound[1362]: segfault at 7fb212aab444 ip 00007fb112b03f23 sp 00007fb10f3e9550 error 4\nNov 24 11:12:12 turing-police kernel: [  265.725848] unbound[1348]: segfault at 7fb212aab444 ip 00007fb112b03f23 sp 00007ffffff31da0 error 4 in unbound[7fb112ab1000+d0000]\nNov 24 11:16:04 turing-police kernel: [  497.657898] unbound[2334]: segfault at 7fbc1d2b5444 ip 00007fbb1d30df23 sp 00007fbb19bf3480 error 4 in unbound[7fbb1d2bb000+d0000]\nNov 24 11:16:04 turing-police kernel: [  497.657920] unbound[2330]: segfault at 7fbc1d2b5444 ip 00007fbb1d30df23 sp 00007fff6ea88ae0 error 4 in unbound[7fbb1d2bb000+d0000]\nNov 24 11:18:43 turing-police kernel: [  656.454591] unbound[2618]: segfault at 7f3eedf50444 ip 00007f3dedfa8f23 sp 00007f3dea88e480 error 4 in unbound[7f3dedf56000+d0000]\nNov 24 11:18:43 turing-police kernel: [  656.454668] unbound[2617]: segfault at 7f3eedf50444 ip 00007f3dedfa8f23 sp 00007fffe5449620 error 4 in unbound[7f3dedf56000+d0000]\n\nThe '444' and 'f23' being constant pretty much tells me there's exactly one crash involved, with ASLR in effect..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7702942",
+						"comment_count": "5",
+						"who": {
+							"text": "valdis.kletnieks",
+							"name": "Valdis Kletnieks"
+						},
+						"bug_when": "2014-11-24 20:18:07 +0000",
+						"thetext": "(In reply to Tomas Hozza from comment #3)\n> (In reply to Paul Wouters from comment #2)\n> > A patch or link to svn was posted on the unbound mailing list. Currently in\n> > transit but will look at building updated packages later today if someone\n> > else hasn't picked this up by then.\n> \n> That's where I got the information posed in comment #1. But I want to have a\n> backtrace to be sure that it is really the issue!\n\nI'll install the .debuginfo and attach a gdb to it and see if it crashes again..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7706770",
+						"comment_count": "6",
+						"who": {
+							"text": "valdis.kletnieks",
+							"name": "Valdis Kletnieks"
+						},
+						"bug_when": "2014-11-25 15:59:29 +0000",
+						"thetext": "Caught it, finally....\n\n(gdb) c\nContinuing.\n\nProgram received signal SIGSEGV, Segmentation fault.\n[Switching to Thread 0x7fbb293c3700 (LWP 1372)]\narc4random () at compat/arc4random.c:220\n220             _rs_random_u32(&val);\n(gdb) where\n#0  arc4random () at compat/arc4random.c:220\n#1  0x00007fbb2cb0eb05 in arc4random_uniform (upper_bound=upper_bound@entry=10)\n    at compat/arc4random_uniform.c:51\n#2  0x00007fbb2cb007fc in ub_random_max (x=10, state=<optimized out>)\n    at util/random.c:110\n#3  iter_ns_probability (m=10, n=2, rnd=<optimized out>)\n    at iterator/iter_utils.c:443\n#4  query_for_targets.part.7.lto_priv.627 (qstate=qstate@entry=0x7fbb2490cdc0, \n    iq=iq@entry=0x7fbb2490cff0, ie=ie@entry=0x7fbb2d9a27a0, id=id@entry=1, \n    maxtargets=maxtargets@entry=3, num=num@entry=0x7fbb293c2800)\n    at iterator/iterator.c:1377\n#5  0x00007fbb2cad6b4f in query_for_targets () at iterator/iterator.c:1351\n#6  processQueryTargets (id=1, ie=0x7fbb2d9a27a0, iq=0x7fbb2490cff0, \n    qstate=0x7fbb2490cdc0) at iterator/iterator.c:1764\n#7  iter_handle (qstate=qstate@entry=0x7fbb2490cdc0, \n    iq=iq@entry=0x7fbb2490cff0, ie=ie@entry=0x7fbb2d9a27a0, id=id@entry=1)\n    at iterator/iterator.c:2708\n#8  0x00007fbb2cad92fa in process_response (event=<optimized out>, \n    outbound=<optimized out>, id=<optimized out>, ie=<optimized out>, \n    iq=<optimized out>, qstate=<optimized out>) at iterator/iterator.c:2869\n#9  iter_operate (qstate=<optimized out>, event=<optimized out>, \n    id=<optimized out>, outbound=<optimized out>) at iterator/iterator.c:2902\n#10 0x00007fbb2cac9df1 in mesh_run (mesh=mesh@entry=0x7fbb245e6b90, \n---Type <return> to continue, or q <return> to quit---\n    mstate=mstate@entry=0x7fbb2490cd70, ev=module_event_pass, \n    ev@entry=module_event_new, e=<optimized out>, e@entry=0x0)\n    at services/mesh.c:1076\n#11 0x00007fbb2caaf211 in mesh_new_client (qid=52086, rep=0x7fbb293c2be0, \n    edns=0x7fbb293c2a80, qflags=256, qinfo=0x7fbb293c2a90, mesh=0x7fbb245e6b90)\n    at services/mesh.c:370\n#12 worker_handle_request.part.17.lto_priv.656 (c=<optimized out>, \n    arg=0x7fbb2d9c88e0, repinfo=0x7fbb293c2be0) at daemon/worker.c:986\n#13 0x00007fbb2cabf362 in comm_point_udp_callback (fd=5, \n    event=<optimized out>, arg=<optimized out>) at util/netevent.c:700\n#14 0x00007fbb2c3be3cc in event_base_loop () from /lib64/libevent-2.0.so.5\n#15 0x00007fbb2cabf4dc in comm_base_dispatch (b=<optimized out>)\n    at util/netevent.c:305\n#16 0x00007fbb2cad255c in worker_work (worker=0x7fbb2d9c88e0)\n    at daemon/worker.c:1285\n#17 thread_start (arg=0x7fbb2d9c88e0) at daemon/daemon.c:475\n#18 0x00007fbb2b70f53a in start_thread (arg=0x7fbb293c3700)\n    at pthread_create.c:312\n#19 0x00007fbb2b4462fd in clone ()\n    at ../sysdeps/unix/sysv/linux/x86_64/clone.S:109\n(gdb) quit\n\n\nYep, died in arc4random().  Hope that helps...."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7707185",
+						"comment_count": "7",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2014-11-25 17:30:01 +0000",
+						"thetext": "Sorry for the delay from my side. I had to get things done, so I just set systemd to restart unbound when it crashed. \n\nI attached gdb, but forgot to disable systemd restarting, but I got: \n\nProgram received signal SIGSEGV, Segmentation fault.\narc4random () at compat/arc4random.c:220\n220             _rs_random_u32(&val);\n\nso, it's definitely the same place here at least."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7710061",
+						"comment_count": "8",
+						"who": {
+							"text": "thozza",
+							"name": "Tomáš Hozza"
+						},
+						"bug_when": "2014-11-26 12:13:02 +0000",
+						"thetext": "Thanks for the confirmation. I'll backport the fix and push new builds soon."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7710460",
+						"comment_count": "9",
+						"who": {
+							"text": "pwouters",
+							"name": "Paul Wouters"
+						},
+						"bug_when": "2014-11-26 14:00:03 +0000",
+						"thetext": "if you create new builds, please also address the \"main\" issue from bug https://bugzilla.redhat.com/show_bug.cgi?id=1167291\n\nA simple test is to restart the libreswan service"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7710538",
+						"comment_count": "10",
+						"who": {
+							"text": "thozza",
+							"name": "Tomáš Hozza"
+						},
+						"bug_when": "2014-11-26 14:17:27 +0000",
+						"thetext": "(In reply to Paul Wouters from comment #9)\n> if you create new builds, please also address the \"main\" issue from bug\n> https://bugzilla.redhat.com/show_bug.cgi?id=1167291\n> \n> A simple test is to restart the libreswan service\n\nToo late. The build are already completed.\nunbound-1.5.0-2.fc22\nunbound-1.5.0-2.fc21\n\nCould just libreswan rebuild against the new unbound help?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7710550",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-26 14:20:21 +0000",
+						"thetext": "unbound-1.5.0-1.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-15408/unbound-1.5.0-1.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7710566",
+						"comment_count": "12",
+						"who": {
+							"text": "pwouters",
+							"name": "Paul Wouters"
+						},
+						"bug_when": "2014-11-26 14:27:00 +0000",
+						"thetext": "I'm not sure if rebuilding helps. The new arc4random wants to do some initialization for the randomness in the library.\n\nI think this affects everything linked against libunbound"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7715069",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-27 19:26:35 +0000",
+						"thetext": "Package unbound-1.5.0-2.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing unbound-1.5.0-2.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-15408/unbound-1.5.0-2.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7715422",
+						"comment_count": "14",
+						"who": {
+							"text": "valdis.kletnieks",
+							"name": "Valdis Kletnieks"
+						},
+						"bug_when": "2014-11-28 02:15:38 +0000",
+						"thetext": "Grabbed -2 off koji, installed, 24 hours uptime now, no problems seen.  I left a note on the admin page, forgot to login first. :)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7717092",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-28 15:15:32 +0000",
+						"thetext": "unbound-1.5.0-3.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/unbound-1.5.0-3.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7717318",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-28 18:09:51 +0000",
+						"thetext": "unbound-1.5.1-0.1.rc1.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/unbound-1.5.1-0.1.rc1.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7752106",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 16:46:24 +0000",
+						"thetext": "unbound-1.5.1-2.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/unbound-1.5.1-2.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7782827",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-20 08:36:43 +0000",
+						"thetext": "unbound-1.5.1-2.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1167291,
+			"title": "unbound update breaks libreswan: error: /lib64/libunbound.so.2: undefined symbol: main\"",
+			"bugzilla": {
+				"bug_id": "1167291",
+				"creation_ts": "2014-11-24 12:00:06 +0000",
+				"short_desc": "unbound update breaks libreswan: error: /lib64/libunbound.so.2: undefined symbol: main\"",
+				"delta_ts": "2014-12-20 08:36:46 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7701000",
+						"comment_count": "0",
+						"who": {
+							"text": "pwouters",
+							"name": "Paul Wouters"
+						},
+						"bug_when": "2014-11-24 12:00:06 +0000",
+						"thetext": "Description of problem:\n\nApparently unbound-1.5.0 is not backwards compatible with unbound 1.4.x\nUsers of libreswan, which was not recompiled against a newer unbound now get the error:\n\nerror: /lib64/libunbound.so.2: undefined symbol: main\""
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7701055",
+						"comment_count": "1",
+						"who": {
+							"text": "psimerda",
+							"name": "Pavel Šimerda (pavlix)"
+						},
+						"bug_when": "2014-11-24 12:15:12 +0000",
+						"thetext": "I thought I was the only one to use libunbound from a library in a way that it can't find the main symbol. I've been using the following trivial patch for my testing, will talk to upstream about the details.\n\ndiff --git a/configure.ac b/configure.ac\nindex 8746a6c..13085ca 100644\n--- a/configure.ac\n+++ b/configure.ac\n@@ -1049,7 +1049,6 @@ EOF\n                        fi\n                        if test \"$myok\" = \"yes\"; then\n                                AC_MSG_RESULT(yes)\n-                               AC_DEFINE(CAN_REFERENCE_MAIN, [1], [define if a library can reference the 'main' symbol])\n                        else\n                                AC_MSG_RESULT(no)\n                        fi\n\nCheers,\n\nPavel"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7715025",
+						"comment_count": "2",
+						"who": {
+							"text": "pwouters",
+							"name": "Paul Wouters"
+						},
+						"bug_when": "2014-11-27 18:26:42 +0000",
+						"thetext": "unbound-1.5.1rc1 fixes this problem, so when 1.5.1 is released in a few days we should push that out without any patches. (It also addresses the arc4random crashes_"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7717319",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-28 18:09:53 +0000",
+						"thetext": "unbound-1.5.1-0.1.rc1.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/unbound-1.5.1-0.1.rc1.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7718004",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-29 20:59:35 +0000",
+						"thetext": "Package unbound-1.5.1-0.1.rc1.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing unbound-1.5.1-0.1.rc1.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-15937/unbound-1.5.1-0.1.rc1.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7752107",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 16:46:26 +0000",
+						"thetext": "unbound-1.5.1-2.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/unbound-1.5.1-2.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7782828",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-20 08:36:46 +0000",
+						"thetext": "unbound-1.5.1-2.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1172065,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-8602 unbound: specially crafted request can lead to denial of service",
+			"bugzilla": {
+				"bug_id": "1172065",
+				"alias": "CVE-2014-8602",
+				"creation_ts": "2014-12-09 10:23:02 +0000",
+				"short_desc": "CVE-2014-8602 unbound: specially crafted request can lead to denial of service",
+				"delta_ts": "2021-02-17 05:55:08 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1172066",
+					"1172067",
+					"1253961"
+				],
+				"blocked": [
+					{
+						"bug_id": "1172068",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1210268",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2015:2455",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7745839",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2014-12-09 10:23:02 +0000",
+						"thetext": "It was reported [1] that unbound resolver can be tricked into following an endless series of delegations, this consumes a lot of resources.\nA patch is available that limits the number of fetches performed for a query [2].\n\nAccording to the timestamps on https://unbound.net/downloads/, this is fixed in https://unbound.net/downloads/unbound-latest.tar.gz\nNo official release was made though.\n\n[1]: https://unbound.net/downloads/CVE-2014-8602.txt\n[2]: http://unbound.net/downloads/patch_cve_2014_8602.diff"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7745844",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2014-12-09 10:23:32 +0000",
+						"thetext": "\nCreated unbound tracking bugs for this issue:\n\nAffects: fedora-all [bug 1172066]\nAffects: epel-all [bug 1172067]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7760237",
+						"comment_count": "4",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-12 20:14:13 +0000",
+						"thetext": "Advisory from the original reporter ANSSI, the French Network and Information Security Agency:\n\nhttp://www.ssi.gouv.fr/en/the-anssi/events/vulnerabilty-disclosure-the-infinitely-delegating-name-servers-idns-attack.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7782829",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-20 08:36:48 +0000",
+						"thetext": "unbound-1.5.1-2.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7782911",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-20 08:46:35 +0000",
+						"thetext": "unbound-1.5.1-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8541375",
+						"comment_count": "10",
+						"who": {
+							"text": "thozza",
+							"name": "Tomáš Hozza"
+						},
+						"bug_when": "2015-08-13 22:57:32 +0000",
+						"thetext": "Please note that Unbound will be updated in 7.2 with normal Erratum, since we were not able to synch all changes with RCM for FasTrack Erratum. It may make sense to include the fix there.\n\nAlso we will be adding Unbound into el6, but I'll make sure the fix is already included before adding the package."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8546506",
+						"comment_count": "12",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2015-08-17 07:13:10 +0000",
+						"thetext": "Statement:\n\n(none)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8841372",
+						"comment_count": "17",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-11-19 14:46:03 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:2455 https://rhn.redhat.com/errata/RHSA-2015-2455.html"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1172066,
+			"security": true,
+			"title": "CVE-2014-8602 unbound: specially crafted request can lead to denial of service [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1172066",
+				"creation_ts": "2014-12-09 10:23:18 +0000",
+				"short_desc": "CVE-2014-8602 unbound: specially crafted request can lead to denial of service [fedora-all]",
+				"delta_ts": "2014-12-20 08:46:33 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1172065",
+						"alias": "CVE-2014-8602",
+						"creation_ts": "2014-12-09 10:23:02 +0000",
+						"short_desc": "CVE-2014-8602 unbound: specially crafted request can lead to denial of service",
+						"delta_ts": "2021-02-17 05:55:08 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1172066",
+							"1172067",
+							"1253961"
+						],
+						"blocked": [
+							{
+								"bug_id": "1172068",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1210268",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:2455",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7745839",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2014-12-09 10:23:02 +0000",
+								"thetext": "It was reported [1] that unbound resolver can be tricked into following an endless series of delegations, this consumes a lot of resources.\nA patch is available that limits the number of fetches performed for a query [2].\n\nAccording to the timestamps on https://unbound.net/downloads/, this is fixed in https://unbound.net/downloads/unbound-latest.tar.gz\nNo official release was made though.\n\n[1]: https://unbound.net/downloads/CVE-2014-8602.txt\n[2]: http://unbound.net/downloads/patch_cve_2014_8602.diff"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7745844",
+								"comment_count": "1",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2014-12-09 10:23:32 +0000",
+								"thetext": "\nCreated unbound tracking bugs for this issue:\n\nAffects: fedora-all [bug 1172066]\nAffects: epel-all [bug 1172067]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7760237",
+								"comment_count": "4",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-12 20:14:13 +0000",
+								"thetext": "Advisory from the original reporter ANSSI, the French Network and Information Security Agency:\n\nhttp://www.ssi.gouv.fr/en/the-anssi/events/vulnerabilty-disclosure-the-infinitely-delegating-name-servers-idns-attack.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7782829",
+								"comment_count": "5",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-12-20 08:36:48 +0000",
+								"thetext": "unbound-1.5.1-2.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7782911",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-12-20 08:46:35 +0000",
+								"thetext": "unbound-1.5.1-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8541375",
+								"comment_count": "10",
+								"who": {
+									"text": "thozza",
+									"name": "Tomáš Hozza"
+								},
+								"bug_when": "2015-08-13 22:57:32 +0000",
+								"thetext": "Please note that Unbound will be updated in 7.2 with normal Erratum, since we were not able to synch all changes with RCM for FasTrack Erratum. It may make sense to include the fix there.\n\nAlso we will be adding Unbound into el6, but I'll make sure the fix is already included before adding the package."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8546506",
+								"comment_count": "12",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2015-08-17 07:13:10 +0000",
+								"thetext": "Statement:\n\n(none)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8841372",
+								"comment_count": "17",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-11-19 14:46:03 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:2455 https://rhn.redhat.com/errata/RHSA-2015-2455.html"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7745840",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2014-12-09 10:23:18 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7745841",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2014-12-09 10:23:22 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1172065,1172066\n\n# Description of your update\nnotes=Security fix for CVE-2014-8602\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1172065,1172066"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7752104",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 16:46:23 +0000",
+						"thetext": "unbound-1.5.1-2.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/unbound-1.5.1-2.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7752234",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 17:08:52 +0000",
+						"thetext": "unbound-1.5.1-2.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/unbound-1.5.1-2.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7757504",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-12 04:18:37 +0000",
+						"thetext": "Package unbound-1.5.1-2.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing unbound-1.5.1-2.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-16647/unbound-1.5.1-2.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7782826",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-20 08:36:39 +0000",
+						"thetext": "unbound-1.5.1-2.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7782910",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-20 08:46:33 +0000",
+						"thetext": "unbound-1.5.1-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "unbound-1.5.1-2.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "unbound",
+						"version": "1.5.1",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "unbound-devel",
+						"version": "1.5.1",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "unbound-libs",
+						"version": "1.5.1",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "unbound-python",
+						"version": "1.5.1",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "unbound-debuginfo",
+						"version": "1.5.1",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "unbound-devel",
+						"version": "1.5.1",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "unbound-debuginfo",
+						"version": "1.5.1",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "unbound-libs",
+						"version": "1.5.1",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "unbound",
+						"version": "1.5.1",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "unbound-python",
+						"version": "1.5.1",
+						"release": "2.fc21",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "unbound-munin",
+						"version": "1.5.1",
+						"release": "2.fc21",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "unbound",
+						"version": "1.5.1",
+						"release": "2.fc21",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "unbound-libs",
+						"version": "1.5.1",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "unbound-debuginfo",
+						"version": "1.5.1",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "unbound",
+						"version": "1.5.1",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "unbound-python",
+						"version": "1.5.1",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "unbound-devel",
+						"version": "1.5.1",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 259723,
+			"text": "This update has been submitted for testing by pwouters. ",
+			"timestamp": "2014-12-10 16:46:34",
+			"update_id": 31748,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 259724,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/19783/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-12-10 17:11:37",
+			"update_id": 31748,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 259725,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/19783/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-12-10 17:13:57",
+			"update_id": 31748,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 259726,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2014-12-11 05:16:47",
+			"update_id": 31748,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 259727,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-12-12 04:18:16",
+			"update_id": 31748,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 259728,
+			"text": "This update has reached 7 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2014-12-19 06:22:31",
+			"update_id": 31748,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 259729,
+			"text": "This update has been submitted for stable by pwouters. ",
+			"timestamp": "2014-12-19 17:14:31",
+			"update_id": 31748,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 259730,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/22550/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-12-19 17:24:13",
+			"update_id": 31748,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 259731,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2014-12-19 19:17:04",
+			"update_id": 31748,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 259732,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2014-12-20 08:36:45",
+			"update_id": 31748,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2014-12-20 08:36:45",
+	"date_stable": "2014-12-20 08:36:45",
+	"date_submitted": "2014-12-10 16:46:23",
+	"date_testing": "2014-12-12 04:18:16",
+	"meets_testing_requirements": true,
+	"notes": "Security fix for CVE-2014-8602\nnew release\nfix build on aarch64\nnew upstream version",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "unbound-1.5.1-2.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2014-16647",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2014-16647",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/54c0c0f9b0d08a4a4dcb1912dea2d0a61cfbc6de4bf5c62561faf4fc322a3dfb?s=24&d=retro",
+		"email": "paul.wouters@aiven.io",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "sysadmin"
+			},
+			{
+				"name": "sysadmin-dns"
+			},
+			{
+				"name": "dns-sig"
+			},
+			{
+				"name": "crypto-team"
+			},
+			{
+				"name": "clamav"
+			}
+		],
+		"id": 114,
+		"name": "pwouters",
+		"openid": "pwouters.id.fedoraproject.org"
+	},
+	"version_hash": "b88ea325e2ab12318dc629d7fe8602812e949893"
+}

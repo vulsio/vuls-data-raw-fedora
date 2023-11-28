@@ -1,0 +1,1224 @@
+{
+	"alias": "FEDORA-2019-1686ae9b59",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 1565256,
+			"feedback": [
+				{
+					"bug_id": 1565256,
+					"comment": {
+						"id": 1156141,
+						"karma": 1,
+						"text": "Works",
+						"timestamp": "2019-12-03 16:12:05",
+						"update_id": 172360,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/cd6029d8d81108a2a69c38a2373d2a185c0e86224b8ee4971cd77bb6cdad7a20?s=24&d=retro",
+							"email": "walter.pete@yandex.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "provenpackager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								}
+							],
+							"id": 491,
+							"name": "pwalter",
+							"openid": "pwalter.id.fedoraproject.org"
+						},
+						"user_id": 491
+					},
+					"comment_id": 1156141
+				},
+				{
+					"bug_id": 1565256,
+					"comment": {
+						"id": 1159410,
+						"karma": 1,
+						"text": "worked fine",
+						"timestamp": "2019-12-05 10:13:36",
+						"update_id": 172360,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/f8db9b35a53624d807b2dd11c2109d12585c5852f0ff616077f8ed9348854fb1?s=24&d=retro",
+							"email": "marttikuosmanen@yahoo.co.uk",
+							"groups": [
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "signed_fpca"
+								}
+							],
+							"id": 417,
+							"name": "kuosmanen",
+							"openid": "kuosmanen.id.fedoraproject.org"
+						},
+						"user_id": 417
+					},
+					"comment_id": 1159410
+				}
+			],
+			"title": "NPM permanently breaks after \"npm update -g\"",
+			"bugzilla": {
+				"bug_id": "1565256",
+				"creation_ts": "2018-04-09 18:32:41 +0000",
+				"short_desc": "NPM permanently breaks after \"npm update -g\"",
+				"delta_ts": "2020-05-31 07:33:23 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11461746",
+						"comment_count": "0",
+						"who": {
+							"text": "nikita",
+							"name": "nik"
+						},
+						"bug_when": "2018-04-09 18:32:41 +0000",
+						"thetext": "Description of problem:\nRunning \"npm update -g\" on a fresh Fedora box, npm will complete the update successfully but will break permanently upon future invocations because all its node_modules will be gone. The only way to fix it is to reinstall the package from scratch back to 5.6.\n\nVersion-Release number of selected component (if applicable):\nAffects npm 5.6 on Fedora 27 & 28\n\nHow reproducible:\nConsistent\n\nSteps to Reproduce:\n1. Start with a fresh Fedora: docker run -it fedora:28 /bin/bash\n2. Install npm: dnf install npm\n3. Update npm: npm update -g\n4. Run npm again, see error\n\nActual results:\nmodule.js:549\n    throw err;\n    ^\n\nError: Cannot find module 'npmlog'\n    at Function.Module._resolveFilename (module.js:547:15)\n    at Function.Module._load (module.js:474:25)\n    ....\n\nExpected results:\nnpm successfully upgraded from npm 5.6 to 5.8 (at the time of writing)\n\n\nAdditional info:\n\nThe bug is caused by the way Fedora packages npm.\n\nWe can see in https://src.fedoraproject.org/rpms/nodejs/blob/cc0d5eb2e643873f8dc448769370c274be00de1d/f/nodejs.spec#_370 that the node_modules that come with npm are actually in /lib/node_modules/npm/node_modules.bundled and are symlinked from /lib/node_modules/npm/node_modules.\n\nnpm wants to upgrade packages independent of their order, so it has strange logic that can remove a package while keeping its node_modules, this way the node_modules can be dealt with separately. The code that does it is here: https://github.com/npm/npm/blob/ee147fbbca6f2707d3b16f4fa78f4c4606b2d9b1/lib/install/action/remove.js#L13\n\nWhen npm tries to upgrade itself it first removes itself, (which means that it deletes everything in /usr/lib/node_modules/npm except node_modules) and then installs the new version in. As part of this action node_modules.bundled gets removed as well and all symlinks in /lib/node_modules/npm/node_modules break. \n\nAfter this npm is broken forever...\n\nWe probably need another way to package npm, because putting node_modules.bundled near the real node_modules breaks upgrade. Maybe we should put it in node_modules/.bundled?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11461799",
+						"comment_count": "1",
+						"who": {
+							"text": "tom",
+							"name": "Tom Hughes"
+						},
+						"bug_when": "2018-04-09 18:45:15 +0000",
+						"thetext": "As a general rule you should never use npm --global with the Fedora packaged npm/node as it will overwrite things in /usr/lib/node_modules and cause general chaos.\n\nAs I understand it upstream regard --global as a misfeature that shouldn't be used and also don't support putting user installed global modules in a different location to system installed global modules like some other languages."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11461879",
+						"comment_count": "2",
+						"who": {
+							"text": "sgallagh",
+							"name": "Stephen Gallagher"
+						},
+						"bug_when": "2018-04-09 18:58:59 +0000",
+						"thetext": "The reason behind node_modules.bundled in our package was to provide us an escape-hatch if we ever decided to split out the npm subpackage from the nodejs SRPM again. It's a preventative workaround for https://fedoraproject.org/wiki/Packaging:Directory_Replacement\n\nThat said, we've been largely successful with just using the version bundled by Node.js's tarball and I don't really see us wanting to go through the hassle of unbundling it again (especially since its dependency chain has been growing constantly). So we *could* just bite the bullet and decide that this is a permanent state of being.\n\nOptions: \n1) We could opt to move the node_modules.bundled folder to somewhere that it wouldn't get clobbered. If we did this, I think /usr/lib/node/.bundled/npm is probably the right place, as its out of the path of the deletion and still sufficiently unique that it can be managed easily.\n\n2) We can accept that we'll never try to unbundle npm again and just drop the symlink emergency hatch entirely.\n\n\nThat all being said, Tom is right: using `npm --global` is a recipe for disaster on an RPM-managed system (its changes WILL get overwritten by the next RPM update). It's far better to make per-user changes. But people are people and if they decide to do this (which is recommended by NPM itself, unfortunately...), I think we need to try really hard not to break on it.\n\nTom, which approach would you prefer?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11462204",
+						"comment_count": "3",
+						"who": {
+							"text": "tom",
+							"name": "Tom Hughes"
+						},
+						"bug_when": "2018-04-09 20:18:47 +0000",
+						"thetext": "I'm not sure I have any particular preferences...\n\nAnother option of course is to patch npm to disable global operations ;-)\n\nWe should probably at least patch it to stop it suggesting that people update npm that way."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11462315",
+						"comment_count": "4",
+						"who": {
+							"text": "sgallagh",
+							"name": "Stephen Gallagher"
+						},
+						"bug_when": "2018-04-09 21:07:34 +0000",
+						"thetext": "(In reply to Tom Hughes from comment #3)\n> I'm not sure I have any particular preferences...\n> \n> Another option of course is to patch npm to disable global operations ;-)\n> \n> We should probably at least patch it to stop it suggesting that people\n> update npm that way.\n\nI've got it patched to disable the update message now. I think I'm going to go with option 1) for the time being, simply because it gives us more flexibility to change our minds later."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11462345",
+						"comment_count": "5",
+						"who": {
+							"text": "nikita",
+							"name": "nik"
+						},
+						"bug_when": "2018-04-09 21:21:42 +0000",
+						"thetext": "I'm not sure if Tom was joking, but I think patching npm to disable global operations or at least print a huge red warning is actually a good idea. The average user (me!) doesn't know that \"using `npm --global` is a recipe for disaster on an RPM-managed system (its changes WILL get overwritten by the next RPM update)\".\n\nI would have really appreciated a message like \"You installed npm through the package manger and global operations might break you in strange ways. Please install and update global npm packages through the package manager\". Especially since a lot of places on the internet recommend installing global packages."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12694183",
+						"comment_count": "6",
+						"who": {
+							"text": "bcotton",
+							"name": "Ben Cotton"
+						},
+						"bug_when": "2019-05-02 21:17:06 +0000",
+						"thetext": "This message is a reminder that Fedora 28 is nearing its end of life.\nOn 2019-May-28 Fedora will stop maintaining and issuing updates for\nFedora 28. It is Fedora's policy to close all bug reports from releases\nthat are no longer maintained. At that time this bug will be closed as\nEOL if it remains open with a Fedora 'version' of '28'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora 28 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora, you are encouraged  change the 'version' to a later Fedora \nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12783723",
+						"comment_count": "7",
+						"who": {
+							"text": "bcotton",
+							"name": "Ben Cotton"
+						},
+						"bug_when": "2019-05-28 21:53:57 +0000",
+						"thetext": "Fedora 28 changed to end-of-life (EOL) status on 2019-05-28. Fedora 28 is\nno longer maintained, which means that it will not receive any further\nsecurity or bug fix updates. As a result we are closing this bug.\n\nIf you can reproduce this bug against a currently maintained version of\nFedora please feel free to reopen this bug against that version. If you\nare unable to reopen this bug, please file a new report against the\ncurrent release. If you experience problems, please add a comment to this\nbug.\n\nThank you for reporting this bug and we are sorry it could not be fixed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13218958",
+						"comment_count": "8",
+						"who": {
+							"text": "sgallagh",
+							"name": "Stephen Gallagher"
+						},
+						"bug_when": "2019-10-01 14:55:56 +0000",
+						"thetext": "The underlying problem is still an issue in F31. Sorry I didn't notice the auto-close."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13419658",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-02 20:31:14 +0000",
+						"thetext": "FEDORA-2019-7443ebda4b has been submitted as an update to Fedora 31. https://bodhi.fedoraproject.org/updates/FEDORA-2019-7443ebda4b"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13419659",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-02 20:31:14 +0000",
+						"thetext": "FEDORA-2019-1686ae9b59 has been submitted as an update to Fedora 30. https://bodhi.fedoraproject.org/updates/FEDORA-2019-1686ae9b59"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13419660",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-02 20:31:15 +0000",
+						"thetext": "FEDORA-MODULAR-2019-72885eafd5 has been submitted as an update to Fedora 30 Modular. https://bodhi.fedoraproject.org/updates/FEDORA-MODULAR-2019-72885eafd5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13419664",
+						"comment_count": "12",
+						"who": {
+							"text": "sgallagh",
+							"name": "Stephen Gallagher"
+						},
+						"bug_when": "2019-12-02 20:32:24 +0000",
+						"thetext": "As of 12.13.0, `npm -g` will now install global Node.js packages into /usr/local instead of /usr, which should ensure that they don't conflict with the RPM-provided ones."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13420267",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-03 00:54:02 +0000",
+						"thetext": "libuv-1.33.1-1.fc31, nodejs-12.13.1-1.fc31 has been pushed to the Fedora 31 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2019-7443ebda4b"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13420346",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-03 01:28:21 +0000",
+						"thetext": "nodejs-12-3020191106195518.a5b0195c has been pushed to the Fedora 30 Modular testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-MODULAR-2019-72885eafd5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13420373",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-03 01:33:51 +0000",
+						"thetext": "libuv-1.33.1-1.fc30 has been pushed to the Fedora 30 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2019-1686ae9b59"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13420652",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-03 03:01:30 +0000",
+						"thetext": "libuv-1.33.1-1.el7 has been pushed to the Fedora EPEL 7 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2019-b48135c789"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13420667",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-03 03:03:35 +0000",
+						"thetext": "nodejs-12-3120191202171146.f636be4b has been pushed to the Fedora 31 Modular testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-MODULAR-2019-4a18b47487"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13433000",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-06 05:44:07 +0000",
+						"thetext": "libuv-1.33.1-1.fc31, nodejs-12.13.1-1.fc31 has been pushed to the Fedora 31 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13441596",
+						"comment_count": "19",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-10 03:04:22 +0000",
+						"thetext": "libuv-1.33.1-1.fc30 has been pushed to the Fedora 30 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13444827",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-10 17:59:23 +0000",
+						"thetext": "nodejs-12-3020191106195518.a5b0195c has been pushed to the Fedora 30 Modular stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13449308",
+						"comment_count": "21",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-11 17:24:51 +0000",
+						"thetext": "nodejs-12-3120191202171146.f636be4b has been pushed to the Fedora 31 Modular stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13453022",
+						"comment_count": "22",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-12 13:38:23 +0000",
+						"thetext": "FEDORA-EPEL-2019-39eb4afe6e has been submitted as an update to Fedora EPEL 7. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2019-39eb4afe6e"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13455092",
+						"comment_count": "23",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-13 02:01:42 +0000",
+						"thetext": "libuv-1.34.0-1.el7 has been pushed to the Fedora EPEL 7 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2019-39eb4afe6e"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13492103",
+						"comment_count": "24",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-01-05 00:07:28 +0000",
+						"thetext": "libuv-1.34.0-1.el7 has been pushed to the Fedora EPEL 7 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1690818,
+			"feedback": [
+				{
+					"bug_id": 1690818,
+					"comment": {
+						"id": 1156141,
+						"karma": 1,
+						"text": "Works",
+						"timestamp": "2019-12-03 16:12:05",
+						"update_id": 172360,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/cd6029d8d81108a2a69c38a2373d2a185c0e86224b8ee4971cd77bb6cdad7a20?s=24&d=retro",
+							"email": "walter.pete@yandex.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "provenpackager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								}
+							],
+							"id": 491,
+							"name": "pwalter",
+							"openid": "pwalter.id.fedoraproject.org"
+						},
+						"user_id": 491
+					},
+					"comment_id": 1156141
+				},
+				{
+					"bug_id": 1690818,
+					"comment": {
+						"id": 1159410,
+						"karma": 1,
+						"text": "worked fine",
+						"timestamp": "2019-12-05 10:13:36",
+						"update_id": 172360,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/f8db9b35a53624d807b2dd11c2109d12585c5852f0ff616077f8ed9348854fb1?s=24&d=retro",
+							"email": "marttikuosmanen@yahoo.co.uk",
+							"groups": [
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "signed_fpca"
+								}
+							],
+							"id": 417,
+							"name": "kuosmanen",
+							"openid": "kuosmanen.id.fedoraproject.org"
+						},
+						"user_id": 417
+					},
+					"comment_id": 1159410
+				}
+			],
+			"security": true,
+			"title": "nodejs-12.3.1 is available",
+			"bugzilla": {
+				"bug_id": "1690818",
+				"creation_ts": "2019-03-20 09:57:26 +0000",
+				"short_desc": "nodejs-12.3.1 is available",
+				"delta_ts": "2020-05-31 07:33:19 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened, Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1690798",
+						"alias": "CVE-2019-5739",
+						"creation_ts": "2019-03-20 09:35:48 +0000",
+						"short_desc": "CVE-2019-5739 nodejs: DoS with keep-alive HTTP connection",
+						"delta_ts": "2021-10-27 03:26:14 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1690817",
+							"1690818",
+							"1721039",
+							"1721040",
+							"1721041",
+							"1721042"
+						],
+						"blocked": [
+							{
+								"bug_id": "1690811",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "12561606",
+								"comment_count": "0",
+								"who": {
+									"text": "darunesh",
+									"name": "Dhananjay Arunesh"
+								},
+								"bug_when": "2019-03-20 09:35:48 +0000",
+								"thetext": "A vuneability was found in Node.js in which keep-alive HTTP and HTTPS connections can remain open and inactive for up to 2 minutes in Node.js 6.16.0 and earlier. Node.js 8.0.0 introduced a dedicated server.keepAliveTimeout which defaults to 5 seconds. The behavior in Node.js 6.16.0 and earlier is a potential Denial of Service (DoS) attack vector. Node.js 6.17.0 introduces server.keepAliveTimeout and the 5-second default.\n\nReference:\nhttps://nodejs.org/en/blog/vulnerability/february-2019-security-releases/"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12561712",
+								"comment_count": "1",
+								"who": {
+									"text": "darunesh",
+									"name": "Dhananjay Arunesh"
+								},
+								"bug_when": "2019-03-20 09:56:57 +0000",
+								"thetext": "Created nodejs tracking bugs for this issue:\n\nAffects: epel-7 [bug 1690817]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12561716",
+								"comment_count": "2",
+								"who": {
+									"text": "darunesh",
+									"name": "Dhananjay Arunesh"
+								},
+								"bug_when": "2019-03-20 09:57:31 +0000",
+								"thetext": "Created nodejs tracking bugs for this issue:\n\nAffects: fedora-28 [bug 1690818]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12747955",
+								"comment_count": "5",
+								"who": {
+									"text": "rschiron",
+									"name": "Riccardo Schirone"
+								},
+								"bug_when": "2019-05-17 13:40:04 +0000",
+								"thetext": "According to the External Reference (https://nodejs.org/en/blog/vulnerability/february-2019-security-releases/) nodejs 8 and nodejs 10 are not vulnerable to this flaw."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12747957",
+								"comment_count": "6",
+								"who": {
+									"text": "rschiron",
+									"name": "Riccardo Schirone"
+								},
+								"bug_when": "2019-05-17 13:40:07 +0000",
+								"thetext": "External References:\n\nhttps://nodejs.org/en/blog/vulnerability/february-2019-security-releases/"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "12561714",
+						"comment_count": "0",
+						"who": {
+							"text": "darunesh",
+							"name": "Dhananjay Arunesh"
+						},
+						"bug_when": "2019-03-20 09:57:26 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-28.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12561715",
+						"comment_count": "1",
+						"who": {
+							"text": "darunesh",
+							"name": "Dhananjay Arunesh"
+						},
+						"bug_when": "2019-03-20 09:57:28 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1690798,1690818\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12691262",
+						"comment_count": "2",
+						"who": {
+							"text": "bcotton",
+							"name": "Ben Cotton"
+						},
+						"bug_when": "2019-05-02 19:46:17 +0000",
+						"thetext": "This message is a reminder that Fedora 28 is nearing its end of life.\nOn 2019-May-28 Fedora will stop maintaining and issuing updates for\nFedora 28. It is Fedora's policy to close all bug reports from releases\nthat are no longer maintained. At that time this bug will be closed as\nEOL if it remains open with a Fedora 'version' of '28'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora 28 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora, you are encouraged  change the 'version' to a later Fedora \nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12764649",
+						"comment_count": "3",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2019-05-22 18:00:39 +0000",
+						"thetext": "Latest upstream release: 12.3.1 Current version/release in rawhide: 10.15.3-2.fc31 URL: https://nodejs.org/ Please consult the package updates policy before you issue an update to a stable branch: https://fedoraproject.org/wiki/Updates_Policy More information about the service that created this bug can be found at: https://fedoraproject.org/wiki/Upstream_release_monitoringPlease keep in mind that with any upstream change, there may also be packaging changes that need to be made. Specifically, please remember that it is your responsibility to review the new version to ensure that the licensing is still correct and that no non-free or legally problematic items have been added upstream.Based on the information from anitya: https://release-monitoring.org/project/8251/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12781238",
+						"comment_count": "4",
+						"who": {
+							"text": "bcotton",
+							"name": "Ben Cotton"
+						},
+						"bug_when": "2019-05-28 19:00:45 +0000",
+						"thetext": "Fedora 28 changed to end-of-life (EOL) status on 2019-05-28. Fedora 28 is\nno longer maintained, which means that it will not receive any further\nsecurity or bug fix updates. As a result we are closing this bug.\n\nIf you can reproduce this bug against a currently maintained version of\nFedora please feel free to reopen this bug against that version. If you\nare unable to reopen this bug, please file a new report against the\ncurrent release. If you experience problems, please add a comment to this\nbug.\n\nThank you for reporting this bug and we are sorry it could not be fixed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13419654",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-02 20:31:12 +0000",
+						"thetext": "FEDORA-2019-1686ae9b59 has been submitted as an update to Fedora 30. https://bodhi.fedoraproject.org/updates/FEDORA-2019-1686ae9b59"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13419656",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-02 20:31:13 +0000",
+						"thetext": "FEDORA-MODULAR-2019-72885eafd5 has been submitted as an update to Fedora 30 Modular. https://bodhi.fedoraproject.org/updates/FEDORA-MODULAR-2019-72885eafd5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13420266",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-03 00:54:00 +0000",
+						"thetext": "libuv-1.33.1-1.fc31, nodejs-12.13.1-1.fc31 has been pushed to the Fedora 31 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2019-7443ebda4b"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13420345",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-03 01:28:20 +0000",
+						"thetext": "nodejs-12-3020191106195518.a5b0195c has been pushed to the Fedora 30 Modular testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-MODULAR-2019-72885eafd5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13420372",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-03 01:33:50 +0000",
+						"thetext": "libuv-1.33.1-1.fc30 has been pushed to the Fedora 30 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2019-1686ae9b59"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13420649",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-03 03:01:28 +0000",
+						"thetext": "libuv-1.33.1-1.el7 has been pushed to the Fedora EPEL 7 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2019-b48135c789"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13420666",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-03 03:03:33 +0000",
+						"thetext": "nodejs-12-3120191202171146.f636be4b has been pushed to the Fedora 31 Modular testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-MODULAR-2019-4a18b47487"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13432999",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-06 05:44:03 +0000",
+						"thetext": "libuv-1.33.1-1.fc31, nodejs-12.13.1-1.fc31 has been pushed to the Fedora 31 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13441595",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-10 03:04:21 +0000",
+						"thetext": "libuv-1.33.1-1.fc30 has been pushed to the Fedora 30 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13444826",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-10 17:59:22 +0000",
+						"thetext": "nodejs-12-3020191106195518.a5b0195c has been pushed to the Fedora 30 Modular stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13449307",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-11 17:24:50 +0000",
+						"thetext": "nodejs-12-3120191202171146.f636be4b has been pushed to the Fedora 31 Modular stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13453021",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-12 13:38:20 +0000",
+						"thetext": "FEDORA-EPEL-2019-39eb4afe6e has been submitted as an update to Fedora EPEL 7. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2019-39eb4afe6e"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13455090",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-12-13 02:01:40 +0000",
+						"thetext": "libuv-1.34.0-1.el7 has been pushed to the Fedora EPEL 7 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2019-39eb4afe6e"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13492102",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-01-05 00:07:27 +0000",
+						"thetext": "libuv-1.34.0-1.el7 has been pushed to the Fedora EPEL 7 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 1,
+			"nvr": "libuv-1.33.1-1.fc30",
+			"release_id": 28,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "libuv",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libuv-static",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libuv-debuginfo",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libuv-devel",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libuv-debugsource",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "libuv",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libuv-devel",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libuv-debugsource",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libuv-static",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libuv-debuginfo",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "libuv",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "i686"
+					},
+					{
+						"name": "libuv-devel",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "i686"
+					},
+					{
+						"name": "libuv-static",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "i686"
+					},
+					{
+						"name": "libuv-debugsource",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "i686"
+					},
+					{
+						"name": "libuv-debuginfo",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "libuv-static",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libuv-debuginfo",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libuv",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libuv-devel",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libuv-debugsource",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "libuv-devel",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "s390x"
+					},
+					{
+						"name": "libuv",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "s390x"
+					},
+					{
+						"name": "libuv-debuginfo",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "s390x"
+					},
+					{
+						"name": "libuv-static",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "s390x"
+					},
+					{
+						"name": "libuv-debugsource",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "libuv",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "libuv",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libuv-debuginfo",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libuv-debugsource",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libuv-static",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libuv-devel",
+						"epoch": 1,
+						"version": "1.33.1",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 1155313,
+			"text": "This update has been submitted for testing by sgallagh. ",
+			"timestamp": "2019-12-02 20:31:09",
+			"update_id": 172359,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1155314,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2019-12-02 20:31:09",
+			"update_id": 172359,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1155319,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2019-12-02 20:31:15",
+			"update_id": 172359,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1155517,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2019-12-03 01:34:02",
+			"update_id": 172359,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1163403,
+			"text": "This update can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2019-12-10 01:36:26",
+			"update_id": 172359,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1163404,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2019-12-10 01:36:27",
+			"update_id": 172359,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1163542,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2019-12-10 03:04:38",
+			"update_id": 172359,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2019-12-10 03:03:41",
+	"date_stable": "2019-12-10 03:03:41",
+	"date_submitted": "2019-12-02 20:31:09",
+	"date_testing": "2019-12-03 01:33:25",
+	"display_name": "Node.js 12.13.1",
+	"meets_testing_requirements": true,
+	"notes": "Update to Node.js upstream release 12.13.1\n\nhttps://nodejs.org/en/blog/release/v12.13.1/\n\nAlso fixes an issue where running `npm -g` was risky on RPM-installed systems. Fedora's packaged NPM will now install global content in /usr/local instead of /usr where it could conflict with RPM-provided versions.",
+	"pushed": true,
+	"release": {
+		"branch": "f30",
+		"candidate_tag": "f30-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f30",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 30",
+		"mail_template": "fedora_errata_template",
+		"name": "F30",
+		"override_tag": "f30-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f30-signing-pending",
+		"pending_stable_tag": "f30-updates-pending",
+		"pending_testing_tag": "f30-updates-testing-pending",
+		"stable_tag": "f30-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f30-updates-testing",
+		"version": "30"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "unspecified",
+	"stable_days": 7,
+	"stable_karma": 2,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "libuv-1.33.1-1.fc30",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2019-1686ae9b59",
+	"unstable_karma": -1,
+	"updateid": "FEDORA-2019-1686ae9b59",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/0929fed032bd0a481ef74c46023fefe443f3d1b72dbe3efd293b25ed4fc843fd?s=24&d=retro",
+		"email": "sgallagh@redhat.com",
+		"groups": [
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "nodejs-sig"
+			},
+			{
+				"name": "eln-sig"
+			},
+			{
+				"name": "gitding-libs"
+			},
+			{
+				"name": "gitroller-derby"
+			},
+			{
+				"name": "communishift"
+			},
+			{
+				"name": "sysadmin-noc"
+			},
+			{
+				"name": "gitnodejs-packaging"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "gitspin-kickstarts"
+			},
+			{
+				"name": "fesco"
+			},
+			{
+				"name": "epel-cabal"
+			},
+			{
+				"name": "gitsssd"
+			},
+			{
+				"name": "sysadmin"
+			},
+			{
+				"name": "modularity-wg"
+			},
+			{
+				"name": "cockpit-jenkins"
+			},
+			{
+				"name": "gitcura"
+			},
+			{
+				"name": "gitrolekit"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "gitelapi"
+			},
+			{
+				"name": "cockpitteam"
+			},
+			{
+				"name": "server-wg"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "summer-coding"
+			},
+			{
+				"name": "bind-dyndb-ldap"
+			},
+			{
+				"name": "sysadmin-odcs"
+			},
+			{
+				"name": "gitlab-fedora-admin"
+			}
+		],
+		"id": 535,
+		"name": "sgallagh",
+		"openid": "sgallagh.id.fedoraproject.org"
+	},
+	"version_hash": "4b73e9bd3e17121ac6efe3c25d540e3b88f9cc00"
+}

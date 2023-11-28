@@ -1,0 +1,465 @@
+{
+	"alias": "FEDORA-EPEL-2023-afa80a1455",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2151572,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2022-46169 cacti: unauthenticated command injection",
+			"bugzilla": {
+				"bug_id": "2151572",
+				"alias": "CVE-2022-46169",
+				"creation_ts": "2022-12-07 14:26:10 +0000",
+				"short_desc": "CVE-2022-46169 cacti: unauthenticated command injection",
+				"delta_ts": "2022-12-09 20:13:23 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "UPSTREAM",
+				"keywords": "Security",
+				"priority": "urgent",
+				"bug_severity": "urgent",
+				"depends_on": [
+					"2151573",
+					"2151574"
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "16857074",
+						"comment_count": "0",
+						"who": {
+							"text": "gsuckevi",
+							"name": "Guilherme de Almeida Suckevicz"
+						},
+						"bug_when": "2022-12-07 14:26:10 +0000",
+						"thetext": "Cacti is an open source platform which provides a robust and extensible operational monitoring and fault management framework for users. In affected versions a command injection vulnerability allows an unauthenticated user to execute arbitrary code on a server running Cacti, if a specific data source was selected for any monitored device. The vulnerability resides in the `remote_agent.php` file. This file can be accessed without authentication. This function retrieves the IP address of the client via `get_client_addr` and resolves this IP address to the corresponding hostname via `gethostbyaddr`. After this, it is verified that an entry within the `poller` table exists, where the hostname corresponds to the resolved hostname. If such an entry was found, the function returns `true` and the client is authorized. This authorization can be bypassed due to the implementation of the `get_client_addr` function. The function is defined in the file `lib/functions.php` and checks serval `$_SERVER` variables to determine the IP address of the client. The variables beginning with `HTTP_` can be arbitrarily set by an attacker. Since there is a default entry in the `poller` table with the hostname of the server running Cacti, an attacker can bypass the authentication e.g. by providing the header `Forwarded-For: <TARGETIP>`. This way the function `get_client_addr` returns the IP address of the server running Cacti. The following call to `gethostbyaddr` will resolve this IP address to the hostname of the server, which will pass the `poller` hostname check because of the default entry. After the authorization of the `remote_agent.php` file is bypassed, an attacker can trigger different actions. One of these actions is called `polldata`. The called function `poll_for_data` retrieves a few request parameters and loads the corresponding `poller_item` entries from the database. If the `action` of a `poller_item` equals `POLLER_ACTION_SCRIPT_PHP`, the function `proc_open` is used to execute a PHP script. The attacker-controlled parameter `$poller_id` is retrieved via the function `get_nfilter_request_var`, which allows arbitrary strings. This variable is later inserted into the string passed to `proc_open`, which leads to a command injection vulnerability. By e.g. providing the `poller_id=;id` the `id` command is executed. In order to reach the vulnerable call, the attacker must provide a `host_id` and `local_data_id`, where the `action` of the corresponding `poller_item` is set to `POLLER_ACTION_SCRIPT_PHP`. Both of these ids (`host_id` and `local_data_id`) can easily be bruteforced. The only requirement is that a `poller_item` with an `POLLER_ACTION_SCRIPT_PHP` action exists. This is very likely on a productive instance because this action is added by some predefined templates like `Device - Uptime` or `Device - Polling Time`. This command injection vulnerability allows an unauthenticated user to execute arbitrary commands if a `poller_item` with the `action` type `POLLER_ACTION_SCRIPT_PHP` (`2`) is configured. The authorization bypass should be prevented by not allowing an attacker to make `get_client_addr` (file `lib/functions.php`) return an arbitrary IP address. This could be done by not honoring the `HTTP_...` `$_SERVER` variables. If these should be kept for compatibility reasons it should at least be prevented to fake the IP address of the server running Cacti. This vulnerability has been addressed in both the 1.2.x and 1.3.x release branches with `1.2.23` being the first release containing the patch.\n\nReference:\nhttps://github.com/Cacti/cacti/security/advisories/GHSA-6p93-p743-35gf\n\nUpstream patch:\nhttps://github.com/Cacti/cacti/commit/b43f13ae7f1e6bfe4e8e56a80a7cd867cf2db52b\nhttps://github.com/Cacti/cacti/commit/a8d59e8fa5f0054aa9c6981b1cbe30ef0e2a0ec9\nhttps://github.com/Cacti/cacti/commit/7f0e16312dd5ce20f93744ef8b9c3b0f1ece2216"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16857079",
+						"comment_count": "1",
+						"who": {
+							"text": "gsuckevi",
+							"name": "Guilherme de Almeida Suckevicz"
+						},
+						"bug_when": "2022-12-07 14:26:27 +0000",
+						"thetext": "Created cacti tracking bugs for this issue:\n\nAffects: epel-all [bug 2151574]\nAffects: fedora-all [bug 2151573]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16864829",
+						"comment_count": "2",
+						"who": {
+							"text": "prodsec-dev",
+							"name": "Product Security DevOps Team"
+						},
+						"bug_when": "2022-12-09 20:13:22 +0000",
+						"thetext": "This CVE Bugzilla entry is for community support informational purposes only as it does not affect a package in a commercially supported Red Hat product. Refer to the dependent bugs for status of those individual community products."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2151574,
+			"security": true,
+			"title": "CVE-2022-46169 cacti: unauthenticated command injection [epel-all]",
+			"bugzilla": {
+				"bug_id": "2151574",
+				"creation_ts": "2022-12-07 14:26:19 +0000",
+				"short_desc": "CVE-2022-46169 cacti: unauthenticated command injection [epel-all]",
+				"delta_ts": "2023-01-13 01:40:18 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "urgent",
+				"bug_severity": "urgent",
+				"blocked": [
+					{
+						"bug_id": "2151572",
+						"alias": "CVE-2022-46169",
+						"creation_ts": "2022-12-07 14:26:10 +0000",
+						"short_desc": "CVE-2022-46169 cacti: unauthenticated command injection",
+						"delta_ts": "2022-12-09 20:13:23 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "UPSTREAM",
+						"keywords": "Security",
+						"priority": "urgent",
+						"bug_severity": "urgent",
+						"depends_on": [
+							"2151573",
+							"2151574"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "16857074",
+								"comment_count": "0",
+								"who": {
+									"text": "gsuckevi",
+									"name": "Guilherme de Almeida Suckevicz"
+								},
+								"bug_when": "2022-12-07 14:26:10 +0000",
+								"thetext": "Cacti is an open source platform which provides a robust and extensible operational monitoring and fault management framework for users. In affected versions a command injection vulnerability allows an unauthenticated user to execute arbitrary code on a server running Cacti, if a specific data source was selected for any monitored device. The vulnerability resides in the `remote_agent.php` file. This file can be accessed without authentication. This function retrieves the IP address of the client via `get_client_addr` and resolves this IP address to the corresponding hostname via `gethostbyaddr`. After this, it is verified that an entry within the `poller` table exists, where the hostname corresponds to the resolved hostname. If such an entry was found, the function returns `true` and the client is authorized. This authorization can be bypassed due to the implementation of the `get_client_addr` function. The function is defined in the file `lib/functions.php` and checks serval `$_SERVER` variables to determine the IP address of the client. The variables beginning with `HTTP_` can be arbitrarily set by an attacker. Since there is a default entry in the `poller` table with the hostname of the server running Cacti, an attacker can bypass the authentication e.g. by providing the header `Forwarded-For: <TARGETIP>`. This way the function `get_client_addr` returns the IP address of the server running Cacti. The following call to `gethostbyaddr` will resolve this IP address to the hostname of the server, which will pass the `poller` hostname check because of the default entry. After the authorization of the `remote_agent.php` file is bypassed, an attacker can trigger different actions. One of these actions is called `polldata`. The called function `poll_for_data` retrieves a few request parameters and loads the corresponding `poller_item` entries from the database. If the `action` of a `poller_item` equals `POLLER_ACTION_SCRIPT_PHP`, the function `proc_open` is used to execute a PHP script. The attacker-controlled parameter `$poller_id` is retrieved via the function `get_nfilter_request_var`, which allows arbitrary strings. This variable is later inserted into the string passed to `proc_open`, which leads to a command injection vulnerability. By e.g. providing the `poller_id=;id` the `id` command is executed. In order to reach the vulnerable call, the attacker must provide a `host_id` and `local_data_id`, where the `action` of the corresponding `poller_item` is set to `POLLER_ACTION_SCRIPT_PHP`. Both of these ids (`host_id` and `local_data_id`) can easily be bruteforced. The only requirement is that a `poller_item` with an `POLLER_ACTION_SCRIPT_PHP` action exists. This is very likely on a productive instance because this action is added by some predefined templates like `Device - Uptime` or `Device - Polling Time`. This command injection vulnerability allows an unauthenticated user to execute arbitrary commands if a `poller_item` with the `action` type `POLLER_ACTION_SCRIPT_PHP` (`2`) is configured. The authorization bypass should be prevented by not allowing an attacker to make `get_client_addr` (file `lib/functions.php`) return an arbitrary IP address. This could be done by not honoring the `HTTP_...` `$_SERVER` variables. If these should be kept for compatibility reasons it should at least be prevented to fake the IP address of the server running Cacti. This vulnerability has been addressed in both the 1.2.x and 1.3.x release branches with `1.2.23` being the first release containing the patch.\n\nReference:\nhttps://github.com/Cacti/cacti/security/advisories/GHSA-6p93-p743-35gf\n\nUpstream patch:\nhttps://github.com/Cacti/cacti/commit/b43f13ae7f1e6bfe4e8e56a80a7cd867cf2db52b\nhttps://github.com/Cacti/cacti/commit/a8d59e8fa5f0054aa9c6981b1cbe30ef0e2a0ec9\nhttps://github.com/Cacti/cacti/commit/7f0e16312dd5ce20f93744ef8b9c3b0f1ece2216"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "16857079",
+								"comment_count": "1",
+								"who": {
+									"text": "gsuckevi",
+									"name": "Guilherme de Almeida Suckevicz"
+								},
+								"bug_when": "2022-12-07 14:26:27 +0000",
+								"thetext": "Created cacti tracking bugs for this issue:\n\nAffects: epel-all [bug 2151574]\nAffects: fedora-all [bug 2151573]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "16864829",
+								"comment_count": "2",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2022-12-09 20:13:22 +0000",
+								"thetext": "This CVE Bugzilla entry is for community support informational purposes only as it does not affect a package in a commercially supported Red Hat product. Refer to the dependent bugs for status of those individual community products."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "16857077",
+						"comment_count": "0",
+						"who": {
+							"text": "gsuckevi",
+							"name": "Guilherme de Almeida Suckevicz"
+						},
+						"bug_when": "2022-12-07 14:26:19 +0000",
+						"thetext": "\nMore information about this security flaw is available in the following bug:\n\nhttp://bugzilla.redhat.com/show_bug.cgi?id=2151572\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16857078",
+						"comment_count": "1",
+						"who": {
+							"text": "gsuckevi",
+							"name": "Guilherme de Almeida Suckevicz"
+						},
+						"bug_when": "2022-12-07 14:26:21 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=urgent\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2151572,2151574\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16941168",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-01-04 10:59:39 +0000",
+						"thetext": "FEDORA-EPEL-2023-afa80a1455 has been submitted as an update to Fedora EPEL 7. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2023-afa80a1455"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16941171",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-01-04 11:00:22 +0000",
+						"thetext": "FEDORA-EPEL-2023-e970b01696 has been submitted as an update to Fedora EPEL 8. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2023-e970b01696"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16941172",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-01-04 11:01:04 +0000",
+						"thetext": "FEDORA-EPEL-2023-0bb464071b has been submitted as an update to Fedora EPEL 9. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2023-0bb464071b"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16942810",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-01-05 00:27:06 +0000",
+						"thetext": "FEDORA-EPEL-2023-0bb464071b has been pushed to the Fedora EPEL 9 testing repository.\n\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2023-0bb464071b\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16942939",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-01-05 01:27:12 +0000",
+						"thetext": "FEDORA-EPEL-2023-afa80a1455 has been pushed to the Fedora EPEL 7 testing repository.\n\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2023-afa80a1455\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16942945",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-01-05 01:39:09 +0000",
+						"thetext": "FEDORA-EPEL-2023-e970b01696 has been pushed to the Fedora EPEL 8 testing repository.\n\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2023-e970b01696\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16964344",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-01-13 00:41:28 +0000",
+						"thetext": "FEDORA-EPEL-2023-0bb464071b has been pushed to the Fedora EPEL 9 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16964390",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-01-13 01:11:54 +0000",
+						"thetext": "FEDORA-EPEL-2023-afa80a1455 has been pushed to the Fedora EPEL 7 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16964471",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-01-13 01:40:18 +0000",
+						"thetext": "FEDORA-EPEL-2023-e970b01696 has been pushed to the Fedora EPEL 8 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "cacti-1.2.23-1.el7",
+			"release_id": 8,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "cacti",
+						"version": "1.2.23",
+						"release": "1.el7",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "cacti",
+						"version": "1.2.23",
+						"release": "1.el7",
+						"arch": "src"
+					}
+				]
+			}
+		},
+		{
+			"epoch": 0,
+			"nvr": "cacti-spine-1.2.23-1.el7",
+			"release_id": 8,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"ppc64le": [
+					{
+						"name": "cacti-spine",
+						"version": "1.2.23",
+						"release": "1.el7",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "cacti-spine-debuginfo",
+						"version": "1.2.23",
+						"release": "1.el7",
+						"arch": "ppc64le"
+					}
+				],
+				"src": [
+					{
+						"name": "cacti-spine",
+						"version": "1.2.23",
+						"release": "1.el7",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "cacti-spine",
+						"version": "1.2.23",
+						"release": "1.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "cacti-spine-debuginfo",
+						"version": "1.2.23",
+						"release": "1.el7",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 2835294,
+			"text": "This update has been submitted for testing by mstevens. ",
+			"timestamp": "2023-01-04 10:59:37",
+			"update_id": 471163,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2835295,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2023-01-04 10:59:37",
+			"update_id": 471163,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2836189,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2023-01-05 01:27:13",
+			"update_id": 471163,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2843219,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2023-01-12 01:29:30",
+			"update_id": 471163,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2844376,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2023-01-13 01:11:54",
+			"update_id": 471163,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2023-01-13 01:11:52",
+	"date_stable": "2023-01-13 01:11:52",
+	"date_submitted": "2023-01-04 10:59:36",
+	"date_testing": "2023-01-05 01:27:09",
+	"meets_testing_requirements": true,
+	"notes": "- Update to 1.2.23\n- CVE-46169\n\nRelease notes: https://www.cacti.net/info/changelog/1.2.23\n",
+	"pushed": true,
+	"release": {
+		"branch": "epel7",
+		"candidate_tag": "epel7-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "epel7",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 7",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EPEL-7",
+		"override_tag": "epel7-override",
+		"package_manager": "unspecified",
+		"pending_signing_tag": "epel7-signing-pending",
+		"pending_stable_tag": "epel7-pending",
+		"pending_testing_tag": "epel7-testing-pending",
+		"stable_tag": "epel7",
+		"state": "current",
+		"testing_tag": "epel7-testing",
+		"version": "7"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "urgent",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "cacti-1.2.23-1.el7 cacti-spine-1.2.23-1.el7",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2023-afa80a1455",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2023-afa80a1455",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/86811274ad4182d3bcfe18f4ab4d57bbe290d0eca4bd25905decdf5b614716ca?s=24&d=retro",
+		"email": "mstevens@imt-systems.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 203,
+		"name": "mstevens",
+		"openid": "mstevens.id.fedoraproject.org"
+	},
+	"version_hash": "cfa2ce9313347f6a03050feabb448f6a83e0d26e"
+}

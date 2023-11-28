@@ -1,0 +1,715 @@
+{
+	"alias": "FEDORA-2015-6d473c95ee",
+	"bugs": [
+		{
+			"bug_id": 1280543,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-7543 arts,kdelibs3: Use of mktemp(3) allows attacker to hijack the IPC",
+			"bugzilla": {
+				"bug_id": "1280543",
+				"alias": "CVE-2015-7543",
+				"creation_ts": "2015-11-12 03:06:51 +0000",
+				"short_desc": "CVE-2015-7543 arts,kdelibs3: Use of mktemp(3) allows attacker to hijack the IPC",
+				"delta_ts": "2019-09-29 13:39:18 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "WONTFIX",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1289236",
+					"1289238",
+					"1289235",
+					"1289237"
+				],
+				"blocked": [
+					{
+						"bug_id": "1281443",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8812666",
+						"comment_count": "0",
+						"who": {
+							"text": "yselkowi",
+							"name": "Yaakov Selkowitz"
+						},
+						"bug_when": "2015-11-12 03:06:51 +0000",
+						"thetext": "Description of problem:\naRts and kdelibs3 each use their own copy of the same \"lnusertemp\" code to create a user-specific socket directory for IPC.  If the usual location, which is well-known, is unavailable, a random directory name is created with mktemp(3).  A malicious process could therefore create the well-known location to force the race condition inherit in mktemp(3), and then potentially beat it in order to hijack the IPC of aRts and/or KDE.\n\nVersion-Release number of selected component (if applicable):\narts-1.5.10-26.fc22.x86_64\nkdelibs3-3.5.10-68.fc22.x86_64\n(I believe all versions of Fedora are affected, as well as RHEL 5 and 6)\n\nSteps to Reproduce:\n(Warning: Do NOT try this during a KDE session!)\n0. KSOCKETDIR=/tmp/ksocket-`id -un`\n1. rm -f ~/.kde/socket-$HOSTNAME # (not strictly necessary but does cause this to be logged with 'artsd -l 0')\n2. rm -fr $KSOCKETDIR && touch $KSOCKETDIR\nOR: su -c \"mkdir -m 0700 $KSOCKETDIR\" [OTHER_USER]\n3. artsd -l 0 -a alsa\nOR: kdeinit\nOR: lnusertemp socket\n\nActual results:\nA ${KSOCKETDIR}XXXXXX directory is created by mktemp(3), with all the usual implications, then symlinked to ~/.kde/socket-$HOSTNAME.\n\nExpected results:\nmkdtemp(3) should be used to create the fallback socket directory instead of mktemp(3).\n\nAdditional info:\nThis was fixed upstream in commit cc5515ed7ce8884c9b18169158ba29ab2f7a3db7 (together with a bunch of unrelated changes) during the Qt3->4 porting phase, so kdelibs-4.x should never have been affected by itself.  However, if the socket directory is created first by aRts or KDE3, as long as it exists it would also be used by KDE4 processes.\n\nThe relevant part of said commit should backport easily to both arts (mcop/mcoputils.cc) and kdelibs3 (kinit/lnusertemp.c):\n\nhttps://quickgit.kde.org/?p=kdelibs.git&a=blobdiff&h=8c0f6401271c495c68e340e06b09239eb755ce5e&hp=45b72f0d5c3421b571e9515497352a0a9942a075&hb=cc5515ed7ce8884c9b18169158ba29ab2f7a3db7&f=kinit%2Flnusertemp.c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8897193",
+						"comment_count": "1",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2015-12-07 17:37:15 +0000",
+						"thetext": "\nCreated kdelibs3 tracking bugs for this issue:\n\nAffects: fedora-all [bug 1289235]\nAffects: epel-7 [bug 1289236]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8897194",
+						"comment_count": "2",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2015-12-07 17:37:20 +0000",
+						"thetext": "\nCreated arts tracking bugs for this issue:\n\nAffects: fedora-all [bug 1289237]\nAffects: epel-7 [bug 1289238]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8897345",
+						"comment_count": "3",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Kofler"
+						},
+						"bug_when": "2015-12-07 18:40:59 +0000",
+						"thetext": "Yes, that patch (fairly trivial at that) should fix it, let's apply it ASAP."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8899256",
+						"comment_count": "4",
+						"who": {
+							"text": "yselkowi",
+							"name": "Yaakov Selkowitz"
+						},
+						"bug_when": "2015-12-08 05:11:36 +0000",
+						"thetext": "For the sake of public disclosure, TDE arts and tdelibs, being forks of the above (and unchanged wrt this particular code), are similarly affected.  Neither are currently in Fedora.  I have filed this with upstream TDE:\n\nhttps://bugs.trinitydesktop.org/show_bug.cgi?id=2556"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8907476",
+						"comment_count": "7",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Kofler"
+						},
+						"bug_when": "2015-12-10 09:16:08 +0000",
+						"thetext": "For anybody reading this, the WONTFIX is only for RHEL, I am fixing this in Fedora, see the Fedora trackers (arts: bug #1289237, kdelibs3: bug #1289235).\n\narts fix:\nhttp://pkgs.fedoraproject.org/cgit/arts.git/plain/arts-1.5.10-CVE-2015-7543.patch\nkdelibs3 fix: http://pkgs.fedoraproject.org/cgit/kdelibs3.git/plain/kdelibs-3.5.10-CVE-2015-7543.patch"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8945376",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-12-29 22:25:00 +0000",
+						"thetext": "kdelibs3-3.5.10-71.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8945378",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-12-29 22:25:13 +0000",
+						"thetext": "arts-1.5.10-30.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8946327",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-12-30 17:50:52 +0000",
+						"thetext": "kdelibs3-3.5.10-71.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8946329",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-12-30 17:51:00 +0000",
+						"thetext": "arts-1.5.10-30.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1289237,
+			"security": true,
+			"title": "CVE-2015-7543 arts: arts,kdelibs3: Use of mktemp(3) allows attacker to hijack the IPC [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1289237",
+				"creation_ts": "2015-12-07 17:37:02 +0000",
+				"short_desc": "CVE-2015-7543 arts: arts,kdelibs3: Use of mktemp(3) allows attacker to hijack the IPC [fedora-all]",
+				"delta_ts": "2015-12-30 17:51:04 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1280543",
+						"alias": "CVE-2015-7543",
+						"creation_ts": "2015-11-12 03:06:51 +0000",
+						"short_desc": "CVE-2015-7543 arts,kdelibs3: Use of mktemp(3) allows attacker to hijack the IPC",
+						"delta_ts": "2019-09-29 13:39:18 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "WONTFIX",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1289236",
+							"1289238",
+							"1289235",
+							"1289237"
+						],
+						"blocked": [
+							{
+								"bug_id": "1281443",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "8812666",
+								"comment_count": "0",
+								"who": {
+									"text": "yselkowi",
+									"name": "Yaakov Selkowitz"
+								},
+								"bug_when": "2015-11-12 03:06:51 +0000",
+								"thetext": "Description of problem:\naRts and kdelibs3 each use their own copy of the same \"lnusertemp\" code to create a user-specific socket directory for IPC.  If the usual location, which is well-known, is unavailable, a random directory name is created with mktemp(3).  A malicious process could therefore create the well-known location to force the race condition inherit in mktemp(3), and then potentially beat it in order to hijack the IPC of aRts and/or KDE.\n\nVersion-Release number of selected component (if applicable):\narts-1.5.10-26.fc22.x86_64\nkdelibs3-3.5.10-68.fc22.x86_64\n(I believe all versions of Fedora are affected, as well as RHEL 5 and 6)\n\nSteps to Reproduce:\n(Warning: Do NOT try this during a KDE session!)\n0. KSOCKETDIR=/tmp/ksocket-`id -un`\n1. rm -f ~/.kde/socket-$HOSTNAME # (not strictly necessary but does cause this to be logged with 'artsd -l 0')\n2. rm -fr $KSOCKETDIR && touch $KSOCKETDIR\nOR: su -c \"mkdir -m 0700 $KSOCKETDIR\" [OTHER_USER]\n3. artsd -l 0 -a alsa\nOR: kdeinit\nOR: lnusertemp socket\n\nActual results:\nA ${KSOCKETDIR}XXXXXX directory is created by mktemp(3), with all the usual implications, then symlinked to ~/.kde/socket-$HOSTNAME.\n\nExpected results:\nmkdtemp(3) should be used to create the fallback socket directory instead of mktemp(3).\n\nAdditional info:\nThis was fixed upstream in commit cc5515ed7ce8884c9b18169158ba29ab2f7a3db7 (together with a bunch of unrelated changes) during the Qt3->4 porting phase, so kdelibs-4.x should never have been affected by itself.  However, if the socket directory is created first by aRts or KDE3, as long as it exists it would also be used by KDE4 processes.\n\nThe relevant part of said commit should backport easily to both arts (mcop/mcoputils.cc) and kdelibs3 (kinit/lnusertemp.c):\n\nhttps://quickgit.kde.org/?p=kdelibs.git&a=blobdiff&h=8c0f6401271c495c68e340e06b09239eb755ce5e&hp=45b72f0d5c3421b571e9515497352a0a9942a075&hb=cc5515ed7ce8884c9b18169158ba29ab2f7a3db7&f=kinit%2Flnusertemp.c"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8897193",
+								"comment_count": "1",
+								"who": {
+									"text": "kseifried",
+									"name": "Kurt Seifried"
+								},
+								"bug_when": "2015-12-07 17:37:15 +0000",
+								"thetext": "\nCreated kdelibs3 tracking bugs for this issue:\n\nAffects: fedora-all [bug 1289235]\nAffects: epel-7 [bug 1289236]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8897194",
+								"comment_count": "2",
+								"who": {
+									"text": "kseifried",
+									"name": "Kurt Seifried"
+								},
+								"bug_when": "2015-12-07 17:37:20 +0000",
+								"thetext": "\nCreated arts tracking bugs for this issue:\n\nAffects: fedora-all [bug 1289237]\nAffects: epel-7 [bug 1289238]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8897345",
+								"comment_count": "3",
+								"who": {
+									"text": "kevin",
+									"name": "Kevin Kofler"
+								},
+								"bug_when": "2015-12-07 18:40:59 +0000",
+								"thetext": "Yes, that patch (fairly trivial at that) should fix it, let's apply it ASAP."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8899256",
+								"comment_count": "4",
+								"who": {
+									"text": "yselkowi",
+									"name": "Yaakov Selkowitz"
+								},
+								"bug_when": "2015-12-08 05:11:36 +0000",
+								"thetext": "For the sake of public disclosure, TDE arts and tdelibs, being forks of the above (and unchanged wrt this particular code), are similarly affected.  Neither are currently in Fedora.  I have filed this with upstream TDE:\n\nhttps://bugs.trinitydesktop.org/show_bug.cgi?id=2556"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8907476",
+								"comment_count": "7",
+								"who": {
+									"text": "kevin",
+									"name": "Kevin Kofler"
+								},
+								"bug_when": "2015-12-10 09:16:08 +0000",
+								"thetext": "For anybody reading this, the WONTFIX is only for RHEL, I am fixing this in Fedora, see the Fedora trackers (arts: bug #1289237, kdelibs3: bug #1289235).\n\narts fix:\nhttp://pkgs.fedoraproject.org/cgit/arts.git/plain/arts-1.5.10-CVE-2015-7543.patch\nkdelibs3 fix: http://pkgs.fedoraproject.org/cgit/kdelibs3.git/plain/kdelibs-3.5.10-CVE-2015-7543.patch"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8945376",
+								"comment_count": "8",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-12-29 22:25:00 +0000",
+								"thetext": "kdelibs3-3.5.10-71.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8945378",
+								"comment_count": "9",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-12-29 22:25:13 +0000",
+								"thetext": "arts-1.5.10-30.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8946327",
+								"comment_count": "10",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-12-30 17:50:52 +0000",
+								"thetext": "kdelibs3-3.5.10-71.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8946329",
+								"comment_count": "11",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-12-30 17:51:00 +0000",
+								"thetext": "arts-1.5.10-30.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8897189",
+						"comment_count": "0",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2015-12-07 17:37:02 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8897190",
+						"comment_count": "1",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2015-12-07 17:37:07 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1280543,1289237\n\n# Description of your update\nnotes=Security fix for \n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link(s) instead:\n\nhttps://bodhi.fedoraproject.org/updates/new?type_=security&bugs=1280543,1289237"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8907308",
+						"comment_count": "2",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Kofler"
+						},
+						"bug_when": "2015-12-10 08:27:41 +0000",
+						"thetext": "I'm looking into fixing this in Fedora, looks like the upstream fix should be straightforward to backport."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8907319",
+						"comment_count": "3",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Kofler"
+						},
+						"bug_when": "2015-12-10 08:30:55 +0000",
+						"thetext": "The arts version of the code is in mcop/mcoputils.cpp."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8907323",
+						"comment_count": "4",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Kofler"
+						},
+						"bug_when": "2015-12-10 08:31:26 +0000",
+						"thetext": "Small correction: The arts version of the code is in mcop/mcoputils.cc."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8907341",
+						"comment_count": "5",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Kofler"
+						},
+						"bug_when": "2015-12-10 08:40:03 +0000",
+						"thetext": "We also need to remove this hack:\nhttp://pkgs.fedoraproject.org/cgit/arts.git/tree/arts-1.5.0-check_tmp_dir.patch\nwhich was a quick fix for bug #169631 (failure to run if lnusertemp is not found on the system), but this has since been fixed upstream by a copy&paste of the lnusertemp code (the code we need to fix here) and is thus not needed anymore, and now the check_tmp_dir patch interferes with the security fix."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8907430",
+						"comment_count": "6",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Kofler"
+						},
+						"bug_when": "2015-12-10 09:03:02 +0000",
+						"thetext": "This should fix it:\nhttp://pkgs.fedoraproject.org/cgit/arts.git/plain/arts-1.5.10-CVE-2015-7543.patch\n\nBuilding for Rawhide now, I will issue updates for releases if it builds."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8907485",
+						"comment_count": "7",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Kofler"
+						},
+						"bug_when": "2015-12-10 09:20:09 +0000",
+						"thetext": "This built fine for Rawhide. Updates for releases are coming ASAP (probably later today)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8908473",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-12-10 15:04:08 +0000",
+						"thetext": "arts-1.5.10-30.fc23 has been submitted as an update to Fedora 23. https://bodhi.fedoraproject.org/updates/FEDORA-2015-6d473c95ee"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8908477",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-12-10 15:05:40 +0000",
+						"thetext": "arts-1.5.10-30.fc22 has been submitted as an update to Fedora 22. https://bodhi.fedoraproject.org/updates/FEDORA-2015-8dd01b09a9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8910335",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-12-11 06:00:24 +0000",
+						"thetext": "arts-1.5.10-30.fc23 has been pushed to the Fedora 23 testing repository. If problems still persist, please make note of it in this bug report.\nIf you want to test the update, you can install it with\n$ su -c 'dnf --enablerepo=updates-testing update arts'\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2015-6d473c95ee"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8912349",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-12-11 19:57:04 +0000",
+						"thetext": "arts-1.5.10-30.fc22 has been pushed to the Fedora 22 testing repository. If problems still persist, please make note of it in this bug report.\nIf you want to test the update, you can install it with\n$ su -c 'dnf --enablerepo=updates-testing update arts'\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2015-8dd01b09a9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8945379",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-12-29 22:25:17 +0000",
+						"thetext": "arts-1.5.10-30.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8946330",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-12-30 17:51:04 +0000",
+						"thetext": "arts-1.5.10-30.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "arts-1.5.10-30.fc23",
+			"release_id": 11,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "arts",
+						"epoch": 8,
+						"version": "1.5.10",
+						"release": "30.fc23",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "arts-debuginfo",
+						"epoch": 8,
+						"version": "1.5.10",
+						"release": "30.fc23",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "arts-devel",
+						"epoch": 8,
+						"version": "1.5.10",
+						"release": "30.fc23",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "arts-devel",
+						"epoch": 8,
+						"version": "1.5.10",
+						"release": "30.fc23",
+						"arch": "i686"
+					},
+					{
+						"name": "arts",
+						"epoch": 8,
+						"version": "1.5.10",
+						"release": "30.fc23",
+						"arch": "i686"
+					},
+					{
+						"name": "arts-debuginfo",
+						"epoch": 8,
+						"version": "1.5.10",
+						"release": "30.fc23",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "arts",
+						"epoch": 8,
+						"version": "1.5.10",
+						"release": "30.fc23",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "arts",
+						"epoch": 8,
+						"version": "1.5.10",
+						"release": "30.fc23",
+						"arch": "x86_64"
+					},
+					{
+						"name": "arts-devel",
+						"epoch": 8,
+						"version": "1.5.10",
+						"release": "30.fc23",
+						"arch": "x86_64"
+					},
+					{
+						"name": "arts-debuginfo",
+						"epoch": 8,
+						"version": "1.5.10",
+						"release": "30.fc23",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 364146,
+			"text": "This update has been submitted for testing by kkofler. ",
+			"timestamp": "2015-12-10 15:03:59",
+			"update_id": 46598,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 364490,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2015-12-11 06:02:56",
+			"update_id": 46598,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 367729,
+			"text": "This update has reached 7 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2015-12-18 06:00:12",
+			"update_id": 46598,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 370736,
+			"karma": 1,
+			"text": "works",
+			"timestamp": "2015-12-28 16:39:12",
+			"update_id": 46598,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/cd8c7a6c7915ec305684dc7062ae860ea8d43040037d3bea3d20e03d2621566a?s=24&d=retro",
+				"email": "williamjmorenor@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					}
+				],
+				"id": 216,
+				"name": "williamjmorenor",
+				"openid": "williamjmorenor.id.fedoraproject.org"
+			},
+			"user_id": 216
+		},
+		{
+			"id": 371114,
+			"text": "This update has been submitted for stable by kkofler. ",
+			"timestamp": "2015-12-29 02:25:24",
+			"update_id": 46598,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 371401,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2015-12-29 22:25:40",
+			"update_id": 46598,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2015-12-29 18:54:14",
+	"date_stable": "2015-12-29 18:54:14",
+	"date_submitted": "2015-12-10 15:03:59",
+	"date_testing": "2015-12-11 03:27:32",
+	"karma": 1,
+	"meets_testing_requirements": true,
+	"notes": "Security fix for CVE-2015-7543 in arts (the legacy aRts sound server): A temporary directory was being created insecurely using mktemp and mkdir, allowing an attacker to hijack the temporary directory and thus the inter-process communication (IPC). This update fixes the temporary directory creation to use the safe mkdtemp function instead.",
+	"pushed": true,
+	"release": {
+		"branch": "f23",
+		"candidate_tag": "f23-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f23",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 23",
+		"mail_template": "fedora_errata_template",
+		"name": "F23",
+		"override_tag": "f23-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f23-signing-pending",
+		"pending_stable_tag": "f23-updates-pending",
+		"pending_testing_tag": "f23-updates-testing-pending",
+		"stable_tag": "f23-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f23-updates-testing",
+		"version": "23"
+	},
+	"requirements": "",
+	"severity": "urgent",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "arts-1.5.10-30.fc23",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-6d473c95ee",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-6d473c95ee",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/660d89b3febd2b1715ca1b7a383b994302d14852b421ea1bf8dc4fdf9e6c0b9c?s=24&d=retro",
+		"email": "kevin@tigcc.ticalc.org",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "gitspin-kickstarts"
+			},
+			{
+				"name": "svnkde-settings"
+			},
+			{
+				"name": "svnfedora-kde-artwork"
+			},
+			{
+				"name": "gitthemes"
+			},
+			{
+				"name": "art"
+			}
+		],
+		"id": 886,
+		"name": "kkofler",
+		"openid": "kkofler.id.fedoraproject.org"
+	},
+	"version_hash": "5702cb10d23f99fef2e4efd76a0afbf161ed887d"
+}

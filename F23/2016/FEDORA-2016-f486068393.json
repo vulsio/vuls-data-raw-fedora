@@ -1,0 +1,1387 @@
+{
+	"alias": "FEDORA-2016-f486068393",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1301933,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-7576 rubygem-actionpack: Timing attack vulnerability in basic authentication in Action Controller",
+			"bugzilla": {
+				"bug_id": "1301933",
+				"alias": "CVE-2015-7576",
+				"creation_ts": "2016-01-26 12:09:30 +0000",
+				"short_desc": "CVE-2015-7576 rubygem-actionpack: Timing attack vulnerability in basic authentication in Action Controller",
+				"delta_ts": "2021-06-02 06:13:26 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1301934",
+					"1301935",
+					"1301995",
+					"1301996",
+					"1301997",
+					"1301998",
+					"1301999",
+					"1306275",
+					"1306276",
+					"1306277",
+					"1306278",
+					"1306279",
+					"1306281"
+				],
+				"blocked": [
+					{
+						"bug_id": "1302006",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2016:0455",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "9010320",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2016-01-26 12:09:30 +0000",
+						"thetext": "It was found that due to the way that Action Controller compares user names and passwords in basic authentication authorization code, it is possible for an attacker to analyze the time taken by a response and intuit the password.\n\nExternal References:\n\nhttps://groups.google.com/forum/#!msg/rubyonrails-security/ANv0HDHEC3k/mt7wNGxbFQAJ\nhttp://weblog.rubyonrails.org/2016/1/25/Rails-5-0-0-beta1-1-4-2-5-1-4-1-14-1-3-2-22-1-and-rails-html-sanitizer-1-0-3-have-been-released/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9010753",
+						"comment_count": "5",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2016-01-26 13:55:36 +0000",
+						"thetext": "\nCreated rubygem-activesupport tracking bugs for this issue:\n\nAffects: fedora-all [bug 1301999]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9010756",
+						"comment_count": "6",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2016-01-26 13:55:52 +0000",
+						"thetext": "\nCreated rubygem-actionpack tracking bugs for this issue:\n\nAffects: fedora-all [bug 1301996]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9039109",
+						"comment_count": "8",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2016-02-05 14:37:14 +0000",
+						"thetext": "Upstream commit:\n\n3.2 https://github.com/rails/rails/commit/a6fa3960c3a149e83eb2ff057be4472a82958e3d\n4.1 https://github.com/rails/rails/commit/859ca4474e1608b83d61941724574aba491be7f1\n4.2 https://github.com/rails/rails/commit/036bbda9eb3b3885223d53646777733a1547d89a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9046070",
+						"comment_count": "9",
+						"who": {
+							"text": "jrusnack",
+							"name": "Ján Rusnačko"
+						},
+						"bug_when": "2016-02-09 13:23:59 +0000",
+						"thetext": "Mitigation:\n\nUse following code to monkey-patch http_basic_authenticate_with method in ActionController:\n\n~~~\nmodule ActiveSupport\n  module SecurityUtils\n    def secure_compare(a, b)\n      return false unless a.bytesize == b.bytesize\n\n      l = a.unpack \"C#{a.bytesize}\"\n\n      res = 0\n      b.each_byte { |byte| res |= byte ^ l.shift }\n      res == 0\n    end\n    module_function :secure_compare\n\n    def variable_size_secure_compare(a, b)\n      secure_compare(::Digest::SHA256.hexdigest(a), ::Digest::SHA256.hexdigest(b))\n    end\n    module_function :variable_size_secure_compare\n  end\nend\n\nmodule ActionController\n  class Base\n    def self.http_basic_authenticate_with(options = {})\n      before_action(options.except(:name, :password, :realm)) do\n        authenticate_or_request_with_http_basic(options[:realm] || \"Application\") do |name, password|\n          # This comparison uses & so that it doesn't short circuit and\n          # uses `variable_size_secure_compare` so that length information\n          # isn't leaked.\n          ActiveSupport::SecurityUtils.variable_size_secure_compare(name, options[:name]) &\n            ActiveSupport::SecurityUtils.variable_size_secure_compare(password, options[:password])\n        end\n      end\n    end\n  end\nend\n~~~"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9091121",
+						"comment_count": "13",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2016-02-24 10:36:40 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n\nVia RHSA-2016:0296 https://rhn.redhat.com/errata/RHSA-2016-0296.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9103290",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-28 08:25:42 +0000",
+						"thetext": "rubygem-actionpack-4.2.0-3.fc22, rubygem-activemodel-4.2.0-2.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9103302",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-28 08:28:48 +0000",
+						"thetext": "rubygem-activesupport-4.2.0-4.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9103483",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-28 12:24:58 +0000",
+						"thetext": "rubygem-activesupport-4.2.3-3.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9103488",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-28 12:25:41 +0000",
+						"thetext": "rubygem-actionpack-4.2.3-4.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9150779",
+						"comment_count": "18",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2016-03-15 20:59:48 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n\nVia RHSA-2016:0455 https://rhn.redhat.com/errata/RHSA-2016-0455.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9150793",
+						"comment_count": "19",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2016-03-15 21:02:40 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n\nVia RHSA-2016:0454 https://rhn.redhat.com/errata/RHSA-2016-0454.html"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1301946,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2016-0751 rubygem-actionpack: possible object leak and denial of service attack in Action Pack",
+			"bugzilla": {
+				"bug_id": "1301946",
+				"alias": "CVE-2016-0751",
+				"creation_ts": "2016-01-26 12:21:13 +0000",
+				"short_desc": "CVE-2016-0751 rubygem-actionpack: possible object leak and denial of service attack in Action Pack",
+				"delta_ts": "2021-06-02 06:20:48 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1301947",
+					"1301948",
+					"1302002",
+					"1306275",
+					"1306276",
+					"1306277",
+					"1306278",
+					"1306279",
+					"1306281"
+				],
+				"blocked": [
+					{
+						"bug_id": "1302006",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2016:0455",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "9010413",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2016-01-26 12:21:13 +0000",
+						"thetext": "It was reported that carefully crafted accept header can cause a global cache of mime types to grow indefinitely which can lead to a possible denial of service attack in Action Pack. \n\nExternal References:\n\nhttps://groups.google.com/forum/#!msg/rubyonrails-security/9oLY_FCzvoc/w9oI9XxbFQAJ\nhttp://weblog.rubyonrails.org/2016/1/25/Rails-5-0-0-beta1-1-4-2-5-1-4-1-14-1-3-2-22-1-and-rails-html-sanitizer-1-0-3-have-been-released/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9010424",
+						"comment_count": "2",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2016-01-26 12:22:25 +0000",
+						"thetext": "\nCreated rubygem-rails tracking bugs for this issue:\n\nAffects: fedora-all [bug 1301948]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9039131",
+						"comment_count": "5",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2016-02-05 14:43:58 +0000",
+						"thetext": "Upstream commit:\n\n3.2 https://github.com/rails/rails/commit/127967b735813cd4f263df7a50426d74e7e9cc17\n4.1 https://github.com/rails/rails/commit/221937c8ba1d291430ceddebbd4bdef7d3cb47d6\n4.2 https://github.com/rails/rails/commit/37047b779a177b911c7161052cfc34a30e1db0af"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9091122",
+						"comment_count": "10",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2016-02-24 10:36:55 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n\nVia RHSA-2016:0296 https://rhn.redhat.com/errata/RHSA-2016-0296.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9103291",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-28 08:25:56 +0000",
+						"thetext": "rubygem-actionpack-4.2.0-3.fc22, rubygem-activemodel-4.2.0-2.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9103489",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-28 12:25:54 +0000",
+						"thetext": "rubygem-actionpack-4.2.3-4.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9150781",
+						"comment_count": "13",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2016-03-15 21:00:02 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n\nVia RHSA-2016:0455 https://rhn.redhat.com/errata/RHSA-2016-0455.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9150794",
+						"comment_count": "14",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2016-03-15 21:02:54 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n\nVia RHSA-2016:0454 https://rhn.redhat.com/errata/RHSA-2016-0454.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11056349",
+						"comment_count": "15",
+						"who": {
+							"text": "sherr",
+							"name": "Stephen Herr"
+						},
+						"bug_when": "2017-12-02 00:11:57 +0000",
+						"thetext": "Mitigation:\n\nUse following code to monkey-patch mime types cache and disable caching.\n\n```\nrequire 'action_dispatch/http/mime_type'\n\nMime.const_set :LOOKUP, Hash.new { |h,k|\n  Mime::Type.new(k) unless k.blank?\n} \n```\n\nAlternatively perform filtering of mime types in the Accept header to allow only known types."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1301948,
+			"security": true,
+			"title": "CVE-2016-0751 rubygem-actionpack: Possible Object Leak and Denial of Service attack in Action Pack [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1301948",
+				"creation_ts": "2016-01-26 12:21:59 +0000",
+				"short_desc": "CVE-2016-0751 rubygem-actionpack: Possible Object Leak and Denial of Service attack in Action Pack [fedora-all]",
+				"delta_ts": "2016-02-28 12:26:36 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1301946",
+						"alias": "CVE-2016-0751",
+						"creation_ts": "2016-01-26 12:21:13 +0000",
+						"short_desc": "CVE-2016-0751 rubygem-actionpack: possible object leak and denial of service attack in Action Pack",
+						"delta_ts": "2021-06-02 06:20:48 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1301947",
+							"1301948",
+							"1302002",
+							"1306275",
+							"1306276",
+							"1306277",
+							"1306278",
+							"1306279",
+							"1306281"
+						],
+						"blocked": [
+							{
+								"bug_id": "1302006",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2016:0455",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "9010413",
+								"comment_count": "0",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2016-01-26 12:21:13 +0000",
+								"thetext": "It was reported that carefully crafted accept header can cause a global cache of mime types to grow indefinitely which can lead to a possible denial of service attack in Action Pack. \n\nExternal References:\n\nhttps://groups.google.com/forum/#!msg/rubyonrails-security/9oLY_FCzvoc/w9oI9XxbFQAJ\nhttp://weblog.rubyonrails.org/2016/1/25/Rails-5-0-0-beta1-1-4-2-5-1-4-1-14-1-3-2-22-1-and-rails-html-sanitizer-1-0-3-have-been-released/"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9010424",
+								"comment_count": "2",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2016-01-26 12:22:25 +0000",
+								"thetext": "\nCreated rubygem-rails tracking bugs for this issue:\n\nAffects: fedora-all [bug 1301948]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9039131",
+								"comment_count": "5",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2016-02-05 14:43:58 +0000",
+								"thetext": "Upstream commit:\n\n3.2 https://github.com/rails/rails/commit/127967b735813cd4f263df7a50426d74e7e9cc17\n4.1 https://github.com/rails/rails/commit/221937c8ba1d291430ceddebbd4bdef7d3cb47d6\n4.2 https://github.com/rails/rails/commit/37047b779a177b911c7161052cfc34a30e1db0af"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9091122",
+								"comment_count": "10",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2016-02-24 10:36:55 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n\nVia RHSA-2016:0296 https://rhn.redhat.com/errata/RHSA-2016-0296.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9103291",
+								"comment_count": "11",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2016-02-28 08:25:56 +0000",
+								"thetext": "rubygem-actionpack-4.2.0-3.fc22, rubygem-activemodel-4.2.0-2.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9103489",
+								"comment_count": "12",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2016-02-28 12:25:54 +0000",
+								"thetext": "rubygem-actionpack-4.2.3-4.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9150781",
+								"comment_count": "13",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2016-03-15 21:00:02 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n\nVia RHSA-2016:0455 https://rhn.redhat.com/errata/RHSA-2016-0455.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9150794",
+								"comment_count": "14",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2016-03-15 21:02:54 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n\nVia RHSA-2016:0454 https://rhn.redhat.com/errata/RHSA-2016-0454.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11056349",
+								"comment_count": "15",
+								"who": {
+									"text": "sherr",
+									"name": "Stephen Herr"
+								},
+								"bug_when": "2017-12-02 00:11:57 +0000",
+								"thetext": "Mitigation:\n\nUse following code to monkey-patch mime types cache and disable caching.\n\n```\nrequire 'action_dispatch/http/mime_type'\n\nMime.const_set :LOOKUP, Hash.new { |h,k|\n  Mime::Type.new(k) unless k.blank?\n} \n```\n\nAlternatively perform filtering of mime types in the Accept header to allow only known types."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "9010420",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2016-01-26 12:21:59 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9010422",
+						"comment_count": "1",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2016-01-26 12:22:08 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1301946,1301948\n\n# Description of your update\nnotes=Security fix for CVE-2016-0751\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link(s) instead:\n\nhttps://bodhi.fedoraproject.org/updates/new?type_=security&bugs=1301946,1301948"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9023823",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-01-31 22:52:52 +0000",
+						"thetext": "rubygem-actionpack-4.2.3-4.fc23 has been submitted as an update to Fedora 23. https://bodhi.fedoraproject.org/updates/FEDORA-2016-f486068393"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9025157",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-01 07:51:30 +0000",
+						"thetext": "rubygem-actionpack-4.2.3-4.fc23 has been pushed to the Fedora 23 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-f486068393"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9050209",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-10 16:14:08 +0000",
+						"thetext": "rubygem-activemodel-4.2.0-2.fc22 rubygem-actionpack-4.2.0-3.fc22 has been submitted as an update to Fedora 22. https://bodhi.fedoraproject.org/updates/FEDORA-2016-94e71ee673"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9052974",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-11 14:52:48 +0000",
+						"thetext": "rubygem-actionpack-4.2.0-3.fc22, rubygem-activemodel-4.2.0-2.fc22 has been pushed to the Fedora 22 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-94e71ee673"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9103294",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-28 08:26:24 +0000",
+						"thetext": "rubygem-actionpack-4.2.0-3.fc22, rubygem-activemodel-4.2.0-2.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9103494",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-28 12:26:25 +0000",
+						"thetext": "rubygem-actionpack-4.2.3-4.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1301981,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-7581 rubygem-actionpack: Object leak vulnerability for wildcard controller routes in Action Pack",
+			"bugzilla": {
+				"bug_id": "1301981",
+				"alias": "CVE-2015-7581",
+				"creation_ts": "2016-01-26 13:24:28 +0000",
+				"short_desc": "CVE-2015-7581 rubygem-actionpack: Object leak vulnerability for wildcard controller routes in Action Pack",
+				"delta_ts": "2021-06-01 15:43:53 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened, Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1301982",
+					"1301983",
+					"1306277",
+					"1306278",
+					"1306279",
+					"1306281"
+				],
+				"blocked": [
+					{
+						"bug_id": "1302006",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2016:0454",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "9010600",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2016-01-26 13:24:28 +0000",
+						"thetext": "An object leak vulnerability for wildcard controllers in Action Pack was reported. Users that have a route that contains the string \":controller\" are susceptible to objects being leaked globally which can lead to unbounded memory growth. \n\nExternal References:\n\nhttps://groups.google.com/forum/#!msg/rubyonrails-security/dthJ5wL69JE/YzPnFelbFQAJ\nhttp://weblog.rubyonrails.org/2016/1/25/Rails-5-0-0-beta1-1-4-2-5-1-4-1-14-1-3-2-22-1-and-rails-html-sanitizer-1-0-3-have-been-released/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9010614",
+						"comment_count": "2",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2016-01-26 13:25:53 +0000",
+						"thetext": "\nCreated rubygem-actionpack tracking bugs for this issue:\n\nAffects: fedora-all [bug 1301983]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9039250",
+						"comment_count": "4",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2016-02-05 15:32:44 +0000",
+						"thetext": "Upstream commit:\n\n4.1 https://github.com/rails/rails/commit/98629dfcce8d5ac2b97d0efece41b686daef8f02\n4.2 https://github.com/rails/rails/commit/710c5ce91acd8b4277dc105e60bc5bda90ccbd8a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9091127",
+						"comment_count": "7",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2016-02-24 10:37:58 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n\nVia RHSA-2016:0296 https://rhn.redhat.com/errata/RHSA-2016-0296.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9103292",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-28 08:26:09 +0000",
+						"thetext": "rubygem-actionpack-4.2.0-3.fc22, rubygem-activemodel-4.2.0-2.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9103491",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-28 12:26:05 +0000",
+						"thetext": "rubygem-actionpack-4.2.3-4.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9150799",
+						"comment_count": "10",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2016-03-15 21:03:45 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n\nVia RHSA-2016:0454 https://rhn.redhat.com/errata/RHSA-2016-0454.html"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1301983,
+			"security": true,
+			"title": "CVE-2015-7581 rubygem-actionpack: Object leak vulnerability for wildcard controller routes in Action Pack [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1301983",
+				"creation_ts": "2016-01-26 13:25:26 +0000",
+				"short_desc": "CVE-2015-7581 rubygem-actionpack: Object leak vulnerability for wildcard controller routes in Action Pack [fedora-all]",
+				"delta_ts": "2016-02-28 12:26:33 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1301981",
+						"alias": "CVE-2015-7581",
+						"creation_ts": "2016-01-26 13:24:28 +0000",
+						"short_desc": "CVE-2015-7581 rubygem-actionpack: Object leak vulnerability for wildcard controller routes in Action Pack",
+						"delta_ts": "2021-06-01 15:43:53 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Reopened, Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1301982",
+							"1301983",
+							"1306277",
+							"1306278",
+							"1306279",
+							"1306281"
+						],
+						"blocked": [
+							{
+								"bug_id": "1302006",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2016:0454",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "9010600",
+								"comment_count": "0",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2016-01-26 13:24:28 +0000",
+								"thetext": "An object leak vulnerability for wildcard controllers in Action Pack was reported. Users that have a route that contains the string \":controller\" are susceptible to objects being leaked globally which can lead to unbounded memory growth. \n\nExternal References:\n\nhttps://groups.google.com/forum/#!msg/rubyonrails-security/dthJ5wL69JE/YzPnFelbFQAJ\nhttp://weblog.rubyonrails.org/2016/1/25/Rails-5-0-0-beta1-1-4-2-5-1-4-1-14-1-3-2-22-1-and-rails-html-sanitizer-1-0-3-have-been-released/"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9010614",
+								"comment_count": "2",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2016-01-26 13:25:53 +0000",
+								"thetext": "\nCreated rubygem-actionpack tracking bugs for this issue:\n\nAffects: fedora-all [bug 1301983]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9039250",
+								"comment_count": "4",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2016-02-05 15:32:44 +0000",
+								"thetext": "Upstream commit:\n\n4.1 https://github.com/rails/rails/commit/98629dfcce8d5ac2b97d0efece41b686daef8f02\n4.2 https://github.com/rails/rails/commit/710c5ce91acd8b4277dc105e60bc5bda90ccbd8a"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9091127",
+								"comment_count": "7",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2016-02-24 10:37:58 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n\nVia RHSA-2016:0296 https://rhn.redhat.com/errata/RHSA-2016-0296.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9103292",
+								"comment_count": "8",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2016-02-28 08:26:09 +0000",
+								"thetext": "rubygem-actionpack-4.2.0-3.fc22, rubygem-activemodel-4.2.0-2.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9103491",
+								"comment_count": "9",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2016-02-28 12:26:05 +0000",
+								"thetext": "rubygem-actionpack-4.2.3-4.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9150799",
+								"comment_count": "10",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2016-03-15 21:03:45 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n\nVia RHSA-2016:0454 https://rhn.redhat.com/errata/RHSA-2016-0454.html"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "9010606",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2016-01-26 13:25:26 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9010607",
+						"comment_count": "1",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2016-01-26 13:25:34 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1301981,1301983\n\n# Description of your update\nnotes=Security fix for CVE-2015-7581\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link(s) instead:\n\nhttps://bodhi.fedoraproject.org/updates/new?type_=security&bugs=1301981,1301983"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9023821",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-01-31 22:52:44 +0000",
+						"thetext": "rubygem-actionpack-4.2.3-4.fc23 has been submitted as an update to Fedora 23. https://bodhi.fedoraproject.org/updates/FEDORA-2016-f486068393"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9025156",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-01 07:51:26 +0000",
+						"thetext": "rubygem-actionpack-4.2.3-4.fc23 has been pushed to the Fedora 23 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-f486068393"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9050206",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-10 16:14:01 +0000",
+						"thetext": "rubygem-activemodel-4.2.0-2.fc22 rubygem-actionpack-4.2.0-3.fc22 has been submitted as an update to Fedora 22. https://bodhi.fedoraproject.org/updates/FEDORA-2016-94e71ee673"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9052973",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-11 14:52:45 +0000",
+						"thetext": "rubygem-actionpack-4.2.0-3.fc22, rubygem-activemodel-4.2.0-2.fc22 has been pushed to the Fedora 22 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-94e71ee673"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9103293",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-28 08:26:21 +0000",
+						"thetext": "rubygem-actionpack-4.2.0-3.fc22, rubygem-activemodel-4.2.0-2.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9103493",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-28 12:26:22 +0000",
+						"thetext": "rubygem-actionpack-4.2.3-4.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1301996,
+			"security": true,
+			"title": "CVE-2015-7576 rubygem-actionpack: Timing attack vulnerability in basic authentication in Action Controller [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1301996",
+				"creation_ts": "2016-01-26 13:54:19 +0000",
+				"short_desc": "CVE-2015-7576 rubygem-actionpack: Timing attack vulnerability in basic authentication in Action Controller [fedora-all]",
+				"delta_ts": "2016-02-28 12:26:29 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1301933",
+						"alias": "CVE-2015-7576",
+						"creation_ts": "2016-01-26 12:09:30 +0000",
+						"short_desc": "CVE-2015-7576 rubygem-actionpack: Timing attack vulnerability in basic authentication in Action Controller",
+						"delta_ts": "2021-06-02 06:13:26 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1301934",
+							"1301935",
+							"1301995",
+							"1301996",
+							"1301997",
+							"1301998",
+							"1301999",
+							"1306275",
+							"1306276",
+							"1306277",
+							"1306278",
+							"1306279",
+							"1306281"
+						],
+						"blocked": [
+							{
+								"bug_id": "1302006",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2016:0455",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "9010320",
+								"comment_count": "0",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2016-01-26 12:09:30 +0000",
+								"thetext": "It was found that due to the way that Action Controller compares user names and passwords in basic authentication authorization code, it is possible for an attacker to analyze the time taken by a response and intuit the password.\n\nExternal References:\n\nhttps://groups.google.com/forum/#!msg/rubyonrails-security/ANv0HDHEC3k/mt7wNGxbFQAJ\nhttp://weblog.rubyonrails.org/2016/1/25/Rails-5-0-0-beta1-1-4-2-5-1-4-1-14-1-3-2-22-1-and-rails-html-sanitizer-1-0-3-have-been-released/"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9010753",
+								"comment_count": "5",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2016-01-26 13:55:36 +0000",
+								"thetext": "\nCreated rubygem-activesupport tracking bugs for this issue:\n\nAffects: fedora-all [bug 1301999]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9010756",
+								"comment_count": "6",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2016-01-26 13:55:52 +0000",
+								"thetext": "\nCreated rubygem-actionpack tracking bugs for this issue:\n\nAffects: fedora-all [bug 1301996]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9039109",
+								"comment_count": "8",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2016-02-05 14:37:14 +0000",
+								"thetext": "Upstream commit:\n\n3.2 https://github.com/rails/rails/commit/a6fa3960c3a149e83eb2ff057be4472a82958e3d\n4.1 https://github.com/rails/rails/commit/859ca4474e1608b83d61941724574aba491be7f1\n4.2 https://github.com/rails/rails/commit/036bbda9eb3b3885223d53646777733a1547d89a"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9046070",
+								"comment_count": "9",
+								"who": {
+									"text": "jrusnack",
+									"name": "Ján Rusnačko"
+								},
+								"bug_when": "2016-02-09 13:23:59 +0000",
+								"thetext": "Mitigation:\n\nUse following code to monkey-patch http_basic_authenticate_with method in ActionController:\n\n~~~\nmodule ActiveSupport\n  module SecurityUtils\n    def secure_compare(a, b)\n      return false unless a.bytesize == b.bytesize\n\n      l = a.unpack \"C#{a.bytesize}\"\n\n      res = 0\n      b.each_byte { |byte| res |= byte ^ l.shift }\n      res == 0\n    end\n    module_function :secure_compare\n\n    def variable_size_secure_compare(a, b)\n      secure_compare(::Digest::SHA256.hexdigest(a), ::Digest::SHA256.hexdigest(b))\n    end\n    module_function :variable_size_secure_compare\n  end\nend\n\nmodule ActionController\n  class Base\n    def self.http_basic_authenticate_with(options = {})\n      before_action(options.except(:name, :password, :realm)) do\n        authenticate_or_request_with_http_basic(options[:realm] || \"Application\") do |name, password|\n          # This comparison uses & so that it doesn't short circuit and\n          # uses `variable_size_secure_compare` so that length information\n          # isn't leaked.\n          ActiveSupport::SecurityUtils.variable_size_secure_compare(name, options[:name]) &\n            ActiveSupport::SecurityUtils.variable_size_secure_compare(password, options[:password])\n        end\n      end\n    end\n  end\nend\n~~~"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9091121",
+								"comment_count": "13",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2016-02-24 10:36:40 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n\nVia RHSA-2016:0296 https://rhn.redhat.com/errata/RHSA-2016-0296.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9103290",
+								"comment_count": "14",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2016-02-28 08:25:42 +0000",
+								"thetext": "rubygem-actionpack-4.2.0-3.fc22, rubygem-activemodel-4.2.0-2.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9103302",
+								"comment_count": "15",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2016-02-28 08:28:48 +0000",
+								"thetext": "rubygem-activesupport-4.2.0-4.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9103483",
+								"comment_count": "16",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2016-02-28 12:24:58 +0000",
+								"thetext": "rubygem-activesupport-4.2.3-3.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9103488",
+								"comment_count": "17",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2016-02-28 12:25:41 +0000",
+								"thetext": "rubygem-actionpack-4.2.3-4.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9150779",
+								"comment_count": "18",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2016-03-15 20:59:48 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n\nVia RHSA-2016:0455 https://rhn.redhat.com/errata/RHSA-2016-0455.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9150793",
+								"comment_count": "19",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2016-03-15 21:02:40 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n\nVia RHSA-2016:0454 https://rhn.redhat.com/errata/RHSA-2016-0454.html"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "9010737",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2016-01-26 13:54:19 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9010738",
+						"comment_count": "1",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2016-01-26 13:54:27 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1301933,1301996\n\n# Description of your update\nnotes=Security fix for CVE-2015-7576\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link(s) instead:\n\nhttps://bodhi.fedoraproject.org/updates/new?type_=security&bugs=1301933,1301996"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9023819",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-01-31 22:52:36 +0000",
+						"thetext": "rubygem-actionpack-4.2.3-4.fc23 has been submitted as an update to Fedora 23. https://bodhi.fedoraproject.org/updates/FEDORA-2016-f486068393"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9025155",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-01 07:51:23 +0000",
+						"thetext": "rubygem-actionpack-4.2.3-4.fc23 has been pushed to the Fedora 23 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-f486068393"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9050106",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-10 15:50:31 +0000",
+						"thetext": "rubygem-activesupport-4.2.0-4.fc22 has been submitted as an update to Fedora 22. https://bodhi.fedoraproject.org/updates/FEDORA-2016-cb30088b06"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9050210",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-10 16:14:16 +0000",
+						"thetext": "rubygem-activemodel-4.2.0-2.fc22 rubygem-actionpack-4.2.0-3.fc22 has been submitted as an update to Fedora 22. https://bodhi.fedoraproject.org/updates/FEDORA-2016-94e71ee673"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9052975",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-11 14:52:52 +0000",
+						"thetext": "rubygem-actionpack-4.2.0-3.fc22, rubygem-activemodel-4.2.0-2.fc22 has been pushed to the Fedora 22 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-94e71ee673"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9052978",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-11 14:53:01 +0000",
+						"thetext": "rubygem-activesupport-4.2.0-4.fc22 has been pushed to the Fedora 22 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-cb30088b06"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9103295",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-28 08:26:28 +0000",
+						"thetext": "rubygem-actionpack-4.2.0-3.fc22, rubygem-activemodel-4.2.0-2.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9103301",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-28 08:28:45 +0000",
+						"thetext": "rubygem-activesupport-4.2.0-4.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9103492",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-28 12:26:18 +0000",
+						"thetext": "rubygem-actionpack-4.2.3-4.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 1,
+			"nvr": "rubygem-actionpack-4.2.3-4.fc23",
+			"release_id": 11,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "rubygem-actionpack-doc",
+						"epoch": 1,
+						"version": "4.2.3",
+						"release": "4.fc23",
+						"arch": "noarch"
+					},
+					{
+						"name": "rubygem-actionpack",
+						"epoch": 1,
+						"version": "4.2.3",
+						"release": "4.fc23",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "rubygem-actionpack",
+						"epoch": 1,
+						"version": "4.2.3",
+						"release": "4.fc23",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 384164,
+			"text": "This update has been submitted for testing by pvalena. ",
+			"timestamp": "2016-01-31 22:52:19",
+			"update_id": 49876,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 384370,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2016-02-01 07:51:42",
+			"update_id": 49876,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 386865,
+			"text": "This update has reached 7 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2016-02-08 12:00:14",
+			"update_id": 49876,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 394081,
+			"text": "This update has been submitted for stable by pvalena. ",
+			"timestamp": "2016-02-27 01:18:02",
+			"update_id": 49876,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 394298,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2016-02-28 12:27:00",
+			"update_id": 49876,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2016-02-28 08:31:31",
+	"date_stable": "2016-02-28 08:31:31",
+	"date_submitted": "2016-01-31 22:52:19",
+	"date_testing": "2016-02-01 06:40:37",
+	"meets_testing_requirements": true,
+	"notes": "Security fix for CVE-2015-7581\nSecurity fix for CVE-2016-0751\nSecurity fix for CVE-2015-7576\n",
+	"pushed": true,
+	"release": {
+		"branch": "f23",
+		"candidate_tag": "f23-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f23",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 23",
+		"mail_template": "fedora_errata_template",
+		"name": "F23",
+		"override_tag": "f23-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f23-signing-pending",
+		"pending_stable_tag": "f23-updates-pending",
+		"pending_testing_tag": "f23-updates-testing-pending",
+		"stable_tag": "f23-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f23-updates-testing",
+		"version": "23"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "rubygem-actionpack-4.2.3-4.fc23",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2016-f486068393",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2016-f486068393",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/e789ad3044d4847391281f8eb932219d55fa4cb98127a18540d349bc4aae83ae?s=24&d=retro",
+		"email": "pvalena@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "ruby-sig"
+			},
+			{
+				"name": "rubygems-build"
+			},
+			{
+				"name": "ruby-packagers-sig"
+			}
+		],
+		"id": 2360,
+		"name": "pvalena",
+		"openid": "pvalena.id.fedoraproject.org"
+	},
+	"version_hash": "c5fec6858fc513c10c048f8af9ae8684e47d2478"
+}

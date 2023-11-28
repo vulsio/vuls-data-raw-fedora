@@ -1,0 +1,657 @@
+{
+	"alias": "FEDORA-EPEL-2014-0026",
+	"bugs": [
+		{
+			"bug_id": 1038834,
+			"title": "/etc/x2go/Xsession script broken",
+			"bugzilla": {
+				"bug_id": "1038834",
+				"creation_ts": "2013-12-05 23:00:41 +0000",
+				"short_desc": "/etc/x2go/Xsession script broken",
+				"delta_ts": "2014-02-15 06:59:11 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6590527",
+						"comment_count": "0",
+						"who": {
+							"text": "sly.midnight",
+							"name": "Reilly Hall"
+						},
+						"bug_when": "2013-12-05 23:00:41 +0000",
+						"thetext": "Description of problem:\nx2go server and client setup and working easily.\n\nHowever I noticed that some programs no longer run even though they are installed.\nUpon further investigation turns out to be a problem with the PATH environment variable.\nIt is set correct when I login via ssh and with NoMachine but not via x2go.\n/etc/profile is properly called from /etc/x2go/Xsession and sources it and the PATH (and other) variable(s) get set but then a command is called that does not exist $(tempfile) that causes the script to exit prematurely and the session starts apparently abandoning the environment.  Commenting line 101 out causes the session to start and exit immediately.  Only after changing the final \"exit 0\" o an \"exit 1\" does the session start, but even though echoing the contents of $PATH from that script outputs the correct PATH contents to ~/.xsession-x2go-errors, within the session only a stripped down PATH is set and many other variables are missing.\n\n\nVersion-Release number of selected component (if applicable):\nx2goserver-4.0.1.6-5.fc19.x86_64\n\nHow reproducible:\nEvery time.\n\nSteps to Reproduce:\n1. Install x2goserver and x2goclient\n2. Use client to connect to remote server\n3. Check PATH variable and notice it is not the same as a raw SSH shell session.\n\nActual results:\nx2go Xsession script not running correctly and /etc/profile variable not being parsed and kept correctly.\n\nExpected results:\nMostly the same behavior as NoMachine or any normal login environment.\n\nAdditional info:\nOutput of said log:\nXSession-x2go: X session started for sly at Thu Dec  5 17:36:39 EST 2013\n/etc/x2go/Xsession: line 101: tempfile: command not found\n\nEchoing $PATH and $HOSTNAME from within Xsession shows correct variable contents:\nXSession-x2go: X session started for sly at Thu Dec  5 17:21:44 EST 2013\n/usr/lib64/qt-3.3/bin:/usr/NX/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin\nKentsfield.MidnightNetworks.com\n\nBut within session no $HOSTNAME and $PATH is only:\n/usr/lib64/qt-3.3/bin:/usr/NX/bin:/usr/local/bin:/usr/bin"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6593611",
+						"comment_count": "1",
+						"who": {
+							"text": "sly.midnight",
+							"name": "Reilly Hall"
+						},
+						"bug_when": "2013-12-06 21:32:41 +0000",
+						"thetext": "Proposing some changes I found ultimately worked for me but am unsure if they are portable to other users with other desktop environment choices other than KDE and shells different than zsh.\n\nThe diff from my modified Xsession file as compared to the original:\n\ndiff Xsession Xsession.ori \n51a52,59\n> # Load profile\n> for file in \"/etc/profile\" \"$HOME/.profile\" \"/etc/xprofile\" \"$HOME/.xprofile\"; do\n>     if [ -f \"$file\" ]; then\n>         echo \"Loading profile from $file\";\n>         . \"$file\"\n>     fi\n> done\n> \n81,90d88\n< # Load profile\n< set +e\n< for file in \"/etc/profile\" \"$HOME/.profile\" \"/etc/xprofile\" \"$HOME/.xprofile\" \"/etc/zprofile\"; do\n<     if [ -f \"$file\" ]; then\n<         echo \"Loading profile from $file\";\n<         . \"$file\"\n<     fi\n< done\n< set -e\n< \n103,108c101,106\n< #WRITE_TEST=$(tempfile)\n< #if ! echo \"*\" >>\"$WRITE_TEST\"; then\n< #  message \"warning: unable to write to ${WRITE_TEST%/*}; X session (X2Go) may\" \\\n< #          \"exit with an error\"\n< #fi\n< #rm -f \"$WRITE_TEST\"\n---\n> WRITE_TEST=$(tempfile)\n> if ! echo \"*\" >>\"$WRITE_TEST\"; then\n>   message \"warning: unable to write to ${WRITE_TEST%/*}; X session (X2Go) may\" \\\n>           \"exit with an error\"\n> fi\n> rm -f \"$WRITE_TEST\"\n116c114\n< #SYSSESSIONDIR=/etc/x2go/Xsession.d\n---\n> SYSSESSIONDIR=/etc/x2go/Xsession.d\n118c116\n< #SESSIONFILES=$(run-parts --list $SYSSESSIONDIR)\n---\n> SESSIONFILES=$(run-parts --list $SYSSESSIONDIR)\n131,135c129\n< # Explicitly call startup command rather than exit with an error.\n< exec $STARTUP\n< \n< # Unsure why but cannot exit with zero status or session never starts.\n< #exit 1\n---\n> exit 0"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6593615",
+						"comment_count": "2",
+						"who": {
+							"text": "sly.midnight",
+							"name": "Reilly Hall"
+						},
+						"bug_when": "2013-12-06 21:35:06 +0000",
+						"thetext": "Created attachment 833776\nProposed Xsession file\n\nHere is my full Xsession file as I have modified it from the original to allow it to work more or less correctly with KDE and zsh."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6593893",
+						"comment_count": "3",
+						"who": {
+							"text": "orion",
+							"name": "Orion Poplawski"
+						},
+						"bug_when": "2013-12-07 06:24:12 +0000",
+						"thetext": "Can you first try https://admin.fedoraproject.org/updates/FEDORA-2013-22479/x2goserver-4.0.1.9-1.fc19 and see if that helps.  That should at least remove the $(tempfile) problem."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594241",
+						"comment_count": "4",
+						"who": {
+							"text": "sly.midnight",
+							"name": "Reilly Hall"
+						},
+						"bug_when": "2013-12-07 17:10:48 +0000",
+						"thetext": "Ok, the Xsession script behaves just as it did when I commented out the original line 101 using the $(tempfile) command.  It completes and the session never opens with the client stating \"finished\".  If I modify the last exit 0 to an exit 1 (exit by itself also doesn't work) then the KDE session starts.  But again the environment variables sourced by Xsessions sourcing of /etc/profile are somehow lost."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594536",
+						"comment_count": "5",
+						"who": {
+							"text": "orion",
+							"name": "Orion Poplawski"
+						},
+						"bug_when": "2013-12-08 05:36:44 +0000",
+						"thetext": "Okay, looks like whole Xsession stuff is just way too Debian specific.  I've ripped it out and we'll see how that goes."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594537",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 05:42:26 +0000",
+						"thetext": "x2goserver-4.0.1.9-2.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/FEDORA-2013-22479/x2goserver-4.0.1.9-2.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594870",
+						"comment_count": "7",
+						"who": {
+							"text": "sly.midnight",
+							"name": "Reilly Hall"
+						},
+						"bug_when": "2013-12-08 14:59:06 +0000",
+						"thetext": "Would you like me to try x2goserver-4.0.1.9-2?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594894",
+						"comment_count": "8",
+						"who": {
+							"text": "sly.midnight",
+							"name": "Reilly Hall"
+						},
+						"bug_when": "2013-12-08 15:21:24 +0000",
+						"thetext": "I took the liberty to try x2goserver04.0.1.9-2 and while the session does start up now, of course there is no /etc/profile|/etc/zprofile information present in my environment.  So for the time being I've reverted back to the stock version and copied back my proposed version of Xsession that at least does work for me.\n\nI will keep an eye out for the next version to test.  Thanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594899",
+						"comment_count": "9",
+						"who": {
+							"text": "sly.midnight",
+							"name": "Reilly Hall"
+						},
+						"bug_when": "2013-12-08 15:27:46 +0000",
+						"thetext": "Created attachment 834084\nNew proposed Xsession file\n\nI decided to update my Xsession with the changes you proposed and uncommented out all the logic to deal with no free space using the mktemp command rather than tempfile.  Am uploading my new proposed changes to Xsession."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6595667",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-09 02:05:18 +0000",
+						"thetext": "Package x2goserver-4.0.1.9-2.fc19:\n* should fix your issue,\n* was pushed to the Fedora 19 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing x2goserver-4.0.1.9-2.fc19'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2013-22479/x2goserver-4.0.1.9-2.fc19\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6671915",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-03 20:18:34 +0000",
+						"thetext": "x2goserver-4.0.1.10-1.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/x2goserver-4.0.1.10-1.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6671916",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-03 20:18:44 +0000",
+						"thetext": "x2goserver-4.0.1.10-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/x2goserver-4.0.1.10-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6671918",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-03 20:18:52 +0000",
+						"thetext": "x2goserver-4.0.1.10-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/x2goserver-4.0.1.10-1.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6699715",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-13 02:55:51 +0000",
+						"thetext": "x2goserver-4.0.1.10-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6699750",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-13 03:01:19 +0000",
+						"thetext": "x2goserver-4.0.1.10-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6702756",
+						"comment_count": "16",
+						"who": {
+							"text": "sly.midnight",
+							"name": "Reilly Hall"
+						},
+						"bug_when": "2014-01-13 16:33:33 +0000",
+						"thetext": "I updated to x2goserver-4.0.1.10-1.fc20 and now I am back to not having the correct environment set.  I am reopening the ticket as I believe the purpose of this ticket was to address the lack of a properly setup environment for the logged in user.  I have downgraded back to the prior version and copied over my custom Xsession file that mostly works for me."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6724306",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-18 20:36:02 +0000",
+						"thetext": "x2goserver-4.0.1.10-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6728427",
+						"comment_count": "18",
+						"who": {
+							"text": "sly.midnight",
+							"name": "Reilly Hall"
+						},
+						"bug_when": "2014-01-20 17:09:15 +0000",
+						"thetext": "Re-opened as it appears to have been closed when the EPEL6 repo got the same update as well."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6753163",
+						"comment_count": "19",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-27 04:15:21 +0000",
+						"thetext": "x2goserver-4.0.1.13-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/x2goserver-4.0.1.13-1.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6754537",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-27 13:02:03 +0000",
+						"thetext": "Package x2goserver-4.0.1.13-1.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing x2goserver-4.0.1.13-1.fc20'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-1584/x2goserver-4.0.1.13-1.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6754971",
+						"comment_count": "21",
+						"who": {
+							"text": "orion",
+							"name": "Orion Poplawski"
+						},
+						"bug_when": "2014-01-27 14:08:09 +0000",
+						"thetext": "Upstream has made some changes to the xsession handling for Fedora.  I've re-enabled and shipped as a sub-package also like upstream.  Please test."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6756233",
+						"comment_count": "22",
+						"who": {
+							"text": "sly.midnight",
+							"name": "Reilly Hall"
+						},
+						"bug_when": "2014-01-27 17:09:04 +0000",
+						"thetext": "Good afternoon,\n\nI am pleased to say I have tested the new version and while it did not work on initial testing, after reviewing the new Xsession script included I was able to make it work with a simple change around line 177 (noted the error in the user's log file).  The change is simple as such:\n\n89a90\n> \n177,179c178\n< \t\tif [ -r $file ]; then\n< \t\t\t. $file\n< \t\tfi\n---\n> \t\t. $file\n\nThanks again for the update!  With that simple change I can confirm it works.  It may be preferable to use some sort of error handling so no errors incurred by other commands (in this case caused by a simple benign no files found in the directory referenced being called) causes the script to bomb and loose the environment that it was trying to pull in."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6756358",
+						"comment_count": "23",
+						"who": {
+							"text": "orion",
+							"name": "Orion Poplawski"
+						},
+						"bug_when": "2014-01-27 17:46:43 +0000",
+						"thetext": "Hmm, the other fix is probably:\n\n@@ -174,8 +174,8 @@ elif [ -f /etc/redhat-release ]; then\n        unset XKB_IN_USE\n\n        # run all system xinitrc shell scripts.\n-       for file in /etc/x2go/xinit/xinitrc.d/* ; do\n-               . $file\n+       for file in /etc/x2go/xinitrc.d/* ; do\n+               [ -r \"$file\" ] && . $file\n        done\n\n        # Prefix launch of session with ssh-agent if available and not already running.\n\nLooks like the path was wrong."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6756553",
+						"comment_count": "24",
+						"who": {
+							"text": "sly.midnight",
+							"name": "Reilly Hall"
+						},
+						"bug_when": "2014-01-27 18:44:08 +0000",
+						"thetext": "Ah sorry, didn't bother to look there and see that the path was wrong,  Just assumed it was a location for custom scripts of which I have none.  Thanks for catching that and I prefer your shorter cleaner syntax."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6756555",
+						"comment_count": "25",
+						"who": {
+							"text": "sly.midnight",
+							"name": "Reilly Hall"
+						},
+						"bug_when": "2014-01-27 18:45:22 +0000",
+						"thetext": "Comment on attachment 834084\nNew proposed Xsession file\n\nNot needed anymore."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6756671",
+						"comment_count": "26",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-27 19:21:10 +0000",
+						"thetext": "x2goserver-4.0.1.13-2.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/x2goserver-4.0.1.13-2.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6756672",
+						"comment_count": "27",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-27 19:21:18 +0000",
+						"thetext": "x2goserver-4.0.1.13-2.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/x2goserver-4.0.1.13-2.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6756674",
+						"comment_count": "28",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-27 19:21:28 +0000",
+						"thetext": "x2goserver-4.0.1.13-2.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/x2goserver-4.0.1.13-2.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6795114",
+						"comment_count": "29",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-02-07 03:12:53 +0000",
+						"thetext": "x2goserver-4.0.1.13-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6821966",
+						"comment_count": "30",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-02-14 20:56:28 +0000",
+						"thetext": "x2goserver-4.0.1.13-2.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6822596",
+						"comment_count": "31",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-02-15 06:59:11 +0000",
+						"thetext": "x2goserver-4.0.1.13-2.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "x2goserver-4.0.1.10-1.el6",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"i686": [
+					{
+						"name": "x2goserver-printing",
+						"version": "4.0.1.10",
+						"release": "1.el6",
+						"arch": "i686"
+					},
+					{
+						"name": "x2goserver-fmbindings",
+						"version": "4.0.1.10",
+						"release": "1.el6",
+						"arch": "i686"
+					},
+					{
+						"name": "x2goserver-debuginfo",
+						"version": "4.0.1.10",
+						"release": "1.el6",
+						"arch": "i686"
+					},
+					{
+						"name": "x2goserver",
+						"version": "4.0.1.10",
+						"release": "1.el6",
+						"arch": "i686"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "x2goserver-fmbindings",
+						"version": "4.0.1.10",
+						"release": "1.el6",
+						"arch": "ppc64"
+					},
+					{
+						"name": "x2goserver",
+						"version": "4.0.1.10",
+						"release": "1.el6",
+						"arch": "ppc64"
+					},
+					{
+						"name": "x2goserver-printing",
+						"version": "4.0.1.10",
+						"release": "1.el6",
+						"arch": "ppc64"
+					},
+					{
+						"name": "x2goserver-debuginfo",
+						"version": "4.0.1.10",
+						"release": "1.el6",
+						"arch": "ppc64"
+					}
+				],
+				"src": [
+					{
+						"name": "x2goserver",
+						"version": "4.0.1.10",
+						"release": "1.el6",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "x2goserver-fmbindings",
+						"version": "4.0.1.10",
+						"release": "1.el6",
+						"arch": "x86_64"
+					},
+					{
+						"name": "x2goserver-printing",
+						"version": "4.0.1.10",
+						"release": "1.el6",
+						"arch": "x86_64"
+					},
+					{
+						"name": "x2goserver-debuginfo",
+						"version": "4.0.1.10",
+						"release": "1.el6",
+						"arch": "x86_64"
+					},
+					{
+						"name": "x2goserver",
+						"version": "4.0.1.10",
+						"release": "1.el6",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 45086,
+			"text": "This update has been submitted for testing by orion. ",
+			"timestamp": "2014-01-03 20:18:46",
+			"update_id": 6449,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 45087,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 testing updates repository.",
+			"timestamp": "2014-01-03 20:31:35",
+			"update_id": 6449,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 45088,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 testing updates repository.",
+			"timestamp": "2014-01-03 21:33:05",
+			"update_id": 6449,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 45089,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-01-03 22:43:39",
+			"update_id": 6449,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 45090,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2014-01-18 03:38:26",
+			"update_id": 6449,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 45091,
+			"text": "This update has been submitted for stable by orion. ",
+			"timestamp": "2014-01-18 17:32:21",
+			"update_id": 6449,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 45092,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 stable updates repository.",
+			"timestamp": "2014-01-18 18:28:24",
+			"update_id": 6449,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 45093,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2014-01-18 20:36:06",
+			"update_id": 6449,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2014-01-18 20:36:06",
+	"date_stable": "2014-01-18 20:36:06",
+	"date_submitted": "2014-01-03 20:18:39",
+	"date_testing": "2014-01-03 22:43:39",
+	"meets_testing_requirements": true,
+	"notes": "This release pulls in all changes that got introduced in the Baikal LTS release 4.0.0.8, including a severe vulnerability in\r\nx2gocleansessions. Gains of the LTS version 4.0.0.8 of x2goserver are:\r\n\r\n   o Improve parsing of the NX session.log file. Fix session\r\n     suspending/resuming when in fails in some occasions.\r\n   o Fix severe vulnerability in x2gocleansessions.\r\n   o Sanitize session ID string, port numbers, display numbers\r\n     and agent PID numbers before writing them as strings to the\r\n     session DB.\r\n\r\nPlease note::: This release fixes a severe vulnerability in X2Go Server that allowed an attacker with user permissions to gain root access tothe X2Go Server machine.  Everyone, please upgrade your X2Go Server installations.\r\n\r\nNew gains of the version 4.0.1.10 of x2goserver are:\r\n\r\n   o Fix x2goresume-session that we broke in 4.0.1.9.\r\n   o Ship x2goserver-fmbindings\r\n   o Allow enabling/disabling of TCP listening of x2goagent.\n- Disable Xsession support for now - Debian specific (Bug #1038834)\r\n\r\nUpdate to 4.0.1.9 - incorporate changes from 4.0.0.7 LTS bugfix release.\r\n\r\n- Drop incorrect keyboard patch- Use mktemp instead of tempfile\r\n- Fix Xsession.d link creation\r\n- Add patch to fix keyboard setting (bug #1033876)\r\n\r\nUpdate to 4.0.1.8:\r\n\r\n- Fix resizing when resuming sessions.\r\n- Fix automatic keyboard setup (via x2gosetkeyboard) while resuming a session. (Fixes: #285).\r\n- Provide sudoers.d/x2goserver file that allows sudoed commands under KDE (by pertaining the env var QT_GRAPHICSSYSTEM. (Fixes: #276).\r\n- With PostgreSQL as session db backend, prevent the root user from launching sessions. Also, prevent x2gouser_root from being added as a PostgreSQL user. (Fixes: #310).\r\n- Execute DB status changes as late as possible during suspend / terminate.\r\n- Start/resume rootless sessions without geometry parameter.  Esp. using X2GO_GEOMETRY=fullscreen for rootless sessions lead to an extra 1x1 px session window (nxagentCreateIconWindow in nxagent's Window.c).\r\n- Typo fix in x2goruncommand (for MATE session startup).\r\n- Make umask that is used when mounting client-side folders via SSHFS configurable in x2goserver.conf. (Fixes: #331).\r\n- Use bash-builtin 'type' instead of to be avoided 'which'.  (Fixes: #305).\n- Disable Xsession support for now - Debian specific (Bug #1038834)\r\n\r\nUpdate to 4.0.1.9 - incorporate changes from 4.0.0.7 LTS bugfix release.\r\n\r\n- Drop incorrect keyboard patch\r\n- Use mktemp instead of tempfile\r\n- Fix Xsession.d link creation\r\n- Add patch to fix keyboard setting (bug #1033876)\r\n\r\nUpdate to 4.0.1.8:\r\n\r\n- Fix resizing when resuming sessions.\r\n- Fix automatic keyboard setup (via x2gosetkeyboard) while resuming a session. (Fixes: #285).\r\n- Provide sudoers.d/x2goserver file that allows sudoed commands under KDE (by pertaining the env var QT_GRAPHICSSYSTEM. (Fixes: #276).\r\n- With PostgreSQL as session db backend, prevent the root user from launching sessions. Also, prevent x2gouser_root from being added as a PostgreSQL user. (Fixes: #310).\r\n- Execute DB status changes as late as possible during suspend / terminate.\r\n- Start/resume rootless sessions without geometry parameter.  Esp. using X2GO_GEOMETRY=fullscreen for rootless sessions lead to an extra 1x1 px session window (nxagentCreateIconWindow in nxagent's Window.c).\r\n- Typo fix in x2goruncommand (for MATE session startup).\r\n- Make umask that is used when mounting client-side folders via SSHFS configurable in x2goserver.conf. (Fixes: #331).\r\n- Use bash-builtin 'type' instead of to be avoided 'which'.  (Fixes: #305).",
+	"pushed": true,
+	"release": {
+		"branch": "el6",
+		"candidate_tag": "dist-6E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "dist-6E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 6",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-6",
+		"override_tag": "dist-6E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-6E-epel",
+		"state": "archived",
+		"testing_tag": "dist-6E-epel-testing",
+		"version": "6"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "x2goserver-4.0.1.10-1.el6",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2014-0026",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2014-0026",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/b6fd449fcea49e2de27dacf226d46a01a0c8a44918672843e45bf5ac0bd0060b?s=24&d=retro",
+		"email": "orion@nwra.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "astro-sig"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "epel-packagers-sig"
+			},
+			{
+				"name": "scitech_sig"
+			},
+			{
+				"name": "packaging-committee"
+			},
+			{
+				"name": "scitech"
+			},
+			{
+				"name": "clamav"
+			}
+		],
+		"id": 97,
+		"name": "orion",
+		"openid": "orion.id.fedoraproject.org"
+	},
+	"version_hash": "ca0d98c93e02d25d698dddc49314e8c1851903a7"
+}

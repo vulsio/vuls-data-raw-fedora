@@ -1,0 +1,1020 @@
+{
+	"alias": "FEDORA-2014-15908",
+	"bugs": [
+		{
+			"bug_id": 1168485,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-9114 util-linux: command injection flaw in blkid",
+			"bugzilla": {
+				"bug_id": "1168485",
+				"alias": "CVE-2014-9114",
+				"creation_ts": "2014-11-27 06:04:55 +0000",
+				"short_desc": "CVE-2014-9114 util-linux: command injection flaw in blkid",
+				"delta_ts": "2021-02-17 05:57:49 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "WONTFIX",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1168490"
+				],
+				"blocked": [
+					{
+						"bug_id": "1168492",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7712505",
+						"comment_count": "0",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-11-27 06:04:55 +0000",
+						"thetext": "Sebastian Krahmer reported a command injection flaw in blkid. This could possibly result in command execution with root privileges (for example, when running blkid on a malicious USB drive):\n\nhttp://www.openwall.com/lists/oss-security/2014/11/26/13"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7712550",
+						"comment_count": "1",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-11-27 06:21:58 +0000",
+						"thetext": "\nCreated util-linux tracking bugs for this issue:\n\nAffects: fedora-all [bug 1168490]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7712555",
+						"comment_count": "2",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-11-27 06:23:14 +0000",
+						"thetext": "Tested on Fedora, seems it will be affected. I am not aware of any patches."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7713163",
+						"comment_count": "3",
+						"who": {
+							"text": "kzak",
+							"name": "Karel Zak"
+						},
+						"bug_when": "2014-11-27 09:23:54 +0000",
+						"thetext": "(In reply to Murray McAllister from comment #0)\n> Sebastian Krahmer reported a command injection flaw in blkid. This could\n> possibly result in command execution with root privileges (for example, when\n> running blkid on a malicious USB drive):\n> \n> http://www.openwall.com/lists/oss-security/2014/11/26/13\n\nThis is not true, udev never ever call \"blkid -o udev\", it always call blkid command with -p to *avoid* blkid cache usage."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7713777",
+						"comment_count": "4",
+						"who": {
+							"text": "kzak",
+							"name": "Karel Zak"
+						},
+						"bug_when": "2014-11-27 12:21:17 +0000",
+						"thetext": "And we don't use blkid binary in recent udevd at all, it's directly linked with  libblkid and it does not use cached results at all."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7713934",
+						"comment_count": "5",
+						"who": {
+							"text": "kzak",
+							"name": "Karel Zak"
+						},
+						"bug_when": "2014-11-27 13:12:58 +0000",
+						"thetext": "Fixed in upstream tree, commit:\n\nhttps://github.com/karelzak/util-linux/commit/89e90ae7b2826110ea28c1c0eb8e7c56c3907bdc"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7713962",
+						"comment_count": "6",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-11-27 13:18:35 +0000",
+						"thetext": "(In reply to Karel Zak from comment #5)\n> Fixed in upstream tree, commit:\n> \n> https://github.com/karelzak/util-linux/commit/\n> 89e90ae7b2826110ea28c1c0eb8e7c56c3907bdc\n\nHi Karel,\n\nThank you for the info and patch!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7722243",
+						"comment_count": "7",
+						"who": {
+							"text": "jrusnack",
+							"name": "Ján Rusnačko"
+						},
+						"bug_when": "2014-12-01 21:33:42 +0000",
+						"thetext": "RHEL 5 is not affected by this, as blkid does not have option to format output as key=value to be eval`d. Only permitted options are value, device and full.\n\nRHEL 6 is affected. As Karel mentioned, udev calls with -p, so the only suspicious call I found is in dracut-functions:\n\n    138 get_fs_env() {\n    139     if [[ -x /lib/udev/vol_id ]]; then\n    140 \teval $(/lib/udev/vol_id --export $1)\n    141     elif find_binary blkid >/dev/null; then\n    142 \teval $(blkid -o udev $1)\n    143     else\n    144 \treturn 1\n    145     fi\n    146 }\n\nTo trigger this code, one has to call `dracut --hostonly`, which forces sequential scan of entries in /proc/mounts. The scan continues until it finds entry which corresponds to /. Each entry passes through get_fs_env(), so if any of the devices up to and including / in /proc/mounts contain filesystem with malicious label, running dracut with hostonly would result in execution of command in malicious label. Content in /proc/mounts is appended, so malicious USB should not be an issue.\n\nRHEL 7 is affected, but I haven`t found any code which would eval the output from blkid -o udev."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7722299",
+						"comment_count": "9",
+						"who": {
+							"text": "jrusnack",
+							"name": "Ján Rusnačko"
+						},
+						"bug_when": "2014-12-01 21:47:08 +0000",
+						"thetext": "References:\n\nhttps://github.com/karelzak/util-linux/commit/89e90ae7b2826110ea28c1c0eb8e7c56c3907bdc\nhttp://www.openwall.com/lists/oss-security/2014/11/26/13"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7731704",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-04 06:24:13 +0000",
+						"thetext": "util-linux-2.24.2-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7763245",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-15 04:33:45 +0000",
+						"thetext": "util-linux-2.25.2-2.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8732844",
+						"comment_count": "15",
+						"who": {
+							"text": "jrusnack",
+							"name": "Ján Rusnačko"
+						},
+						"bug_when": "2015-10-19 12:39:12 +0000",
+						"thetext": "Statement:\n\nThis issue affects the versions of util-linux as shipped with Red Hat Enterprise Linux 6 and 7. Red Hat Product Security has rated this issue as having Moderate security impact. Because exploitability of this issue requires conditions unlikely to occur, this issue is not currently planned to be addressed in future updates. For additional information, refer to the Issue Severity Classification: https://access.redhat.com/security/updates/classification/."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1168490,
+			"security": true,
+			"title": "CVE-2014-9114 util-linux: command injection flaw in blkid [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1168490",
+				"creation_ts": "2014-11-27 06:21:50 +0000",
+				"short_desc": "CVE-2014-9114 util-linux: command injection flaw in blkid [fedora-all]",
+				"delta_ts": "2015-01-04 22:43:13 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1168485",
+						"alias": "CVE-2014-9114",
+						"creation_ts": "2014-11-27 06:04:55 +0000",
+						"short_desc": "CVE-2014-9114 util-linux: command injection flaw in blkid",
+						"delta_ts": "2021-02-17 05:57:49 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "WONTFIX",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1168490"
+						],
+						"blocked": [
+							{
+								"bug_id": "1168492",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7712505",
+								"comment_count": "0",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-11-27 06:04:55 +0000",
+								"thetext": "Sebastian Krahmer reported a command injection flaw in blkid. This could possibly result in command execution with root privileges (for example, when running blkid on a malicious USB drive):\n\nhttp://www.openwall.com/lists/oss-security/2014/11/26/13"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7712550",
+								"comment_count": "1",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-11-27 06:21:58 +0000",
+								"thetext": "\nCreated util-linux tracking bugs for this issue:\n\nAffects: fedora-all [bug 1168490]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7712555",
+								"comment_count": "2",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-11-27 06:23:14 +0000",
+								"thetext": "Tested on Fedora, seems it will be affected. I am not aware of any patches."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7713163",
+								"comment_count": "3",
+								"who": {
+									"text": "kzak",
+									"name": "Karel Zak"
+								},
+								"bug_when": "2014-11-27 09:23:54 +0000",
+								"thetext": "(In reply to Murray McAllister from comment #0)\n> Sebastian Krahmer reported a command injection flaw in blkid. This could\n> possibly result in command execution with root privileges (for example, when\n> running blkid on a malicious USB drive):\n> \n> http://www.openwall.com/lists/oss-security/2014/11/26/13\n\nThis is not true, udev never ever call \"blkid -o udev\", it always call blkid command with -p to *avoid* blkid cache usage."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7713777",
+								"comment_count": "4",
+								"who": {
+									"text": "kzak",
+									"name": "Karel Zak"
+								},
+								"bug_when": "2014-11-27 12:21:17 +0000",
+								"thetext": "And we don't use blkid binary in recent udevd at all, it's directly linked with  libblkid and it does not use cached results at all."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7713934",
+								"comment_count": "5",
+								"who": {
+									"text": "kzak",
+									"name": "Karel Zak"
+								},
+								"bug_when": "2014-11-27 13:12:58 +0000",
+								"thetext": "Fixed in upstream tree, commit:\n\nhttps://github.com/karelzak/util-linux/commit/89e90ae7b2826110ea28c1c0eb8e7c56c3907bdc"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7713962",
+								"comment_count": "6",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-11-27 13:18:35 +0000",
+								"thetext": "(In reply to Karel Zak from comment #5)\n> Fixed in upstream tree, commit:\n> \n> https://github.com/karelzak/util-linux/commit/\n> 89e90ae7b2826110ea28c1c0eb8e7c56c3907bdc\n\nHi Karel,\n\nThank you for the info and patch!"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7722243",
+								"comment_count": "7",
+								"who": {
+									"text": "jrusnack",
+									"name": "Ján Rusnačko"
+								},
+								"bug_when": "2014-12-01 21:33:42 +0000",
+								"thetext": "RHEL 5 is not affected by this, as blkid does not have option to format output as key=value to be eval`d. Only permitted options are value, device and full.\n\nRHEL 6 is affected. As Karel mentioned, udev calls with -p, so the only suspicious call I found is in dracut-functions:\n\n    138 get_fs_env() {\n    139     if [[ -x /lib/udev/vol_id ]]; then\n    140 \teval $(/lib/udev/vol_id --export $1)\n    141     elif find_binary blkid >/dev/null; then\n    142 \teval $(blkid -o udev $1)\n    143     else\n    144 \treturn 1\n    145     fi\n    146 }\n\nTo trigger this code, one has to call `dracut --hostonly`, which forces sequential scan of entries in /proc/mounts. The scan continues until it finds entry which corresponds to /. Each entry passes through get_fs_env(), so if any of the devices up to and including / in /proc/mounts contain filesystem with malicious label, running dracut with hostonly would result in execution of command in malicious label. Content in /proc/mounts is appended, so malicious USB should not be an issue.\n\nRHEL 7 is affected, but I haven`t found any code which would eval the output from blkid -o udev."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7722299",
+								"comment_count": "9",
+								"who": {
+									"text": "jrusnack",
+									"name": "Ján Rusnačko"
+								},
+								"bug_when": "2014-12-01 21:47:08 +0000",
+								"thetext": "References:\n\nhttps://github.com/karelzak/util-linux/commit/89e90ae7b2826110ea28c1c0eb8e7c56c3907bdc\nhttp://www.openwall.com/lists/oss-security/2014/11/26/13"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7731704",
+								"comment_count": "11",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-12-04 06:24:13 +0000",
+								"thetext": "util-linux-2.24.2-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7763245",
+								"comment_count": "12",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-12-15 04:33:45 +0000",
+								"thetext": "util-linux-2.25.2-2.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8732844",
+								"comment_count": "15",
+								"who": {
+									"text": "jrusnack",
+									"name": "Ján Rusnačko"
+								},
+								"bug_when": "2015-10-19 12:39:12 +0000",
+								"thetext": "Statement:\n\nThis issue affects the versions of util-linux as shipped with Red Hat Enterprise Linux 6 and 7. Red Hat Product Security has rated this issue as having Moderate security impact. Because exploitability of this issue requires conditions unlikely to occur, this issue is not currently planned to be addressed in future updates. For additional information, refer to the Issue Severity Classification: https://access.redhat.com/security/updates/classification/."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7712546",
+						"comment_count": "0",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-11-27 06:21:50 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7712549",
+						"comment_count": "1",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-11-27 06:21:56 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1168485,1168490\n\n# Description of your update\nnotes=Security fix for CVE-2014-9114\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1168485,1168490"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7714155",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-27 14:21:32 +0000",
+						"thetext": "util-linux-2.23.2-6.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/util-linux-2.23.2-6.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7714158",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-27 14:21:39 +0000",
+						"thetext": "util-linux-2.24.2-2.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/util-linux-2.24.2-2.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7714159",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-27 14:21:47 +0000",
+						"thetext": "util-linux-2.25.2-2.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/util-linux-2.25.2-2.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7715108",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-27 19:28:54 +0000",
+						"thetext": "Package util-linux-2.25.2-2.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing util-linux-2.25.2-2.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-15908/util-linux-2.25.2-2.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7731703",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-04 06:24:11 +0000",
+						"thetext": "util-linux-2.24.2-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7763244",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-15 04:33:43 +0000",
+						"thetext": "util-linux-2.25.2-2.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "util-linux-2.25.2-2.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "libblkid-devel",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "util-linux",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "util-linux-debuginfo",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "uuidd",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libuuid-devel",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libsmartcols-devel",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libmount-devel",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libuuid",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "python3-libmount",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libsmartcols",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libmount",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libblkid",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "libuuid-devel",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "util-linux-debuginfo",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "libblkid-devel",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "libmount",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "libsmartcols",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "libsmartcols-devel",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "libuuid",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "uuidd",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "libblkid",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "python3-libmount",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "util-linux",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "libmount-devel",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "util-linux",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "libblkid",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "uuidd",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libblkid-devel",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3-libmount",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libsmartcols",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libsmartcols-devel",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libmount",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "util-linux",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libuuid",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libuuid-devel",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libmount-devel",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "util-linux-debuginfo",
+						"version": "2.25.2",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 109596,
+			"text": "This update has been submitted for testing by kzak. ",
+			"timestamp": "2014-11-27 14:21:55",
+			"update_id": 14928,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 109597,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/16516/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-11-27 14:36:58",
+			"update_id": 14928,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 109598,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/16516/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-11-27 14:38:14",
+			"update_id": 14928,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 109599,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2014-11-27 17:21:07",
+			"update_id": 14928,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 109600,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-11-27 19:28:46",
+			"update_id": 14928,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 109601,
+			"karma": 1,
+			"timestamp": "2014-12-03 07:11:57",
+			"update_id": 14928,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/2f9ad56e7e272dbbddf56ed9468fbc78b4206032270f8c7950c6c2d12468516a?s=24&d=retro",
+				"email": "bitlord0xff@gmail.com",
+				"groups": [
+					{
+						"name": "qa"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 947,
+				"name": "bitlord",
+				"openid": "bitlord.id.fedoraproject.org"
+			},
+			"user_id": 947
+		},
+		{
+			"id": 109602,
+			"text": "Critical path update approved",
+			"timestamp": "2014-12-03 07:11:59",
+			"update_id": 14928,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 109603,
+			"karma": 1,
+			"text": "blkid still works, and the example from the CVE report is not reproducible\nanymore.",
+			"timestamp": "2014-12-05 09:28:24",
+			"update_id": 14928,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/ed355d0c78ef83158b1c5bffae93f539b1f681d61ff9f846b37f7c7a73d27e10?s=24&d=retro",
+				"email": "bugs.michael@gmx.net",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "cvsfedora"
+					},
+					{
+						"name": "gitrpmdevtools"
+					}
+				],
+				"id": 466,
+				"name": "mschwendt",
+				"openid": "mschwendt.id.fedoraproject.org"
+			},
+			"user_id": 466
+		},
+		{
+			"id": 109604,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2014-12-11 20:46:48",
+			"update_id": 14928,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 109605,
+			"karma": 1,
+			"text": "nothing seems broken",
+			"timestamp": "2014-12-13 22:07:43",
+			"update_id": 14928,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/b69a781f897ff47fb3d40e9bd36309fb6d6aecb6892aa07fbcf302de054e5b12?s=24&d=retro",
+				"email": "nonamedotc@gmail.com",
+				"groups": [
+					{
+						"name": "qa"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "scitech_sig"
+					},
+					{
+						"name": "triagers"
+					}
+				],
+				"id": 306,
+				"name": "nonamedotc",
+				"openid": "nonamedotc.id.fedoraproject.org"
+			},
+			"user_id": 306
+		},
+		{
+			"id": 109606,
+			"text": "This update has reached the stable karma threshold and will be pushed to the stable updates repository",
+			"timestamp": "2014-12-13 22:07:50",
+			"update_id": 14928,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 109607,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/21027/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-12-13 22:13:23",
+			"update_id": 14928,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 109608,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2014-12-14 16:31:25",
+			"update_id": 14928,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 109609,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2014-12-15 04:33:20",
+			"update_id": 14928,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2014-12-15 04:33:20",
+	"date_stable": "2014-12-15 04:33:20",
+	"date_submitted": "2014-11-27 14:21:50",
+	"date_testing": "2014-11-27 19:28:46",
+	"karma": 3,
+	"meets_testing_requirements": true,
+	"notes": "Security fix for CVE-2014-9114",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "util-linux-2.25.2-2.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2014-15908",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2014-15908",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/e3678aac2c83bd835d28dc1ef3ed8f60a2bf986b9b0f816514f143d0501f4f31?s=24&d=retro",
+		"email": "kzak@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "cla_redhat"
+			},
+			{
+				"name": "gitreadahead"
+			},
+			{
+				"name": "gitlibmount"
+			},
+			{
+				"name": "gitgnome-applet-vm"
+			}
+		],
+		"id": 1316,
+		"name": "kzak",
+		"openid": "kzak.id.fedoraproject.org"
+	},
+	"version_hash": "e8595d70ff811c9db7131b8ace217740447cba82"
+}

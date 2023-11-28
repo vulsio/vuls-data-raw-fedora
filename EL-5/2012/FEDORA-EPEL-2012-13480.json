@@ -1,0 +1,976 @@
+{
+	"alias": "FEDORA-EPEL-2012-13480",
+	"bugs": [
+		{
+			"bug_id": 820733,
+			"security": true,
+			"title": "avoid stack-smash when processing unusual commit [fedora-all]",
+			"bugzilla": {
+				"bug_id": "820733",
+				"creation_ts": "2012-05-10 19:56:34 +0000",
+				"short_desc": "avoid stack-smash when processing unusual commit [fedora-all]",
+				"delta_ts": "2016-04-26 15:15:42 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "CURRENTRELEASE",
+				"keywords": "Security, SecurityTracking",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"blocked": [
+					{
+						"bug_id": "862035",
+						"alias": "CVE-2012-4465",
+						"creation_ts": "2012-10-01 16:54:29 +0000",
+						"short_desc": "CVE-2012-4465 cgit: specially-crafted commit can trigger a heap-based buffer overflow",
+						"delta_ts": "2019-09-29 12:55:56 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"820733",
+							"862037"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "5077975",
+								"comment_count": "0",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2012-10-01 16:54:29 +0000",
+								"thetext": "It was reported [1],[2] that cgit suffers from a heap-based buffer overflow flaw that could lead to a denial of service or, possibly (albeit unlikely as the second report indicates), a remote shell.\n\nThis has not yet been fixed upstream, but a patch is available [3].\n\n[1] https://bugzilla.redhat.com/show_bug.cgi?id=820733\n[2] http://www.openwall.com/lists/oss-security/2012/09/30/1\n[3] http://git.zx2c4.com/cgit/commit/?id=7757d1b046ecb67b830151d20715c658867df1ec"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "5077991",
+								"comment_count": "1",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2012-10-01 16:57:28 +0000",
+								"thetext": "Created cgit tracking bugs for this issue\n\nAffects: epel-all [bug 862037]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "5084831",
+								"comment_count": "2",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2012-10-03 20:22:59 +0000",
+								"thetext": "This was assigned the name CVE-2012-4465:\n\nhttp://www.openwall.com/lists/oss-security/2012/10/03/7"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "4665782",
+						"comment_count": "0",
+						"who": {
+							"text": "meyering",
+							"name": "Jim Meyering"
+						},
+						"bug_when": "2012-05-10 19:56:34 +0000",
+						"thetext": "Description of problem: cgit segfaults\n\nVersion-Release number of selected component (if applicable): 0.9.0.2-3.fc17\n\nHow reproducible: every time\n\nI posted the following to the upstream mailing list in April, but it\nappears not to have reached the list.\n=================================================\n\nThis started when I noticed some cgit segfaults on savannah.gnu.org.\nFinding the offending URL/commit and then constructing a stand-alone\nreproducer were far more time-consuming than writing the actual patch.\n\nThe problem arises with a commit like this, in which the user name\npart of the \"Author\" field is empty:\n\n    $ git log -1\n    commit 6f3f41d73393278f3ede68a2cb1e7a2a23fa3421\n    Author: <T@h.or>\n    Date:   Mon Apr 23 22:29:16 2012 +0200\n\nHere's what happens:\n\n(this is due to buf=malloc(0); strncpy (buf, head, -1);\n where \"head\" may point to plenty of attacker-specified non-NUL bytes,\n so we can overwrite a zero-length heap buffer with arbitrary data)\n\n  ==3227== Invalid write of size 1\n  ==3227==    at 0x4A09361: strncpy (mc_replace_strmem.c:463)\n  ==3227==    by 0x408977: substr (parsing.c:61)\n  ==3227==    by 0x4089EF: parse_user (parsing.c:73)\n  ==3227==    by 0x408D10: cgit_parse_commit (parsing.c:153)\n  ==3227==    by 0x40A540: cgit_mk_refinfo (shared.c:171)\n  ==3227==    by 0x40A581: cgit_refs_cb (shared.c:181)\n  ==3227==    by 0x43DEB3: do_for_each_ref (refs.c:690)\n  ==3227==    by 0x41075E: cgit_print_branches (ui-refs.c:191)\n  ==3227==    by 0x416EF2: cgit_print_summary (ui-summary.c:56)\n  ==3227==    by 0x40780A: summary_fn (cmd.c:120)\n  ==3227==    by 0x40667A: process_request (cgit.c:544)\n  ==3227==    by 0x404078: cache_process (cache.c:322)\n  ==3227==  Address 0x4c718d0 is 0 bytes after a block of size 0 alloc'd\n  ==3227==    at 0x4A0884D: malloc (vg_replace_malloc.c:263)\n  ==3227==    by 0x455C85: xmalloc (wrapper.c:35)\n  ==3227==    by 0x40894C: substr (parsing.c:60)\n  ==3227==    by 0x4089EF: parse_user (parsing.c:73)\n  ==3227==    by 0x408D10: cgit_parse_commit (parsing.c:153)\n  ==3227==    by 0x40A540: cgit_mk_refinfo (shared.c:171)\n  ==3227==    by 0x40A581: cgit_refs_cb (shared.c:181)\n  ==3227==    by 0x43DEB3: do_for_each_ref (refs.c:690)\n  ==3227==    by 0x41075E: cgit_print_branches (ui-refs.c:191)\n  ==3227==    by 0x416EF2: cgit_print_summary (ui-summary.c:56)\n  ==3227==    by 0x40780A: summary_fn (cmd.c:120)\n  ==3227==    by 0x40667A: process_request (cgit.c:544)\n  ==3227==\n  ==3227== Invalid write of size 1\n  ==3227==    at 0x4A09400: strncpy (mc_replace_strmem.c:463)\n  ==3227==    by 0x408977: substr (parsing.c:61)\n  ==3227==    by 0x4089EF: parse_user (parsing.c:73)\n  ==3227==    by 0x408D10: cgit_parse_commit (parsing.c:153)\n  ==3227==    by 0x40A540: cgit_mk_refinfo (shared.c:171)\n  ==3227==    by 0x40A581: cgit_refs_cb (shared.c:181)\n  ==3227==    by 0x43DEB3: do_for_each_ref (refs.c:690)\n  ==3227==    by 0x41075E: cgit_print_branches (ui-refs.c:191)\n  ==3227==    by 0x416EF2: cgit_print_summary (ui-summary.c:56)\n  ==3227==    by 0x40780A: summary_fn (cmd.c:120)\n  ==3227==    by 0x40667A: process_request (cgit.c:544)\n  ==3227==    by 0x404078: cache_process (cache.c:322)\n  ==3227==  Address 0x4c7192b is not stack'd, malloc'd or (recently) free'd\n  ==3227==\n  ==3227== Invalid write of size 1\n  ==3227==    at 0x4A0940E: strncpy (mc_replace_strmem.c:463)\n  ==3227==    by 0x408977: substr (parsing.c:61)\n  ==3227==    by 0x4089EF: parse_user (parsing.c:73)\n  ==3227==    by 0x408D10: cgit_parse_commit (parsing.c:153)\n  ==3227==    by 0x40A540: cgit_mk_refinfo (shared.c:171)\n  ==3227==    by 0x40A581: cgit_refs_cb (shared.c:181)\n  ==3227==    by 0x43DEB3: do_for_each_ref (refs.c:690)\n  ==3227==    by 0x41075E: cgit_print_branches (ui-refs.c:191)\n  ==3227==    by 0x416EF2: cgit_print_summary (ui-summary.c:56)\n  ==3227==    by 0x40780A: summary_fn (cmd.c:120)\n  ==3227==    by 0x40667A: process_request (cgit.c:544)\n  ==3227==    by 0x404078: cache_process (cache.c:322)\n  ==3227==  Address 0x4c7192d is not stack'd, malloc'd or (recently) free'd\n  ==3227==\n  ==3227==\n  ==3227== Process terminating with default action of signal 11 (SIGSEGV)\n  ==3227==  Access not within mapped region at address 0x502F000\n  ==3227==    at 0x4A09400: strncpy (mc_replace_strmem.c:463)\n  ==3227==    by 0x408977: substr (parsing.c:61)\n  ==3227==    by 0x4089EF: parse_user (parsing.c:73)\n  ==3227==    by 0x408D10: cgit_parse_commit (parsing.c:153)\n  ==3227==    by 0x40A540: cgit_mk_refinfo (shared.c:171)\n  ==3227==    by 0x40A581: cgit_refs_cb (shared.c:181)\n  ==3227==    by 0x43DEB3: do_for_each_ref (refs.c:690)\n  ==3227==    by 0x41075E: cgit_print_branches (ui-refs.c:191)\n  ==3227==    by 0x416EF2: cgit_print_summary (ui-summary.c:56)\n  ==3227==    by 0x40780A: summary_fn (cmd.c:120)\n  ==3227==    by 0x40667A: process_request (cgit.c:544)\n  ==3227==    by 0x404078: cache_process (cache.c:322)\n\nThis happens when tail - head == -1 here:\n(parsing.c)\n\n  char *substr(const char *head, const char *tail)\n  {\n          char *buf;\n\n          buf = xmalloc(tail - head + 1);\n          strncpy(buf, head, tail - head);\n          buf[tail - head] = '\\0';\n          return buf;\n  }\n\n  char *parse_user(char *t, char **name, char **email, unsigned long *date)\n  {\n          char *p = t;\n          int mode = 1;\n\n          while (p && *p) {\n                  if (mode == 1 && *p == '<') {\n                          *name = substr(t, p - 1);\n                          t = p;\n                          mode++;\n                  } else if (mode == 1 && *p == '\\n') {\n\nHere's a fix:\n\nFrom 8c389f87d43a3c8fbf3763e87193032a65a49952 Mon Sep 17 00:00:00 2001\nFrom: Jim Meyering <meyering@redhat.com>\nDate: Mon, 23 Apr 2012 22:06:35 +0200\nSubject: [PATCH] do not write outside heap buffer\n\n* parsing.c (substr): Handle tail < head.\n---\n parsing.c |    2 ++\n 1 file changed, 2 insertions(+)\n\ndiff --git a/parsing.c b/parsing.c\nindex 602e3de..1b2a551 100644\n--- a/parsing.c\n+++ b/parsing.c\n@@ -56,6 +56,8 @@ char *substr(const char *head, const char *tail)\n {\n \tchar *buf;\n\n+\tif (tail < head)\n+\t\treturn xstrdup(\"\");\n \tbuf = xmalloc(tail - head + 1);\n \tstrncpy(buf, head, tail - head);\n \tbuf[tail - head] = '\\0';\n--\n1.7.10.228.g81f95\n\nAnd here's the reproducer:\nIt was tricky to reproduce, because git prohibits use of an empty \"name\"\nin a commit ID.  To construct the offending commit, I had to resort to\nusing \"git hash-object\".\n\ngit init -q foo &&\n( cd foo &&\n  echo a > j && git add . && git ci -q --author='au <T@h.or>' -m. . &&\n  h=$(git cat-file commit HEAD|sed 's/au //' \\\n    |git hash-object -t commit -w --stdin) &&\n  git co -q -b test $h &&\n  git br -q -D master &&\n  git br -q -m test master)\ngit clone -q --bare foo foo.git\n\ncat <<EOF > in\nrepo.url=foo.git\nrepo.path=foo.git\nEOF\nCGIT_CONFIG=in QUERY_STRING=url=foo.git valgrind ./cgit\n\nThe valgrind output is what you see above.\n\nAFAICS, this is not exploitable thanks (ironically) to the use of strncpy.\nSince that -1 translates to SIZE_MAX and this is strncpy, not only does it\ncopy whatever is in \"head\" (up to first NUL), but it also writes\nSIZE_MAX - strlen(head) NUL bytes into the destination buffer, and that\nlatter is guaranteed to evoke a segfault.  Since cgit is single-threaded,\nAFAICS, there is no way that the buffer clobbering can be turned into\nan exploit."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4920615",
+						"comment_count": "1",
+						"who": {
+							"text": "meyering",
+							"name": "Jim Meyering"
+						},
+						"bug_when": "2012-07-25 14:14:38 +0000",
+						"thetext": "FYI, posted upstream,\n\n  http://hjemli.net/pipermail/cgit/2012-July/000652.html\n\nbut afaics, still not on any branch in the git repository."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5077979",
+						"comment_count": "2",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2012-10-01 16:56:02 +0000",
+						"thetext": "This needs to be corrected in all versions of Fedora and EPEL (not just rawhide).  Please see bug #862035 for the security bug (CVE assignment pending).  I'm going to turn this into a tracking bug for all versions of Fedora."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5202731",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-15 17:31:33 +0000",
+						"thetext": "cgit-0.9.1-1.fc18 has been submitted as an update for Fedora 18.\nhttps://admin.fedoraproject.org/updates/cgit-0.9.1-1.fc18"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5202749",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-15 17:41:51 +0000",
+						"thetext": "cgit-0.9.1-1.fc17 has been submitted as an update for Fedora 17.\nhttps://admin.fedoraproject.org/updates/cgit-0.9.1-1.fc17"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5202774",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-15 17:54:35 +0000",
+						"thetext": "cgit-0.9.1-1.fc16 has been submitted as an update for Fedora 16.\nhttps://admin.fedoraproject.org/updates/cgit-0.9.1-1.fc16"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5202844",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-15 18:11:51 +0000",
+						"thetext": "cgit-0.9.1-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/cgit-0.9.1-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5202889",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-15 18:26:24 +0000",
+						"thetext": "cgit-0.9.1-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/cgit-0.9.1-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5203099",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-15 19:32:59 +0000",
+						"thetext": "Package cgit-0.9.1-1.el6:\n* should fix your issue,\n* was pushed to the Fedora EPEL 6 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=epel-testing cgit-0.9.1-1.el6'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2012-13477/cgit-0.9.1-1.el6\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5207703",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-17 18:13:20 +0000",
+						"thetext": "cgit-0.9.1-2.fc18 has been submitted as an update for Fedora 18.\nhttps://admin.fedoraproject.org/updates/cgit-0.9.1-2.fc18"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5207710",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-17 18:26:07 +0000",
+						"thetext": "cgit-0.9.1-2.fc17 has been submitted as an update for Fedora 17.\nhttps://admin.fedoraproject.org/updates/cgit-0.9.1-2.fc17"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5207734",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-17 18:38:33 +0000",
+						"thetext": "cgit-0.9.1-2.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/cgit-0.9.1-2.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5207745",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-17 18:39:25 +0000",
+						"thetext": "cgit-0.9.1-2.fc16 has been submitted as an update for Fedora 16.\nhttps://admin.fedoraproject.org/updates/cgit-0.9.1-2.fc16"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5222537",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-23 07:18:28 +0000",
+						"thetext": "cgit-0.9.1-2.fc18 has been pushed to the Fedora 18 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5235173",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-28 11:28:38 +0000",
+						"thetext": "cgit-0.9.1-2.fc17 has been pushed to the Fedora 17 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5235268",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-28 11:46:37 +0000",
+						"thetext": "cgit-0.9.1-2.fc16 has been pushed to the Fedora 16 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5247028",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-12-01 00:58:06 +0000",
+						"thetext": "cgit-0.9.1-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5248959",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-12-02 19:36:07 +0000",
+						"thetext": "cgit-0.9.1-2.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 870714,
+			"security": true,
+			"title": "CVE-2012-4548 cgit: syntax-highlighting.sh command injection [fedora-all]",
+			"bugzilla": {
+				"bug_id": "870714",
+				"creation_ts": "2012-10-28 07:01:31 +0000",
+				"short_desc": "CVE-2012-4548 cgit: syntax-highlighting.sh command injection [fedora-all]",
+				"delta_ts": "2012-12-02 19:36:00 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "CURRENTRELEASE",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "870713",
+						"alias": "CVE-2012-4548",
+						"creation_ts": "2012-10-28 06:59:04 +0000",
+						"short_desc": "CVE-2012-4548 cgit: syntax-highlighting.sh command injection",
+						"delta_ts": "2019-09-29 12:56:39 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"870714",
+							"870715"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "5150785",
+								"comment_count": "0",
+								"who": {
+									"text": "kseifried",
+									"name": "Kurt Seifried"
+								},
+								"bug_when": "2012-10-28 06:59:04 +0000",
+								"thetext": "\nsyntax-highlighting.sh: Fix command injection.\n\nBy not quoting the argument, an attacker with the ability to add files to the \nrepository could pass arbitrary arguments to the highlight command, in \nparticular, the --plug-in argument which can lead to arbitrary command \nexecution. \n\nThis patch adds simple argument quoting. \n\nExternal references:\nhttp://git.zx2c4.com/cgit/commit/?id=7ea35f9f8ecf61ab42be9947aae1176ab6e089bd"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "5150786",
+								"comment_count": "1",
+								"who": {
+									"text": "kseifried",
+									"name": "Kurt Seifried"
+								},
+								"bug_when": "2012-10-28 07:00:46 +0000",
+								"thetext": "Created attachment 634444\ncgit-CVE-2012-4548.patch"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "5150789",
+								"comment_count": "2",
+								"who": {
+									"text": "kseifried",
+									"name": "Kurt Seifried"
+								},
+								"bug_when": "2012-10-28 07:01:38 +0000",
+								"thetext": "Created cgit tracking bugs for this issue\n\nAffects: fedora-all [bug 870714]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "5150792",
+								"comment_count": "3",
+								"who": {
+									"text": "kseifried",
+									"name": "Kurt Seifried"
+								},
+								"bug_when": "2012-10-28 07:02:11 +0000",
+								"thetext": "Created cgit tracking bugs for this issue\n\nAffects: epel-all [bug 870715]"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "5150787",
+						"comment_count": "0",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2012-10-28 07:01:31 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen creating a Bodhi update request, please use the bodhi submission link\nnoted in the next comment(s).  This will include the bug IDs of this\ntracking bug as well as the relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nBodhi notes field when available.\n\nPlease note: this issue affects multiple supported versions of Fedora.\nOnly one tracking bug has been filed; please ensure that it is only closed\nwhen all affected versions are fixed.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5150788",
+						"comment_count": "1",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2012-10-28 07:01:36 +0000",
+						"thetext": "\nPlease use the following update submission link to create the Bodhi\nrequest for this issue as it contains the top-level parent bug(s) as well\nas this tracking bug.  This will ensure that all associated bugs get\nupdated when new packages are pushed to stable.\n\nPlease also ensure that the \"Close bugs when update is stable\" option\nremains checked.\n\nBodhi update submission link:\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=870713,870714"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5202730",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-15 17:31:27 +0000",
+						"thetext": "cgit-0.9.1-1.fc18 has been submitted as an update for Fedora 18.\nhttps://admin.fedoraproject.org/updates/cgit-0.9.1-1.fc18"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5202748",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-15 17:41:46 +0000",
+						"thetext": "cgit-0.9.1-1.fc17 has been submitted as an update for Fedora 17.\nhttps://admin.fedoraproject.org/updates/cgit-0.9.1-1.fc17"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5202773",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-15 17:54:30 +0000",
+						"thetext": "cgit-0.9.1-1.fc16 has been submitted as an update for Fedora 16.\nhttps://admin.fedoraproject.org/updates/cgit-0.9.1-1.fc16"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5202840",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-15 18:11:45 +0000",
+						"thetext": "cgit-0.9.1-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/cgit-0.9.1-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5202888",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-15 18:26:18 +0000",
+						"thetext": "cgit-0.9.1-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/cgit-0.9.1-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5203097",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-15 19:32:52 +0000",
+						"thetext": "Package cgit-0.9.1-1.el6:\n* should fix your issue,\n* was pushed to the Fedora EPEL 6 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=epel-testing cgit-0.9.1-1.el6'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2012-13477/cgit-0.9.1-1.el6\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5207702",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-17 18:13:14 +0000",
+						"thetext": "cgit-0.9.1-2.fc18 has been submitted as an update for Fedora 18.\nhttps://admin.fedoraproject.org/updates/cgit-0.9.1-2.fc18"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5207709",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-17 18:25:58 +0000",
+						"thetext": "cgit-0.9.1-2.fc17 has been submitted as an update for Fedora 17.\nhttps://admin.fedoraproject.org/updates/cgit-0.9.1-2.fc17"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5207732",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-17 18:38:28 +0000",
+						"thetext": "cgit-0.9.1-2.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/cgit-0.9.1-2.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5207741",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-17 18:39:19 +0000",
+						"thetext": "cgit-0.9.1-2.fc16 has been submitted as an update for Fedora 16.\nhttps://admin.fedoraproject.org/updates/cgit-0.9.1-2.fc16"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5222536",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-23 07:18:20 +0000",
+						"thetext": "cgit-0.9.1-2.fc18 has been pushed to the Fedora 18 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5235172",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-28 11:28:31 +0000",
+						"thetext": "cgit-0.9.1-2.fc17 has been pushed to the Fedora 17 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5235266",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-11-28 11:46:21 +0000",
+						"thetext": "cgit-0.9.1-2.fc16 has been pushed to the Fedora 16 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5247027",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-12-01 00:57:59 +0000",
+						"thetext": "cgit-0.9.1-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5248958",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-12-02 19:36:00 +0000",
+						"thetext": "cgit-0.9.1-2.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "cgit-0.9.1-1.el5",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"i386": [
+					{
+						"name": "cgit-debuginfo",
+						"version": "0.9.1",
+						"release": "1.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "cgit",
+						"version": "0.9.1",
+						"release": "1.el5",
+						"arch": "i386"
+					}
+				],
+				"ppc": [
+					{
+						"name": "cgit-debuginfo",
+						"version": "0.9.1",
+						"release": "1.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "cgit",
+						"version": "0.9.1",
+						"release": "1.el5",
+						"arch": "ppc"
+					}
+				],
+				"src": [
+					{
+						"name": "cgit",
+						"version": "0.9.1",
+						"release": "1.el5",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "cgit-debuginfo",
+						"version": "0.9.1",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "cgit",
+						"version": "0.9.1",
+						"release": "1.el5",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 95328,
+			"text": "This update has been submitted for testing by kevin. ",
+			"timestamp": "2012-11-15 18:26:27",
+			"update_id": 13112,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 95329,
+			"text": "This update is currently being pushed to the Fedora EPEL 5 testing updates repository.",
+			"timestamp": "2012-11-15 18:37:53",
+			"update_id": 13112,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 95330,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2012-11-15 19:34:08",
+			"update_id": 13112,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 95331,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2012-11-29 22:03:52",
+			"update_id": 13112,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 95332,
+			"text": "This update has been submitted for stable by kevin. ",
+			"timestamp": "2012-11-30 03:38:17",
+			"update_id": 13112,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 95333,
+			"text": "This update is currently being pushed to the Fedora EPEL 5 stable updates repository.",
+			"timestamp": "2012-11-30 23:40:28",
+			"update_id": 13112,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 95334,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2012-12-01 00:58:13",
+			"update_id": 13112,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2012-12-01 00:58:13",
+	"date_stable": "2012-12-01 00:58:13",
+	"date_submitted": "2012-11-15 18:26:12",
+	"date_testing": "2012-11-15 19:34:08",
+	"meets_testing_requirements": true,
+	"notes": "Update to new upsteam version with 2 security fixes, enhancements and misc other bug fixes. See http://git.zx2c4.com/cgit/commit/?id=a6a932e198e8b6b564d7a4bb43e78078d8296026 for details.",
+	"pushed": true,
+	"release": {
+		"branch": "el5",
+		"candidate_tag": "dist-5E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "dist-5E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 5",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-5",
+		"override_tag": "dist-5E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-5E-epel",
+		"state": "archived",
+		"testing_tag": "dist-5E-epel-testing",
+		"version": "5"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "cgit-0.9.1-1.el5",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2012-13480",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2012-13480",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/1a7d8c43c8b89789a33a3266b0e20be7759a502ff38b74ff724a4db6aa33ede8?s=24&d=retro",
+		"email": "kevin@scrye.com",
+		"groups": [
+			{
+				"name": "proventesters"
+			},
+			{
+				"name": "security_respons"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "bodhiadmin"
+			},
+			{
+				"name": "infra-sig"
+			},
+			{
+				"name": "sysadmin-main"
+			},
+			{
+				"name": "releng-team"
+			},
+			{
+				"name": "sysadmin-dba"
+			},
+			{
+				"name": "sysadmin-jenkins"
+			},
+			{
+				"name": "freemedia"
+			},
+			{
+				"name": "gitspin-kickstarts"
+			},
+			{
+				"name": "wikiadmin"
+			},
+			{
+				"name": "aws-iam"
+			},
+			{
+				"name": "wikiedit"
+			},
+			{
+				"name": "epel-wranglers"
+			},
+			{
+				"name": "sysadmin-cloud"
+			},
+			{
+				"name": "sysadmin-backup"
+			},
+			{
+				"name": "upstream-test"
+			},
+			{
+				"name": "irc-support-operators"
+			},
+			{
+				"name": "sysadmin-osbs"
+			},
+			{
+				"name": "aws-s3"
+			},
+			{
+				"name": "bzrpython-fedora"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "aws"
+			},
+			{
+				"name": "fi-apprentice"
+			},
+			{
+				"name": "sysadmin-accounts"
+			},
+			{
+				"name": "msftazure"
+			},
+			{
+				"name": "server-wg"
+			},
+			{
+				"name": "sysadmin-secondary"
+			},
+			{
+				"name": "fedora-hams"
+			},
+			{
+				"name": "signers"
+			},
+			{
+				"name": "sysadmin-devel"
+			},
+			{
+				"name": "aws-copr"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "sysadmin-spin"
+			},
+			{
+				"name": "sysadmin-logs"
+			},
+			{
+				"name": "sysadmin-tools"
+			},
+			{
+				"name": "cvsadmin"
+			},
+			{
+				"name": "sysadmin-releng"
+			},
+			{
+				"name": "sysadmin-hosted"
+			},
+			{
+				"name": "sysadmin-openshift"
+			},
+			{
+				"name": "aws-master"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "sysadmin-gallery"
+			},
+			{
+				"name": "accounts"
+			},
+			{
+				"name": "sysadmin-veteran"
+			},
+			{
+				"name": "gitfedbot"
+			},
+			{
+				"name": "fesco"
+			},
+			{
+				"name": "sysadmin-survey"
+			},
+			{
+				"name": "web"
+			},
+			{
+				"name": "sysadmin-coreos"
+			},
+			{
+				"name": "cvsfedora"
+			},
+			{
+				"name": "aws-billing"
+			},
+			{
+				"name": "aws-s3-readonly"
+			},
+			{
+				"name": "admins"
+			},
+			{
+				"name": "epel-cabal"
+			},
+			{
+				"name": "sysadmin-dns"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "sysadmin-noc"
+			},
+			{
+				"name": "sysadmin-qa"
+			},
+			{
+				"name": "hosted-content"
+			},
+			{
+				"name": "sysadmin-cvs"
+			},
+			{
+				"name": "torrentadmin"
+			},
+			{
+				"name": "gitfedora-web"
+			},
+			{
+				"name": "sysadmin-darkserver"
+			},
+			{
+				"name": "gitcsi"
+			},
+			{
+				"name": "gitformulas"
+			},
+			{
+				"name": "sysadmin-web"
+			},
+			{
+				"name": "sysadmin-ask"
+			},
+			{
+				"name": "communishift"
+			},
+			{
+				"name": "vendor-support"
+			},
+			{
+				"name": "sysadmin-calendar"
+			},
+			{
+				"name": "aws-fedoramirror"
+			},
+			{
+				"name": "aws-infra"
+			},
+			{
+				"name": "sysadmin-packages"
+			},
+			{
+				"name": "sysadmin"
+			},
+			{
+				"name": "hetznercloud"
+			},
+			{
+				"name": "epel-packagers-sig"
+			}
+		],
+		"id": 137,
+		"name": "kevin",
+		"openid": "kevin.id.fedoraproject.org"
+	},
+	"version_hash": "f3d266e60dbcb5fe00946159b1f51e91b7bdc2fc"
+}

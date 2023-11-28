@@ -1,0 +1,705 @@
+{
+	"alias": "FEDORA-2015-0432",
+	"bugs": [
+		{
+			"bug_id": 1076676,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-2497 gd: NULL pointer dereference in gdImageCreateFromXpm()",
+			"bugzilla": {
+				"bug_id": "1076676",
+				"alias": "CVE-2014-2497",
+				"creation_ts": "2014-03-14 19:57:56 +0000",
+				"short_desc": "CVE-2014-2497 gd: NULL pointer dereference in gdImageCreateFromXpm()",
+				"delta_ts": "2021-06-16 08:47:32 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1080167",
+					"1080168",
+					"1114521",
+					"1140017",
+					"1140018",
+					"1140023",
+					"1140026",
+					"1140027",
+					"1149762",
+					"1149771"
+				],
+				"blocked": [
+					{
+						"bug_id": "1076680",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1101912",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1138881",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1149858",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2014:1766",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6916804",
+						"comment_count": "0",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2014-03-14 19:57:56 +0000",
+						"thetext": "It was reported [1] that the gdImageCreateFromXpm() function in libgd could dereference a NULL pointer, noting:\n\n\"The call to strlen() parses image.colorTable[i].c_color which is initialised as NULL if the particular color mapping uses a different key (such as monochrome/monovisual).\"\n\nThis was reported against PHP, which includes an embedded copy of the gd library.  CVE-2014-2497 was assigned to this issue [2].\n\n[1] https://bugs.php.net/bug.php?id=66901\n[2] http://seclists.org/oss-sec/2014/q1/580"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6916836",
+						"comment_count": "1",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2014-03-14 20:03:40 +0000",
+						"thetext": "Note that the PHP bug includes a reproducer, but it does not seem to work with the versions I've tried (it notes version 5.4.17, I tried with 5.4.25 and 5.3.3):\n\n$ echo '<?php print imagecreatefromxpm(\"monochrome-poc.xpm\").\"\\n\"; ?>'|php\n\nWarning: imagecreatefromxpm(): 'monochrome-poc.xpm' is not a valid XPM file in - on line 1\n$ file monochrome-poc.xpm\nmonochrome-poc.xpm: X pixmap image text\n\nIt's possible that I did something wrong; I just cut-n-paste the reproducer from the upstream bug and I did not spend much time trying, so the bug is filed due to the CVE assignment."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6917820",
+						"comment_count": "2",
+						"who": {
+							"text": "fedora",
+							"name": "Remi Collet"
+						},
+						"bug_when": "2014-03-15 16:20:09 +0000",
+						"thetext": "Created attachment 874847\nreproducer.xpm\n\nThis (correct) reproducer raise the segfault, tested with php 5.5.10 (and system gd 2.1).\n\nphp -r 'var_dump(imagecreatefromxpm(\"reproducer.xpm\"));'"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6922014",
+						"comment_count": "3",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2014-03-17 14:56:50 +0000",
+						"thetext": "Thanks, Remi.  That is perfect."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6922400",
+						"comment_count": "4",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2014-03-17 16:13:29 +0000",
+						"thetext": "Based on this reproducer, this affects php53 on Red Hat Enterprise Linux 5, but not php (5.1) as it is not built with xpm support:\n\n% echo \"<?php var_dump(gd_info()); ?>\"|php\narray(12) {\n  [\"GD Version\"]=>\n  string(27) \"bundled (2.0.28 compatible)\"\n  [\"FreeType Support\"]=>\n  bool(true)\n  [\"FreeType Linkage\"]=>\n  string(13) \"with freetype\"\n  [\"T1Lib Support\"]=>\n  bool(false)\n  [\"GIF Read Support\"]=>\n  bool(true)\n  [\"GIF Create Support\"]=>\n  bool(true)\n  [\"JPG Support\"]=>\n  bool(true)\n  [\"PNG Support\"]=>\n  bool(true)\n  [\"WBMP Support\"]=>\n  bool(true)\n  [\"XPM Support\"]=>\n  bool(false)\n  [\"XBM Support\"]=>\n  bool(true)\n  [\"JIS-mapped Japanese Font Support\"]=>\n  bool(false)\n}\n% rpm -q php-gd\nphp-gd-5.1.6-43.el5_10"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6945677",
+						"comment_count": "5",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-03-24 16:55:30 +0000",
+						"thetext": "Summary of what is affected:\n\n- php in Red Hat Enterprise Linux 5 is not affected (XPM support is disabled as noted in comment 4)\n- php53 in Red Hat Enterprise Linux 5, php in Red Hat Enterprise Linux 6, php54-php in Red Hat Software Collections 1, and php packages in Fedora are affected\n\n- gd in Red Hat Enterprise Linux 5 and 6, and gd packages in Fedora are affected\n\n- libwmf packages in Red Hat Enterprise Linux 5 and 6, and libwmf packages in Fedora are not affected.  Red Hat Enterprise Linux 5 libwmf packages have bundled gd built without xpm support.  The libwmf packages in Red Hat Enterprise Linux 6 and later (including Fedora) have the whole gdImageCreateFromXpm() disabled (#if 0) via the libwmf-0.2.8.4-reducesymbols.patch:\n\nhttp://pkgs.fedoraproject.org/cgit/libwmf.git/tree/libwmf-0.2.8.4-reducesymbols.patch?id=916cd2c#n467"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6946124",
+						"comment_count": "7",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-03-24 19:37:25 +0000",
+						"thetext": "Statement:\n\nThis issue affects the versions of gd as shipped with Red Hat Enterprise Linux 5, 6, and 7. Red Hat Product Security has rated this issue as having Low security impact. A future update may address this issue. For additional information, refer to the Issue Severity Classification: https://access.redhat.com/security/updates/classification/."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6946138",
+						"comment_count": "8",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-03-24 19:39:34 +0000",
+						"thetext": "This issue has not been fixed in libgd version bundled in PHP.  It still seems to affect current upstream libgd 2.1.0, and there's no libgd upstream fix yet either."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6946144",
+						"comment_count": "9",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-03-24 19:40:32 +0000",
+						"thetext": "\nCreated gd tracking bugs for this issue:\n\nAffects: fedora-all [bug 1080168]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6946145",
+						"comment_count": "10",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-03-24 19:40:37 +0000",
+						"thetext": "\nCreated php tracking bugs for this issue:\n\nAffects: fedora-all [bug 1080167]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7352045",
+						"comment_count": "15",
+						"who": {
+							"text": "rcollet",
+							"name": "Remi Collet"
+						},
+						"bug_when": "2014-08-04 08:54:34 +0000",
+						"thetext": "GD upstream fix: \n\nhttps://bitbucket.org/libgd/gd-libgd/commits/463c3bd09bfe8e924e19acad7a2a6af16953a704\n\nPHP upstream fix (will be in 5.4.32, 5.5.16)\n\nhttp://git.php.net/?p=php-src.git;a=commit;h=cf4753691dc55999373d1c576f62ecb298723420"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7387350",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-08-15 02:31:56 +0000",
+						"thetext": "gd-2.1.0-6.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7411165",
+						"comment_count": "17",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2014-08-22 18:55:13 +0000",
+						"thetext": "This is corrected in upstream PHP 5.5.16:\n\nhttp://php.net/ChangeLog-5.php#5.5.16"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7437660",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-09-02 06:47:56 +0000",
+						"thetext": "php-5.5.16-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7518283",
+						"comment_count": "23",
+						"who": {
+							"text": "mprpic",
+							"name": "Martin Prpič"
+						},
+						"bug_when": "2014-09-25 12:14:03 +0000",
+						"thetext": "IssueDescription:\n\nA NULL pointer dereference flaw was found in the gdImageCreateFromXpm() function of PHP's gd extension. A remote attacker could use this flaw to crash a PHP application using gd via a specially crafted X PixMap (XPM) file."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7530513",
+						"comment_count": "25",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2014-09-30 05:14:44 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n  Red Hat Enterprise Linux 5\n\nVia RHSA-2014:1326 https://rhn.redhat.com/errata/RHSA-2014-1326.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7531246",
+						"comment_count": "26",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2014-09-30 09:09:56 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:1327 https://rhn.redhat.com/errata/RHSA-2014-1327.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7627885",
+						"comment_count": "29",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2014-10-30 19:45:56 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 7\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.5 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.4 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.6 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6\n\nVia RHSA-2014:1766 https://rhn.redhat.com/errata/RHSA-2014-1766.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7627916",
+						"comment_count": "30",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2014-10-30 19:47:28 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 7\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.5 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.4 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.6 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6\n\nVia RHSA-2014:1765 https://rhn.redhat.com/errata/RHSA-2014-1765.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7796925",
+						"comment_count": "31",
+						"who": {
+							"text": "yselkowi",
+							"name": "Yaakov Selkowitz"
+						},
+						"bug_when": "2015-01-01 04:44:43 +0000",
+						"thetext": "Why does the gd-2.1.0-color_c_null_pointer.patch in Fedora match neither the PHP patch nor the upstream libgd patch?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7797699",
+						"comment_count": "32",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-01-02 08:29:37 +0000",
+						"thetext": "More importantly, Fedora patch introduces memory leak, afaics.  colors[] is not freed if the error is hit.  CCing patch author for comments."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7797710",
+						"comment_count": "33",
+						"who": {
+							"text": "fedora",
+							"name": "Remi Collet"
+						},
+						"bug_when": "2015-01-02 08:41:33 +0000",
+						"thetext": "IIRC, the patch applied in Fedora was the one attached to the initial upstream bug report.\n\nYes this patch introduce a memory leak (while the upstream patch doesn't)\ngd 2.1.1 should have be released for a long time now :(\nI hope it will be very soon (some other important fix in this bugfix release)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7818490",
+						"comment_count": "34",
+						"who": {
+							"text": "jmlich",
+							"name": "Jozef Mlich"
+						},
+						"bug_when": "2015-01-08 12:56:07 +0000",
+						"thetext": "Thanks for spotting this. I have updated the fedora package to use upstream patch and tested it for memory leak."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7855308",
+						"comment_count": "35",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-19 01:35:05 +0000",
+						"thetext": "gd-2.1.0-8.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7862863",
+						"comment_count": "36",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-20 21:03:49 +0000",
+						"thetext": "gd-2.1.0-8.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "gd-2.1.0-8.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "gd-progs",
+						"version": "2.1.0",
+						"release": "8.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "gd-devel",
+						"version": "2.1.0",
+						"release": "8.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "gd",
+						"version": "2.1.0",
+						"release": "8.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "gd-debuginfo",
+						"version": "2.1.0",
+						"release": "8.fc21",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "gd",
+						"version": "2.1.0",
+						"release": "8.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "gd-progs",
+						"version": "2.1.0",
+						"release": "8.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "gd-devel",
+						"version": "2.1.0",
+						"release": "8.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "gd-debuginfo",
+						"version": "2.1.0",
+						"release": "8.fc21",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "gd",
+						"version": "2.1.0",
+						"release": "8.fc21",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "gd-debuginfo",
+						"version": "2.1.0",
+						"release": "8.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "gd-devel",
+						"version": "2.1.0",
+						"release": "8.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "gd-progs",
+						"version": "2.1.0",
+						"release": "8.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "gd",
+						"version": "2.1.0",
+						"release": "8.fc21",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 15151,
+			"text": "This update has been submitted for testing by jmlich. ",
+			"timestamp": "2015-01-08 13:09:34",
+			"update_id": 2111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 15152,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/26484/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-01-08 13:22:45",
+			"update_id": 2111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 15153,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/26484/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-01-08 13:23:09",
+			"update_id": 2111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 15154,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2015-01-08 16:17:51",
+			"update_id": 2111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 15155,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-01-08 23:31:39",
+			"update_id": 2111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 15156,
+			"karma": 1,
+			"text": "No problems encountered.",
+			"timestamp": "2015-01-10 10:31:57",
+			"update_id": 2111,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/c909a1943c2b195f256284326fd52994a704f6224746d85b49ff22a4e59b0c79?s=24&d=retro",
+				"email": "fafatheone@gmail.com",
+				"groups": [
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "signed_fpca"
+					}
+				],
+				"id": 705,
+				"name": "fafatheone",
+				"openid": "fafatheone.id.fedoraproject.org"
+			},
+			"user_id": 705
+		},
+		{
+			"id": 15157,
+			"karma": 1,
+			"text": "looks fine to me",
+			"timestamp": "2015-01-11 02:38:45",
+			"update_id": 2111,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/b69a781f897ff47fb3d40e9bd36309fb6d6aecb6892aa07fbcf302de054e5b12?s=24&d=retro",
+				"email": "nonamedotc@gmail.com",
+				"groups": [
+					{
+						"name": "qa"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "scitech_sig"
+					},
+					{
+						"name": "triagers"
+					}
+				],
+				"id": 306,
+				"name": "nonamedotc",
+				"openid": "nonamedotc.id.fedoraproject.org"
+			},
+			"user_id": 306
+		},
+		{
+			"id": 15158,
+			"text": "This update has reached 7 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2015-01-16 00:36:23",
+			"update_id": 2111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 15159,
+			"karma": 1,
+			"text": "No regressions here.",
+			"timestamp": "2015-01-17 20:33:53",
+			"update_id": 2111,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/0fd1d5acbf668178227e981c4ef1fcab1f7313bb3d090445347ec7e53fa59914?s=24&d=retro",
+				"id": 567,
+				"name": "rorgoroth",
+				"openid": "rorgoroth.id.fedoraproject.org"
+			},
+			"user_id": 567
+		},
+		{
+			"id": 15160,
+			"text": "This update has reached the stable karma threshold and will be pushed to the stable updates repository",
+			"timestamp": "2015-01-17 20:33:56",
+			"update_id": 2111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 15161,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/29084/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-01-17 20:35:51",
+			"update_id": 2111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 15162,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2015-01-18 18:42:22",
+			"update_id": 2111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 15163,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-01-19 01:34:32",
+			"update_id": 2111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2015-01-19 01:34:32",
+	"date_stable": "2015-01-19 01:34:32",
+	"date_submitted": "2015-01-08 13:09:30",
+	"date_testing": "2015-01-08 23:31:39",
+	"karma": 3,
+	"meets_testing_requirements": true,
+	"notes": "Previous patch of #1076676 introduced memory leak.",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "gd-2.1.0-8.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-0432",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-0432",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/9222f1263d8e6ae927029320fb296914d0636930e9da45c6c42987738b77d6bd?s=24&d=retro",
+		"email": "jmlich83@gmail.com",
+		"groups": [
+			{
+				"name": "packager"
+			}
+		],
+		"id": 740,
+		"name": "jmlich",
+		"openid": "jmlich.id.fedoraproject.org"
+	},
+	"version_hash": "202c4523a51052296b8afb00e6b4de4c909985ec"
+}

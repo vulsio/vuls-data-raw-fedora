@@ -1,0 +1,845 @@
+{
+	"alias": "FEDORA-EPEL-2013-11893",
+	"bugs": [
+		{
+			"bug_id": 1016960,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2013-4419 libguestfs: insecure temporary directory handling for guestfish's network socket",
+			"bugzilla": {
+				"bug_id": "1016960",
+				"alias": "CVE-2013-4419",
+				"creation_ts": "2013-10-09 04:01:26 +0000",
+				"short_desc": "CVE-2013-4419 libguestfs: insecure temporary directory handling for guestfish's network socket",
+				"delta_ts": "2023-05-12 00:16:07 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1019503",
+					"1019737",
+					"1020535",
+					"1020950"
+				],
+				"blocked": [
+					{
+						"bug_id": "974906",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1016967",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2013:1536",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6396743",
+						"comment_count": "0",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2013-10-09 04:01:26 +0000",
+						"thetext": "libguestfs is a library for accessing and modifying guest disk images. It was found that guestfish, which enables shell scripting and command line access to libguestfs, insecurely created the temporary directory used to store the network socket when started in server mode (using the \"--listen\" option). If guestfish were run with the \"--listen\" option, a local attacker could use this flaw to intercept and modify other users' guestfish commands, allowing them to perform arbitrary guestfish actions (such as modifying virtual machines) with the privileges of a different user, or use this flaw to obtain authentication credentials.\n\nAcknowledgements:\n\nThis issue was discovered by Michael Scherer of the Red Hat Regional IT team."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6398395",
+						"comment_count": "3",
+						"who": {
+							"text": "rjones",
+							"name": "Richard W.M. Jones"
+						},
+						"bug_when": "2013-10-09 11:28:30 +0000",
+						"thetext": "Created attachment 809855\nfish: Use UNIX_PATH_MAX instead of hard-coded value for max length of socket\n\nSemi-related code cleanup."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6398402",
+						"comment_count": "4",
+						"who": {
+							"text": "rjones",
+							"name": "Richard W.M. Jones"
+						},
+						"bug_when": "2013-10-09 11:29:50 +0000",
+						"thetext": "Created attachment 809857\nfish: Fix insecure temporary directory handling for remote guestfish (RHBZ#1016960).\n\nThis is the meat of the fix: check that the directory\nthat we create (a) is a directory (b) has the right mode\n(c) has the right owner."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6398405",
+						"comment_count": "5",
+						"who": {
+							"text": "rjones",
+							"name": "Richard W.M. Jones"
+						},
+						"bug_when": "2013-10-09 11:31:55 +0000",
+						"thetext": "Created attachment 809858\nfish: Move the guestfish socket from /tmp/.guestfish-$UID to /run/user/$UID.\n\nI'm probably not going to apply this third part because:\n\n- Can we be sure that /run/user/$UID always has mode 0700?\n\n- /run/user is entirely missing on Debian Wheezy\n\n- It seems to be safe to create the socket in /tmp now that\n  we're doing all the checks -- the worst that could happen\n  is a poor denial of service attack by a local user who is\n  immediately visible."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6398411",
+						"comment_count": "6",
+						"who": {
+							"text": "rjones",
+							"name": "Richard W.M. Jones"
+						},
+						"bug_when": "2013-10-09 11:34:14 +0000",
+						"thetext": "BTW I'm happy to publish this fix as soon as possible.  It is\nlow impact."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6401249",
+						"comment_count": "11",
+						"who": {
+							"text": "misc",
+							"name": "Michael S."
+						},
+						"bug_when": "2013-10-09 22:25:52 +0000",
+						"thetext": "To answer comment #5, what about using $XDG_RUNTIME_DIR ( cf man pam_systemd, this is \"Path to a user-private user-writable directory that is bound to the user login time on the machine\" ), and fall back to /tmp if it doesn't exist ?\n\n( with $XDG_RUNTIME_DIR being /run/user/$uid/ , as set by the pam module )\n\nThis will cover the case of non-systemd system, ie debian wheezy among other, while still using proper directory for newer system, and this could be cleaned later once we decide to stop supporting older system ?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6408033",
+						"comment_count": "18",
+						"who": {
+							"text": "rjones",
+							"name": "Richard W.M. Jones"
+						},
+						"bug_when": "2013-10-11 11:36:37 +0000",
+						"thetext": "Created attachment 811007\nfish: CVE-2013-4419: Fix insecure temporary directory handling for remote guestfish (RHBZ#1016960).\n\nVersion 2 of proposed patch.\n\nNote also that \"fish: Use UNIX_PATH_MAX instead of hard-coded value\nfor max length of socket\" which is really an unrelated code cleanup\nhas gone upstream already."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6429382",
+						"comment_count": "25",
+						"who": {
+							"text": "rjones",
+							"name": "Richard W.M. Jones"
+						},
+						"bug_when": "2013-10-17 09:26:39 +0000",
+						"thetext": "FYI the public announcement is going out today at 12:00 UTC, unless\nanyone says otherwise in ~ the next 3 hours ..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6429996",
+						"comment_count": "26",
+						"who": {
+							"text": "rjones",
+							"name": "Richard W.M. Jones"
+						},
+						"bug_when": "2013-10-17 12:01:29 +0000",
+						"thetext": "This issue is now public:\nhttps://www.redhat.com/archives/libguestfs/2013-October/msg00031.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6432244",
+						"comment_count": "27",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2013-10-17 20:56:18 +0000",
+						"thetext": "\nCreated libguestfs tracking bugs for this issue:\n\nAffects: fedora-all [bug 1020535]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6435356",
+						"comment_count": "29",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2013-10-18 15:14:41 +0000",
+						"thetext": "\nCreated libguestfs tracking bugs for this issue:\n\nAffects: epel-5 [bug 1020950]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6460016",
+						"comment_count": "30",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-10-27 03:58:49 +0000",
+						"thetext": "libguestfs-1.20.12-1.fc18 has been pushed to the Fedora 18 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6460022",
+						"comment_count": "31",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-10-27 03:59:58 +0000",
+						"thetext": "libguestfs-1.22.7-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6460053",
+						"comment_count": "32",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-10-27 05:32:50 +0000",
+						"thetext": "libguestfs-1.22.7-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6460062",
+						"comment_count": "33",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-10-27 05:34:31 +0000",
+						"thetext": "libguestfs-1.20.12-1.fc18 has been pushed to the Fedora 18 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6504784",
+						"comment_count": "36",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-11-10 06:52:13 +0000",
+						"thetext": "libguestfs-1.24.0-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6540747",
+						"comment_count": "37",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2013-11-21 04:47:10 +0000",
+						"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2013:1536 https://rhn.redhat.com/errata/RHSA-2013-1536.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9266697",
+						"comment_count": "39",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-04-25 19:52:41 +0000",
+						"thetext": "libguestfs-1.20.12-1.el5 has been pushed to the Fedora EPEL 5 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1020950,
+			"security": true,
+			"title": "CVE-2013-4419 libguestfs: insecure temporary directory handling for guestfish's network socket [epel-5]",
+			"bugzilla": {
+				"bug_id": "1020950",
+				"creation_ts": "2013-10-18 15:14:26 +0000",
+				"short_desc": "CVE-2013-4419 libguestfs: insecure temporary directory handling for guestfish's network socket [epel-5]",
+				"delta_ts": "2016-04-25 19:52:52 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1016960",
+						"alias": "CVE-2013-4419",
+						"creation_ts": "2013-10-09 04:01:26 +0000",
+						"short_desc": "CVE-2013-4419 libguestfs: insecure temporary directory handling for guestfish's network socket",
+						"delta_ts": "2023-05-12 00:16:07 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1019503",
+							"1019737",
+							"1020535",
+							"1020950"
+						],
+						"blocked": [
+							{
+								"bug_id": "974906",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1016967",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2013:1536",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "6396743",
+								"comment_count": "0",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2013-10-09 04:01:26 +0000",
+								"thetext": "libguestfs is a library for accessing and modifying guest disk images. It was found that guestfish, which enables shell scripting and command line access to libguestfs, insecurely created the temporary directory used to store the network socket when started in server mode (using the \"--listen\" option). If guestfish were run with the \"--listen\" option, a local attacker could use this flaw to intercept and modify other users' guestfish commands, allowing them to perform arbitrary guestfish actions (such as modifying virtual machines) with the privileges of a different user, or use this flaw to obtain authentication credentials.\n\nAcknowledgements:\n\nThis issue was discovered by Michael Scherer of the Red Hat Regional IT team."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6398395",
+								"comment_count": "3",
+								"who": {
+									"text": "rjones",
+									"name": "Richard W.M. Jones"
+								},
+								"bug_when": "2013-10-09 11:28:30 +0000",
+								"thetext": "Created attachment 809855\nfish: Use UNIX_PATH_MAX instead of hard-coded value for max length of socket\n\nSemi-related code cleanup."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6398402",
+								"comment_count": "4",
+								"who": {
+									"text": "rjones",
+									"name": "Richard W.M. Jones"
+								},
+								"bug_when": "2013-10-09 11:29:50 +0000",
+								"thetext": "Created attachment 809857\nfish: Fix insecure temporary directory handling for remote guestfish (RHBZ#1016960).\n\nThis is the meat of the fix: check that the directory\nthat we create (a) is a directory (b) has the right mode\n(c) has the right owner."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6398405",
+								"comment_count": "5",
+								"who": {
+									"text": "rjones",
+									"name": "Richard W.M. Jones"
+								},
+								"bug_when": "2013-10-09 11:31:55 +0000",
+								"thetext": "Created attachment 809858\nfish: Move the guestfish socket from /tmp/.guestfish-$UID to /run/user/$UID.\n\nI'm probably not going to apply this third part because:\n\n- Can we be sure that /run/user/$UID always has mode 0700?\n\n- /run/user is entirely missing on Debian Wheezy\n\n- It seems to be safe to create the socket in /tmp now that\n  we're doing all the checks -- the worst that could happen\n  is a poor denial of service attack by a local user who is\n  immediately visible."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6398411",
+								"comment_count": "6",
+								"who": {
+									"text": "rjones",
+									"name": "Richard W.M. Jones"
+								},
+								"bug_when": "2013-10-09 11:34:14 +0000",
+								"thetext": "BTW I'm happy to publish this fix as soon as possible.  It is\nlow impact."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6401249",
+								"comment_count": "11",
+								"who": {
+									"text": "misc",
+									"name": "Michael S."
+								},
+								"bug_when": "2013-10-09 22:25:52 +0000",
+								"thetext": "To answer comment #5, what about using $XDG_RUNTIME_DIR ( cf man pam_systemd, this is \"Path to a user-private user-writable directory that is bound to the user login time on the machine\" ), and fall back to /tmp if it doesn't exist ?\n\n( with $XDG_RUNTIME_DIR being /run/user/$uid/ , as set by the pam module )\n\nThis will cover the case of non-systemd system, ie debian wheezy among other, while still using proper directory for newer system, and this could be cleaned later once we decide to stop supporting older system ?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6408033",
+								"comment_count": "18",
+								"who": {
+									"text": "rjones",
+									"name": "Richard W.M. Jones"
+								},
+								"bug_when": "2013-10-11 11:36:37 +0000",
+								"thetext": "Created attachment 811007\nfish: CVE-2013-4419: Fix insecure temporary directory handling for remote guestfish (RHBZ#1016960).\n\nVersion 2 of proposed patch.\n\nNote also that \"fish: Use UNIX_PATH_MAX instead of hard-coded value\nfor max length of socket\" which is really an unrelated code cleanup\nhas gone upstream already."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6429382",
+								"comment_count": "25",
+								"who": {
+									"text": "rjones",
+									"name": "Richard W.M. Jones"
+								},
+								"bug_when": "2013-10-17 09:26:39 +0000",
+								"thetext": "FYI the public announcement is going out today at 12:00 UTC, unless\nanyone says otherwise in ~ the next 3 hours ..."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6429996",
+								"comment_count": "26",
+								"who": {
+									"text": "rjones",
+									"name": "Richard W.M. Jones"
+								},
+								"bug_when": "2013-10-17 12:01:29 +0000",
+								"thetext": "This issue is now public:\nhttps://www.redhat.com/archives/libguestfs/2013-October/msg00031.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6432244",
+								"comment_count": "27",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2013-10-17 20:56:18 +0000",
+								"thetext": "\nCreated libguestfs tracking bugs for this issue:\n\nAffects: fedora-all [bug 1020535]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6435356",
+								"comment_count": "29",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2013-10-18 15:14:41 +0000",
+								"thetext": "\nCreated libguestfs tracking bugs for this issue:\n\nAffects: epel-5 [bug 1020950]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6460016",
+								"comment_count": "30",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2013-10-27 03:58:49 +0000",
+								"thetext": "libguestfs-1.20.12-1.fc18 has been pushed to the Fedora 18 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6460022",
+								"comment_count": "31",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2013-10-27 03:59:58 +0000",
+								"thetext": "libguestfs-1.22.7-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6460053",
+								"comment_count": "32",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2013-10-27 05:32:50 +0000",
+								"thetext": "libguestfs-1.22.7-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6460062",
+								"comment_count": "33",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2013-10-27 05:34:31 +0000",
+								"thetext": "libguestfs-1.20.12-1.fc18 has been pushed to the Fedora 18 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6504784",
+								"comment_count": "36",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2013-11-10 06:52:13 +0000",
+								"thetext": "libguestfs-1.24.0-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6540747",
+								"comment_count": "37",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2013-11-21 04:47:10 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2013:1536 https://rhn.redhat.com/errata/RHSA-2013-1536.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9266697",
+								"comment_count": "39",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2016-04-25 19:52:41 +0000",
+								"thetext": "libguestfs-1.20.12-1.el5 has been pushed to the Fedora EPEL 5 stable repository. If problems still persist, please make note of it in this bug report."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6435354",
+						"comment_count": "0",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2013-10-18 15:14:26 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora EPEL.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen creating a Bodhi update request, please use the bodhi submission link\nnoted in the next comment(s).  This will include the bug IDs of this\ntracking bug as well as the relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nBodhi notes field when available.\n\nepel-5 tracking bug for libguestfs: see blocks bug list for full details of the security issue(s).\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6435355",
+						"comment_count": "1",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2013-10-18 15:14:37 +0000",
+						"thetext": "\nPlease use the following update submission link to create the Bodhi\nrequest for this issue as it contains the top-level parent bug(s) as well\nas this tracking bug.  This will ensure that all associated bugs get\nupdated when new packages are pushed to stable.\n\nPlease also ensure that the \"Close bugs when update is stable\" option\nremains checked.\n\nBodhi update submission link:\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1016960,1020950"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6437097",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-10-19 07:09:52 +0000",
+						"thetext": "libguestfs-1.20.12-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/libguestfs-1.20.12-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6437595",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-10-19 18:01:21 +0000",
+						"thetext": "Package libguestfs-1.20.12-1.el5:\n* should fix your issue,\n* was pushed to the Fedora EPEL 5 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=epel-testing libguestfs-1.20.12-1.el5'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2013-11893/libguestfs-1.20.12-1.el5\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7362614",
+						"comment_count": "4",
+						"who": {
+							"text": "jrusnack",
+							"name": "Ján Rusnačko"
+						},
+						"bug_when": "2014-08-06 19:48:21 +0000",
+						"thetext": "Can this be pushed to stable and closed please ?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9266698",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-04-25 19:52:48 +0000",
+						"thetext": "libguestfs-1.20.12-1.el5 has been pushed to the Fedora EPEL 5 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 1,
+			"nvr": "libguestfs-1.20.12-1.el5",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"src": [
+					{
+						"name": "libguestfs",
+						"epoch": 1,
+						"version": "1.20.12",
+						"release": "1.el5",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "libguestfs-tools-c",
+						"epoch": 1,
+						"version": "1.20.12",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libguestfs",
+						"epoch": 1,
+						"version": "1.20.12",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libguestfs-devel",
+						"epoch": 1,
+						"version": "1.20.12",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libguestfs-java",
+						"epoch": 1,
+						"version": "1.20.12",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libguestfs-java-devel",
+						"epoch": 1,
+						"version": "1.20.12",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python-libguestfs",
+						"epoch": 1,
+						"version": "1.20.12",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libguestfs-javadoc",
+						"epoch": 1,
+						"version": "1.20.12",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "perl-Sys-Guestfs",
+						"epoch": 1,
+						"version": "1.20.12",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libguestfs-debuginfo",
+						"epoch": 1,
+						"version": "1.20.12",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "ruby-libguestfs",
+						"epoch": 1,
+						"version": "1.20.12",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "ocaml-libguestfs-devel",
+						"epoch": 1,
+						"version": "1.20.12",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "ocaml-libguestfs",
+						"epoch": 1,
+						"version": "1.20.12",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libguestfs-tools",
+						"epoch": 1,
+						"version": "1.20.12",
+						"release": "1.el5",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 183668,
+			"text": "This update has been submitted for testing by rjones. ",
+			"timestamp": "2013-10-19 07:09:58",
+			"update_id": 23939,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 183669,
+			"text": "This update is currently being pushed to the Fedora EPEL 5 testing updates repository.",
+			"timestamp": "2013-10-19 16:44:11",
+			"update_id": 23939,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 183670,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2013-10-19 18:01:24",
+			"update_id": 23939,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 183671,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2013-11-02 22:11:32",
+			"update_id": 23939,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 423464,
+			"text": "This update has been submitted for stable by rjones. ",
+			"timestamp": "2016-04-25 12:03:41",
+			"update_id": 23939,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 423680,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2016-04-25 19:53:00",
+			"update_id": 23939,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2016-04-25 18:01:44",
+	"date_stable": "2016-04-25 18:01:44",
+	"date_submitted": "2013-10-19 07:09:35",
+	"date_testing": "2013-10-19 18:01:24",
+	"meets_testing_requirements": true,
+	"notes": "Fix CVE-2013-4419.",
+	"pushed": true,
+	"release": {
+		"branch": "el5",
+		"candidate_tag": "dist-5E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "dist-5E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 5",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-5",
+		"override_tag": "dist-5E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-5E-epel",
+		"state": "archived",
+		"testing_tag": "dist-5E-epel-testing",
+		"version": "5"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "libguestfs-1.20.12-1.el5",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2013-11893",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2013-11893",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/82be59f40b0667a728fc825e05c88ceb5123c6895a56d3abf414371ad59df06e?s=24&d=retro",
+		"email": "rjones@redhat.com",
+		"groups": [
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "virtmaint-sig"
+			},
+			{
+				"name": "giterlang"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "cla_redhat"
+			},
+			{
+				"name": "gitvirt-v2v"
+			},
+			{
+				"name": "gitvirt-tools"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "gitcdupgrader"
+			},
+			{
+				"name": "gitfedora-ocaml"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "hosted-content"
+			},
+			{
+				"name": "gitautobuildrequires"
+			},
+			{
+				"name": "risc-v"
+			}
+		],
+		"id": 141,
+		"name": "rjones",
+		"openid": "rjones.id.fedoraproject.org"
+	},
+	"version_hash": "584e7db436375db2e036139f21d80e1822acf75f"
+}

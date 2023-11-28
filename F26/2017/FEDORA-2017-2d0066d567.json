@@ -1,0 +1,1240 @@
+{
+	"alias": "FEDORA-2017-2d0066d567",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 891802,
+			"title": "RFE: systemd unit for Xvnc (not vncserver)",
+			"bugzilla": {
+				"bug_id": "891802",
+				"creation_ts": "2013-01-04 03:24:26 +0000",
+				"short_desc": "RFE: systemd unit for Xvnc (not vncserver)",
+				"delta_ts": "2017-04-11 13:45:12 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "FutureFeature",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "5326498",
+						"comment_count": "0",
+						"who": {
+							"text": "ipilcher",
+							"name": "Ian Pilcher"
+						},
+						"bug_when": "2013-01-04 03:24:26 +0000",
+						"thetext": "Description of problem:\ntigervnc-server currently contains a systemd unit file for vncserver, but it doesn't really work when one wishes to use VNC with XDMCP.  Instead, something like this is needed:\n\n[Unit]\nDescription=VNC remote display %I\nAfter=syslog.target\n\n[Service]\nType=simple\nEnvironmentFile=-/etc/sysconfig/xvnc@%i\nUser=nobody\nExecStart=/usr/bin/Xvnc -SecurityTypes None -query 127.0.0.1 $XVNC_OPTIONS %i\n\n[Install]\nWantedBy=multi-user.target\n\nIt would be nice to have something like this added to the tigervnc-server-minimal package."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5909760",
+						"comment_count": "2",
+						"who": {
+							"text": "fedora-admin-xmlrpc",
+							"name": "Fedora Admin XMLRPC Client"
+						},
+						"bug_when": "2013-05-13 14:53:35 +0000",
+						"thetext": "This package has changed ownership in the Fedora Package Database.  Reassigning to the new owner of this component."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6147666",
+						"comment_count": "3",
+						"who": {
+							"text": "sergei.litvinenko",
+							"name": "Sergei LITVINENKO"
+						},
+						"bug_when": "2013-07-28 19:33:49 +0000",
+						"thetext": "I found this issue too. According to syslog, server is started and after killed. As workaround, I have commented ExecStop line (only this one) and now it work.\n\n[root@eee901 system]# cat vncserver@:2.service\n---\n[Unit]\nDescription=Remote desktop service (VNC)\nAfter=syslog.target network.target\n\n[Service]\nType=forking\nExecStartPre=/bin/sh -c '/usr/bin/vncserver -kill %i > /dev/null 2>&1 || :'\nExecStart=/sbin/runuser -l sergeil -c \"/usr/bin/vncserver %i\"\n# ExecStop=/sbin/runuser  -l sergeil -c \"/usr/bin/vncserver -kill %i\"\n\n[Install]\nWantedBy=multi-user.target\n---\n\nIt looks like ExecStop= is not recognized correct. In case, if issue is in systemd, all services with ExecStop= line are affected."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6147671",
+						"comment_count": "4",
+						"who": {
+							"text": "sergei.litvinenko",
+							"name": "Sergei LITVINENKO"
+						},
+						"bug_when": "2013-07-28 19:44:10 +0000",
+						"thetext": "It looks like issue is fixed in tigervnc-server-1.3.0-3.fc19.i686"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6149605",
+						"comment_count": "5",
+						"who": {
+							"text": "twaugh",
+							"name": "Tim Waugh"
+						},
+						"bug_when": "2013-07-29 10:53:47 +0000",
+						"thetext": "Sergei: the issue you were seeing is bug #983232. *This* bug is a feature request for a different type of systemd file altogether."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8558547",
+						"comment_count": "6",
+						"who": {
+							"text": "fedora-admin-xmlrpc",
+							"name": "Fedora Admin XMLRPC Client"
+						},
+						"bug_when": "2015-08-20 08:44:19 +0000",
+						"thetext": "This package has changed ownership in the Fedora Package Database.  Reassigning to the new owner of this component."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9766896",
+						"comment_count": "7",
+						"who": {
+							"text": "rob.verduijn"
+						},
+						"bug_when": "2016-10-05 07:11:29 +0000",
+						"thetext": "Hello,\n\nThere also should be a socket unit file. (xinetd is a thing of the past)\n\nI've combined this solution :\nhttps://access.redhat.com/solutions/2516\nand same story for centos that is not behind a firewall\nhttp://www.itzgeek.com/how-tos/linux/centos-how-tos/remote-login-with-gdm-and-vnc-on-centos-7-rhel-7-configure-vnc-on-xinetd-with-xdmcp-centos-7-rhel-7.html\n\nwith this one\nhttps://access.redhat.com/solutions/2681531\n\nie use a systemd socket and service not xinetd\n\nThen you have a working xdmcp and vnc setup.\n\nAlso a readme explaining how to use these two socket files with an adjustment of the /etc/gdm/custom.conf\n\ncat/etc/gdm/custom.conf\n# GDM configuration storage\n\n[daemon]\n\n[security]\nAllowRemoteRoot=true\nDisallowTCP=false\n\n[xdmcp]\nEnable=true\nMaxSessions=30\n\n[greeter]\n\n[chooser]\n\n[debug]\n\n\n\ncat /etc/systemd/system/xvnc.socket\n[Unit]                                                                                                                                             \nDescription=XVNC Server                                                                                                                            \n                                                                                                                                                   \n[Socket]\nListenStream=5900\nAccept=yes\n\n[Install]\nWantedBy=sockets.target\n\n\ncat /etc/systemd/system/xvnc.socket                                                                                                \n[Unit]                                                                                                                                             \nDescription=XVNC Server                                                                                                                            \n                                                                                                                                                   \n[Socket]\nListenStream=5900\nAccept=yes\n\n[Install]\nWantedBy=sockets.target\n\n\ncat /etc/systemd/system/xvnc@.service\n[Unit]\nDescription=XVNC Per-Connection Daemon\n\n[Service]\nExecStart=-/usr/bin/Xvnc -inetd -query localhost -geometry 1024x768 -depth 24 -once -SecurityTypes=None -fp /usr/share/X11/fonts/misc\n\nUser=nobody\nStandardInput=socket\nStandardError=syslog\n\n\nRob Verduijn"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10309833",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-04-06 09:43:05 +0000",
+						"thetext": "tigervnc-1.7.1-4.fc26 has been submitted as an update to Fedora 26. https://bodhi.fedoraproject.org/updates/FEDORA-2017-2d0066d567"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10309834",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-04-06 09:43:16 +0000",
+						"thetext": "tigervnc-1.7.1-4.fc26 has been submitted as an update to Fedora 26. https://bodhi.fedoraproject.org/updates/FEDORA-2017-2d0066d567"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10312442",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-04-06 22:21:35 +0000",
+						"thetext": "tigervnc-1.7.1-4.fc26 has been pushed to the Fedora 26 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2017-2d0066d567"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10324352",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-04-11 13:45:12 +0000",
+						"thetext": "tigervnc-1.7.1-4.fc26 has been pushed to the Fedora 26 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1438694,
+			"feedback": [
+				{
+					"bug_id": 1438694,
+					"comment": {
+						"id": 588596,
+						"karma": 1,
+						"karma_critpath": 1,
+						"text": "Works here on x86_64 behind xrdp.",
+						"timestamp": "2017-04-05 22:55:26",
+						"update_id": 84275,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/1a8afd83231ef5ba905344806ba95b39f2abd77b399b0ee217ec3e6fa30a4825?s=24&d=retro",
+							"email": "bojan@rexursive.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								}
+							],
+							"id": 198,
+							"name": "bojan",
+							"openid": "bojan.id.fedoraproject.org"
+						},
+						"user_id": 198
+					},
+					"comment_id": 588596
+				}
+			],
+			"parent": true,
+			"security": true,
+			"title": "CVE-2017-7392 tigervnc: SSecurityVeNCrypt memory leak",
+			"bugzilla": {
+				"bug_id": "1438694",
+				"alias": "CVE-2017-7392",
+				"creation_ts": "2017-04-04 08:39:07 +0000",
+				"short_desc": "CVE-2017-7392 tigervnc: SSecurityVeNCrypt memory leak",
+				"delta_ts": "2019-09-29 14:08:55 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1438704",
+					"1439127"
+				],
+				"blocked": [
+					{
+						"bug_id": "1415638",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1438705",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2017:2000",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10301571",
+						"comment_count": "0",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-04-04 08:39:07 +0000",
+						"thetext": "\nIn TigerVNC (SSecurityVeNCrypt.cxx SSecurityVeNCrypt::SSecurityVeNCrypt), an unauthenticated client can cause a small memory leak in the server.\n\nUpstream patch:\n\nhttps://github.com/TigerVNC/tigervnc/pull/441/commits/8f3e8663b3cf57c0b62d939d6953fbfcc112aadd"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10301621",
+						"comment_count": "1",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-04-04 08:54:10 +0000",
+						"thetext": "Created tigervnc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1438704]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10659035",
+						"comment_count": "4",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2017-08-01 20:51:35 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2017:2000 https://access.redhat.com/errata/RHSA-2017:2000"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1438697,
+			"feedback": [
+				{
+					"bug_id": 1438697,
+					"comment": {
+						"id": 588596,
+						"karma": 1,
+						"karma_critpath": 1,
+						"text": "Works here on x86_64 behind xrdp.",
+						"timestamp": "2017-04-05 22:55:26",
+						"update_id": 84275,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/1a8afd83231ef5ba905344806ba95b39f2abd77b399b0ee217ec3e6fa30a4825?s=24&d=retro",
+							"email": "bojan@rexursive.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								}
+							],
+							"id": 198,
+							"name": "bojan",
+							"openid": "bojan.id.fedoraproject.org"
+						},
+						"user_id": 198
+					},
+					"comment_id": 588596
+				}
+			],
+			"parent": true,
+			"security": true,
+			"title": "CVE-2017-7393 tigervnc: Double free via crafted fences",
+			"bugzilla": {
+				"bug_id": "1438697",
+				"alias": "CVE-2017-7393",
+				"creation_ts": "2017-04-04 08:42:00 +0000",
+				"short_desc": "CVE-2017-7393 tigervnc: Double free via crafted fences",
+				"delta_ts": "2019-09-29 14:08:55 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1438704",
+					"1439134"
+				],
+				"blocked": [
+					{
+						"bug_id": "1415638",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1438705",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2017:2000",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10301583",
+						"comment_count": "0",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-04-04 08:42:00 +0000",
+						"thetext": "In TigerVNC (VNCSConnectionST.cxx VNCSConnectionST::fence), an authenticated client can cause a double free, leading to a crash of the TigerVNC server.\n\nUpstream patch:\n\nhttps://github.com/TigerVNC/tigervnc/pull/438/commits/f3afa24da144409a3c3a0e35913112583d987671\n\nUpstream bug:\n\nhttps://github.com/TigerVNC/tigervnc/issues/437"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10301623",
+						"comment_count": "1",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-04-04 08:54:20 +0000",
+						"thetext": "Created tigervnc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1438704]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10659036",
+						"comment_count": "4",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2017-08-01 20:51:42 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2017:2000 https://access.redhat.com/errata/RHSA-2017:2000"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1438700,
+			"feedback": [
+				{
+					"bug_id": 1438700,
+					"comment": {
+						"id": 588596,
+						"karma": 1,
+						"karma_critpath": 1,
+						"text": "Works here on x86_64 behind xrdp.",
+						"timestamp": "2017-04-05 22:55:26",
+						"update_id": 84275,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/1a8afd83231ef5ba905344806ba95b39f2abd77b399b0ee217ec3e6fa30a4825?s=24&d=retro",
+							"email": "bojan@rexursive.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								}
+							],
+							"id": 198,
+							"name": "bojan",
+							"openid": "bojan.id.fedoraproject.org"
+						},
+						"user_id": 198
+					},
+					"comment_id": 588596
+				}
+			],
+			"parent": true,
+			"security": true,
+			"title": "CVE-2017-7394 tigervnc: Server crash via long usernames",
+			"bugzilla": {
+				"bug_id": "1438700",
+				"alias": "CVE-2017-7394",
+				"creation_ts": "2017-04-04 08:45:51 +0000",
+				"short_desc": "CVE-2017-7394 tigervnc: Server crash via long usernames",
+				"delta_ts": "2019-09-29 14:08:55 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1438704",
+					"1438737"
+				],
+				"blocked": [
+					{
+						"bug_id": "1415638",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1438705",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2017:2000",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10301594",
+						"comment_count": "0",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-04-04 08:45:51 +0000",
+						"thetext": "\nIn TigerVNC (SSecurityPlain.cxx SSecurityPlain::processMsg), unauthenticated users can crash the server by sending long usernames. \n\nUpstream patches:\n\nhttps://github.com/TigerVNC/tigervnc/pull/440/commits/62197c89e98be47a174074e4c7429c57767a4929\nhttps://github.com/TigerVNC/tigervnc/pull/440/commits/9801c5efcf8c1774d9c807ebd5d27ac7049ad993"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10301625",
+						"comment_count": "1",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-04-04 08:54:30 +0000",
+						"thetext": "Created tigervnc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1438704]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10659038",
+						"comment_count": "4",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2017-08-01 20:51:50 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2017:2000 https://access.redhat.com/errata/RHSA-2017:2000"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1438701,
+			"feedback": [
+				{
+					"bug_id": 1438701,
+					"comment": {
+						"id": 588596,
+						"karma": 1,
+						"karma_critpath": 1,
+						"text": "Works here on x86_64 behind xrdp.",
+						"timestamp": "2017-04-05 22:55:26",
+						"update_id": 84275,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/1a8afd83231ef5ba905344806ba95b39f2abd77b399b0ee217ec3e6fa30a4825?s=24&d=retro",
+							"email": "bojan@rexursive.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								}
+							],
+							"id": 198,
+							"name": "bojan",
+							"openid": "bojan.id.fedoraproject.org"
+						},
+						"user_id": 198
+					},
+					"comment_id": 588596
+				}
+			],
+			"parent": true,
+			"security": true,
+			"title": "CVE-2017-7395 tigervnc: Integer overflow in SMsgReader::readClientCutText",
+			"bugzilla": {
+				"bug_id": "1438701",
+				"alias": "CVE-2017-7395",
+				"creation_ts": "2017-04-04 08:48:32 +0000",
+				"short_desc": "CVE-2017-7395 tigervnc: Integer overflow in SMsgReader::readClientCutText",
+				"delta_ts": "2019-09-29 14:08:55 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1438704",
+					"1438742"
+				],
+				"blocked": [
+					{
+						"bug_id": "1415638",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1438705",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2017:2000",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10301602",
+						"comment_count": "0",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-04-04 08:48:32 +0000",
+						"thetext": "\nIn TigerVNC (SMsgReader.cxx SMsgReader::readClientCutText), an authenticated client can crash the server by causing an integer overflow.\n\nUpstream patch:\n\nhttps://github.com/TigerVNC/tigervnc/pull/436/commits/bf3bdac082978ca32895a4b6a123016094905689"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10301626",
+						"comment_count": "1",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-04-04 08:54:40 +0000",
+						"thetext": "Created tigervnc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1438704]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10659039",
+						"comment_count": "3",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2017-08-01 20:51:56 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2017:2000 https://access.redhat.com/errata/RHSA-2017:2000"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1438703,
+			"feedback": [
+				{
+					"bug_id": 1438703,
+					"comment": {
+						"id": 588596,
+						"karma": 1,
+						"karma_critpath": 1,
+						"text": "Works here on x86_64 behind xrdp.",
+						"timestamp": "2017-04-05 22:55:26",
+						"update_id": 84275,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/1a8afd83231ef5ba905344806ba95b39f2abd77b399b0ee217ec3e6fa30a4825?s=24&d=retro",
+							"email": "bojan@rexursive.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								}
+							],
+							"id": 198,
+							"name": "bojan",
+							"openid": "bojan.id.fedoraproject.org"
+						},
+						"user_id": 198
+					},
+					"comment_id": 588596
+				}
+			],
+			"parent": true,
+			"security": true,
+			"title": "CVE-2017-7396 tigervnc: SecurityServer and ClientServer memory leaks",
+			"bugzilla": {
+				"bug_id": "1438703",
+				"alias": "CVE-2017-7396",
+				"creation_ts": "2017-04-04 08:50:24 +0000",
+				"short_desc": "CVE-2017-7396 tigervnc: SecurityServer and ClientServer memory leaks",
+				"delta_ts": "2021-10-21 11:52:21 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1438704"
+				],
+				"blocked": [
+					{
+						"bug_id": "1415638",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1438705",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2017:2000",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10301610",
+						"comment_count": "0",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-04-04 08:50:24 +0000",
+						"thetext": "\nIn TigerVNC (CConnection.cxx CConnection::CConnection), an unauthenticated client can cause a small memory leak in the server. \n\nUpstream patch:\n\nhttps://github.com/TigerVNC/tigervnc/pull/436/commits/dccb5f7d776e93863ae10bbff56a45c523c6eeb0"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10301627",
+						"comment_count": "1",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-04-04 08:54:49 +0000",
+						"thetext": "Created tigervnc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1438704]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10659040",
+						"comment_count": "3",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2017-08-01 20:52:02 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2017:2000 https://access.redhat.com/errata/RHSA-2017:2000"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "tigervnc-1.7.1-4.fc26",
+			"release_id": 16,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "tigervnc-server-module",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "tigervnc-debuginfo",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "tigervnc",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "tigervnc-server",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "tigervnc-server-minimal",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "tigervnc-debuginfo",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "tigervnc",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "tigervnc-server-module",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "tigervnc-server",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "tigervnc-server-minimal",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "tigervnc-server-minimal",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "tigervnc-server-module",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "tigervnc-server",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "tigervnc",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "tigervnc-debuginfo",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "tigervnc-icons",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "noarch"
+					},
+					{
+						"name": "tigervnc-server-applet",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "noarch"
+					},
+					{
+						"name": "tigervnc-license",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "noarch"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "tigervnc-server-module",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "tigervnc-debuginfo",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "tigervnc-server",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "tigervnc",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "tigervnc-server-minimal",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "ppc64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "tigervnc-server-minimal",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "tigervnc-server",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "tigervnc-server-module",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "tigervnc-debuginfo",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "tigervnc",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "ppc64le"
+					}
+				],
+				"src": [
+					{
+						"name": "tigervnc",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "tigervnc-server",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "tigervnc-server-module",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "tigervnc-debuginfo",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "tigervnc",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "tigervnc-server-minimal",
+						"version": "1.7.1",
+						"release": "4.fc26",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 587704,
+			"text": "This update has been submitted for testing by jgrulich. ",
+			"timestamp": "2017-04-04 17:02:08",
+			"update_id": 84276,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 588510,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2017-04-05 21:56:24",
+			"update_id": 84276,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 588786,
+			"text": "jgrulich edited this update.\n\nNew build(s):\n\n- tigervnc-1.7.1-4.fc26\n\nRemoved build(s):\n\n- tigervnc-1.7.1-3.fc26",
+			"timestamp": "2017-04-06 09:42:50",
+			"update_id": 84276,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 588787,
+			"text": "This update has been submitted for testing by jgrulich. ",
+			"timestamp": "2017-04-06 09:42:57",
+			"update_id": 84276,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 589104,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2017-04-06 22:24:13",
+			"update_id": 84276,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 590346,
+			"karma": 1,
+			"text": "no regressions noted",
+			"timestamp": "2017-04-09 01:58:29",
+			"update_id": 84276,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/d826994e83ce867281f73d85986dd475938841874b75a83a82cdb184f6af8749?s=24&d=retro",
+				"email": "rosset.filipe@gmail.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "l10n"
+					},
+					{
+						"name": "cvsl10n"
+					},
+					{
+						"name": "fedora-br"
+					}
+				],
+				"id": 124,
+				"name": "filiperosset",
+				"openid": "filiperosset.id.fedoraproject.org"
+			},
+			"user_id": 124
+		},
+		{
+			"id": 591066,
+			"karma": 1,
+			"text": "works for me in a VM",
+			"timestamp": "2017-04-10 10:37:53",
+			"update_id": 84276,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/054959f4db5d1ad8f22cae1ba73e26ebfd3edd6690c21cc7ee00608f294ff22a?s=24&d=retro",
+				"email": "cserpentis@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 739,
+				"name": "cserpentis",
+				"openid": "cserpentis.id.fedoraproject.org"
+			},
+			"user_id": 739
+		},
+		{
+			"id": 591715,
+			"karma": 1,
+			"text": "WFM",
+			"timestamp": "2017-04-11 11:57:01",
+			"update_id": 84276,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/4dfa31e963873203ebe47d817c7fb5e6d082728f5a8d7e17396fd419d58fb0fe?s=24&d=retro",
+				"email": "alciregi@posteo.net",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ask-fedora"
+					},
+					{
+						"name": "cvsl10n"
+					},
+					{
+						"name": "respins-sig"
+					},
+					{
+						"name": "wikiedit"
+					},
+					{
+						"name": "l10n"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "advocates"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "fedora-join"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "neuro-sig"
+					},
+					{
+						"name": "qa"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 3508,
+				"name": "alciregi",
+				"openid": "alciregi.id.fedoraproject.org"
+			},
+			"user_id": 3508
+		},
+		{
+			"id": 591716,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2017-04-11 11:57:02",
+			"update_id": 84276,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 591779,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2017-04-11 13:46:43",
+			"update_id": 84276,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_modified": "2017-04-06 09:42:59",
+	"date_pushed": "2017-04-11 13:44:04",
+	"date_stable": "2017-04-11 13:44:04",
+	"date_submitted": "2017-04-04 17:02:08",
+	"date_testing": "2017-04-06 18:57:22",
+	"karma": 3,
+	"meets_testing_requirements": true,
+	"notes": "Security fix for CVE-2017-7392 CVE-2017-7393 CVE-2017-7394 CVE-2017-7395 CVE-2017-7396.\n\nAdd systemd unit file for Xvnc.\n\n",
+	"pushed": true,
+	"release": {
+		"branch": "f26",
+		"candidate_tag": "f26-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f26",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 26",
+		"mail_template": "fedora_errata_template",
+		"name": "F26",
+		"override_tag": "f26-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f26-signing-pending",
+		"pending_stable_tag": "f26-updates-pending",
+		"pending_testing_tag": "f26-updates-testing-pending",
+		"stable_tag": "f26-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f26-updates-testing",
+		"version": "26"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "tigervnc-1.7.1-4.fc26",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2017-2d0066d567",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2017-2d0066d567",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/7657da1501da6b6f6c178f39efbefa0bf5a7f6517758d58e5edce47c7e323c95?s=24&d=retro",
+		"email": "jgrulich@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "kde-sig"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "svnkde-settings"
+			},
+			{
+				"name": "svnfedora-kde-artwork"
+			}
+		],
+		"id": 215,
+		"name": "jgrulich",
+		"openid": "jgrulich.id.fedoraproject.org"
+	},
+	"version_hash": "0982ae2a3a88bd98644965ba2bfd9ed6f3f9156e"
+}

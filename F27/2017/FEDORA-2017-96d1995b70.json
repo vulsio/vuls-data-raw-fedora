@@ -1,0 +1,3581 @@
+{
+	"alias": "FEDORA-2017-96d1995b70",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1199363,
+			"feedback": [
+				{
+					"bug_id": 1199363,
+					"comment": {
+						"id": 700761,
+						"karma": 1,
+						"karma_critpath": 1,
+						"testcase_feedback": [
+							{
+								"comment_id": 700761,
+								"testcase": {
+									"id": 1,
+									"name": "QA:Testcase OpenSSH"
+								},
+								"testcase_id": 1
+							}
+						],
+						"text": "Works for me.",
+						"timestamp": "2017-11-26 11:45:33",
+						"update_id": 102876,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/d8b1494957882b89754f368ee7c9f06058a9becf377dff43ac4edf0e1cf563a1?s=24&d=retro",
+							"email": "vedran@miletic.net",
+							"id": 2878,
+							"name": "vedranm",
+							"openid": "vedranm.id.fedoraproject.org"
+						},
+						"user_id": 2878
+					},
+					"comment_id": 700761
+				}
+			],
+			"title": "ssh login with credential forwarding gives me a subsidiary ccache; can't kinit to another user",
+			"bugzilla": {
+				"bug_id": "1199363",
+				"creation_ts": "2015-03-06 03:34:24 +0000",
+				"short_desc": "ssh login with credential forwarding gives me a subsidiary ccache; can't kinit to another user",
+				"delta_ts": "2022-03-13 13:56:16 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"blocked": [
+					{
+						"bug_id": "1278017",
+						"creation_ts": "2015-11-04 14:47:38 +0000",
+						"short_desc": "ssh login with credential forwarding gives me a subsidiary ccache; can't kinit to another user",
+						"delta_ts": "2019-02-11 16:49:08 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "WONTFIX",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1199363"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "8789342",
+								"comment_count": "0",
+								"who": {
+									"text": "caslivkoff",
+									"name": "Charles Slivkoff"
+								},
+								"bug_when": "2015-11-04 14:47:38 +0000",
+								"thetext": "+++ This bug was initially created as a clone of Bug #1199363 +++\n\nBasically, on the box that I originally logged into (via KDM):\n\n> klist\nTicket cache: KEYRING:persistent:7225:krb_ccache_8LMqrkh\nDefault principal: tibbs@MATH.UH.EDU\n\nValid starting       Expires              Service principal\n03/05/2015 21:19:44  03/06/2015 21:19:44  krbtgt/MATH.UH.EDU@MATH.UH.EDU\n        renew until 03/12/2015 20:44:18\n\nI can kinit to another principal:\n\n> kinit tibbs/admin\nPassword for tibbs/admin@MATH.UH.EDU:\n\nNow, if I first ssh to another host:\n\n> ssh ld01\nLast login: Thu Mar  5 21:25:03 2015 from epithumia.e.math.uh.edu\n\nld01:~> klist\nTicket cache: KEYRING:persistent:7225:7225\nDefault principal: tibbs@MATH.UH.EDU\n\nValid starting       Expires              Service principal\n03/05/2015 21:25:16  03/06/2015 21:19:44  krbtgt/MATH.UH.EDU@MATH.UH.EDU\n        renew until 03/12/2015 20:44:18\n\nThen I can't kinit to another principal:\n\nld01:~> kinit tibbs/admin\nkinit: Can't create new subsidiary cache because default cache is already a subsdiary while generating new ccache\n\nSimo seems to know what's up and asked me to file a bug.  I'm running updated F21; here are some hopefully relevant versions:\n\nkrb5-libs-1.12.2-9.fc21.x86_64\nopenssh-6.6.1p1-11.1.fc21.x86_64\npam_krb5-2.4.9-3.fc21.x86_64\npam-1.1.8-16.fc21.x86_64\nkernel-3.18.7-200.fc21.x86_64\n\n--- Additional comment from Jakub Jelen on 2015-03-17 08:22:47 EDT ---\n\nOK. I can reproduce it on my machine. It also appears when you try to kinit to different user (not only principal).\n\nWhen you try to list tickets with flags (klist -f), you will see that the last ticket has a \"f\" flag, which means that it is forwarded (and used for authentication for this host?) so you probably can't overwrite it with different ticket?\nseems to be related to this one: bz974947\n\n\nSimo? What do you think? What is expected behaviour?\n\nJust tested with DIR ccache and I'm unable to get the forwarded ticket on second server.\n\n--- Additional comment from Simo Sorce on 2015-03-17 09:13:23 EDT ---\n\n(In reply to Jakub Jelen from comment #1)\n> OK. I can reproduce it on my machine. It also appears when you try to kinit\n> to different user (not only principal).\n> \n> When you try to list tickets with flags (klist -f), you will see that the\n> last ticket has a \"f\" flag, which means that it is forwarded (and used for\n> authentication for this host?) so you probably can't overwrite it with\n> different ticket?\n> seems to be related to this one: bz974947\n> \n> \n> Simo? What do you think? What is expected behaviour?\n> \n> Just tested with DIR ccache and I'm unable to get the forwarded ticket on\n> second server.\n\nIt's a tricky situation, on the one hand it may make sense to have a subsidiary cache, on the other it causes a number of restrictions we shouldn't really suffer.\n\nWe probably need to discuss what are the expectations as an ssh user and see if we need some tunables or not.\n\nMy initial thinking is that, if you have a Cache Collection, what you can do is to stick the delegated credentials in a subsidiary, but still put the whole collection in KRB5CCNAME and just kswitch to the newly stored credentials as the default creds.\nHowever, if you are already logged into the console or from another ssh session, doing a kswitch will affect all terminals, so I am hesitant.\n\nPerhaps, it should be a tunable where you can tell sshd what is the preference: stick to subsidiary vs expose the whole collection.\n\n--- Additional comment from Jakub Jelen on 2015-03-26 12:14:23 EDT ---\n\nOK. I had the second look at this issue and from my point of view, we should do it all the same way how the FILE and DIR cache does it. My testing with different default_ccache_name showed that you can do the above mentioned kinit with all the other configurations:\nhttp://paste.fedoraproject.org/203252/27382909/\n\nSo only KEYRING is set up as subsidiary cache.\n\nThere is no reason to block kinit, because there is workaround to use \"kdestroy; kinit user\" to change to different principal.\n\nsshd is handling ccache by hand and KEYRING is supported after this bz991186. We are using functions krb5_cc_initialize, krb5_cc_store_cred from krb5.h so if I'm right we can\n\nUnfortunately, there is not much documentation about KEYRING ccache. I don't think that we specify somewhere it it should be subsidiary or do handle this cache different than the others. If it is a bug, probably in krb5 libraries IMHO.\n\n--- Additional comment from Jason Tibbitts on 2015-03-26 12:46:47 EDT ---\n\nUnfortunately the workaround of \"kdestroy; kinit whatever\" has implications for kerberized NFS so it's not entirely a perfect solution, but I can deal either way.  I just thought it was odd that whether you can kinit depends on both your ccache type and how you happened to log in.\n\n--- Additional comment from Simo Sorce on 2015-03-26 13:33:14 EDT ---\n\nOk I think we can move this to krb5, if the KEYRING ccache behaves subnstantially differently than a FILE/DIR ccache we may consider it a KEYRING ccache bug indeed.\n\n--- Additional comment from Roland Mainz on 2015-03-26 19:52:17 EDT ---\n\n(In reply to Simo Sorce from comment #5)\n> Ok I think we can move this to krb5, if the KEYRING ccache behaves\n> subnstantially differently than a FILE/DIR ccache we may consider it a\n> KEYRING ccache bug indeed.\n\nWho wrote the initial KEYRING support in krb5 ?\n\n--- Additional comment from Simo Sorce on 2015-03-27 09:13:31 EDT ---\n\n(In reply to Roland Mainz from comment #6)\n> Who wrote the initial KEYRING support in krb5 ?\n\nI think Nalin did the old KEYRING code, and I refactored it heavily to make it a Collection Type.\n\n--- Additional comment from Nalin Dahyabhai on 2015-03-27 09:47:20 EDT ---\n\nYou flatter me.  The git log attributes it to Kevin Coffman.\n\n--- Additional comment from Charles Slivkoff on 2015-06-01 11:20:32 EDT ---\n\nThis is also an issue for RHEL 7. \n\nIs another BZ needed?\n\n--- Additional comment from Fedora End Of Life on 2015-11-04 05:36:30 EST ---\n\nThis message is a reminder that Fedora 21 is nearing its end of life.\nApproximately 4 (four) weeks from now Fedora will stop maintaining\nand issuing updates for Fedora 21. It is Fedora's policy to close all\nbug reports from releases that are no longer maintained. At that time\nthis bug will be closed as EOL if it remains open with a Fedora  'version'\nof '21'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora 21 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora, you are encouraged  change the 'version' to a later Fedora \nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8804762",
+								"comment_count": "2",
+								"who": {
+									"text": "rharwood",
+									"name": "Robbie Harwood"
+								},
+								"bug_when": "2015-11-09 19:42:19 +0000",
+								"thetext": "*** Bug 1278018 has been marked as a duplicate of this bug. ***"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8958731",
+								"comment_count": "3",
+								"who": {
+									"text": "rharwood",
+									"name": "Robbie Harwood"
+								},
+								"bug_when": "2016-01-06 14:34:34 +0000",
+								"thetext": "The referenced bug has been closed.  Since we have a newer version of krb5 in RHEL7 than what closed it, could you please confirm that this is still a bug, else I will close this ticket?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8958756",
+								"comment_count": "4",
+								"who": {
+									"text": "caslivkoff",
+									"name": "Charles Slivkoff"
+								},
+								"bug_when": "2016-01-06 14:46:03 +0000",
+								"thetext": "RHEL7 continues to behave the same.\n\nI ssh to a RHEL7 server and authenticate via GSSAPI.\n\nAttempts to kinit to another instance without first kdestroy return this failure:\n\nkinit: Can't create new subsidiary cache because default cache is already a subsidiary while generating new ccache"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8959151",
+								"comment_count": "5",
+								"who": {
+									"text": "caslivkoff",
+									"name": "Charles Slivkoff"
+								},
+								"bug_when": "2016-01-06 16:47:23 +0000",
+								"thetext": "(In reply to Charles Slivkoff from comment #4)\n> RHEL7 continues to behave the same.\n> \n> I ssh to a RHEL7 server and authenticate via GSSAPI.\n\nwith GSSAPIDelegateCredentials=yes \n \n> Attempts to kinit to another instance without first kdestroy return this\n> failure:\n> \n> kinit: Can't create new subsidiary cache because default cache is already a\n> subsidiary while generating new ccache"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10618098",
+								"comment_count": "14",
+								"who": {
+									"text": "rharwood",
+									"name": "Robbie Harwood"
+								},
+								"bug_when": "2017-07-21 19:29:59 +0000",
+								"thetext": "(See Fedora bug for more information.)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11027362",
+								"comment_count": "16",
+								"who": {
+									"text": "jjelen",
+									"name": "Jakub Jelen"
+								},
+								"bug_when": "2017-11-23 12:29:51 +0000",
+								"thetext": "FYI, this was recently fixed in Fedora 27 (bug #1199363) so it can be fixed also in RHEL, if there will be no more issues."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12363772",
+								"comment_count": "17",
+								"who": {
+									"text": "jjelen",
+									"name": "Jakub Jelen"
+								},
+								"bug_when": "2019-01-14 15:37:59 +0000",
+								"thetext": "*** Bug 1665964 has been marked as a duplicate of this bug. ***"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12437837",
+								"comment_count": "18",
+								"who": {
+									"text": "ssorce",
+									"name": "Simo Sorce"
+								},
+								"bug_when": "2019-02-11 15:41:22 +0000",
+								"thetext": "This issue was not selected to be included either in Red Hat Enterprise Linux 7.7 because it is seen either as low or moderate impact to a small amount of use-cases. The next release will be in Maintenance Support 1 Phase, which means that qualified Critical and Important Security errata advisories (RHSAs) and Urgent Priority Bug Fix errata advisories (RHBAs) may be released as they become available. We will now close this issue, but if you believe that it qualifies for the Maintenance Support 1 Phase, please re-open; otherwise we recommend moving the request to Red Hat Enterprise Linux 8 if applicable."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12437919",
+								"comment_count": "19",
+								"who": {
+									"text": "caslivkoff",
+									"name": "Charles Slivkoff"
+								},
+								"bug_when": "2019-02-11 15:54:16 +0000",
+								"thetext": "This should have been fixed 3 years ago. I would guess that RHEL 8 will not have this issue as the fix from Fedora 27 will likely be included there.\n\nOur install base of RHEL 7 is huge and our environment is dependent on kerberos.  \n\n\nPlease reconsider this bz."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12438071",
+								"comment_count": "20",
+								"who": {
+									"text": "jpazdziora",
+									"name": "Jan Pazdziora"
+								},
+								"bug_when": "2019-02-11 16:20:51 +0000",
+								"thetext": "Bugzilla is an engineering tracking tool. In general, to get a change planned for and included in a Red Hat Enterprise Linux release, please work with Red Hat support / TAM to have your request properly prioritized."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12438426",
+								"comment_count": "21",
+								"who": {
+									"text": "caslivkoff",
+									"name": "Charles Slivkoff"
+								},
+								"bug_when": "2019-02-11 16:49:08 +0000",
+								"thetext": "Please review the timeline and history of this bug."
+							}
+						]
+					}
+				],
+				"external_bugs": {
+					"text": "2775",
+					"name": "OpenSSH Project"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8017262",
+						"comment_count": "0",
+						"who": {
+							"text": "j",
+							"name": "Jason Tibbitts"
+						},
+						"bug_when": "2015-03-06 03:34:24 +0000",
+						"thetext": "Basically, on the box that I originally logged into (via KDM):\n\n> klist\nTicket cache: KEYRING:persistent:7225:krb_ccache_8LMqrkh\nDefault principal: tibbs@MATH.UH.EDU\n\nValid starting       Expires              Service principal\n03/05/2015 21:19:44  03/06/2015 21:19:44  krbtgt/MATH.UH.EDU@MATH.UH.EDU\n        renew until 03/12/2015 20:44:18\n\nI can kinit to another principal:\n\n> kinit tibbs/admin\nPassword for tibbs/admin@MATH.UH.EDU:\n\nNow, if I first ssh to another host:\n\n> ssh ld01\nLast login: Thu Mar  5 21:25:03 2015 from epithumia.e.math.uh.edu\n\nld01:~> klist\nTicket cache: KEYRING:persistent:7225:7225\nDefault principal: tibbs@MATH.UH.EDU\n\nValid starting       Expires              Service principal\n03/05/2015 21:25:16  03/06/2015 21:19:44  krbtgt/MATH.UH.EDU@MATH.UH.EDU\n        renew until 03/12/2015 20:44:18\n\nThen I can't kinit to another principal:\n\nld01:~> kinit tibbs/admin\nkinit: Can't create new subsidiary cache because default cache is already a subsdiary while generating new ccache\n\nSimo seems to know what's up and asked me to file a bug.  I'm running updated F21; here are some hopefully relevant versions:\n\nkrb5-libs-1.12.2-9.fc21.x86_64\nopenssh-6.6.1p1-11.1.fc21.x86_64\npam_krb5-2.4.9-3.fc21.x86_64\npam-1.1.8-16.fc21.x86_64\nkernel-3.18.7-200.fc21.x86_64"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8049675",
+						"comment_count": "1",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2015-03-17 12:22:47 +0000",
+						"thetext": "OK. I can reproduce it on my machine. It also appears when you try to kinit to different user (not only principal).\n\nWhen you try to list tickets with flags (klist -f), you will see that the last ticket has a \"f\" flag, which means that it is forwarded (and used for authentication for this host?) so you probably can't overwrite it with different ticket?\nseems to be related to this one: bz974947\n\n\nSimo? What do you think? What is expected behaviour?\n\nJust tested with DIR ccache and I'm unable to get the forwarded ticket on second server."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8049876",
+						"comment_count": "2",
+						"who": {
+							"text": "ssorce",
+							"name": "Simo Sorce"
+						},
+						"bug_when": "2015-03-17 13:13:23 +0000",
+						"thetext": "(In reply to Jakub Jelen from comment #1)\n> OK. I can reproduce it on my machine. It also appears when you try to kinit\n> to different user (not only principal).\n> \n> When you try to list tickets with flags (klist -f), you will see that the\n> last ticket has a \"f\" flag, which means that it is forwarded (and used for\n> authentication for this host?) so you probably can't overwrite it with\n> different ticket?\n> seems to be related to this one: bz974947\n> \n> \n> Simo? What do you think? What is expected behaviour?\n> \n> Just tested with DIR ccache and I'm unable to get the forwarded ticket on\n> second server.\n\nIt's a tricky situation, on the one hand it may make sense to have a subsidiary cache, on the other it causes a number of restrictions we shouldn't really suffer.\n\nWe probably need to discuss what are the expectations as an ssh user and see if we need some tunables or not.\n\nMy initial thinking is that, if you have a Cache Collection, what you can do is to stick the delegated credentials in a subsidiary, but still put the whole collection in KRB5CCNAME and just kswitch to the newly stored credentials as the default creds.\nHowever, if you are already logged into the console or from another ssh session, doing a kswitch will affect all terminals, so I am hesitant.\n\nPerhaps, it should be a tunable where you can tell sshd what is the preference: stick to subsidiary vs expose the whole collection."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8087684",
+						"comment_count": "3",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2015-03-26 16:14:23 +0000",
+						"thetext": "OK. I had the second look at this issue and from my point of view, we should do it all the same way how the FILE and DIR cache does it. My testing with different default_ccache_name showed that you can do the above mentioned kinit with all the other configurations:\nhttp://paste.fedoraproject.org/203252/27382909/\n\nSo only KEYRING is set up as subsidiary cache.\n\nThere is no reason to block kinit, because there is workaround to use \"kdestroy; kinit user\" to change to different principal.\n\nsshd is handling ccache by hand and KEYRING is supported after this bz991186. We are using functions krb5_cc_initialize, krb5_cc_store_cred from krb5.h so if I'm right we can\n\nUnfortunately, there is not much documentation about KEYRING ccache. I don't think that we specify somewhere it it should be subsidiary or do handle this cache different than the others. If it is a bug, probably in krb5 libraries IMHO."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8088086",
+						"comment_count": "4",
+						"who": {
+							"text": "j",
+							"name": "Jason Tibbitts"
+						},
+						"bug_when": "2015-03-26 16:46:47 +0000",
+						"thetext": "Unfortunately the workaround of \"kdestroy; kinit whatever\" has implications for kerberized NFS so it's not entirely a perfect solution, but I can deal either way.  I just thought it was odd that whether you can kinit depends on both your ccache type and how you happened to log in."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8088552",
+						"comment_count": "5",
+						"who": {
+							"text": "ssorce",
+							"name": "Simo Sorce"
+						},
+						"bug_when": "2015-03-26 17:33:14 +0000",
+						"thetext": "Ok I think we can move this to krb5, if the KEYRING ccache behaves subnstantially differently than a FILE/DIR ccache we may consider it a KEYRING ccache bug indeed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8089805",
+						"comment_count": "6",
+						"who": {
+							"text": "rmainz",
+							"name": "Roland Mainz"
+						},
+						"bug_when": "2015-03-26 23:52:17 +0000",
+						"thetext": "(In reply to Simo Sorce from comment #5)\n> Ok I think we can move this to krb5, if the KEYRING ccache behaves\n> subnstantially differently than a FILE/DIR ccache we may consider it a\n> KEYRING ccache bug indeed.\n\nWho wrote the initial KEYRING support in krb5 ?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8091448",
+						"comment_count": "7",
+						"who": {
+							"text": "ssorce",
+							"name": "Simo Sorce"
+						},
+						"bug_when": "2015-03-27 13:13:31 +0000",
+						"thetext": "(In reply to Roland Mainz from comment #6)\n> Who wrote the initial KEYRING support in krb5 ?\n\nI think Nalin did the old KEYRING code, and I refactored it heavily to make it a Collection Type."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8091621",
+						"comment_count": "8",
+						"who": {
+							"text": "nalin",
+							"name": "Nalin Dahyabhai"
+						},
+						"bug_when": "2015-03-27 13:47:20 +0000",
+						"thetext": "You flatter me.  The git log attributes it to Kevin Coffman."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8293381",
+						"comment_count": "9",
+						"who": {
+							"text": "casl",
+							"name": "Charles Slivkoff"
+						},
+						"bug_when": "2015-06-01 15:20:32 +0000",
+						"thetext": "This is also an issue for RHEL 7. \n\nIs another BZ needed?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8783542",
+						"comment_count": "10",
+						"who": {
+							"text": "bcotton",
+							"name": "Fedora End Of Life"
+						},
+						"bug_when": "2015-11-04 10:36:30 +0000",
+						"thetext": "This message is a reminder that Fedora 21 is nearing its end of life.\nApproximately 4 (four) weeks from now Fedora will stop maintaining\nand issuing updates for Fedora 21. It is Fedora's policy to close all\nbug reports from releases that are no longer maintained. At that time\nthis bug will be closed as EOL if it remains open with a Fedora  'version'\nof '21'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora 21 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora, you are encouraged  change the 'version' to a later Fedora \nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8790046",
+						"comment_count": "11",
+						"who": {
+							"text": "j",
+							"name": "Jason Tibbitts"
+						},
+						"bug_when": "2015-11-04 15:19:49 +0000",
+						"thetext": "This does not appear to be an issue in F22 and I don't have much in the way of F21 around any longer so I'm happy to let this autoclose."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8798176",
+						"comment_count": "12",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2015-11-06 12:46:26 +0000",
+						"thetext": "(In reply to Jason Tibbitts from comment #11)\n> This does not appear to be an issue in F22 and I don't have much in the way\n> of F21 around any longer so I'm happy to let this autoclose.\n\nThank you for testing again. I am not sure if and what has changed and it would be useful for krb5 guys to have a track about it if they will be fixing it also in rhel7. Closing bugs as RESOLVED is always more pleasant then EOL, isn't it?\n\nAs pointed out, it is still reproducible on RHEL7, but I can reproduce it also on all Fedoras from 21 to 23. Moving to F23 since it looks like nothing changed here (or you switched ccache to FILE/DIR from KEYRING?\n\nMy basic test case looks like this (for future self or QA):\n setup gssapi authenticatin for server and client\n make sure \"GSSAPIDelegateCredentials yes\" is in ssh_config\n$ kinit tester\n$ ssh tester@kerberos.example.com\n[tester@]$ kinit root # fail\nkinit: Can't create new subsidiary cache because default cache is already a subsidiary while generating new ccache"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8958736",
+						"comment_count": "13",
+						"who": {
+							"text": "rharwood",
+							"name": "Robbie Harwood"
+						},
+						"bug_when": "2016-01-06 14:37:13 +0000",
+						"thetext": "I'm having a hard time understanding the last two comments.  It looks to me like this is not an issue anymore; is that correct?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8959150",
+						"comment_count": "14",
+						"who": {
+							"text": "caslivkoff",
+							"name": "Charles Slivkoff"
+						},
+						"bug_when": "2016-01-06 16:45:38 +0000",
+						"thetext": "F23 continues to behave the same.\n\nI ssh to a F23 server and authenticate via GSSAPI with GSSAPIDelegateCredentials=yes in ~/.ssh/config\n\nAttempts to kinit to another instance without first kdestroy return this failure:\n\nkinit: Can't create new subsidiary cache because default cache is already a subsidiary while generating new ccache"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8959729",
+						"comment_count": "15",
+						"who": {
+							"text": "j",
+							"name": "Jason Tibbitts"
+						},
+						"bug_when": "2016-01-06 21:00:22 +0000",
+						"thetext": "I can confirm that this is a problem (when ssh'ing from an F23 machine to an F22 or an F23 machine; both fully updated).  I swear that when I tested it a while back the problem was gone, but it's certainly here now.\n\nOddly, I'm _not_ seeing the issue when sshing from an F23 machine to a Centos7 machine (fully updated)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8964297",
+						"comment_count": "16",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2016-01-08 08:01:13 +0000",
+						"thetext": "My testing log on fpaste is gone (poor me who post it there and believe it will survive), but as far as I recall from the comment #1, the problem is only with KEYRING ccache (based on default_ccache_name in /etc/krb5.conf).\n\nJason, my guess is that your CentOS 7 has configured to use some different ccache (thought KEYRING is default in RHEL as far as I know)? Can you check also this one?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9920603",
+						"comment_count": "17",
+						"who": {
+							"text": "bcotton",
+							"name": "Fedora End Of Life"
+						},
+						"bug_when": "2016-11-24 11:32:12 +0000",
+						"thetext": "This message is a reminder that Fedora 23 is nearing its end of life.\nApproximately 4 (four) weeks from now Fedora will stop maintaining\nand issuing updates for Fedora 23. It is Fedora's policy to close all\nbug reports from releases that are no longer maintained. At that time\nthis bug will be closed as EOL if it remains open with a Fedora  'version'\nof '23'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora 23 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora, you are encouraged  change the 'version' to a later Fedora \nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10002693",
+						"comment_count": "18",
+						"who": {
+							"text": "bcotton",
+							"name": "Fedora End Of Life"
+						},
+						"bug_when": "2016-12-20 13:20:12 +0000",
+						"thetext": "Fedora 23 changed to end-of-life (EOL) status on 2016-12-20. Fedora 23 is\nno longer maintained, which means that it will not receive any further\nsecurity or bug fix updates. As a result we are closing this bug.\n\nIf you can reproduce this bug against a currently maintained version of\nFedora please feel free to reopen this bug against that version. If you\nare unable to reopen this bug, please file a new report against the\ncurrent release. If you experience problems, please add a comment to this\nbug.\n\nThank you for reporting this bug and we are sorry it could not be fixed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10617989",
+						"comment_count": "19",
+						"who": {
+							"text": "rharwood",
+							"name": "Robbie Harwood"
+						},
+						"bug_when": "2017-07-21 18:15:48 +0000",
+						"thetext": "(Reproduced on rawhide.)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10618096",
+						"comment_count": "20",
+						"who": {
+							"text": "ascheel",
+							"name": "Alex Scheel"
+						},
+						"bug_when": "2017-07-21 19:28:38 +0000",
+						"thetext": "I believe this to be a bug in OpenSSH: https://github.com/openssh/openssh-portable/blob/master/gss-serv-krb5.c#L184\n\n(Note that Fedora carries patches modifying this behavior that have the same issue: http://pkgs.fedoraproject.org/cgit/rpms/openssh.git/tree/openssh-7.2p1-gsskex.patch#n815, http://pkgs.fedoraproject.org/cgit/rpms/openssh.git/tree/openssh-6.3p1-krb5-use-default_ccache_name.patch#n246)\n\nIn the Fedora situation, default_ccache_name is read from /etc/krb5.conf and is used to create a new ccache with the forwarded creds. However, calling krb5_cc_get_name() and setting KRB5CCNAME to that value forces krb5 to only work with that single credential. In the upstream case, default_ccache_name in /etc/krb5.conf is ignored and a random file ccache is used, so KRB5CCNAME must be set. \n\nIt should be noted that the reason DIR works correctly in Fedora is due to these branch: http://pkgs.fedoraproject.org/cgit/rpms/openssh.git/tree/openssh-7.2p1-gsskex.patch#n829\n\nkrb5_cc_get_name() returns the name for a specific cache-collection item. For FILE with default_ccache_name specified in krb5.conf, this is the same as default_ccache_name (without leading FILE:). For DIR, this would be the path to the ticket inside the directory. For KEYRING, this would be the name of the subsidiary cache. However, that Fedora patch checks if the type is DIR and effectively removes the file portion of the name. As there is no similar branch for KEYRING, KRB5CCNAME is set to the specific subsidiary and kinit will not add to it.\n\nFrom krb5's point of view, the behavior of krb5_cc_get_name() is consistent among FILE/DIR/KEYRING. Unsetting KRB5CCNAME fixes the problem.\n\n(From Fedora+OpenSSH's point of view, they'd either need to introduce another branch handling the forms of KEYRING correctly, or they'd need to not set KRB5CCNAME when /etc/krb5.conf is has a default_ccache_name, as in the case default_ccache_name is missing, they fall back to the upstream random FILE behavior)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10649975",
+						"comment_count": "21",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2017-07-31 16:51:35 +0000",
+						"thetext": "Alex, thank you for your investigation!\n\nLet me clarify what is summary and proposal for OpenSSH:\n\n* the FILE already works out of the box\n\n* the DIR already strips the cache-collection part of the KRB5CCNAME\n\n* in case of KEYRING ccache, we will get from krb5_cc_get_name() something like \"KEYRING:persistent:1000:1000\", which is cache-collection item, but we should set the KRB5CCNAME to only first portion of it: \"KEYRING:persistent:1000\", so the kinit can create a new item there?\n\nHow is the new KCM cache by default [1] going to affect this behavior? Should we treat it in some different way? Or is there already some krb5 function that would do this magic for us?\n\nI will try to put together testing environment and verify the fix in next days.\n\nThanks,\nJakub\n\n[1] https://fedoraproject.org/wiki/Changes/KerberosKCMCache"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10650190",
+						"comment_count": "22",
+						"who": {
+							"text": "ascheel",
+							"name": "Alex Scheel"
+						},
+						"bug_when": "2017-07-31 17:57:28 +0000",
+						"thetext": "Jakub,\n\nThere's no reason to set KRB5CCNAME except in the specific case where OpenSSH creates a FILE ccache with random name per fallback here [1]. So I'd just not set it unless in that fallback, which will solve the KCM case as well. Also, there is no supported way of querying the cache-collection from the ccache [2], so supporting KEYRING and KCM would have to be carried hacks which (might need to be updated later; see [3] for additional forms of KEYRING that'd need to be tested as well).\n\n\n(krb5/kinit/etc. will default to using the same ccaches that OpenSSH'd be reading and manually setting in KRB5CCNAME, so setting it to the default is redundant at best)\n\n\nThanks,\n\nAlex\n\n\n[1]: http://pkgs.fedoraproject.org/cgit/rpms/openssh.git/tree/openssh-6.3p1-krb5-use-default_ccache_name.patch#n220\n[2]: http://colabti.org/irclogger/irclogger_log/krbdev?date=2017-07-21#l49\n[3]: https://web.mit.edu/kerberos/krb5-1.12/doc/basic/ccache_def.html#ccache-types"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10655167",
+						"comment_count": "23",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2017-08-01 13:29:17 +0000",
+						"thetext": "Created attachment 1307585\nproposed patch\n\nThanks for clarification.\n\nThere was a lot going on around this part of code downstream, but the changes mostly come from the bug #848228, which moved default cache from /tmp to /run and adding a workaround for the DIR cache and the bug #991186 which introduced reading of the krb5 configuration file.\n\nUnfortunately, the file path is created and resolved on completely different place than where we are setting the environment variable and these functions do not share any common context variables. Therefore the patch is quite intrusive.\n\nI put together a patch that builds and that should prevent setting up environment variable for default ccache location, but I don't have time to test it at the moment. So far attaching a patch here and I hope I will get to that in coming weeks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10657457",
+						"comment_count": "24",
+						"who": {
+							"text": "ascheel",
+							"name": "Alex Scheel"
+						},
+						"bug_when": "2017-08-01 18:12:51 +0000",
+						"thetext": "Created attachment 1307742\nupdated patch\n\nI have tested the patch and have attached an update to it.\n\nThe patch didn't work for two reasons. Line numbers refer to code before this patch was applied.\n\n1) In gss-serv-krb5.c:ssh_gssapi_krb5_storecreds:474, the guard for do_pam_putenv needs to include a check for set_env (technically redundant with my changes).\n2) The end of the same function sets client->store.env{val,var} so the later call to ssh_gssapi_do_child() will expose them in the new session. Thus KRB5CCNAME is still set.\n\nTo fix that, I've added an early return path on lines 453-457.\n\nAlso: I noticed you changed the return type of ssh_gssapi_krb5_storecreds to int, but didn't update ssh_gssapi_storecreds() (its caller) to do anything with that. This fix would allow you to change that back to void like the other mechs."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10669337",
+						"comment_count": "25",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2017-08-03 10:08:51 +0000",
+						"thetext": "Thanks Alex for testing and for the addition.\n\nYou are right, also the PAM modules should be able to know the location of the ccache if it is default and they should not need a environment variable.\n\nBut I am not sure if we can skip setting the store variables. They are used in both rekeying and during the credential cleanup (conditional), if I understand the code correctly (the krb5_free_context() needs the context, which is not passed to it if we use your early-return)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10670225",
+						"comment_count": "26",
+						"who": {
+							"text": "ascheel",
+							"name": "Alex Scheel"
+						},
+						"bug_when": "2017-08-03 14:34:22 +0000",
+						"thetext": "Jakub,\n\nI'm not sure I follow your parenthetical note: \"(the krb5_free_context() needs the context, which is not passed to it if we use your early-return)\"\n\nI definitely agree that krb5_free_context(...) needs a context, and my early-return ensures that the context gets set and the credentials cache is closed:\n\n453     if (!set_env) {\n454          krb5_cc_close(krb_context, ccache);\n455          client->store.data = krb_context;\n456          return 0;\n457     }\n\n\nHowever, krb5_free_context(...) doesn't need ccache locations, so not setting env{val,var} shouldn't affect that code. \n\nWith respect to rekey-ing, the only reason rekeying would need the ccache name is if the default changed or it was non-default to begin with. The latter is currently handled already, which leaves the former. If the default changed then certainly _other_ gss/krb5 programs will be using the new default (unless the user sets KRB5CCNAME), so there's no reason for SSH not to. Thus I'd prefer to update ssh_gssapi_krb5_updatecreds(...) and friends to again query the default ccache if one is not specified in envval.\n\nWith respect to credential cleanup, I'm not entirely sure how we want to handle this and defer to Robbie on this. With a persistent keystore like KEYRING, there are interesting edge cases:\n\n- What if the ccache contains other principals generated while inside an SSH session by kinit?\n- What if the ccache was non-empty upon ssh connection? \n- What if the ccache already contained a ticket for the delegated principal?\n\nI think the behavior we want is at \"ssh only removes what it explicitly created\" but beyond that, I'm not sure.\n\n\n\nHowever, none of this answers the question of \"why does setting env{val,var} set environment variables\". What I find most interesting is that even the client will know about it:\n\n\ndebug1: Setting KRB5CCNAME to KEYRING:persistent:1001:krb_ccache_8L9ii1E\n\n\n(from ssh -vvv...)\n\n\nThanks! Any thoughts would be appreciated.\n\n-- Alex"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10672295",
+						"comment_count": "27",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2017-08-04 08:50:34 +0000",
+						"thetext": "Created attachment 1308961\npatch v3\n\nOh ... my bad. I missed you stored the krb5_context. But the cleanup is still using store.envval as an argument to the krb5_cc_resolve(). If the NULL is passed, it will resolve the default location? I didn't see it documented anywhere. If not, we still need it to find what we wrote/created to be able to clean up after ourselves.\n\nMy initial idea was to set up all the envval, envvar variables as we did before not to break other things, but gate only the passing of environment variables to the user environment and PAM, but you are right, there needs to be more checks (added in the current patch, including the debug1 line you posted in previous comment).\n\nAbout the rekeying, if I understand the code correctly, the ssh_gssapi_rekey_creds() is helpful only for the updating the existing non-default files so we should not need it? With your patch, this function is completely skipped (as it was so far for non-FILE and non-DIR ccache)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10673121",
+						"comment_count": "28",
+						"who": {
+							"text": "ascheel",
+							"name": "Alex Scheel"
+						},
+						"bug_when": "2017-08-04 13:45:10 +0000",
+						"thetext": "Jakub,\n\nI was not able to get that patch to build as authctxt is not defined in session.c:1087. If you change it to s->authctxt, then it compiles and works. I think you can thus safely remove the changes to gss-serv-krb5.c:453-457 (which I see you've commented out). \n\nRegarding krb5_cc_resolve with NULL name, per here [0], that will fail (though the docs on the matter are vague [1]). I'd make it a call to krb5_cc_default(...) in the case when it is NULL though [2], as this will both query the default name and resolve the ccache.\n\nIt appears that cleanup doesn't actually remove any creds (and didn't before this patch either), but I'd call that a separate issue, so I'm not sure how much the code there matters.\n\nFurther, I'd have to defer to Robbie again on this one, but the behavior in the following scenario seems weird:\n\n- Two principals, alice and bob (or bob and bob/admin, etc.)\n- Client->Server\n- An existing session for `bob` on the server, say, via console.\n- `bob` on the server kinits to alice with an empty cache. \n\nThis will then look like this:\n\n[bob@bz-c2 ~]$ kinit alice\nPassword for alice@CIPHERBOY.COM: \n[bob@bz-c2 ~]$ klist -A\nTicket cache: KEYRING:persistent:1001:krb_ccache_h3s0SlR\nDefault principal: alice@CIPHERBOY.COM\n\nValid starting       Expires              Service principal\n08/04/2017 09:38:46  08/04/2017 21:38:46  krbtgt/CIPHERBOY.COM@CIPHERBOY.COM\n\n\nIf `bob` from the client then kinits as bob and ssh-s with delegated creds into the server, the result is as follows:\n\n[bob@bz-c1 ~]$ ssh bob@bz-c2 \nLast login: Fri Aug  4 09:35:05 2017 from 192.168.122.135\n[bob@bz-c2 ~]$ klist -A\nTicket cache: KEYRING:persistent:1001:krb_ccache_h3s0SlR\nDefault principal: bob@CIPHERBOY.COM\n\nValid starting       Expires              Service principal\n08/04/2017 09:39:28  08/04/2017 21:11:23  krbtgt/CIPHERBOY.COM@CIPHERBOY.COM\n\nThat is, Alice's credential is overwritten. This is not the same behavior as when kinit is called in two separate sessions, so I'd say there's something funny with ssh's adding of the delegated cred, but I'd have to look into it more.\n\n(in that case it looks like:\n\n[bob@bz-c2 ~]$ kinit alice\nPassword for alice@CIPHERBOY.COM: \n[bob@bz-c2 ~]$ klist -A\nTicket cache: KEYRING:persistent:1001:krb_ccache_7gFFCnM\nDefault principal: alice@CIPHERBOY.COM\n\nValid starting       Expires              Service principal\n08/04/2017 09:41:18  08/04/2017 21:41:18  krbtgt/CIPHERBOY.COM@CIPHERBOY.COM\n\nTicket cache: KEYRING:persistent:1001:krb_ccache_h3s0SlR\nDefault principal: bob@CIPHERBOY.COM\n\nValid starting       Expires              Service principal\n08/04/2017 09:41:13  08/04/2017 21:41:13  krbtgt/CIPHERBOY.COM@CIPHERBOY.COM\n\nfrom a different/existing session)\n\n\n\nBesides the above, I'd give a LGTM, but I've not tested rekey as I'm not quite sure how to. But `kinit` works!\n\n\nThanks for your help!\n\n\n[0]: https://github.com/krb5/krb5/blob/85d64c43dbf7a7faa56a1999494cdfa49e8bd2c9/src/lib/krb5/ccache/ccbase.c#L204-L205\n[1]: http://web.mit.edu/kerberos/krb5-current/doc/appdev/refs/api/krb5_cc_resolve.html\n[2]: http://web.mit.edu/kerberos/krb5-current/doc/appldev/refs/api/krb5_cc_default.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10673973",
+						"comment_count": "29",
+						"who": {
+							"text": "rharwood",
+							"name": "Robbie Harwood"
+						},
+						"bug_when": "2017-08-04 17:41:09 +0000",
+						"thetext": "> With respect to credential cleanup, I'm not entirely sure how we want to handle this and defer to Robbie on this. With a persistent keystore like KEYRING, there are interesting edge cases:\n>\n> - What if the ccache contains other principals generated while inside an SSH session by kinit?\n> - What if the ccache was non-empty upon ssh connection? \n> - What if the ccache already contained a ticket for the delegated principal?\n\nClearly we don't want to delete principals we didn't create.\n\nOur ccaches don't really have a notion of \"deleting\" principals.  This is why, for instance, there is no such option in kdestroy.  We've had conversations about adding verbs for this in the past, but the current consensus is that there is very little gain to doing so (because ccaches can be copied around, and the only way to expire credentials is to let them time out).\n\nSo we can't cleanup just the ones we've created through ssh.  But even where we could (e.g., empty ccache on remote), we don't want to.  The user may ssh in and run jobs; yanking the creds out from under these jobs would be problematic.  Consider running a mosh-server, or something in screen/tmux, for instance.\n\nSo let's not do any cleanup here.\n\n> Further, I'd have to defer to Robbie again on this one, but the behavior in the following scenario seems weird:\n\nFor similar reasons to above, this behavior is problematic (\"rude\").\n\nIt looks like this is caused by the ssh_gssapi_krb5_storecreds function (gss-serv-krb5.c) which, when building against MIT krb5, calls several functions that empty the ccache.  Probably this should be built around krb5_cc_resolve() instead (side note: krb5_cc_gen_new is deprecated)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10707237",
+						"comment_count": "30",
+						"who": {
+							"text": "jkurik",
+							"name": "Jan Kurik"
+						},
+						"bug_when": "2017-08-15 09:01:34 +0000",
+						"thetext": "This bug appears to have been reported against 'rawhide' during the Fedora 27 development cycle.\nChanging version to '27'."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10715960",
+						"comment_count": "31",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2017-08-17 13:19:51 +0000",
+						"thetext": "> It appears that cleanup doesn't actually remove any creds (and didn't before this patch either), but I'd call that a separate issue, so I'm not sure how much the code there matters.\n\nAFAIK this is because the configuration option GSSAPICleanupCredentials is set to no in the shipped configuration file. This use case might not be default nor most important, but we should certainly not break it (at least not in RHEL).\n\n> Clearly we don't want to delete principals we didn't create.\n\nThat sounds reasonable. The safe default is not-to-delete, but I believe there should be still the option to delete them (there is ... as above) and it should be tested and supported.\n\nYou can simply copy FILE/DIR ccaches, but can you do the same with KEYRING/KCM?\n\n> It looks like this is caused by the ssh_gssapi_krb5_storecreds function (gss-serv-krb5.c) which, when building against MIT krb5, calls several functions that empty the ccache.\n\nWhich one do you mean?\n\n> Probably this should be built around krb5_cc_resolve() instead (side note: krb5_cc_gen_new is deprecated).\n\nI don't see we would use krb5_cc_gen_new() with MIT in current Fedora. All the usage is in HEIMDAL ifdefs.\n\nAlso the ssh_krb5_cc_gen() in the end calls krb5_cc_resolve() as you propose."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10717072",
+						"comment_count": "32",
+						"who": {
+							"text": "rharwood",
+							"name": "Robbie Harwood"
+						},
+						"bug_when": "2017-08-17 20:02:56 +0000",
+						"thetext": "(In reply to Jakub Jelen from comment #31)\n>> Clearly we don't want to delete principals we didn't create.\n> \n> That sounds reasonable. The safe default is not-to-delete, but I believe\n> there should be still the option to delete them (there is ... as above) and\n> it should be tested and supported.\n> \n> You can simply copy FILE/DIR ccaches, but can you do the same with\n> KEYRING/KCM?\n\nYes, there shouldn't be anything to stop you doing that.  I'm happy to support operations using the provided GSSAPI/krb5 APIs, but you remove elements from ccaches by hand at your own peril :)\n \n>> It looks like this is caused by the ssh_gssapi_krb5_storecreds function (gss-serv-krb5.c) which, when building against MIT krb5, calls several functions that empty the ccache.\n> \n> Which one do you mean?\n\nWell, there's a straight up call to krb5_cc_initialize(), for one.\n\n> > Probably this should be built around krb5_cc_resolve() instead (side note: krb5_cc_gen_new is deprecated).\n> \n> I don't see we would use krb5_cc_gen_new() with MIT in current Fedora. All\n> the usage is in HEIMDAL ifdefs.\n\nYou're right, I misread the nesting, apologies.\n\n> Also the ssh_krb5_cc_gen() in the end calls krb5_cc_resolve() as you propose.\n\nIt may also benefit from krb5_cc_default_name().  (Strongly preferred to reading krb5.conf yourself.)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10718754",
+						"comment_count": "33",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2017-08-18 10:43:41 +0000",
+						"thetext": "(In reply to Robbie Harwood from comment #32)\n> (In reply to Jakub Jelen from comment #31)\n> >> Clearly we don't want to delete principals we didn't create.\n> > \n> > That sounds reasonable. The safe default is not-to-delete, but I believe\n> > there should be still the option to delete them (there is ... as above) and\n> > it should be tested and supported.\n> > \n> > You can simply copy FILE/DIR ccaches, but can you do the same with\n> > KEYRING/KCM?\n> \n> Yes, there shouldn't be anything to stop you doing that.  I'm happy to\n> support operations using the provided GSSAPI/krb5 APIs, but you remove\n> elements from ccaches by hand at your own peril :)\n\nIn gss-serv.c, function ssh_gssapi_cleanup_creds() I see a call to krb5_cc_destroy(), which sounds like a proper API.\n\nThe other thing is that the code is trying to remove forwarded DIR ccache in auth-krb5.c, function krb5_cleanup_proc() in case of failure during the authentication. Do you believe that krb5_cc_destroy() call should be enough? To my understanding, that code is removing the ccache directory, only if there is primary file/directory inside. But it should not matter for other ccache types.\n\n> >> It looks like this is caused by the ssh_gssapi_krb5_storecreds function (gss-serv-krb5.c) which, when building against MIT krb5, calls several functions that empty the ccache.\n> > \n> > Which one do you mean?\n> \n> Well, there's a straight up call to krb5_cc_initialize(), for one.\n\nYes, that makes sense. Is there a way to check the ccache is initialized so we would not have to destroy it? Or do the initialization without the destroying the context?\n\n> > > Probably this should be built around krb5_cc_resolve() instead (side note: krb5_cc_gen_new is deprecated).\n> > \n> > I don't see we would use krb5_cc_gen_new() with MIT in current Fedora. All\n> > the usage is in HEIMDAL ifdefs.\n> \n> You're right, I misread the nesting, apologies.\n> \n> > Also the ssh_krb5_cc_gen() in the end calls krb5_cc_resolve() as you propose.\n> \n> It may also benefit from krb5_cc_default_name().  (Strongly preferred to\n> reading krb5.conf yourself.)\n\nThat sounds like a good idea. Is it something new that was not generally available some years ago, when this patch was written? Does it also expand templates (uid, euid, USERID, TEMP) as written in configuration file, or this is still up to the caller?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10737213",
+						"comment_count": "34",
+						"who": {
+							"text": "rharwood",
+							"name": "Robbie Harwood"
+						},
+						"bug_when": "2017-08-24 20:15:09 +0000",
+						"thetext": "(In reply to Jakub Jelen from comment #33)\n> (In reply to Robbie Harwood from comment #32)\n> > (In reply to Jakub Jelen from comment #31)\n> > > > Clearly we don't want to delete principals we didn't create.\n> > > \n> > > That sounds reasonable. The safe default is not-to-delete, but I believe\n> > > there should be still the option to delete them (there is ... as above) and\n> > > it should be tested and supported.\n> > > \n> > > You can simply copy FILE/DIR ccaches, but can you do the same with\n> > > KEYRING/KCM?\n> > \n> > Yes, there shouldn't be anything to stop you doing that.  I'm happy to\n> > support operations using the provided GSSAPI/krb5 APIs, but you remove\n> > elements from ccaches by hand at your own peril :)\n> \n> In gss-serv.c, function ssh_gssapi_cleanup_creds() I see a call to\n> krb5_cc_destroy(), which sounds like a proper API.\n\nSure, that destroys the entire ccache though.  (I was referring to pulling out individual elements.)\n\n> The other thing is that the code is trying to remove forwarded DIR ccache in\n> auth-krb5.c, function krb5_cleanup_proc() in case of failure during the\n> authentication. Do you believe that krb5_cc_destroy() call should be enough?\n> To my understanding, that code is removing the ccache directory, only if\n> there is primary file/directory inside. But it should not matter for other\n> ccache types.\n\nWell, DIR isn't the only collection type, right: KEYRING and KCM are also collection types.\n\nkrb5_cc_destroy will empty the ccache, so yes, that should be enough, if I understand the question.  If you want to destroy the collection, you have to iterate over the ccaches in it and destroy each one in turn.  (The kdestroy code has an example of this, in the -A path: https://github.com/krb5/krb5/blob/master/src/clients/kdestroy/kdestroy.c#L148-L171 if you're curious, but I don't think you actually want to empty the collection in its entirety.)\n\n> > > > It looks like this is caused by the ssh_gssapi_krb5_storecreds function (gss-serv-krb5.c) which, when building against MIT krb5, calls several functions that empty the ccache.\n> > > \n> > > Which one do you mean?\n> > \n> > Well, there's a straight up call to krb5_cc_initialize(), for one.\n> \n> Yes, that makes sense. Is there a way to check the ccache is initialized so\n> we would not have to destroy it? Or do the initialization without the\n> destroying the context?\n\nIt shouldn't need an explicit step.  Initialize for us is meant in the calloc() sense - that is, resetting everything to 0/defaults.\n\n> > > > Probably this should be built around krb5_cc_resolve() instead (side note: krb5_cc_gen_new is deprecated).\n> > > \n> > > I don't see we would use krb5_cc_gen_new() with MIT in current Fedora. All\n> > > the usage is in HEIMDAL ifdefs.\n> > \n> > You're right, I misread the nesting, apologies.\n> > \n> > > Also the ssh_krb5_cc_gen() in the end calls krb5_cc_resolve() as you propose.\n> > \n> > It may also benefit from krb5_cc_default_name().  (Strongly preferred to\n> > reading krb5.conf yourself.)\n> \n> That sounds like a good idea. Is it something new that was not generally\n> available some years ago, when this patch was written? Does it also expand\n> templates (uid, euid, USERID, TEMP) as written in configuration file, or\n> this is still up to the caller?\n\nGood question!  The function dates well back into the early krb5 days and appears to have been committed in early 1990 (which makes it older than I am), but it's hard to tell because a cvs2svn migration was in progress at that point.\n\nEmpirically, yes, it expands template variables.  For instance, it will spit out strings like: \"KEYRING:persistent:21259\" or \"FILE:/tmp/krb5cc_21259\"."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10766896",
+						"comment_count": "35",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2017-09-05 09:49:33 +0000",
+						"thetext": "Thank you for valuable answers and patience :)\n\nThe first step to resolve the original problems is the patch attached in the comment #27, which does most of the expected.\n\nThe clearing ccache on new (forwarded) connection was not problem before using the default ccache location, because every session had its own.\n\nIf I would remove the cc_initialize(), what all can go wrong? How is the ccache getting the information about the default principal, which is passed to this function? I can not seem to find any function that could do that.\n\nIt could also give us the case, when we would insert tickets into the cache, but it would have some different default principal and the connected user/application would not see them or would not be able to use them, isn't it?\n\nThese are my concerns about the modification/skipping the initialization. I believe we will probably have to live with cleaning the cache on forwarding.\n\nLooking into the krb5_cc_default_name(), it is using the currently running user context (getuid()), which might be a problem, if the process still runs privileged as a root, but we need to prepare caches for connecting users (we are using geteuid() for both UID and EUID expansions). Therefore I don't think we can simplify it here.\n\nI will probably push the patch as it is into Fedora soon. It is improvement in generic case, but if you have some comments/ideas hot to improve the initialization without side effects for the default, feel free to comment."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10767416",
+						"comment_count": "36",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2017-09-05 12:08:37 +0000",
+						"thetext": "I am planning to send something from this upstream, but it is little bit more complicated, because they do not have key exchange, so I will come with some more questions:\n\n * Comment #20 talks about workaround for DIR which made it working before. In case we will not be setting the KRB5CCNAME, this workaround is not needed (branch stripping the file part from the path):\n\nhttps://src.fedoraproject.org/rpms/openssh/blob/master/f/openssh-6.3p1-krb5-use-default_ccache_name.patch#_45\n\n * Can you try to explain what can the cleanup_proc() do? I believe it is related to the above point (stripping the filename from the path), but is it needed if I remove the above modification? the cc_destroy should take care of removing the files, but I don't see it would be removing the directory. Is it expected?\n\nhttps://src.fedoraproject.org/rpms/openssh/blob/master/f/openssh-6.3p1-krb5-use-default_ccache_name.patch#_72"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10773484",
+						"comment_count": "37",
+						"who": {
+							"text": "rharwood",
+							"name": "Robbie Harwood"
+						},
+						"bug_when": "2017-09-06 19:37:20 +0000",
+						"thetext": "(In reply to Jakub Jelen from comment #36)\n> I am planning to send something from this upstream, but it is little bit\n> more complicated, because they do not have key exchange, so I will come with\n> some more questions:\n\nSounds good!  We'll try to answer.\n\n>  * Comment #20 talks about workaround for DIR which made it working before.\n> In case we will not be setting the KRB5CCNAME, this workaround is not needed\n> (branch stripping the file part from the path):\n> \n> https://src.fedoraproject.org/rpms/openssh/blob/master/f/openssh-6.3p1-krb5-use-default_ccache_name.patch#_45\n\nNot sure there's a question here, but the workaround indeed shouldn't be needed.\n\n>  * Can you try to explain what can the cleanup_proc() do? I believe it is\n> related to the above point (stripping the filename from the path), but is it\n> needed if I remove the above modification? the cc_destroy should take care\n> of removing the files, but I don't see it would be removing the directory.\n> Is it expected?\n> \n> https://src.fedoraproject.org/rpms/openssh/blob/master/f/openssh-6.3p1-krb5-use-default_ccache_name.patch#_72\n\nThis is a good question.  The code segment you highlight looks to be removing the /primary entry of a DIR ccache?  Not supported, whatever it is :)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10783878",
+						"comment_count": "38",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2017-09-11 14:19:10 +0000",
+						"thetext": "There were some more questions/clarification in the Comment #35.\nThe upstream bug addressing what is answered is already filled.\n\nI submitted a scratch build [1] with these changes and if it will work as expected, I will push it into Fedora 27. If you have some environment, where you can test it, it would be very nice.\n\n[1] https://koji.fedoraproject.org/koji/taskinfo?taskID=21796356"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10819400",
+						"comment_count": "39",
+						"who": {
+							"text": "rharwood",
+							"name": "Robbie Harwood"
+						},
+						"bug_when": "2017-09-21 20:04:01 +0000",
+						"thetext": "I spun a f26 build and it seems to work as expected there.  Thanks Jakub!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11022174",
+						"comment_count": "40",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-22 09:05:38 +0000",
+						"thetext": "openssh-7.6p1-2.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2017-96d1995b70"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11025434",
+						"comment_count": "41",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-22 21:42:29 +0000",
+						"thetext": "openssh-7.6p1-2.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2017-96d1995b70"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11083938",
+						"comment_count": "42",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-12-10 05:04:14 +0000",
+						"thetext": "openssh-7.6p1-2.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1477636,
+			"feedback": [
+				{
+					"bug_id": 1477636,
+					"comment": {
+						"id": 700761,
+						"karma": 1,
+						"karma_critpath": 1,
+						"testcase_feedback": [
+							{
+								"comment_id": 700761,
+								"testcase": {
+									"id": 1,
+									"name": "QA:Testcase OpenSSH"
+								},
+								"testcase_id": 1
+							}
+						],
+						"text": "Works for me.",
+						"timestamp": "2017-11-26 11:45:33",
+						"update_id": 102876,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/d8b1494957882b89754f368ee7c9f06058a9becf377dff43ac4edf0e1cf563a1?s=24&d=retro",
+							"email": "vedran@miletic.net",
+							"id": 2878,
+							"name": "vedranm",
+							"openid": "vedranm.id.fedoraproject.org"
+						},
+						"user_id": 2878
+					},
+					"comment_id": 700761
+				}
+			],
+			"title": "Fedora - OpenSSH: Add enablement for openssl-ibmca and openssl-ibmpkcs11 (security/crypto)",
+			"bugzilla": {
+				"bug_id": "1477636",
+				"creation_ts": "2017-08-02 14:01:18 +0000",
+				"short_desc": "Fedora - OpenSSH: Add enablement for openssl-ibmca and openssl-ibmpkcs11 (security/crypto)",
+				"delta_ts": "2017-12-10 05:03:58 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "467765",
+						"alias": "ZedoraTracker",
+						"creation_ts": "2008-10-20 19:24:26 +0000",
+						"short_desc": "Fedora for System z (s390): Bug Tracker",
+						"delta_ts": "2023-11-13 09:01:52 +0000",
+						"bug_status": "ASSIGNED",
+						"keywords": "Tracking",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1267648",
+							"1419949",
+							"1562071",
+							"1770256",
+							"1849196",
+							"2027046",
+							"2057636",
+							"2222911",
+							"2249458",
+							"461044",
+							"467751",
+							"467768",
+							"467788",
+							"467806",
+							"468017",
+							"468245",
+							"468307",
+							"469044",
+							"470183",
+							"470200",
+							"470204",
+							"470211",
+							"470940",
+							"471133",
+							"471263",
+							"472442",
+							"472466",
+							"474061",
+							"474083",
+							"474227",
+							"474229",
+							"485114",
+							"485144",
+							"494213",
+							"494215",
+							"495226",
+							"495874",
+							"496369",
+							"501690",
+							"502207",
+							"502430",
+							"502667",
+							"502827",
+							"503816",
+							"503927",
+							"504745",
+							"505565",
+							"506417",
+							"506689",
+							"506697",
+							"507211",
+							"507214",
+							"507217",
+							"507219",
+							"507419",
+							"508916",
+							"509877",
+							"509881",
+							"510524",
+							"515222",
+							"516369",
+							"517888",
+							"523677",
+							"557522",
+							"561814",
+							"561816",
+							"619005",
+							"627347",
+							"629970",
+							"641986",
+							"651475",
+							"651478",
+							"653436",
+							"693764",
+							"694499",
+							"694518",
+							"696164",
+							"696997",
+							"699750",
+							"703862",
+							"704198",
+							"704442",
+							"711760",
+							"725483",
+							"733674",
+							"733680",
+							"735026",
+							"739620",
+							"739828",
+							"739846",
+							"740576",
+							"740858",
+							"744196",
+							"748811",
+							"783424",
+							"794793",
+							"830915",
+							"849713",
+							"857940",
+							"858996",
+							"859192",
+							"859984",
+							"859997",
+							"860244",
+							"867856",
+							"868824",
+							"868839",
+							"870131",
+							"871789",
+							"872545",
+							"873221",
+							"873699",
+							"874622",
+							"876184",
+							"878416",
+							"901526",
+							"902698",
+							"904245",
+							"905020",
+							"905567",
+							"905863",
+							"906746",
+							"912367",
+							"915411",
+							"917287",
+							"919030",
+							"921706",
+							"951628",
+							"951632",
+							"953094",
+							"953141",
+							"953217",
+							"953257",
+							"956160",
+							"956241",
+							"956583",
+							"957191",
+							"957656",
+							"958232",
+							"960523",
+							"960631",
+							"963330",
+							"963670",
+							"965413",
+							"965569",
+							"966435",
+							"967422",
+							"968359",
+							"970858",
+							"971321",
+							"971821",
+							"972714",
+							"973999",
+							"975044",
+							"975696",
+							"977743",
+							"980185",
+							"981514",
+							"981682",
+							"983137",
+							"985748",
+							"985821",
+							"986031",
+							"989593",
+							"996395",
+							"1003986",
+							"1008988",
+							"1011893",
+							"1015976",
+							"1019656",
+							"1022931",
+							"1023960",
+							"1029053",
+							"1029430",
+							"1031067",
+							"1033902",
+							"1034940",
+							"1036567",
+							"1056972",
+							"1064271",
+							"1067470",
+							"1070380",
+							"1070691",
+							"1071174",
+							"1071527",
+							"1071845",
+							"1072273",
+							"1076070",
+							"1079673",
+							"1085704",
+							"1088339",
+							"1091538",
+							"1094975",
+							"1097109",
+							"1097111",
+							"1099806",
+							"1100762",
+							"1100971",
+							"1101112",
+							"1101228",
+							"1101668",
+							"1102324",
+							"1104232",
+							"1104279",
+							"1104603",
+							"1104968",
+							"1112565",
+							"1114240",
+							"1116795",
+							"1117799",
+							"1121620",
+							"1121624",
+							"1122406",
+							"1122441",
+							"1122911",
+							"1122980",
+							"1123757",
+							"1126463",
+							"1128663",
+							"1129583",
+							"1129632",
+							"1130079",
+							"1131899",
+							"1136331",
+							"1136939",
+							"1138804",
+							"1139695",
+							"1140157",
+							"1140159",
+							"1140189",
+							"1141669",
+							"1143912",
+							"1143914",
+							"1147415",
+							"1147446",
+							"1148923",
+							"1149295",
+							"1149464",
+							"1149647",
+							"1149721",
+							"1150872",
+							"1151144",
+							"1151145",
+							"1155291",
+							"1158522",
+							"1158848",
+							"1161098",
+							"1161119",
+							"1161585",
+							"1162184",
+							"1163188",
+							"1165638",
+							"1167842",
+							"1171745",
+							"1172789",
+							"1174607",
+							"1178265",
+							"1181034",
+							"1181064",
+							"1182677",
+							"1183956",
+							"1184488",
+							"1185298",
+							"1186162",
+							"1186897",
+							"1191161",
+							"1193043",
+							"1194693",
+							"1194704",
+							"1195065",
+							"1196994",
+							"1197007",
+							"1197721",
+							"1197767",
+							"1197772",
+							"1199041",
+							"1201219",
+							"1201429",
+							"1201896",
+							"1202277",
+							"1205177",
+							"1206057",
+							"1206060",
+							"1206161",
+							"1207672",
+							"1208171",
+							"1208172",
+							"1208412",
+							"1210036",
+							"1211277",
+							"1211582",
+							"1211616",
+							"1211638",
+							"1212061",
+							"1212118",
+							"1212328",
+							"1212374",
+							"1212472",
+							"1219542",
+							"1220294",
+							"1221689",
+							"1222471",
+							"1225140",
+							"1225487",
+							"1227798",
+							"1228102",
+							"1228570",
+							"1230233",
+							"1232157",
+							"1232650",
+							"1232739",
+							"1234277",
+							"1235709",
+							"1238225",
+							"1247567",
+							"1249522",
+							"1250568",
+							"1250573",
+							"1251422",
+							"1251520",
+							"1251972",
+							"1252899",
+							"1253763",
+							"1254606",
+							"1255066",
+							"1255682",
+							"1255746",
+							"1255751",
+							"1256273",
+							"1256305",
+							"1257186",
+							"1257510",
+							"1260297",
+							"1261541",
+							"1262311",
+							"1262402",
+							"1262441",
+							"1263806",
+							"1268764",
+							"1269811",
+							"1271230",
+							"1273009",
+							"1273553",
+							"1274392",
+							"1274596",
+							"1274909",
+							"1275619",
+							"1276061",
+							"1277142",
+							"1278066",
+							"1281489",
+							"1281764",
+							"1283184",
+							"1283284",
+							"1284428",
+							"1285786",
+							"1286149",
+							"1286625",
+							"1288335",
+							"1289865",
+							"1290589",
+							"1300669",
+							"1300900",
+							"1301991",
+							"1302224",
+							"1305495",
+							"1305931",
+							"1306280",
+							"1308424",
+							"1309787",
+							"1310168",
+							"1310467",
+							"1312339",
+							"1314545",
+							"1315079",
+							"1315191",
+							"1315630",
+							"1315750",
+							"1316707",
+							"1320240",
+							"1320305",
+							"1322696",
+							"1323193",
+							"1324085",
+							"1325114",
+							"1325858",
+							"1326056",
+							"1326057",
+							"1326247",
+							"1326664",
+							"1326715",
+							"1326890",
+							"1326896",
+							"1327169",
+							"1327204",
+							"1327870",
+							"1328455",
+							"1330108",
+							"1330174",
+							"1330300",
+							"1331077",
+							"1331726",
+							"1331820",
+							"1332146",
+							"1332449",
+							"1332978",
+							"1333295",
+							"1333344",
+							"1333695",
+							"1334315",
+							"1334320",
+							"1334785",
+							"1335046",
+							"1335092",
+							"1335117",
+							"1335162",
+							"1335823",
+							"1336466",
+							"1340736",
+							"1340829",
+							"1341064",
+							"1344636",
+							"1348442",
+							"1350418",
+							"1350486",
+							"1351971",
+							"1352046",
+							"1352625",
+							"1355821",
+							"1356523",
+							"1358943",
+							"1359680",
+							"1360388",
+							"1360748",
+							"1365193",
+							"1365862",
+							"1366787",
+							"1369162",
+							"1369169",
+							"1371894",
+							"1372072",
+							"1373958",
+							"1375213",
+							"1376547",
+							"1377201",
+							"1378338",
+							"1378351",
+							"1378359",
+							"1378378",
+							"1378467",
+							"1378518",
+							"1379123",
+							"1379632",
+							"1379640",
+							"1381206",
+							"1382071",
+							"1382628",
+							"1383641",
+							"1383912",
+							"1384532",
+							"1384606",
+							"1386180",
+							"1386221",
+							"1386502",
+							"1388453",
+							"1389477",
+							"1390149",
+							"1392950",
+							"1393334",
+							"1393742",
+							"1397886",
+							"1397948",
+							"1398575",
+							"1400000",
+							"1400921",
+							"1402256",
+							"1402732",
+							"1403760",
+							"1404679",
+							"1404991",
+							"1409483",
+							"1409636",
+							"1410952",
+							"1411708",
+							"1412204",
+							"1412748",
+							"1419064",
+							"1427871",
+							"1428695",
+							"1428713",
+							"1428717",
+							"1428964",
+							"1431379",
+							"1433867",
+							"1434337",
+							"1434341",
+							"1434347",
+							"1435585",
+							"1437415",
+							"1437468",
+							"1441078",
+							"1442023",
+							"1442048",
+							"1444744",
+							"1445039",
+							"1445162",
+							"1445223",
+							"1449582",
+							"1450353",
+							"1451722",
+							"1460148",
+							"1460254",
+							"1462113",
+							"1462804",
+							"1463511",
+							"1463518",
+							"1468446",
+							"1472486",
+							"1475719",
+							"1477636",
+							"1478051",
+							"1478284",
+							"1481163",
+							"1481611",
+							"1484579",
+							"1493072",
+							"1493479",
+							"1496461",
+							"1499260",
+							"1502009",
+							"1504026",
+							"1507518",
+							"1509162",
+							"1523401",
+							"1536990",
+							"1537977",
+							"1538550",
+							"1538638",
+							"1550617",
+							"1552658",
+							"1552661",
+							"1553678",
+							"1553705",
+							"1566140",
+							"1573538",
+							"1609208",
+							"1609513",
+							"1614720",
+							"1615760",
+							"1619074",
+							"1619354",
+							"1622312",
+							"1623547",
+							"1626861",
+							"1627915",
+							"1642857",
+							"1648537",
+							"1651448",
+							"1661568",
+							"1675181",
+							"1676281",
+							"1677602",
+							"1678277",
+							"1687085",
+							"1689769",
+							"1692646",
+							"1697302",
+							"1698529",
+							"1701932",
+							"1702273",
+							"1706450",
+							"1707389",
+							"1716853",
+							"1725872",
+							"1727029",
+							"1727904",
+							"1728781",
+							"1741935",
+							"1742036",
+							"1746413",
+							"1750390",
+							"1752241",
+							"1753975",
+							"1763111",
+							"1763127",
+							"1769148",
+							"1769294",
+							"1781683",
+							"1783584",
+							"1797646",
+							"1799087",
+							"1799408",
+							"1802482",
+							"1803029",
+							"1807781",
+							"1832138",
+							"1832157",
+							"1836163",
+							"1840077",
+							"1841335",
+							"1842079",
+							"1842413",
+							"1847014",
+							"1858380",
+							"1858522",
+							"1861276",
+							"1869980",
+							"1871087",
+							"1873975",
+							"1874249",
+							"1874398",
+							"1876904",
+							"1877849",
+							"1878531",
+							"1883457",
+							"1885913",
+							"1886303",
+							"1917575",
+							"1923383",
+							"1930943",
+							"1934063",
+							"1940964",
+							"1959353",
+							"1960348",
+							"1969393",
+							"1986176",
+							"1995835",
+							"2005829",
+							"2008090",
+							"2012824",
+							"2015379",
+							"2036145",
+							"2038848",
+							"2042422",
+							"2048565",
+							"2058803",
+							"2073316",
+							"2080519",
+							"2091964",
+							"2129659",
+							"2136459",
+							"2144863",
+							"2153213",
+							"2155328",
+							"2166931",
+							"2169892",
+							"2170551",
+							"2177410",
+							"2177691",
+							"2209635",
+							"2214522",
+							"2219374",
+							"2222638",
+							"2225745",
+							"2226537"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "1904202",
+								"comment_count": "0",
+								"who": {
+									"text": "bhinson",
+									"name": "Brad Hinson"
+								},
+								"bug_when": "2008-10-20 19:24:26 +0000",
+								"thetext": "This is a tracker for patches related to Fedora for System z (codename 'zedora').  The Koji hub is located at:\n\nhttp://s390.koji.fedoraproject.org/koji/"
+							}
+						]
+					},
+					{
+						"bug_id": "1478034",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1478035",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "157209",
+					"name": "IBM Linux Technology Center"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10665787",
+						"comment_count": "0",
+						"who": {
+							"text": "bugproxy",
+							"name": "IBM Bug Proxy"
+						},
+						"bug_when": "2017-08-02 14:01:18 +0000"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10665790",
+						"comment_count": "1",
+						"who": {
+							"text": "bugproxy",
+							"name": "IBM Bug Proxy"
+						},
+						"bug_when": "2017-08-02 14:01:27 +0000",
+						"thetext": "OpenSSH requires the following patches to allow the use of openssl-ibmca and openssl-ibmpkcs11.\n\n0.\nhttps://www.spinics.net/lists/openssh-unix-dev/msg04133.html\n(\"[PATCH 0/3] Allow syscalls for openssl engines\")\n1.\nhttps://www.spinics.net/lists/openssh-unix-dev/msg04131.html \n(\"[PATCH 1/3] Allow flock and ipc syscall for s390 architecture\")\n2.\nhttps://www.spinics.net/lists/openssh-unix-dev/msg04132.html\n(\"[PATCH 2/3] Allow getuid and geteuid calls\")\n3.\nhttps://www.spinics.net/lists/openssh-unix-dev/msg04134.html\n(\"[PATCH 3/3] Enable specific ioctl call for EP11 crypto card (s390)\")\n\nThese patches have been posted but are not upstream included in OpenSSH yet.\n\nBackground information:\n\nCurrently the projects openssl-ibmca and openssl-ibmpkcs11 do not run well with OpenSSH seccomp filter. Whenever you load those engines and try to perform an ssh or scp it will fail as the seccomp filter blocks some syscalls. \n\nWe have also opened the upstream bugzilla at\nhttps://bugzilla.mindrot.org/show_bug.cgi?id=2752\nto get the above patches upstream accepted in OpenSSH as soon as possible.\n\nAs it is taking more time than we would like to get the patches merged upstream, we wanted to ask if the above three patches could be included in the OpenSSH rpm of Fedora.\n\nThis would allow both openssl-ibmca and openssl-ibmpkcs11 to be loaded and used when doing a ssh or scp. Right now if a user is logging into a machine using ssh and load one of those engines and let it loaded, after logging out he will not be able to log into that machine anymore."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10706333",
+						"comment_count": "2",
+						"who": {
+							"text": "jkurik",
+							"name": "Jan Kurik"
+						},
+						"bug_when": "2017-08-15 07:07:46 +0000",
+						"thetext": "This bug appears to have been reported against 'rawhide' during the Fedora 27 development cycle.\nChanging version to '27'."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11022173",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-22 09:05:26 +0000",
+						"thetext": "openssh-7.6p1-2.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2017-96d1995b70"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11025433",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-22 21:42:24 +0000",
+						"thetext": "openssh-7.6p1-2.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2017-96d1995b70"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11083937",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-12-10 05:03:58 +0000",
+						"thetext": "openssh-7.6p1-2.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1492313,
+			"feedback": [
+				{
+					"bug_id": 1492313,
+					"comment": {
+						"id": 700761,
+						"karma": 1,
+						"karma_critpath": 1,
+						"testcase_feedback": [
+							{
+								"comment_id": 700761,
+								"testcase": {
+									"id": 1,
+									"name": "QA:Testcase OpenSSH"
+								},
+								"testcase_id": 1
+							}
+						],
+						"text": "Works for me.",
+						"timestamp": "2017-11-26 11:45:33",
+						"update_id": 102876,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/d8b1494957882b89754f368ee7c9f06058a9becf377dff43ac4edf0e1cf563a1?s=24&d=retro",
+							"email": "vedran@miletic.net",
+							"id": 2878,
+							"name": "vedranm",
+							"openid": "vedranm.id.fedoraproject.org"
+						},
+						"user_id": 2878
+					},
+					"comment_id": 700761
+				}
+			],
+			"title": "sshd doesnt use pam auth stack anymore",
+			"bugzilla": {
+				"bug_id": "1492313",
+				"creation_ts": "2017-09-16 11:04:09 +0000",
+				"short_desc": "sshd doesnt use pam auth stack anymore",
+				"delta_ts": "2017-12-10 05:03:52 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10800945",
+						"comment_count": "0",
+						"who": {
+							"text": "dac.override"
+						},
+						"bug_when": "2017-09-16 11:04:09 +0000",
+						"thetext": "Description of problem:\nIt seems that openssh server skips the auth stack in /etc/pamd/sshd\n\nfor example it skips \"auth required pam_sepermit.so\"\n\nVersion-Release number of selected component (if applicable):\nopenssh-server-7.5p1-5.fc27.x86_64\n\nHow reproducible:\n\nin /etc/pam.d/sshd append \"debug\" to \"auth required pam_sepermit.so\" so that it will log messages if it is run.\n\nlog into the system with ssh and look in the logs. there should be sepermit.so related debug messages\n\nalso look at that auditd USER_AUTH and note that there is no pam_grantors message\n\nNB. pam_sepermit works fine for other services\n\nSteps to Reproduce:\n1.\n2.\n3.\n\nActual results:\n\n\nExpected results:\n\n\nAdditional info:"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10803054",
+						"comment_count": "1",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2017-09-18 08:13:03 +0000",
+						"thetext": "The auth section of PAM stack is executed only for the password (or keyboard-interactive too?) authentication. For others, the auth section is skipped. Even though it might be confusing at first, this is how it always was and the only way how it makes sense, since for example in public key authentication, you do not have any authentication tokens that could PAM accept in pam_authenticate(). Therefore SSH calls just account and session sections.\n\nDoes it work if you move the pam_sepermit.so to the account section, where it is probably more appropriate?\n\nLet me know if this resolved your issue, or if there is something else that might not be clear."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10803374",
+						"comment_count": "2",
+						"who": {
+							"text": "dac.override"
+						},
+						"bug_when": "2017-09-18 09:50:23 +0000",
+						"thetext": "Thanks. Yes that works:\n\naccount    required     pam_sepermit.so debug\n\nSo i would argue that this is a bug in /etc/pam.d/sshd\n\nBTW, whats up with those \"pam_reauthorize.so\" entries. That module does not exist and some times sshd complains about it:\n\nSep 16 12:50:13 julius sshd[1027]: PAM unable to dlopen(/usr/lib64/security/pam_reauthorize.so): /usr/lib64/security/pam_reauthorize.so: cannot open shared object file: No such file or directory"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10808003",
+						"comment_count": "3",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2017-09-19 09:37:41 +0000",
+						"thetext": "It looks like that. Tomas added this line to /etc/pam.d/sshd based on the bug #471746. But to me it is not clear whether it was intended to block only password logins by pam_sepermit, or it should have come to the account section to block all logins?\n\nAbout pam_reauthorize, it was added based on the bug #1115977 by Stef. It was used in the Fedora Server, in polkit and cockpit to my understanding. But I can not find any more documentation about that now. Nor I can find this .so in the Fedora repositories. Adding Stef if he can confirm if it is still needed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10808037",
+						"comment_count": "4",
+						"who": {
+							"text": "dac.override"
+						},
+						"bug_when": "2017-09-19 09:44:56 +0000",
+						"thetext": "As you are probably aware by now: I would argue that pam_sepermit should apply to all logins.\n\nThe idea is to disallow access to SELinux-restricted login shells when SELinux is not enforcing, regardless of whether the users uses a password or PKI for authentication."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10808054",
+						"comment_count": "5",
+						"who": {
+							"text": "tmraz",
+							"name": "Tomas Mraz"
+						},
+						"bug_when": "2017-09-19 09:56:44 +0000",
+						"thetext": "Originally the pam_sepermit was targeted at the xguest user however I agree that the module makes sense to be called from the account section for sshd. Also by default the sepermit.conf config file is empty so it will not change anything by default, it starts to come into play only when sysadmin populates the sepermit.conf with some users."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10808305",
+						"comment_count": "6",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2017-09-19 11:20:45 +0000",
+						"thetext": "ok, I will move the sepermit to the start of the account section.\n\nAbout the pam_reauthorize, it looks like it is gone from cockpit these days (since cockpit-135, which should be in all the Fedoras these dayse) [1] so we should be able to remove it from OpenSSH too. I will do that with the next update for Fedora 27 or so. Thank you for pointing that out.\n\n[1] https://github.com/cockpit-project/cockpit/commit/f7527bf4"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11022172",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-22 09:05:16 +0000",
+						"thetext": "openssh-7.6p1-2.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2017-96d1995b70"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11025432",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-22 21:42:18 +0000",
+						"thetext": "openssh-7.6p1-2.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2017-96d1995b70"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11083936",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-12-10 05:03:52 +0000",
+						"thetext": "openssh-7.6p1-2.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1499057,
+			"feedback": [
+				{
+					"bug_id": 1499057,
+					"comment": {
+						"id": 700761,
+						"karma": 1,
+						"karma_critpath": 1,
+						"testcase_feedback": [
+							{
+								"comment_id": 700761,
+								"testcase": {
+									"id": 1,
+									"name": "QA:Testcase OpenSSH"
+								},
+								"testcase_id": 1
+							}
+						],
+						"text": "Works for me.",
+						"timestamp": "2017-11-26 11:45:33",
+						"update_id": 102876,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/d8b1494957882b89754f368ee7c9f06058a9becf377dff43ac4edf0e1cf563a1?s=24&d=retro",
+							"email": "vedran@miletic.net",
+							"id": 2878,
+							"name": "vedranm",
+							"openid": "vedranm.id.fedoraproject.org"
+						},
+						"user_id": 2878
+					},
+					"comment_id": 700761
+				}
+			],
+			"title": "WinSCP 5.1x.x erroneously forced to use a weaker key-exchange due to missing patch to OpenSSH compat.c",
+			"bugzilla": {
+				"bug_id": "1499057",
+				"creation_ts": "2017-10-06 00:59:04 +0000",
+				"short_desc": "WinSCP 5.1x.x erroneously forced to use a weaker key-exchange due to missing patch to OpenSSH compat.c",
+				"delta_ts": "2017-12-10 05:04:36 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"bug_file_loc": "https://winscp.net/forum/viewtopic.php?t=25354",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"external_bugs": {
+					"text": "877800",
+					"name": "Debian BTS"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10861415",
+						"comment_count": "0",
+						"who": {
+							"text": "robbyke",
+							"name": "Robby"
+						},
+						"bug_when": "2017-10-06 00:59:04 +0000",
+						"thetext": "Description of problem:\nThe commit/patch at\nhttps://github.com/openssh/openssh-portable/commit/2985d4062ebf4204bbd373456a810d558698f9f5\nwas never picked up and merged, and now that WinSCP has recently released version 5.11(.x), this is causing problems when wanting to use this WinSCP version to connect to an ssh server running on Fedora 25, 26 and 27 that is configured to only accept diffie-hellman-group-exchange-sha256, using this setting in sshd_config:\nKexAlgorithms diffie-hellman-group-exchange-sha256\n\nVersion-Release number of selected component (if applicable):\n7.4p1-4.fc25\n7.5p1-3.fc26\n7.5p1-5.fc27\n\nHow reproducible:\nAlways\n\nSteps to reproduce:\n1. In sshd_config, configure: KexAlgorithms diffie-hellman-group-exchange-sha256\n2. Connect with WinSCP version 5.11.1 to the ssh server\n\nActual results:\nWinSCP cannot connect, and sshd logs the following message:\nfatal: No supported key exchange algorithms found [preauth]\n\nExpected results:\nThis should connect fine with the configured key-exchange algorithm.\n\nAdditional info:\nWith the above setting, the client cannot connect at all and when commenting it out, however, it then causes the ssh server to erroneously force a weaker key-exchange (diffie-hellman-group14-sha1) on the user.\n\nThis was reported to WinSCP itself: https://winscp.net/forum/viewtopic.php?t=25354\nThis was also reported to Debian (added as External Bug)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11022177",
+						"comment_count": "1",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-22 09:06:15 +0000",
+						"thetext": "openssh-7.6p1-2.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2017-96d1995b70"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11025438",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-22 21:42:47 +0000",
+						"thetext": "openssh-7.6p1-2.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2017-96d1995b70"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11083941",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-12-10 05:04:36 +0000",
+						"thetext": "openssh-7.6p1-2.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1504403,
+			"feedback": [
+				{
+					"bug_id": 1504403,
+					"comment": {
+						"id": 700761,
+						"karma": 1,
+						"karma_critpath": 1,
+						"testcase_feedback": [
+							{
+								"comment_id": 700761,
+								"testcase": {
+									"id": 1,
+									"name": "QA:Testcase OpenSSH"
+								},
+								"testcase_id": 1
+							}
+						],
+						"text": "Works for me.",
+						"timestamp": "2017-11-26 11:45:33",
+						"update_id": 102876,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/d8b1494957882b89754f368ee7c9f06058a9becf377dff43ac4edf0e1cf563a1?s=24&d=retro",
+							"email": "vedran@miletic.net",
+							"id": 2878,
+							"name": "vedranm",
+							"openid": "vedranm.id.fedoraproject.org"
+						},
+						"user_id": 2878
+					},
+					"comment_id": 700761,
+					"karma": 1
+				}
+			],
+			"title": "openssh-7.6p1 is available",
+			"bugzilla": {
+				"bug_id": "1504403",
+				"creation_ts": "2017-10-20 00:37:37 +0000",
+				"short_desc": "openssh-7.6p1 is available",
+				"delta_ts": "2017-12-10 05:04:32 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "FutureFeature, Triaged",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10905581",
+						"comment_count": "0",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2017-10-20 00:37:37 +0000",
+						"thetext": "Latest upstream release: 7.6p1\nCurrent version/release in rawhide: 7.5p1-5.fc27\nURL: http://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/\n\nPlease consult the package updates policy before you issue an update to a stable branch: https://fedoraproject.org/wiki/Updates_Policy\n\nMore information about the service that created this bug can be found at: https://fedoraproject.org/wiki/Upstream_release_monitoring\n\nPlease keep in mind that with any upstream change, there may also be packaging changes that need to be made. Specifically, please remember that it is your responsibility to review the new version to ensure that the licensing is still correct and that no non-free or legally problematic items have been added upstream.\n\nBased on the information from anitya:  https://release-monitoring.org/project/2565/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11022176",
+						"comment_count": "1",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-22 09:06:05 +0000",
+						"thetext": "openssh-7.6p1-2.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2017-96d1995b70"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11025437",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-22 21:42:42 +0000",
+						"thetext": "openssh-7.6p1-2.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2017-96d1995b70"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11083940",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-12-10 05:04:32 +0000",
+						"thetext": "openssh-7.6p1-2.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1506631,
+			"feedback": [
+				{
+					"bug_id": 1506631,
+					"comment": {
+						"id": 700761,
+						"karma": 1,
+						"karma_critpath": 1,
+						"testcase_feedback": [
+							{
+								"comment_id": 700761,
+								"testcase": {
+									"id": 1,
+									"name": "QA:Testcase OpenSSH"
+								},
+								"testcase_id": 1
+							}
+						],
+						"text": "Works for me.",
+						"timestamp": "2017-11-26 11:45:33",
+						"update_id": 102876,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/d8b1494957882b89754f368ee7c9f06058a9becf377dff43ac4edf0e1cf563a1?s=24&d=retro",
+							"email": "vedran@miletic.net",
+							"id": 2878,
+							"name": "vedranm",
+							"openid": "vedranm.id.fedoraproject.org"
+						},
+						"user_id": 2878
+					},
+					"comment_id": 700761
+				}
+			],
+			"security": true,
+			"title": "CVE-2017-15906 openssh: Improper write operations in readonly mode allow for zero-length file creation [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1506631",
+				"creation_ts": "2017-10-26 13:16:37 +0000",
+				"short_desc": "CVE-2017-15906 openssh: Improper write operations in readonly mode allow for zero-length file creation [fedora-all]",
+				"delta_ts": "2017-12-12 14:38:13 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1506630",
+						"alias": "CVE-2017-15906",
+						"creation_ts": "2017-10-26 13:16:17 +0000",
+						"short_desc": "CVE-2017-15906 openssh: Improper write operations in readonly mode allow for zero-length file creation",
+						"delta_ts": "2021-06-10 13:22:06 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1506631",
+							"1517226"
+						],
+						"blocked": [
+							{
+								"bug_id": "1498774",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1506633",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2018:0980",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "10926270",
+								"comment_count": "0",
+								"who": {
+									"text": "anemec",
+									"name": "Andrej Nemec"
+								},
+								"bug_when": "2017-10-26 13:16:17 +0000",
+								"thetext": "\nThe process_open function in sftp-server.c in OpenSSH before 7.6 does not properly prevent write operations in readonly mode, which allows attackers to create zero-length files.\n\nUpstream patch:\n\nhttps://github.com/openbsd/src/commit/a6981567e8e215acc1ef690c8dbb30f2d9b00a19\n\nReferences:\n\nhttps://www.openssh.com/txt/release-7.6"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10926274",
+								"comment_count": "1",
+								"who": {
+									"text": "anemec",
+									"name": "Andrej Nemec"
+								},
+								"bug_when": "2017-10-26 13:16:50 +0000",
+								"thetext": "Created openssh tracking bugs for this issue:\n\nAffects: fedora-all [bug 1506631]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10942205",
+								"comment_count": "2",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2017-11-01 05:45:56 +0000",
+								"thetext": "Analysis:\n\nIt seems the maximum impact of this flaw is that the attacker can create an extremely large number of zero length files to fill up a harddisk on a remote server which the attacker has read-only access to."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11467682",
+								"comment_count": "10",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2018-04-10 08:37:25 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2018:0980 https://access.redhat.com/errata/RHSA-2018:0980"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10926271",
+						"comment_count": "0",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-10-26 13:16:37 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10926272",
+						"comment_count": "1",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-10-26 13:16:45 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1506630,1506631\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11022175",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-22 09:05:56 +0000",
+						"thetext": "openssh-7.6p1-2.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2017-96d1995b70"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11023022",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-22 12:27:10 +0000",
+						"thetext": "openssh-7.5p1-4.fc26 has been submitted as an update to Fedora 26. https://bodhi.fedoraproject.org/updates/FEDORA-2017-4862a3bfb1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11023322",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-22 13:08:42 +0000",
+						"thetext": "openssh-7.4p1-5.fc25 has been submitted as an update to Fedora 25. https://bodhi.fedoraproject.org/updates/FEDORA-2017-78f0991378"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11024704",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-22 17:53:43 +0000",
+						"thetext": "openssh-7.4p1-5.fc25 has been pushed to the Fedora 25 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2017-78f0991378"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11025435",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-22 21:42:37 +0000",
+						"thetext": "openssh-7.6p1-2.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2017-96d1995b70"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11031325",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-25 01:33:57 +0000",
+						"thetext": "openssh-7.5p1-4.fc26 has been pushed to the Fedora 26 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2017-4862a3bfb1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11040992",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-28 16:25:00 +0000",
+						"thetext": "openssh-7.5p1-4.fc26 has been pushed to the Fedora 26 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11083939",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-12-10 05:04:28 +0000",
+						"thetext": "openssh-7.6p1-2.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11097586",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-12-12 14:38:13 +0000",
+						"thetext": "openssh-7.4p1-5.fc25 has been pushed to the Fedora 25 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "openssh-7.6p1-2.fc27",
+			"release_id": 17,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "openssh-askpass-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "openssh-ldap",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "openssh-cavs",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "pam_ssh_agent_auth",
+						"version": "0.10.3",
+						"release": "3.2.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "openssh-askpass",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "openssh",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "openssh-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "openssh-keycat-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "openssh-server-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "openssh-cavs-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "openssh-clients-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "openssh-debugsource",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "pam_ssh_agent_auth-debuginfo",
+						"version": "0.10.3",
+						"release": "3.2.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "openssh-ldap-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "openssh-keycat",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "openssh-server",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "openssh-clients",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "openssh-keycat-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "openssh-askpass",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "pam_ssh_agent_auth",
+						"version": "0.10.3",
+						"release": "3.2.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "pam_ssh_agent_auth-debuginfo",
+						"version": "0.10.3",
+						"release": "3.2.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "openssh-cavs",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "openssh",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "openssh-keycat",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "openssh-debugsource",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "openssh-cavs-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "openssh-server",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "openssh-ldap-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "openssh-clients-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "openssh-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "openssh-server-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "openssh-ldap",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "openssh-askpass-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "openssh-clients",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "pam_ssh_agent_auth",
+						"version": "0.10.3",
+						"release": "3.2.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "openssh-debugsource",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "openssh-server",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "openssh-askpass",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "openssh-cavs",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "openssh-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "openssh-ldap",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "openssh-keycat-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "openssh-clients",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "openssh-server-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "openssh-askpass-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "openssh-ldap-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "openssh-keycat",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "pam_ssh_agent_auth-debuginfo",
+						"version": "0.10.3",
+						"release": "3.2.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "openssh",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "openssh-clients-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "openssh-cavs-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "i686"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "openssh-keycat-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "openssh-clients",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "pam_ssh_agent_auth-debuginfo",
+						"version": "0.10.3",
+						"release": "3.2.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "openssh-debugsource",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "openssh-cavs",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "openssh-ldap-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "openssh-server-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "openssh",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "openssh-askpass-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "pam_ssh_agent_auth",
+						"version": "0.10.3",
+						"release": "3.2.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "openssh-server",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "openssh-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "openssh-cavs-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "openssh-askpass",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "openssh-clients-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "openssh-keycat",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "openssh-ldap",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "openssh-askpass",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "pam_ssh_agent_auth",
+						"version": "0.10.3",
+						"release": "3.2.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "openssh-askpass-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "openssh-keycat-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "openssh-server",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "openssh-keycat",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "openssh-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "openssh-clients-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "openssh-cavs",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "pam_ssh_agent_auth-debuginfo",
+						"version": "0.10.3",
+						"release": "3.2.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "openssh-ldap",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "openssh-debugsource",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "openssh-cavs-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "openssh",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "openssh-clients",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "openssh-ldap-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "openssh-server-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "openssh",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "openssh-clients",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "openssh-server",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "openssh-ldap",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "openssh-keycat",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "openssh-askpass",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "openssh-cavs",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "pam_ssh_agent_auth",
+						"version": "0.10.3",
+						"release": "3.2.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "openssh-debugsource",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "openssh-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "openssh-clients-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "openssh-server-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "openssh-ldap-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "openssh-keycat-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "openssh-askpass-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "openssh-cavs-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "pam_ssh_agent_auth-debuginfo",
+						"version": "0.10.3",
+						"release": "3.2.fc27",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "openssh",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "openssh-server-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "openssh-ldap-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "openssh-cavs-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "openssh",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "openssh-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "openssh-keycat-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "openssh-keycat",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "openssh-askpass-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "pam_ssh_agent_auth-debuginfo",
+						"version": "0.10.3",
+						"release": "3.2.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "openssh-clients-debuginfo",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "openssh-askpass",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "openssh-ldap",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "openssh-cavs",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "openssh-debugsource",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "pam_ssh_agent_auth",
+						"version": "0.10.3",
+						"release": "3.2.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "openssh-clients",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "openssh-server",
+						"version": "7.6p1",
+						"release": "2.fc27",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 698962,
+			"text": "This update has been submitted for testing by jjelen. ",
+			"timestamp": "2017-11-22 09:05:10",
+			"update_id": 102876,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 699343,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2017-11-22 21:43:59",
+			"update_id": 102876,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 699544,
+			"karma": 1,
+			"text": "Works great!  LGTM!  =)",
+			"timestamp": "2017-11-23 10:48:40",
+			"update_id": 102876,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/307632fc7188138f052f244345e779451863879298f2e6d73023011a05b1f1f6?s=24&d=retro",
+				"email": "besser82.fpo@gmail.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "designteam"
+					},
+					{
+						"name": "shogun-ca"
+					},
+					{
+						"name": "alt-gtk-de-sig"
+					}
+				],
+				"id": 206,
+				"name": "besser82",
+				"openid": "besser82.id.fedoraproject.org"
+			},
+			"user_id": 206
+		},
+		{
+			"id": 699769,
+			"karma": 1,
+			"text": "No regressions.",
+			"timestamp": "2017-11-23 22:46:36",
+			"update_id": 102876,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/1a8afd83231ef5ba905344806ba95b39f2abd77b399b0ee217ec3e6fa30a4825?s=24&d=retro",
+				"email": "bojan@rexursive.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 198,
+				"name": "bojan",
+				"openid": "bojan.id.fedoraproject.org"
+			},
+			"user_id": 198
+		},
+		{
+			"id": 699842,
+			"karma": 1,
+			"text": "All good",
+			"timestamp": "2017-11-24 11:25:24",
+			"update_id": 102876,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/f80c96a3994c2479fc4815a146079bf93ade230fe3f3993213d2b8222cafc73d?s=24&d=retro",
+				"email": "fzatlouk@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "qa-tools-sig"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "qa-admin"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "sysadmin-qa"
+					},
+					{
+						"name": "sysadmin"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "advocates"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "qa"
+					},
+					{
+						"name": "ipausers"
+					}
+				],
+				"id": 2240,
+				"name": "frantisekz",
+				"openid": "frantisekz.id.fedoraproject.org"
+			},
+			"user_id": 2240
+		},
+		{
+			"id": 699894,
+			"karma": 1,
+			"text": "no regressions, pass both test cases :P",
+			"timestamp": "2017-11-24 13:29:53",
+			"update_id": 102876,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/488f7a5d9a260def77840edd369876fc0a4b93aca2a9dab50060ed640ff271fd?s=24&d=retro",
+				"email": "hotgalan@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "dotnet-team"
+					},
+					{
+						"name": "marketing"
+					},
+					{
+						"name": "mindshare"
+					},
+					{
+						"name": "council"
+					},
+					{
+						"name": "diversity-team"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "neuro-sig"
+					},
+					{
+						"name": "commops"
+					},
+					{
+						"name": "ask-fedora"
+					},
+					{
+						"name": "fedora-join"
+					},
+					{
+						"name": "wikiedit"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "summer-coding"
+					},
+					{
+						"name": "fedora-mx"
+					},
+					{
+						"name": "advocates"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "ipausers"
+					}
+				],
+				"id": 3278,
+				"name": "bt0dotninja",
+				"openid": "bt0dotninja.id.fedoraproject.org"
+			},
+			"user_id": 3278
+		},
+		{
+			"id": 700594,
+			"karma": 1,
+			"text": "works for me",
+			"timestamp": "2017-11-25 18:41:34",
+			"update_id": 102876,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/2087ddb84fdf1774c00fc96323f629621c9046b99eee2aa497044f598f3979d4?s=24&d=retro",
+				"email": "yuwatana@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					}
+				],
+				"id": 125,
+				"name": "yuwata",
+				"openid": "yuwata.id.fedoraproject.org"
+			},
+			"user_id": 125
+		},
+		{
+			"bug_feedback": [
+				{
+					"bug": {
+						"bug_id": 1492313,
+						"title": "sshd doesnt use pam auth stack anymore"
+					},
+					"bug_id": 1492313,
+					"comment_id": 700761
+				},
+				{
+					"bug": {
+						"bug_id": 1477636,
+						"title": "Fedora - OpenSSH: Add enablement for openssl-ibmca and openssl-ibmpkcs11 (security/crypto)"
+					},
+					"bug_id": 1477636,
+					"comment_id": 700761
+				},
+				{
+					"bug": {
+						"bug_id": 1199363,
+						"title": "ssh login with credential forwarding gives me a subsidiary ccache; can't kinit to another user"
+					},
+					"bug_id": 1199363,
+					"comment_id": 700761
+				},
+				{
+					"bug": {
+						"bug_id": 1506631,
+						"security": true,
+						"title": "CVE-2017-15906 openssh: Improper write operations in readonly mode allow for zero-length file creation [fedora-all]"
+					},
+					"bug_id": 1506631,
+					"comment_id": 700761
+				},
+				{
+					"bug": {
+						"bug_id": 1504403,
+						"title": "openssh-7.6p1 is available"
+					},
+					"bug_id": 1504403,
+					"comment_id": 700761,
+					"karma": 1
+				},
+				{
+					"bug": {
+						"bug_id": 1499057,
+						"title": "WinSCP 5.1x.x erroneously forced to use a weaker key-exchange due to missing patch to OpenSSH compat.c"
+					},
+					"bug_id": 1499057,
+					"comment_id": 700761
+				}
+			],
+			"id": 700761,
+			"karma": 1,
+			"karma_critpath": 1,
+			"testcase_feedback": [
+				{
+					"comment_id": 700761,
+					"testcase": {
+						"id": 1,
+						"name": "QA:Testcase OpenSSH"
+					},
+					"testcase_id": 1
+				}
+			],
+			"text": "Works for me.",
+			"timestamp": "2017-11-26 11:45:33",
+			"update_id": 102876,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/d8b1494957882b89754f368ee7c9f06058a9becf377dff43ac4edf0e1cf563a1?s=24&d=retro",
+				"email": "vedran@miletic.net",
+				"id": 2878,
+				"name": "vedranm",
+				"openid": "vedranm.id.fedoraproject.org"
+			},
+			"user_id": 2878
+		},
+		{
+			"id": 701322,
+			"karma": 1,
+			"text": "works for me",
+			"timestamp": "2017-11-27 21:31:07",
+			"update_id": 102876,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/054959f4db5d1ad8f22cae1ba73e26ebfd3edd6690c21cc7ee00608f294ff22a?s=24&d=retro",
+				"email": "cserpentis@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 739,
+				"name": "cserpentis",
+				"openid": "cserpentis.id.fedoraproject.org"
+			},
+			"user_id": 739
+		},
+		{
+			"id": 702831,
+			"karma": 1,
+			"text": "Works for me",
+			"timestamp": "2017-11-29 13:22:20",
+			"update_id": 102876,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/a1855f056f8eeebdc9a0629053c14c3141b3f28f4224e3b8bd6e196f2a4340aa?s=24&d=retro",
+				"email": "gtwilliams@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 3146,
+				"name": "gtwilliams",
+				"openid": "gtwilliams.id.fedoraproject.org"
+			},
+			"user_id": 3146
+		},
+		{
+			"id": 702847,
+			"karma": 1,
+			"text": "Works",
+			"timestamp": "2017-11-29 13:35:57",
+			"update_id": 102876,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/cd6029d8d81108a2a69c38a2373d2a185c0e86224b8ee4971cd77bb6cdad7a20?s=24&d=retro",
+				"email": "walter.pete@yandex.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 491,
+				"name": "pwalter",
+				"openid": "pwalter.id.fedoraproject.org"
+			},
+			"user_id": 491
+		},
+		{
+			"id": 702913,
+			"karma": 1,
+			"text": "wfm",
+			"timestamp": "2017-11-29 15:35:24",
+			"update_id": 102876,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/ced44b7024a4437dadab0d8ea1de245f3a8e1c633525ce29a5c1ad0fbbf05282?s=24&d=retro",
+				"email": "nick@bebout.net",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "sysadmin-main"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "wikiedit"
+					},
+					{
+						"name": "l10n"
+					},
+					{
+						"name": "sysadmin-logs"
+					},
+					{
+						"name": "gitfedora-web"
+					},
+					{
+						"name": "fi-apprentice"
+					},
+					{
+						"name": "admins"
+					},
+					{
+						"name": "magazine"
+					},
+					{
+						"name": "sysadmin-badges"
+					},
+					{
+						"name": "security-team"
+					},
+					{
+						"name": "sysadmin-noc"
+					},
+					{
+						"name": "sysadmin"
+					},
+					{
+						"name": "fedora-hams"
+					},
+					{
+						"name": "accounts"
+					},
+					{
+						"name": "sysadmin-web"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "videos"
+					},
+					{
+						"name": "irc-support-operators"
+					},
+					{
+						"name": "cvsl10n"
+					},
+					{
+						"name": "cvsfedora"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "ambassadors-emeriti"
+					},
+					{
+						"name": "sysadmin-veteran"
+					},
+					{
+						"name": "wikiadmin"
+					},
+					{
+						"name": "designteam"
+					},
+					{
+						"name": "famsco"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "qa"
+					},
+					{
+						"name": "mindshare"
+					},
+					{
+						"name": "sysadmin-devel"
+					},
+					{
+						"name": "respins-sig"
+					},
+					{
+						"name": "web"
+					},
+					{
+						"name": "3d-printing-sig"
+					},
+					{
+						"name": "freemedia"
+					},
+					{
+						"name": "campusambassadors"
+					},
+					{
+						"name": "hosted-content"
+					},
+					{
+						"name": "aws-infra"
+					},
+					{
+						"name": "certbot-sig"
+					},
+					{
+						"name": "sysadmin-dns"
+					},
+					{
+						"name": "sysadmin-hosted"
+					},
+					{
+						"name": "sysadmin-tools"
+					},
+					{
+						"name": "marketing"
+					},
+					{
+						"name": "sysadmin-test"
+					},
+					{
+						"name": "advocates"
+					},
+					{
+						"name": "letsencrypt"
+					},
+					{
+						"name": "sysadmin-paste"
+					},
+					{
+						"name": "commops"
+					},
+					{
+						"name": "dotnet-sig"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "sysadmin-keys"
+					},
+					{
+						"name": "communishift"
+					},
+					{
+						"name": "altvideos"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "aws-master"
+					},
+					{
+						"name": "fedora-socialmedia"
+					},
+					{
+						"name": "gitlab-fedora-admin"
+					},
+					{
+						"name": "clamav"
+					}
+				],
+				"id": 107,
+				"name": "nb",
+				"openid": "nb.id.fedoraproject.org"
+			},
+			"user_id": 107
+		},
+		{
+			"id": 702914,
+			"text": "This update has been submitted for batched by bodhi. ",
+			"timestamp": "2017-11-29 15:35:28",
+			"update_id": 102876,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 704940,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2017-12-05 03:04:45",
+			"update_id": 102876,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 706710,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2017-12-10 05:09:03",
+			"update_id": 102876,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2017-12-10 03:53:15",
+	"date_stable": "2017-12-10 03:53:15",
+	"date_submitted": "2017-11-22 09:05:10",
+	"date_testing": "2017-11-22 20:44:53",
+	"karma": 10,
+	"meets_testing_requirements": true,
+	"notes": "This update provides new upstream release OpenSSH 7.6 with several bug fixes and new features, including CVE-2017-15906, compatibility with WinSCP, improvement for PAM stack, enablement for s390x sandbox, new GSSAPI key exchange methods and improvement of handling kerberos tickets.",
+	"pushed": true,
+	"release": {
+		"branch": "f27",
+		"candidate_tag": "f27-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f27",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 27",
+		"mail_template": "fedora_errata_template",
+		"name": "F27",
+		"override_tag": "f27-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f27-signing-pending",
+		"pending_stable_tag": "f27-updates-pending",
+		"pending_testing_tag": "f27-updates-testing-pending",
+		"stable_tag": "f27-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f27-updates-testing",
+		"version": "27"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "unspecified",
+	"stable_karma": 10,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_cases": [
+		{
+			"id": 1,
+			"name": "QA:Testcase OpenSSH"
+		}
+	],
+	"title": "openssh-7.6p1-2.fc27",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2017-96d1995b70",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2017-96d1995b70",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/b885175d1313368d5ded514001843e2ebf7f1e43dede997a42d74b3653aada8c?s=24&d=retro",
+		"email": "jjelen@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "crypto-team"
+			}
+		],
+		"id": 1178,
+		"name": "jjelen",
+		"openid": "jjelen.id.fedoraproject.org"
+	},
+	"version_hash": "470a1e6e17b281982cef637cc16852f9a7fad845"
+}

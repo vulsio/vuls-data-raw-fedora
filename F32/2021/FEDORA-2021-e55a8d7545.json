@@ -1,0 +1,2136 @@
+{
+	"alias": "FEDORA-2021-e55a8d7545",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 1908653,
+			"feedback": [
+				{
+					"bug_id": 1908653,
+					"comment": {
+						"id": 1883274,
+						"karma": -1,
+						"testcase_feedback": [
+							{
+								"comment_id": 1883274,
+								"testcase": {
+									"id": 142,
+									"name": "QA:Testcase 389 ds base setup testcase"
+								},
+								"testcase_id": 142
+							},
+							{
+								"comment_id": 1883274,
+								"testcase": {
+									"id": 143,
+									"name": "QA:Testcase Create normalized dn cache testcase"
+								},
+								"testcase_id": 143
+							},
+							{
+								"comment_id": 1883274,
+								"testcase": {
+									"id": 144,
+									"name": "QA:Testcase Create normalized dn cache testcase2"
+								},
+								"testcase_id": 144
+							}
+						],
+						"text": "As you can see from the Automated Tests tab, this appears to break server deployment. Logs at https://openqa.fedoraproject.org/tests/774965/file/role_deploy_domain_controller-var_log.tar.gz .",
+						"timestamp": "2021-02-11 23:43:10",
+						"update_id": 283103,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/0e6c01c694d74afb0cbb65bc1be91950111503818caf492c0938dc2b97c48c41?s=24&d=retro",
+							"email": "awilliam@redhat.com",
+							"groups": [
+								{
+									"name": "proventesters"
+								},
+								{
+									"name": "provenpackager"
+								},
+								{
+									"name": "packager"
+								},
+								{
+									"name": "qa-tools-sig"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "news"
+								},
+								{
+									"name": "gittriage"
+								},
+								{
+									"name": "sysadmin"
+								},
+								{
+									"name": "gitspin-kickstarts"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "gitgeneric-release"
+								},
+								{
+									"name": "yak_farmers"
+								},
+								{
+									"name": "triagers"
+								},
+								{
+									"name": "qa"
+								},
+								{
+									"name": "sysadmin-qa"
+								},
+								{
+									"name": "fedorabugs"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "gitmkinitrd"
+								},
+								{
+									"name": "qa-admin"
+								},
+								{
+									"name": "sysadmin-main"
+								},
+								{
+									"name": "gitfedora-project-schedule"
+								},
+								{
+									"name": "program-management"
+								},
+								{
+									"name": "common-issues-triage"
+								},
+								{
+									"name": "change-wranglers"
+								}
+							],
+							"id": 302,
+							"name": "adamwill",
+							"openid": "adamwill.id.fedoraproject.org"
+						},
+						"user_id": 302
+					},
+					"comment_id": 1883274
+				},
+				{
+					"bug_id": 1908653,
+					"comment": {
+						"id": 1883763,
+						"testcase_feedback": [
+							{
+								"comment_id": 1883763,
+								"testcase": {
+									"id": 142,
+									"name": "QA:Testcase 389 ds base setup testcase"
+								},
+								"testcase_id": 142
+							},
+							{
+								"comment_id": 1883763,
+								"testcase": {
+									"id": 143,
+									"name": "QA:Testcase Create normalized dn cache testcase"
+								},
+								"testcase_id": 143
+							},
+							{
+								"comment_id": 1883763,
+								"testcase": {
+									"id": 144,
+									"name": "QA:Testcase Create normalized dn cache testcase2"
+								},
+								"testcase_id": 144
+							}
+						],
+						"text": "To me this looks like Dogtag never created its Replication Manager bind users before actual use. Looking at the pki-core code, I don't see how it ever worked in past -- the bind user for replicationdb is never created in IPA workflow. 389-ds does return error 49, e.g. entry does not exist:\n\n```\n[11/Feb/2021:12:53:00.424286315 -0500] conn=102 op=0 RESULT err=49 tag=97 nentries=0 wtime=0.000126054 optime=0.000467697 etime=0.000592407 - Entry does not exist\n```\nbut while in past it was treated as 'NO_SUCH_USER' in Dogtag, this update causes Dogtag to treat it as 'INVALID_PASSWORD':\n\n```\n2021-02-11 12:53:00 [main] INFO: CMSEngine: initializing password store for replicationdb\n2021-02-11 12:53:00 [main] INFO: CMSEngine: verifying connection to ipa001.test.openqa.fedoraproject.org:389 as cn=Replication Manager masterAgreement1-ipa001.test.openqa.fedoraproject.org-pki-tomcat,cn=config\n2021-02-11 12:53:00 [main] INFO: CMSEngine: verifying connection to ipa001.test.openqa.fedoraproject.org:389 as cn=Replication Manager masterAgreement1-ipa001.test.openqa.fedoraproject.org-pki-tomcat,cn=config\n2021-02-11 12:53:01 [main] INFO: CMSEngine: verifying connection to ipa001.test.openqa.fedoraproject.org:389 as cn=Replication Manager masterAgreement1-ipa001.test.openqa.fedoraproject.org-pki-tomcat,cn=config\n2021-02-11 12:53:01 [main] SEVERE: CMSEngine: password test execution failed: 2\n```\n\nCompare this to my F33 setup with 389-ds-base-1.4.4.11-1.fc33.x86_64 and pki-ca-10.11.0-0.1.alpha1.20210204232642UTC.23c3d215.fc33.noarch:\n\n```\n2021-01-26 07:02:26 [main] INFO: CMSEngine: initializing password store for replicationdb\n2021-01-26 07:02:26 [main] INFO: CMSEngine: verifying connection to master.ipa.test:389 as cn=Replication Manager masterAgreement1-master.ipa.test-pki-tomcat,cn=config\n2021-01-26 07:02:27 [main] WARNING: CMSEngine: password test execution failed for replicationdb with NO_SUCH_USER. This may not be a latest instance. Ignoring ..\n```\nsadly, I don't have older 389-ds access logs on that instance to verify what 389-ds did return.",
+						"timestamp": "2021-02-12 07:46:47",
+						"update_id": 283103,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/4c1558b281e35884af7130053458974b37461e46548b7e4dfea6bb085cd9d123?s=24&d=retro",
+							"email": "abokovoy@redhat.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								},
+								{
+									"name": "bind-dyndb-ldap"
+								},
+								{
+									"name": "gitfreeipa"
+								},
+								{
+									"name": "gitslapi-nis"
+								},
+								{
+									"name": "gitfreeipa-docs"
+								}
+							],
+							"id": 1242,
+							"name": "abbra",
+							"openid": "abbra.id.fedoraproject.org"
+						},
+						"user_id": 1242
+					},
+					"comment_id": 1883763
+				},
+				{
+					"bug_id": 1908653,
+					"comment": {
+						"id": 1883277,
+						"testcase_feedback": [
+							{
+								"comment_id": 1883277,
+								"testcase": {
+									"id": 142,
+									"name": "QA:Testcase 389 ds base setup testcase"
+								},
+								"testcase_id": 142
+							},
+							{
+								"comment_id": 1883277,
+								"testcase": {
+									"id": 143,
+									"name": "QA:Testcase Create normalized dn cache testcase"
+								},
+								"testcase_id": 143
+							},
+							{
+								"comment_id": 1883277,
+								"testcase": {
+									"id": 144,
+									"name": "QA:Testcase Create normalized dn cache testcase2"
+								},
+								"testcase_id": 144
+							}
+						],
+						"text": "...or at https://openqa.fedoraproject.org/tests/774968/file/role_deploy_domain_controller-var_log.tar.gz (possibly a bit cleaner as no replica stuff is involved).",
+						"timestamp": "2021-02-11 23:49:13",
+						"update_id": 283103,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/0e6c01c694d74afb0cbb65bc1be91950111503818caf492c0938dc2b97c48c41?s=24&d=retro",
+							"email": "awilliam@redhat.com",
+							"groups": [
+								{
+									"name": "proventesters"
+								},
+								{
+									"name": "provenpackager"
+								},
+								{
+									"name": "packager"
+								},
+								{
+									"name": "qa-tools-sig"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "news"
+								},
+								{
+									"name": "gittriage"
+								},
+								{
+									"name": "sysadmin"
+								},
+								{
+									"name": "gitspin-kickstarts"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "gitgeneric-release"
+								},
+								{
+									"name": "yak_farmers"
+								},
+								{
+									"name": "triagers"
+								},
+								{
+									"name": "qa"
+								},
+								{
+									"name": "sysadmin-qa"
+								},
+								{
+									"name": "fedorabugs"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "gitmkinitrd"
+								},
+								{
+									"name": "qa-admin"
+								},
+								{
+									"name": "sysadmin-main"
+								},
+								{
+									"name": "gitfedora-project-schedule"
+								},
+								{
+									"name": "program-management"
+								},
+								{
+									"name": "common-issues-triage"
+								},
+								{
+									"name": "change-wranglers"
+								}
+							],
+							"id": 302,
+							"name": "adamwill",
+							"openid": "adamwill.id.fedoraproject.org"
+						},
+						"user_id": 302
+					},
+					"comment_id": 1883277
+				},
+				{
+					"bug_id": 1908653,
+					"comment": {
+						"id": 1884552,
+						"testcase_feedback": [
+							{
+								"comment_id": 1884552,
+								"testcase": {
+									"id": 142,
+									"name": "QA:Testcase 389 ds base setup testcase"
+								},
+								"testcase_id": 142
+							},
+							{
+								"comment_id": 1884552,
+								"testcase": {
+									"id": 143,
+									"name": "QA:Testcase Create normalized dn cache testcase"
+								},
+								"testcase_id": 143
+							},
+							{
+								"comment_id": 1884552,
+								"testcase": {
+									"id": 144,
+									"name": "QA:Testcase Create normalized dn cache testcase2"
+								},
+								"testcase_id": 144
+							}
+						],
+						"text": "Here's the log tarball from the same test passing on a different F32 update:\nhttps://openqa.fedoraproject.org/tests/775367/file/role_deploy_domain_controller_check-var_log.tar.gz",
+						"timestamp": "2021-02-12 20:49:05",
+						"update_id": 283103,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/0e6c01c694d74afb0cbb65bc1be91950111503818caf492c0938dc2b97c48c41?s=24&d=retro",
+							"email": "awilliam@redhat.com",
+							"groups": [
+								{
+									"name": "proventesters"
+								},
+								{
+									"name": "provenpackager"
+								},
+								{
+									"name": "packager"
+								},
+								{
+									"name": "qa-tools-sig"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "news"
+								},
+								{
+									"name": "gittriage"
+								},
+								{
+									"name": "sysadmin"
+								},
+								{
+									"name": "gitspin-kickstarts"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "gitgeneric-release"
+								},
+								{
+									"name": "yak_farmers"
+								},
+								{
+									"name": "triagers"
+								},
+								{
+									"name": "qa"
+								},
+								{
+									"name": "sysadmin-qa"
+								},
+								{
+									"name": "fedorabugs"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "gitmkinitrd"
+								},
+								{
+									"name": "qa-admin"
+								},
+								{
+									"name": "sysadmin-main"
+								},
+								{
+									"name": "gitfedora-project-schedule"
+								},
+								{
+									"name": "program-management"
+								},
+								{
+									"name": "common-issues-triage"
+								},
+								{
+									"name": "change-wranglers"
+								}
+							],
+							"id": 302,
+							"name": "adamwill",
+							"openid": "adamwill.id.fedoraproject.org"
+						},
+						"user_id": 302
+					},
+					"comment_id": 1884552
+				},
+				{
+					"bug_id": 1908653,
+					"comment": {
+						"id": 1911824,
+						"karma": 1,
+						"testcase_feedback": [
+							{
+								"comment_id": 1911824,
+								"testcase": {
+									"id": 142,
+									"name": "QA:Testcase 389 ds base setup testcase"
+								},
+								"testcase_id": 142
+							},
+							{
+								"comment_id": 1911824,
+								"testcase": {
+									"id": 143,
+									"name": "QA:Testcase Create normalized dn cache testcase"
+								},
+								"testcase_id": 143
+							},
+							{
+								"comment_id": 1911824,
+								"testcase": {
+									"id": 144,
+									"name": "QA:Testcase Create normalized dn cache testcase2"
+								},
+								"testcase_id": 144
+							}
+						],
+						"text": "This passes all openQA tests, seems to also fix https://bugzilla.redhat.com/show_bug.cgi?id=1929940 though it's not currently marked.",
+						"timestamp": "2021-03-01 23:23:38",
+						"update_id": 287423,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/0e6c01c694d74afb0cbb65bc1be91950111503818caf492c0938dc2b97c48c41?s=24&d=retro",
+							"email": "awilliam@redhat.com",
+							"groups": [
+								{
+									"name": "proventesters"
+								},
+								{
+									"name": "provenpackager"
+								},
+								{
+									"name": "packager"
+								},
+								{
+									"name": "qa-tools-sig"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "news"
+								},
+								{
+									"name": "gittriage"
+								},
+								{
+									"name": "sysadmin"
+								},
+								{
+									"name": "gitspin-kickstarts"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "gitgeneric-release"
+								},
+								{
+									"name": "yak_farmers"
+								},
+								{
+									"name": "triagers"
+								},
+								{
+									"name": "qa"
+								},
+								{
+									"name": "sysadmin-qa"
+								},
+								{
+									"name": "fedorabugs"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "gitmkinitrd"
+								},
+								{
+									"name": "qa-admin"
+								},
+								{
+									"name": "sysadmin-main"
+								},
+								{
+									"name": "gitfedora-project-schedule"
+								},
+								{
+									"name": "program-management"
+								},
+								{
+									"name": "common-issues-triage"
+								},
+								{
+									"name": "change-wranglers"
+								}
+							],
+							"id": 302,
+							"name": "adamwill",
+							"openid": "adamwill.id.fedoraproject.org"
+						},
+						"user_id": 302
+					},
+					"comment_id": 1911824,
+					"karma": 1
+				},
+				{
+					"bug_id": 1908653,
+					"comment": {
+						"id": 1915670,
+						"karma": 1,
+						"testcase_feedback": [
+							{
+								"comment_id": 1915670,
+								"testcase": {
+									"id": 142,
+									"name": "QA:Testcase 389 ds base setup testcase"
+								},
+								"testcase_id": 142
+							},
+							{
+								"comment_id": 1915670,
+								"testcase": {
+									"id": 143,
+									"name": "QA:Testcase Create normalized dn cache testcase"
+								},
+								"testcase_id": 143
+							},
+							{
+								"comment_id": 1915670,
+								"testcase": {
+									"id": 144,
+									"name": "QA:Testcase Create normalized dn cache testcase2"
+								},
+								"testcase_id": 144
+							}
+						],
+						"text": "Installation of ipa server with CA/KRA/DNS manually tested with the combined updates, works well.",
+						"timestamp": "2021-03-02 20:59:41",
+						"update_id": 287426,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/1cbca7b0643a627efade96d828034c6e658415d5bb72e57fc57e295efae8b689?s=24&d=retro",
+							"email": "frenaud@redhat.com",
+							"groups": [
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "gitfreeipa"
+								}
+							],
+							"id": 3071,
+							"name": "frenaud",
+							"openid": "frenaud.id.fedoraproject.org"
+						},
+						"user_id": 3071
+					},
+					"comment_id": 1915670
+				},
+				{
+					"bug_id": 1908653,
+					"comment": {
+						"id": 1912388,
+						"karma": 1,
+						"testcase_feedback": [
+							{
+								"comment_id": 1912388,
+								"testcase": {
+									"id": 142,
+									"name": "QA:Testcase 389 ds base setup testcase"
+								},
+								"testcase_id": 142
+							},
+							{
+								"comment_id": 1912388,
+								"testcase": {
+									"id": 143,
+									"name": "QA:Testcase Create normalized dn cache testcase"
+								},
+								"testcase_id": 143
+							},
+							{
+								"comment_id": 1912388,
+								"testcase": {
+									"id": 144,
+									"name": "QA:Testcase Create normalized dn cache testcase2"
+								},
+								"testcase_id": 144
+							}
+						],
+						"text": "Tested in freeipa upstream CI: https://github.com/freeipa-pr-ci2/freeipa/pull/745\nThe failures are known issues, the combined updates are working well",
+						"timestamp": "2021-03-02 12:41:41",
+						"update_id": 287425,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/1cbca7b0643a627efade96d828034c6e658415d5bb72e57fc57e295efae8b689?s=24&d=retro",
+							"email": "frenaud@redhat.com",
+							"groups": [
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "gitfreeipa"
+								}
+							],
+							"id": 3071,
+							"name": "frenaud",
+							"openid": "frenaud.id.fedoraproject.org"
+						},
+						"user_id": 3071
+					},
+					"comment_id": 1912388,
+					"karma": 1
+				},
+				{
+					"bug_id": 1908653,
+					"comment": {
+						"id": 1917687,
+						"karma": 1,
+						"testcase_feedback": [
+							{
+								"comment_id": 1917687,
+								"karma": 1,
+								"testcase": {
+									"id": 142,
+									"name": "QA:Testcase 389 ds base setup testcase"
+								},
+								"testcase_id": 142
+							},
+							{
+								"comment_id": 1917687,
+								"karma": 1,
+								"testcase": {
+									"id": 143,
+									"name": "QA:Testcase Create normalized dn cache testcase"
+								},
+								"testcase_id": 143
+							},
+							{
+								"comment_id": 1917687,
+								"karma": 1,
+								"testcase": {
+									"id": 144,
+									"name": "QA:Testcase Create normalized dn cache testcase2"
+								},
+								"testcase_id": 144
+							}
+						],
+						"timestamp": "2021-03-03 11:12:02",
+						"update_id": 287425,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/7f1a3b318d42ebac9066a418b4ef95f2b8b49c38a0321c4f9a8bcf2cb7637b06?s=24&d=retro",
+							"email": "fdc@fcami.net",
+							"groups": [
+								{
+									"name": "proventesters"
+								},
+								{
+									"name": "packager"
+								}
+							],
+							"id": 685,
+							"name": "fcami",
+							"openid": "fcami.id.fedoraproject.org"
+						},
+						"user_id": 685
+					},
+					"comment_id": 1917687,
+					"karma": 1
+				},
+				{
+					"bug_id": 1908653,
+					"comment": {
+						"id": 1917688,
+						"karma": 1,
+						"testcase_feedback": [
+							{
+								"comment_id": 1917688,
+								"testcase": {
+									"id": 142,
+									"name": "QA:Testcase 389 ds base setup testcase"
+								},
+								"testcase_id": 142
+							},
+							{
+								"comment_id": 1917688,
+								"testcase": {
+									"id": 143,
+									"name": "QA:Testcase Create normalized dn cache testcase"
+								},
+								"testcase_id": 143
+							},
+							{
+								"comment_id": 1917688,
+								"testcase": {
+									"id": 144,
+									"name": "QA:Testcase Create normalized dn cache testcase2"
+								},
+								"testcase_id": 144
+							}
+						],
+						"timestamp": "2021-03-03 11:12:22",
+						"update_id": 287423,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/7f1a3b318d42ebac9066a418b4ef95f2b8b49c38a0321c4f9a8bcf2cb7637b06?s=24&d=retro",
+							"email": "fdc@fcami.net",
+							"groups": [
+								{
+									"name": "proventesters"
+								},
+								{
+									"name": "packager"
+								}
+							],
+							"id": 685,
+							"name": "fcami",
+							"openid": "fcami.id.fedoraproject.org"
+						},
+						"user_id": 685
+					},
+					"comment_id": 1917688,
+					"karma": 1
+				},
+				{
+					"bug_id": 1908653,
+					"comment": {
+						"id": 1920563,
+						"karma": 1,
+						"testcase_feedback": [
+							{
+								"comment_id": 1920563,
+								"karma": 1,
+								"testcase": {
+									"id": 142,
+									"name": "QA:Testcase 389 ds base setup testcase"
+								},
+								"testcase_id": 142
+							},
+							{
+								"comment_id": 1920563,
+								"karma": 1,
+								"testcase": {
+									"id": 143,
+									"name": "QA:Testcase Create normalized dn cache testcase"
+								},
+								"testcase_id": 143
+							},
+							{
+								"comment_id": 1920563,
+								"karma": 1,
+								"testcase": {
+									"id": 144,
+									"name": "QA:Testcase Create normalized dn cache testcase2"
+								},
+								"testcase_id": 144
+							}
+						],
+						"timestamp": "2021-03-04 09:31:31",
+						"update_id": 287426,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/7f1a3b318d42ebac9066a418b4ef95f2b8b49c38a0321c4f9a8bcf2cb7637b06?s=24&d=retro",
+							"email": "fdc@fcami.net",
+							"groups": [
+								{
+									"name": "proventesters"
+								},
+								{
+									"name": "packager"
+								}
+							],
+							"id": 685,
+							"name": "fcami",
+							"openid": "fcami.id.fedoraproject.org"
+						},
+						"user_id": 685
+					},
+					"comment_id": 1920563,
+					"karma": 1
+				}
+			],
+			"security": true,
+			"title": "CVE-2020-35518 389-ds-base: information disclosure during the binding of a DN [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1908653",
+				"creation_ts": "2020-12-17 09:31:15 +0000",
+				"short_desc": "CVE-2020-35518 389-ds-base: information disclosure during the binding of a DN [fedora-all]",
+				"delta_ts": "2021-03-04 19:56:17 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1905565",
+						"alias": "CVE-2020-35518",
+						"creation_ts": "2020-12-08 14:57:18 +0000",
+						"short_desc": "CVE-2020-35518 389-ds-base: information disclosure during the binding of a DN",
+						"delta_ts": "2022-04-17 21:04:19 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1904991",
+							"1908653",
+							"1908705",
+							"1910941",
+							"1918135",
+							"1923217",
+							"1930272",
+							"1931182",
+							"1946632"
+						],
+						"blocked": [
+							{
+								"bug_id": "1905546",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1939997",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2021:2323",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "14581865",
+								"comment_count": "0",
+								"who": {
+									"text": "cbuissar",
+									"name": "Cedric Buissart"
+								},
+								"bug_when": "2020-12-08 14:57:18 +0000",
+								"thetext": "When binding against a DN during authentication, the reply from 389-ds-base will be different whether the DN exists or not. This can be used by an unauthenticated attacker to check the existence of an entry in the LDAP database."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14611844",
+								"comment_count": "4",
+								"who": {
+									"text": "cbuissar",
+									"name": "Cedric Buissart"
+								},
+								"bug_when": "2020-12-17 09:31:34 +0000",
+								"thetext": "Created 389-ds-base tracking bugs for this issue:\n\nAffects: fedora-all [bug 1908653]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14700473",
+								"comment_count": "12",
+								"who": {
+									"text": "carnil",
+									"name": "Salvatore Bonaccorso"
+								},
+								"bug_when": "2021-01-21 21:59:42 +0000",
+								"thetext": "Hi Cedric,\n\nis there by chance an upstrema reference for this? Was this already fixed?\n\nRegards,\nSalvatore"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14700513",
+								"comment_count": "13",
+								"who": {
+									"text": "mreynolds"
+								},
+								"bug_when": "2021-01-21 22:15:29 +0000",
+								"thetext": "(In reply to Salvatore Bonaccorso from comment #12)\n> Hi Cedric,\n> \n> is there by chance an upstrema reference for this? Was this already fixed?\n> \n> Regards,\n> Salvatore\n\nThis was fixed upstream via: \n\nhttps://github.com/389ds/389-ds-base/issues/4480"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14701181",
+								"comment_count": "14",
+								"who": {
+									"text": "carnil",
+									"name": "Salvatore Bonaccorso"
+								},
+								"bug_when": "2021-01-22 05:23:25 +0000",
+								"thetext": "Hi\n\n(In reply to mreynolds from comment #13)\n> (In reply to Salvatore Bonaccorso from comment #12)\n> > Hi Cedric,\n> > \n> > is there by chance an upstrema reference for this? Was this already fixed?\n> > \n> > Regards,\n> > Salvatore\n> \n> This was fixed upstream via: \n> \n> https://github.com/389ds/389-ds-base/issues/4480\n\nThank you.\n\nRegards,\nSalvatore"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14701484",
+								"comment_count": "15",
+								"who": {
+									"text": "cbuissar",
+									"name": "Cedric Buissart"
+								},
+								"bug_when": "2021-01-22 08:14:54 +0000",
+								"thetext": "I am not sure this fix is sufficient.\nLast time I checked, I could still deduce the existence of an object without authenticating."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14701519",
+								"comment_count": "16",
+								"who": {
+									"text": "tbordaz",
+									"name": "thierry bordaz"
+								},
+								"bug_when": "2021-01-22 08:25:36 +0000",
+								"thetext": "(In reply to Cedric Buissart from comment #15)\n> I am not sure this fix is sufficient.\n> Last time I checked, I could still deduce the existence of an object without\n> authenticating.\n\nHi Cedric, I think it is. I answered one of the concern https://bugzilla.redhat.com/show_bug.cgi?id=1904991#c12. Is it the concern your were thinking of when saying the fix is not sufficient ?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14790463",
+								"comment_count": "17",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2021-02-16 18:30:27 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Directory Server 11.1 for RHEL 8\n\nVia RHSA-2021:0599 https://access.redhat.com/errata/RHSA-2021:0599"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14819268",
+								"comment_count": "18",
+								"who": {
+									"text": "cbuissar",
+									"name": "Cedric Buissart"
+								},
+								"bug_when": "2021-02-24 17:17:11 +0000",
+								"thetext": "List of upstream fixes :\nhttps://github.com/389ds/389-ds-base/commit/cc0f69283abc082488824702dae485b8eae938bc\nhttps://github.com/389ds/389-ds-base/commit/b6aae4d8e7c8a6ddd21646f94fef1bf7f22c3f32"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14938627",
+								"comment_count": "19",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2021-04-06 14:06:24 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2021:1086 https://access.redhat.com/errata/RHSA-2021:1086"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14939399",
+								"comment_count": "20",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2021-04-06 17:35:19 +0000",
+								"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2020-35518"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14975182",
+								"comment_count": "22",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2021-04-19 09:54:28 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Directory Server 11.2 for RHEL 8\n\nVia RHSA-2021:1243 https://access.redhat.com/errata/RHSA-2021:1243"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14976520",
+								"comment_count": "23",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2021-04-19 15:49:49 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8.2 Extended Update Support\n\nVia RHSA-2021:1258 https://access.redhat.com/errata/RHSA-2021:1258"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15162652",
+								"comment_count": "24",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2021-06-08 22:35:49 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2021:2323 https://access.redhat.com/errata/RHSA-2021:2323"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "14611842",
+						"comment_count": "0",
+						"who": {
+							"text": "cbuissar",
+							"name": "Cedric Buissart"
+						},
+						"bug_when": "2020-12-17 09:31:15 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14611843",
+						"comment_count": "1",
+						"who": {
+							"text": "cbuissar",
+							"name": "Cedric Buissart"
+						},
+						"bug_when": "2020-12-17 09:31:20 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1905565,1908653\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14773134",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-02-11 17:09:47 +0000",
+						"thetext": "FEDORA-2021-e55a8d7545 has been submitted as an update to Fedora 32. https://bodhi.fedoraproject.org/updates/FEDORA-2021-e55a8d7545"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14825170",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-02-26 20:47:03 +0000",
+						"thetext": "FEDORA-2021-c95b836c2f has been pushed to the Fedora 35 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14825189",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-02-26 21:03:16 +0000",
+						"thetext": "FEDORA-2021-263244c071 has been submitted as an update to Fedora 34. https://bodhi.fedoraproject.org/updates/FEDORA-2021-263244c071"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14825193",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-02-26 21:18:12 +0000",
+						"thetext": "FEDORA-2021-7458e2d835 has been submitted as an update to Fedora 33. https://bodhi.fedoraproject.org/updates/FEDORA-2021-7458e2d835"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14825196",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-02-26 21:21:22 +0000",
+						"thetext": "FEDORA-2021-dc1a4934a5 has been submitted as an update to Fedora 32. https://bodhi.fedoraproject.org/updates/FEDORA-2021-dc1a4934a5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14825284",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-02-27 00:00:31 +0000",
+						"thetext": "FEDORA-2021-7458e2d835 has been pushed to the Fedora 33 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2021-7458e2d835`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2021-7458e2d835\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14825294",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-02-27 00:18:42 +0000",
+						"thetext": "FEDORA-2021-dc1a4934a5 has been pushed to the Fedora 32 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2021-dc1a4934a5`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2021-dc1a4934a5\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14838917",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-03-03 21:06:11 +0000",
+						"thetext": "FEDORA-2021-263244c071 has been pushed to the Fedora 34 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14839324",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-03-03 23:15:30 +0000",
+						"thetext": "FEDORA-2021-7458e2d835 has been pushed to the Fedora 33 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14843061",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-03-04 19:56:17 +0000",
+						"thetext": "FEDORA-2021-dc1a4934a5 has been pushed to the Fedora 32 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "389-ds-base-1.4.3.19-1.fc32",
+			"release_id": 35,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "389-ds-base-devel",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "389-ds-base-snmp-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "389-ds-base-snmp",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "389-ds-base-libs",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "389-ds-base-libs-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "389-ds-base-legacy-tools-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "389-ds-base-debugsource",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "389-ds-base-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "389-ds-base-legacy-tools",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "389-ds-base",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "389-ds-base-libs",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "389-ds-base-snmp-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "389-ds-base",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "389-ds-base-snmp",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "389-ds-base-legacy-tools",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "389-ds-base-libs-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "389-ds-base-devel",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "389-ds-base-legacy-tools-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "389-ds-base-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "389-ds-base-debugsource",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "armv7hl"
+					}
+				],
+				"noarch": [
+					{
+						"name": "cockpit-389-ds",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "noarch"
+					},
+					{
+						"name": "python3-lib389",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "noarch"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "389-ds-base-libs",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "389-ds-base-snmp",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "389-ds-base-devel",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "389-ds-base-legacy-tools",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "389-ds-base-debugsource",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "389-ds-base",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "389-ds-base-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "389-ds-base-libs-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "389-ds-base-legacy-tools-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "389-ds-base-snmp-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "389-ds-base-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "389-ds-base-devel",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "389-ds-base-snmp-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "389-ds-base-legacy-tools",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "389-ds-base-snmp",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "389-ds-base-libs",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "389-ds-base",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "389-ds-base-libs-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "389-ds-base-legacy-tools-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "389-ds-base-debugsource",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "389-ds-base",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "389-ds-base-legacy-tools",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "389-ds-base-libs",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "389-ds-base-snmp",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "389-ds-base-devel",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "389-ds-base",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "389-ds-base-debugsource",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "389-ds-base-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "389-ds-base-libs-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "389-ds-base-legacy-tools-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "389-ds-base-snmp-debuginfo",
+						"version": "1.4.3.19",
+						"release": "1.fc32",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 1882534,
+			"text": "This update has been submitted for testing by tbordaz. ",
+			"timestamp": "2021-02-11 17:09:45",
+			"update_id": 283103,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1882535,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2021-02-11 17:09:45",
+			"update_id": 283103,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1882536,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2021-02-11 17:09:45",
+			"update_id": 283103,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1882558,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2021-02-11 17:14:56",
+			"update_id": 283103,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"bug_feedback": [
+				{
+					"bug": {
+						"bug_id": 1908653,
+						"security": true,
+						"title": "CVE-2020-35518 389-ds-base: information disclosure during the binding of a DN [fedora-all]"
+					},
+					"bug_id": 1908653,
+					"comment_id": 1883274
+				}
+			],
+			"id": 1883274,
+			"karma": -1,
+			"testcase_feedback": [
+				{
+					"comment_id": 1883274,
+					"testcase": {
+						"id": 142,
+						"name": "QA:Testcase 389 ds base setup testcase"
+					},
+					"testcase_id": 142
+				},
+				{
+					"comment_id": 1883274,
+					"testcase": {
+						"id": 143,
+						"name": "QA:Testcase Create normalized dn cache testcase"
+					},
+					"testcase_id": 143
+				},
+				{
+					"comment_id": 1883274,
+					"testcase": {
+						"id": 144,
+						"name": "QA:Testcase Create normalized dn cache testcase2"
+					},
+					"testcase_id": 144
+				}
+			],
+			"text": "As you can see from the Automated Tests tab, this appears to break server deployment. Logs at https://openqa.fedoraproject.org/tests/774965/file/role_deploy_domain_controller-var_log.tar.gz .",
+			"timestamp": "2021-02-11 23:43:10",
+			"update_id": 283103,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/0e6c01c694d74afb0cbb65bc1be91950111503818caf492c0938dc2b97c48c41?s=24&d=retro",
+				"email": "awilliam@redhat.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "qa-tools-sig"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "news"
+					},
+					{
+						"name": "gittriage"
+					},
+					{
+						"name": "sysadmin"
+					},
+					{
+						"name": "gitspin-kickstarts"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "gitgeneric-release"
+					},
+					{
+						"name": "yak_farmers"
+					},
+					{
+						"name": "triagers"
+					},
+					{
+						"name": "qa"
+					},
+					{
+						"name": "sysadmin-qa"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "gitmkinitrd"
+					},
+					{
+						"name": "qa-admin"
+					},
+					{
+						"name": "sysadmin-main"
+					},
+					{
+						"name": "gitfedora-project-schedule"
+					},
+					{
+						"name": "program-management"
+					},
+					{
+						"name": "common-issues-triage"
+					},
+					{
+						"name": "change-wranglers"
+					}
+				],
+				"id": 302,
+				"name": "adamwill",
+				"openid": "adamwill.id.fedoraproject.org"
+			},
+			"user_id": 302
+		},
+		{
+			"id": 1883275,
+			"text": "This update has been obsoleted.",
+			"timestamp": "2021-02-11 23:43:10",
+			"update_id": 283103,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"bug_feedback": [
+				{
+					"bug": {
+						"bug_id": 1908653,
+						"security": true,
+						"title": "CVE-2020-35518 389-ds-base: information disclosure during the binding of a DN [fedora-all]"
+					},
+					"bug_id": 1908653,
+					"comment_id": 1883277
+				}
+			],
+			"id": 1883277,
+			"testcase_feedback": [
+				{
+					"comment_id": 1883277,
+					"testcase": {
+						"id": 142,
+						"name": "QA:Testcase 389 ds base setup testcase"
+					},
+					"testcase_id": 142
+				},
+				{
+					"comment_id": 1883277,
+					"testcase": {
+						"id": 143,
+						"name": "QA:Testcase Create normalized dn cache testcase"
+					},
+					"testcase_id": 143
+				},
+				{
+					"comment_id": 1883277,
+					"testcase": {
+						"id": 144,
+						"name": "QA:Testcase Create normalized dn cache testcase2"
+					},
+					"testcase_id": 144
+				}
+			],
+			"text": "...or at https://openqa.fedoraproject.org/tests/774968/file/role_deploy_domain_controller-var_log.tar.gz (possibly a bit cleaner as no replica stuff is involved).",
+			"timestamp": "2021-02-11 23:49:13",
+			"update_id": 283103,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/0e6c01c694d74afb0cbb65bc1be91950111503818caf492c0938dc2b97c48c41?s=24&d=retro",
+				"email": "awilliam@redhat.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "qa-tools-sig"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "news"
+					},
+					{
+						"name": "gittriage"
+					},
+					{
+						"name": "sysadmin"
+					},
+					{
+						"name": "gitspin-kickstarts"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "gitgeneric-release"
+					},
+					{
+						"name": "yak_farmers"
+					},
+					{
+						"name": "triagers"
+					},
+					{
+						"name": "qa"
+					},
+					{
+						"name": "sysadmin-qa"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "gitmkinitrd"
+					},
+					{
+						"name": "qa-admin"
+					},
+					{
+						"name": "sysadmin-main"
+					},
+					{
+						"name": "gitfedora-project-schedule"
+					},
+					{
+						"name": "program-management"
+					},
+					{
+						"name": "common-issues-triage"
+					},
+					{
+						"name": "change-wranglers"
+					}
+				],
+				"id": 302,
+				"name": "adamwill",
+				"openid": "adamwill.id.fedoraproject.org"
+			},
+			"user_id": 302
+		},
+		{
+			"bug_feedback": [
+				{
+					"bug": {
+						"bug_id": 1908653,
+						"security": true,
+						"title": "CVE-2020-35518 389-ds-base: information disclosure during the binding of a DN [fedora-all]"
+					},
+					"bug_id": 1908653,
+					"comment_id": 1883763
+				}
+			],
+			"id": 1883763,
+			"testcase_feedback": [
+				{
+					"comment_id": 1883763,
+					"testcase": {
+						"id": 142,
+						"name": "QA:Testcase 389 ds base setup testcase"
+					},
+					"testcase_id": 142
+				},
+				{
+					"comment_id": 1883763,
+					"testcase": {
+						"id": 143,
+						"name": "QA:Testcase Create normalized dn cache testcase"
+					},
+					"testcase_id": 143
+				},
+				{
+					"comment_id": 1883763,
+					"testcase": {
+						"id": 144,
+						"name": "QA:Testcase Create normalized dn cache testcase2"
+					},
+					"testcase_id": 144
+				}
+			],
+			"text": "To me this looks like Dogtag never created its Replication Manager bind users before actual use. Looking at the pki-core code, I don't see how it ever worked in past -- the bind user for replicationdb is never created in IPA workflow. 389-ds does return error 49, e.g. entry does not exist:\n\n```\n[11/Feb/2021:12:53:00.424286315 -0500] conn=102 op=0 RESULT err=49 tag=97 nentries=0 wtime=0.000126054 optime=0.000467697 etime=0.000592407 - Entry does not exist\n```\nbut while in past it was treated as 'NO_SUCH_USER' in Dogtag, this update causes Dogtag to treat it as 'INVALID_PASSWORD':\n\n```\n2021-02-11 12:53:00 [main] INFO: CMSEngine: initializing password store for replicationdb\n2021-02-11 12:53:00 [main] INFO: CMSEngine: verifying connection to ipa001.test.openqa.fedoraproject.org:389 as cn=Replication Manager masterAgreement1-ipa001.test.openqa.fedoraproject.org-pki-tomcat,cn=config\n2021-02-11 12:53:00 [main] INFO: CMSEngine: verifying connection to ipa001.test.openqa.fedoraproject.org:389 as cn=Replication Manager masterAgreement1-ipa001.test.openqa.fedoraproject.org-pki-tomcat,cn=config\n2021-02-11 12:53:01 [main] INFO: CMSEngine: verifying connection to ipa001.test.openqa.fedoraproject.org:389 as cn=Replication Manager masterAgreement1-ipa001.test.openqa.fedoraproject.org-pki-tomcat,cn=config\n2021-02-11 12:53:01 [main] SEVERE: CMSEngine: password test execution failed: 2\n```\n\nCompare this to my F33 setup with 389-ds-base-1.4.4.11-1.fc33.x86_64 and pki-ca-10.11.0-0.1.alpha1.20210204232642UTC.23c3d215.fc33.noarch:\n\n```\n2021-01-26 07:02:26 [main] INFO: CMSEngine: initializing password store for replicationdb\n2021-01-26 07:02:26 [main] INFO: CMSEngine: verifying connection to master.ipa.test:389 as cn=Replication Manager masterAgreement1-master.ipa.test-pki-tomcat,cn=config\n2021-01-26 07:02:27 [main] WARNING: CMSEngine: password test execution failed for replicationdb with NO_SUCH_USER. This may not be a latest instance. Ignoring ..\n```\nsadly, I don't have older 389-ds access logs on that instance to verify what 389-ds did return.",
+			"timestamp": "2021-02-12 07:46:47",
+			"update_id": 283103,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/4c1558b281e35884af7130053458974b37461e46548b7e4dfea6bb085cd9d123?s=24&d=retro",
+				"email": "abokovoy@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "bind-dyndb-ldap"
+					},
+					{
+						"name": "gitfreeipa"
+					},
+					{
+						"name": "gitslapi-nis"
+					},
+					{
+						"name": "gitfreeipa-docs"
+					}
+				],
+				"id": 1242,
+				"name": "abbra",
+				"openid": "abbra.id.fedoraproject.org"
+			},
+			"user_id": 1242
+		},
+		{
+			"bug_feedback": [
+				{
+					"bug": {
+						"bug_id": 1908653,
+						"security": true,
+						"title": "CVE-2020-35518 389-ds-base: information disclosure during the binding of a DN [fedora-all]"
+					},
+					"bug_id": 1908653,
+					"comment_id": 1884552
+				}
+			],
+			"id": 1884552,
+			"testcase_feedback": [
+				{
+					"comment_id": 1884552,
+					"testcase": {
+						"id": 142,
+						"name": "QA:Testcase 389 ds base setup testcase"
+					},
+					"testcase_id": 142
+				},
+				{
+					"comment_id": 1884552,
+					"testcase": {
+						"id": 143,
+						"name": "QA:Testcase Create normalized dn cache testcase"
+					},
+					"testcase_id": 143
+				},
+				{
+					"comment_id": 1884552,
+					"testcase": {
+						"id": 144,
+						"name": "QA:Testcase Create normalized dn cache testcase2"
+					},
+					"testcase_id": 144
+				}
+			],
+			"text": "Here's the log tarball from the same test passing on a different F32 update:\nhttps://openqa.fedoraproject.org/tests/775367/file/role_deploy_domain_controller_check-var_log.tar.gz",
+			"timestamp": "2021-02-12 20:49:05",
+			"update_id": 283103,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/0e6c01c694d74afb0cbb65bc1be91950111503818caf492c0938dc2b97c48c41?s=24&d=retro",
+				"email": "awilliam@redhat.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "qa-tools-sig"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "news"
+					},
+					{
+						"name": "gittriage"
+					},
+					{
+						"name": "sysadmin"
+					},
+					{
+						"name": "gitspin-kickstarts"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "gitgeneric-release"
+					},
+					{
+						"name": "yak_farmers"
+					},
+					{
+						"name": "triagers"
+					},
+					{
+						"name": "qa"
+					},
+					{
+						"name": "sysadmin-qa"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "gitmkinitrd"
+					},
+					{
+						"name": "qa-admin"
+					},
+					{
+						"name": "sysadmin-main"
+					},
+					{
+						"name": "gitfedora-project-schedule"
+					},
+					{
+						"name": "program-management"
+					},
+					{
+						"name": "common-issues-triage"
+					},
+					{
+						"name": "change-wranglers"
+					}
+				],
+				"id": 302,
+				"name": "adamwill",
+				"openid": "adamwill.id.fedoraproject.org"
+			},
+			"user_id": 302
+		}
+	],
+	"content_type": "rpm",
+	"date_submitted": "2021-02-11 17:09:44",
+	"karma": -1,
+	"notes": "bump version to 1.4.3.19",
+	"release": {
+		"branch": "f32",
+		"candidate_tag": "f32-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f32",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 32",
+		"mail_template": "fedora_errata_template",
+		"name": "F32",
+		"override_tag": "f32-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f32-signing-pending",
+		"pending_stable_tag": "f32-updates-pending",
+		"pending_testing_tag": "f32-updates-testing-pending",
+		"stable_tag": "f32-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f32-updates-testing",
+		"version": "32"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "medium",
+	"stable_days": 7,
+	"stable_karma": 1,
+	"status": "obsolete",
+	"suggest": "unspecified",
+	"test_cases": [
+		{
+			"id": 142,
+			"name": "QA:Testcase 389 ds base setup testcase"
+		},
+		{
+			"id": 143,
+			"name": "QA:Testcase Create normalized dn cache testcase"
+		},
+		{
+			"id": 144,
+			"name": "QA:Testcase Create normalized dn cache testcase2"
+		}
+	],
+	"test_gating_status": "ignored",
+	"title": "389-ds-base-1.4.3.19-1.fc32",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2021-e55a8d7545",
+	"unstable_karma": -1,
+	"updateid": "FEDORA-2021-e55a8d7545",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/b1a0b11719f74c38b39763c723141cb39d56385fa9382abe74e840a0bc54df5a?s=24&d=retro",
+		"email": "tbordaz@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "git389"
+			},
+			{
+				"name": "git389test"
+			}
+		],
+		"id": 2494,
+		"name": "tbordaz",
+		"openid": "tbordaz.id.fedoraproject.org"
+	},
+	"version_hash": "2f6bd57ef09f4ae95314187d24cd6971476f6d19"
+}

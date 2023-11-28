@@ -1,0 +1,768 @@
+{
+	"alias": "FEDORA-2021-186bca5b58",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 1667163,
+			"feedback": [
+				{
+					"bug_id": 1667163,
+					"comment": {
+						"id": 1986406,
+						"text": "correction works on f33 host.",
+						"timestamp": "2021-04-15 10:06:45",
+						"update_id": 298951,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/0370059444264382bc933229856f19d6efaf7ba67711bd3942224859fcbd15c4?s=24&d=retro",
+							"email": "normand@linux.vnet.ibm.com",
+							"groups": [
+								{
+									"name": "packager"
+								}
+							],
+							"id": 986,
+							"name": "michelmno",
+							"openid": "michelmno.id.fedoraproject.org"
+						},
+						"user_id": 986
+					},
+					"comment_id": 1986406,
+					"karma": 1
+				}
+			],
+			"title": "perl segfault in openqa worker process isotovideo (seems to be related to opencv threading)",
+			"bugzilla": {
+				"bug_id": "1667163",
+				"creation_ts": "2019-01-17 15:26:36 +0000",
+				"short_desc": "perl segfault in openqa worker process isotovideo (seems to be related to opencv threading)",
+				"delta_ts": "2021-04-24 20:11:28 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "low",
+				"bug_severity": "medium",
+				"external_bugs": {
+					"text": "os-autoinst/os-autoinst/pull/1640",
+					"name": "Github"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "12375401",
+						"comment_count": "0",
+						"who": {
+							"text": "normand",
+							"name": "Michel Normand"
+						},
+						"bug_when": "2019-01-17 15:26:36 +0000",
+						"thetext": "Created attachment 1521300\nperl_segfault.txt\n\nmany perl segfault in openqa-worker ppc64le fc29\n\nSeems to appear since update to fc29.\n\nWe have this problem on two openqa fc29 machines in our lab.\n\nIs there the same problem for ppc64le workers used by https://openqa.stg.fedoraproject.org/\n\nThe last available backtrace extracted from attached investigation file:\n===\n$coredumpctl info | tee /tmp/coredumpinfo.log\n           PID: 8096 (/usr/bin/isotov)\n           UID: 990 (_openqa-worker)\n           GID: 989 (_openqa-worker)                                                           \n        Signal: 11 (SEGV)                                                                      \n     Timestamp: Thu 2019-01-17 14:35:14 CET (1h 12min ago)                                     \n  Command Line: /usr/bin/isotovideo: backend\n    Executable: /usr/bin/perl                                                                  \n Control Group: /openqa.slice/openqa-worker.slice/openqa-worker@3.service                      \n          Unit: openqa-worker@3.service\n         Slice: openqa-worker.slice                                                            \n       Boot ID: b40fba0570024e7b9010791bb51b498f                                               \n    Machine ID: 085bb1198e8d4ff996c6a02a1d71366e                                               \n      Hostname: abanc.test.toulouse-stg.fr.ibm.com                                             \n       Storage: /var/lib/systemd/coredump/core.\\x2fusr\\x2fbin\\x2fisotov.990.b40fba0570024e7b9010791bb51b498f.8096.1547732114000000.lz4 (inaccessible)\n       Message: Process 8096 (/usr/bin/isotov) of user 990 dumped core.                        \n                \n                Stack trace of thread 8209:\n                #0  0x00007fff95c4420c Perl_csighandler (libperl.so.5.28)                      \n                #1  0x00007fff95f004d8 __kernel_sigtramp_rt64 (linux-vdso64.so.1)              \n                #2  0x00007fff957bd4d0 syscall (libc.so.6)                                     \n                #3  0x00007fff86abd074 _ZN3tbb8internal3rml14private_worker3runEv (libtbb.so.2)\n                #4  0x00007fff86abd1c8 _ZN3tbb8internal3rml14private_worker14thread_routineEPv (libtbb.so.2)    \n                #5  0x00007fff95af8e14 start_thread (libpthread.so.0)\n                #6  0x00007fff957c6b08 __clone (libc.so.6)\n==="
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12376435",
+						"comment_count": "1",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2019-01-17 22:02:01 +0000",
+						"thetext": "Yeah, I'm seeing some like this. At a quick glance they all look to be the same, and there have been 20 since 2019-01-14, exactly 5 per day."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12376437",
+						"comment_count": "2",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2019-01-17 22:02:24 +0000",
+						"thetext": "Sorry, to clarify, that was a reply to \"Is there the same problem for ppc64le workers used by https://openqa.stg.fedoraproject.org/\""
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12377447",
+						"comment_count": "3",
+						"who": {
+							"text": "ppisar",
+							"name": "Petr Pisar"
+						},
+						"bug_when": "2019-01-18 09:11:48 +0000",
+						"thetext": "There were many changes between Fedora 28 and 29. E.g. a completely new Perl, glibc, and kernel. Good luck with finding the offending change.\n\nThe only details in this bug report are that you use TBB from a thread that calls a syscall and that triggers some signal caught by a perl process. That's terribly insufficient.\n\nWe had threads-tbb in Fedora, but we removed it because it was unreliable (read broken, bug #1099397). This one seems like you spawning a thread  using TBB from some library linked into the perl process without diverting thread-specific signals inherited from a thread that is running the perl interpreter and having registered signal handlers from perl."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13216950",
+						"comment_count": "4",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2019-09-30 23:17:40 +0000",
+						"thetext": "This is still happening all the way up to F30. I'm attaching a backtrace with all the debuginfo installed, though it still doesn't mean a lot to me."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13216954",
+						"comment_count": "5",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2019-09-30 23:18:49 +0000",
+						"thetext": "Created attachment 1621302\nbetter backtrace of the crash as of F30"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13216965",
+						"comment_count": "6",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2019-09-30 23:25:15 +0000",
+						"thetext": "so, dug into this a *bit* more at least. the tbb culprit here is likely opencv. os-autoinst uses opencv via a perl library it ships called 'tinycv':\n\nhttps://github.com/os-autoinst/os-autoinst/tree/master/ppmclibs\n\nand opencv requires libtbb, so that's where the tbb dep comes in. So is the problem here that os-autoinst and/or tinycv should be doing some special handling of signals?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13217719",
+						"comment_count": "7",
+						"who": {
+							"text": "ppisar",
+							"name": "Petr Pisar"
+						},
+						"bug_when": "2019-10-01 09:04:10 +0000",
+						"thetext": "Just a generic remark:\n\nWhen sending a process-level signal to a multithread process it is not deterministic which thread receives the signal. E.g. if one thread sets a signal handler, and the other one just defaults to process termination, and the signal is delivers to the other thread, you are doomed. You must coordinate signal masks among all the threads to prevent from accidental killing. Or Linux provides a way of sending a signal to a specific thread, but that's not supported by the Perl interpreter. Also don't confuse Perl thread signals as implemented in \"threads\" Perl module and POSIX signals. Perl thread signals so not use POSIX signals at all."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13219106",
+						"comment_count": "8",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2019-10-01 15:37:09 +0000",
+						"thetext": "Looking at it some more, this happens on x86_64 and aarch64 too, at least I'm seeing lots of crashes of isotovideo with tracebacks that run through libtbb on both. Also, upstream is apparently aware of it and even tried to fix it, but they also still see it:\n\nhttps://github.com/os-autoinst/os-autoinst/pull/1032"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13219230",
+						"comment_count": "9",
+						"who": {
+							"text": "loganjerry",
+							"name": "Jerry James"
+						},
+						"bug_when": "2019-10-01 16:20:31 +0000",
+						"thetext": "In the gdb.txt file you attached, Adam, I see this:\n\nThread 1 (Thread 0x7fff9f4bf180 (LWP 5975)):\n#0  0x00007fffaf0120ac in Perl_csighandler (sig=<optimized out>, sip=<optimized out>, uap=<optimized out>) at mg.c:1510\n        my_perl = 0x0\n\nSo I believe your theory is correct.  TBB spawns a bunch of threads, none of which call PERL_SET_CONTEXT.  Signal handlers are registered that assume that they are running inside a perl interpreter.  When a signal arrives, the handler tries to invoke perl functionality and dies horribly because it is actually running in a perl-unaware TBB thread.\n\nWe can't (and shouldn't) make the TBB threads call PERL_SET_CONTEXT, so the only solution is to ensure that the TBB threads cannot receive the signals in question.  Upstream attempted to do that with the pull request you noted.  I will try to carve out some time to see if I can tell why that didn't work."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13223647",
+						"comment_count": "10",
+						"who": {
+							"text": "loganjerry",
+							"name": "Jerry James"
+						},
+						"bug_when": "2019-10-02 21:53:22 +0000",
+						"thetext": "Can someone who knows how to reproduce the problem give step by step instructions?  I know nothing about either os-autoinst or openqa, so some hand holding may be necessary.\n\nIf that is too hard, can someone who is able to reproduce the problem install tbb-debuginfo and opencv-core-debuginfo, then contrive to run os-autoinst under gdb control with a breakpoint on tbb::internal::rml::private_server::adjust_job_count_estimate?  I would like to see a backtrace from when that is first invoked."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13223663",
+						"comment_count": "11",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2019-10-02 22:05:11 +0000",
+						"thetext": "Oh, one thing that's noted upstream but not here - it appears this crash happens when the process is exiting anyway, so it isn't actually causing any terrible problems. I was reminded of it while debugging problems with the new ppc64le worker hosts, but after looking into it more, the problems we're having there aren't to do with this crash.\n\nReproducing is a bit tricky because you need to have enough of an openQA setup deployed to run and complete a test, which isn't really trivial. I'll try and do what you requested if I get a bit of time, Jerry."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13223681",
+						"comment_count": "12",
+						"who": {
+							"text": "loganjerry",
+							"name": "Jerry James"
+						},
+						"bug_when": "2019-10-02 22:21:16 +0000",
+						"thetext": "Okay, wait, don't bother.  If it is when the process is exiting, then I'm looking at the wrong end of things, and that backtrace won't help.  Let me dig through the source code a little first."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13223685",
+						"comment_count": "13",
+						"who": {
+							"text": "loganjerry",
+							"name": "Jerry James"
+						},
+						"bug_when": "2019-10-02 22:24:16 +0000",
+						"thetext": "No, I take that back.  That backtrace still might be useful.  Uh ... how did I change the priority and severity?  I just added a comment.  I'll put them back again.  Sorry!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13864008",
+						"comment_count": "14",
+						"who": {
+							"text": "bcotton",
+							"name": "Ben Cotton"
+						},
+						"bug_when": "2020-04-30 21:01:18 +0000",
+						"thetext": "This message is a reminder that Fedora 30 is nearing its end of life.\nFedora will stop maintaining and issuing updates for Fedora 30 on 2020-05-26.\nIt is Fedora's policy to close all bug reports from releases that are no longer\nmaintained. At that time this bug will be closed as EOL if it remains open with a\nFedora 'version' of '30'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora 30 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora, you are encouraged  change the 'version' to a later Fedora \nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14960397",
+						"comment_count": "15",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2021-04-13 15:27:23 +0000",
+						"thetext": "Upstream has just pointed me to:\nhttps://github.com/os-autoinst/os-autoinst/pull/1640\nwhich may actually fix this! I'll try and do a build with it soon."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14961259",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-04-13 19:50:04 +0000",
+						"thetext": "FEDORA-2021-aa39748257 has been submitted as an update to Fedora 34. https://bodhi.fedoraproject.org/updates/FEDORA-2021-aa39748257"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14961260",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-04-13 19:50:04 +0000",
+						"thetext": "FEDORA-2021-186bca5b58 has been submitted as an update to Fedora 33. https://bodhi.fedoraproject.org/updates/FEDORA-2021-186bca5b58"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14961460",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-04-13 20:48:07 +0000",
+						"thetext": "FEDORA-2021-aa39748257 has been pushed to the Fedora 34 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2021-aa39748257`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2021-aa39748257\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14964317",
+						"comment_count": "19",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-04-14 15:14:30 +0000",
+						"thetext": "FEDORA-2021-186bca5b58 has been pushed to the Fedora 33 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2021-186bca5b58`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2021-186bca5b58\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14986588",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-04-21 21:41:16 +0000",
+						"thetext": "FEDORA-2021-186bca5b58 has been pushed to the Fedora 33 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14994600",
+						"comment_count": "21",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-04-24 20:11:28 +0000",
+						"thetext": "FEDORA-2021-aa39748257 has been pushed to the Fedora 34 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "os-autoinst-4.6-35.20210326git24ec8f9.fc33",
+			"release_id": 40,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "os-autoinst-debuginfo",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "aarch64"
+					},
+					{
+						"name": "os-autoinst-openvswitch",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "aarch64"
+					},
+					{
+						"name": "os-autoinst-debugsource",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "aarch64"
+					},
+					{
+						"name": "os-autoinst-devel",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "aarch64"
+					},
+					{
+						"name": "os-autoinst",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "os-autoinst-debuginfo",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "os-autoinst-devel",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "os-autoinst-openvswitch",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "os-autoinst",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "os-autoinst-debugsource",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "os-autoinst-debugsource",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "i686"
+					},
+					{
+						"name": "os-autoinst-openvswitch",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "i686"
+					},
+					{
+						"name": "os-autoinst-debuginfo",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "i686"
+					},
+					{
+						"name": "os-autoinst",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "i686"
+					},
+					{
+						"name": "os-autoinst-devel",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "os-autoinst-devel",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "os-autoinst-debuginfo",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "os-autoinst-debugsource",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "os-autoinst-openvswitch",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "os-autoinst",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "os-autoinst-debuginfo",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "s390x"
+					},
+					{
+						"name": "os-autoinst",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "s390x"
+					},
+					{
+						"name": "os-autoinst-debugsource",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "s390x"
+					},
+					{
+						"name": "os-autoinst-openvswitch",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "s390x"
+					},
+					{
+						"name": "os-autoinst-devel",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "os-autoinst",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "os-autoinst-debugsource",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "x86_64"
+					},
+					{
+						"name": "os-autoinst-debuginfo",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "x86_64"
+					},
+					{
+						"name": "os-autoinst-openvswitch",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "x86_64"
+					},
+					{
+						"name": "os-autoinst-devel",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "x86_64"
+					},
+					{
+						"name": "os-autoinst",
+						"version": "4.6",
+						"release": "35.20210326git24ec8f9.fc33",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 1984100,
+			"text": "This update has been submitted for testing by adamwill. ",
+			"timestamp": "2021-04-13 19:50:04",
+			"update_id": 298951,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1984101,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2021-04-13 19:50:04",
+			"update_id": 298951,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1984102,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2021-04-13 19:50:04",
+			"update_id": 298951,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1984127,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2021-04-13 19:57:57",
+			"update_id": 298951,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1985333,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2021-04-14 15:14:48",
+			"update_id": 298951,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"bug_feedback": [
+				{
+					"bug": {
+						"bug_id": 1667163,
+						"title": "perl segfault in openqa worker process isotovideo (seems to be related to opencv threading)"
+					},
+					"bug_id": 1667163,
+					"comment_id": 1986406,
+					"karma": 1
+				}
+			],
+			"id": 1986406,
+			"text": "correction works on f33 host.",
+			"timestamp": "2021-04-15 10:06:45",
+			"update_id": 298951,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/0370059444264382bc933229856f19d6efaf7ba67711bd3942224859fcbd15c4?s=24&d=retro",
+				"email": "normand@linux.vnet.ibm.com",
+				"groups": [
+					{
+						"name": "packager"
+					}
+				],
+				"id": 986,
+				"name": "michelmno",
+				"openid": "michelmno.id.fedoraproject.org"
+			},
+			"user_id": 986
+		},
+		{
+			"id": 1994953,
+			"text": "This update can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2021-04-21 15:16:26",
+			"update_id": 298951,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1994954,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2021-04-21 15:16:27",
+			"update_id": 298951,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1995571,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2021-04-21 21:41:37",
+			"update_id": 298951,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2021-04-21 21:39:57",
+	"date_stable": "2021-04-21 21:39:57",
+	"date_submitted": "2021-04-13 19:50:04",
+	"date_testing": "2021-04-14 15:14:24",
+	"meets_testing_requirements": true,
+	"notes": "This update is intended to fix two bugs in os-autoinst: a crash on exit that commonly occurs, and a problem that can occur where a dbus-broker per-UID queued data limit is exceeded if many tap tests are running simultaneously for too long.",
+	"pushed": true,
+	"release": {
+		"branch": "f33",
+		"candidate_tag": "f33-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f33",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 33",
+		"mail_template": "fedora_errata_template",
+		"name": "F33",
+		"override_tag": "f33-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f33-signing-pending",
+		"pending_stable_tag": "f33-updates-pending",
+		"pending_testing_tag": "f33-updates-testing-pending",
+		"stable_tag": "f33-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f33-updates-testing",
+		"version": "33"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "high",
+	"stable_days": 7,
+	"stable_karma": 2,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "os-autoinst-4.6-35.20210326git24ec8f9.fc33",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2021-186bca5b58",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2021-186bca5b58",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/0e6c01c694d74afb0cbb65bc1be91950111503818caf492c0938dc2b97c48c41?s=24&d=retro",
+		"email": "awilliam@redhat.com",
+		"groups": [
+			{
+				"name": "proventesters"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "qa-tools-sig"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "news"
+			},
+			{
+				"name": "gittriage"
+			},
+			{
+				"name": "sysadmin"
+			},
+			{
+				"name": "gitspin-kickstarts"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "gitgeneric-release"
+			},
+			{
+				"name": "yak_farmers"
+			},
+			{
+				"name": "triagers"
+			},
+			{
+				"name": "qa"
+			},
+			{
+				"name": "sysadmin-qa"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "gitmkinitrd"
+			},
+			{
+				"name": "qa-admin"
+			},
+			{
+				"name": "sysadmin-main"
+			},
+			{
+				"name": "gitfedora-project-schedule"
+			},
+			{
+				"name": "program-management"
+			},
+			{
+				"name": "common-issues-triage"
+			},
+			{
+				"name": "change-wranglers"
+			}
+		],
+		"id": 302,
+		"name": "adamwill",
+		"openid": "adamwill.id.fedoraproject.org"
+	},
+	"version_hash": "1d31a4e8ed6522bd50096b0ff6729f1108e167d8"
+}

@@ -1,0 +1,1119 @@
+{
+	"alias": "FEDORA-2018-de6d032aae",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1639043,
+			"feedback": [
+				{
+					"bug_id": 1639043,
+					"comment": {
+						"id": 849100,
+						"karma": 1,
+						"text": "This doesn't appear to fix the problem I reported in #1639043, but it also doesn't make it any worse, and seems to otherwise work okay.",
+						"timestamp": "2018-10-16 01:32:30",
+						"update_id": 124710,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/6d3d0884f2989f110592b0f901f19cb28192c87151bad6a429e40ffe1564f6eb?s=24&d=retro",
+							"email": "laine@redhat.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								},
+								{
+									"name": "gitnetcf"
+								}
+							],
+							"id": 1625,
+							"name": "laine",
+							"openid": "laine.id.fedoraproject.org"
+						},
+						"user_id": 1625
+					},
+					"comment_id": 849100,
+					"karma": -1
+				}
+			],
+			"title": "update of lighttpd package from 1.4.49 to 1.4.50 causes pi-hole admin console to fail at startup.",
+			"bugzilla": {
+				"bug_id": "1639043",
+				"creation_ts": "2018-10-14 19:11:21 +0000",
+				"short_desc": "update of lighttpd package from 1.4.49 to 1.4.50 causes pi-hole admin console to fail at startup.",
+				"delta_ts": "2018-10-30 17:27:16 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"external_bugs": {
+					"text": "1615360",
+					"name": "Red Hat Bugzilla"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "12105057",
+						"comment_count": "0",
+						"who": {
+							"text": "laine",
+							"name": "Laine Stump"
+						},
+						"bug_when": "2018-10-14 19:11:21 +0000",
+						"thetext": "I have pi-hole (https://pi-hole.net) running on an F28 (x86) virtual machine After several months of it just sitting there doing its thing with no interference, tonight I ran \"dnf update; pihole -up\", then rebooted. When it came back up the webadmin interface was no longer reachable. netstat -na shows only ports 53 and 22 tcp listening. I tried \"systemctl start lightttpd\" and I see this message in the system logs:\n\nlighttpd[1205]:  2018-10-13 20:20:59: (configfile.c.1451) pclose \"cat external.conf 2>/dev/null\"failed: Success\nlighttpd[1205]: 2018-10-13 20:20:59: (configfile.c.1289) source: /etc/lighttpd/lighttpd.conf line: 94 pos: 1 parser failed somehow near here: (EOL)\nsystemd[1]: lighttpd.service: Main process exited, code=exited, status=255/n/a\nsystemd[1]: lighttpd.service: Failed with result 'exit-code'.\n\nI also tried a complete repair/reinstall of pihole (with \"pihole -r\", and then by uninstalling pi-hole and lighttpd and installing from scratch with the curl command on the front page of the pi-hole website. Same result. (rebooted after each try for good measure)\n\nSo I ran \"yum downgrade lighttpd-*\" which brought it back from 1.4.50-1 to 1.4.49-4, and now everything again works.\n\nThis is fairly easy to reproduce by just installing pi-hole on a clean F28 system (using the single command on the above-referenced web page)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12105205",
+						"comment_count": "1",
+						"who": {
+							"text": "rhbugs",
+							"name": "Anssi Johansson"
+						},
+						"bug_when": "2018-10-14 20:57:10 +0000",
+						"thetext": "If lighttpd complains about an error in the config, wouldn't you think it would make sense to attach the config to the bug so that people would be able to examine it?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12105230",
+						"comment_count": "2",
+						"who": {
+							"text": "rhbugs",
+							"name": "Anssi Johansson"
+						},
+						"bug_when": "2018-10-14 21:07:31 +0000",
+						"thetext": "https://redmine.lighttpd.net/issues/2910 may be related."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12105556",
+						"comment_count": "3",
+						"who": {
+							"text": "laine",
+							"name": "Laine Stump"
+						},
+						"bug_when": "2018-10-15 02:22:20 +0000",
+						"thetext": "(In reply to Anssi Johansson from comment #1)\n> If lighttpd complains about an error in the config, wouldn't you think it\n> would make sense to attach the config to the bug so that people would be\n> able to examine it?\n\nNot necessarily. A single file from an unknowledgeable reporter might help, or it might just create extra content with no value, or be missing some crucial other file that was needed. I considered attaching the lightttpd.conf file, but then figured it was just as likely due to some other file that was included (and which I wouldn't know about, since I have only used lighttpd unknowingly as part of an appliance), so I decided it would be more prudent to explain a simple way (literally a single shell line) to reproduce the problem, and then if anyone looking at the BZ asked for specific files, I would attach them.\n\nIn the meantime, pi-hole devs pointed me to this posting:\n\nhttps://discourse.pi-hole.net/t/fresh-install-and-web-admin-page-not-work/12926\n\nand, as suggested there, creating an empty external.conf allows me to use lighttpd-1.4.50. I won't pretend to know whether or not that's the same problem you've referenced, but if it is, and if that patch is making its way downstream, then we're done here :-) (since the problem has been worked around on my system, and anyone else encountering it before the fix gets to a Fedora package can just do the same thing)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12106098",
+						"comment_count": "4",
+						"who": {
+							"text": "rhbugs",
+							"name": "Anssi Johansson"
+						},
+						"bug_when": "2018-10-15 08:03:05 +0000",
+						"thetext": "Not everyone has immediate access to fresh throwaway Fedora installations. Sure, VMs can be spun up, but clicking on a \"See attachment lighttpd.conf\" is much quicker. In any case, I ended examining the installation script and then noticed that it replaces the conf file with pi-hole's own.\n\nI believe this bug has been fixed in lighttpd 1.4.51, released today."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12107417",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-10-15 13:56:46 +0000",
+						"thetext": "lighttpd-1.4.51-1.fc29 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2018-cd5a9c3c0f"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12107419",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-10-15 13:56:54 +0000",
+						"thetext": "lighttpd-1.4.51-1.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-de6d032aae"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12107421",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-10-15 13:57:01 +0000",
+						"thetext": "lighttpd-1.4.51-1.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-a31054181a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12109601",
+						"comment_count": "8",
+						"who": {
+							"text": "laine",
+							"name": "Laine Stump"
+						},
+						"bug_when": "2018-10-16 01:34:35 +0000",
+						"thetext": "Created attachment 1494207\npi-hole lighttpd.conf"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12109605",
+						"comment_count": "9",
+						"who": {
+							"text": "laine",
+							"name": "Laine Stump"
+						},
+						"bug_when": "2018-10-16 01:37:28 +0000",
+						"thetext": "Thanks for looking into this so quickly. My expectation of Fedora BZes is that at least half of them will just be closed EOL because the maintainers are too overloaded, so it's nice to see action. :-)\n\nSince you were so quick to respond, I decided I need to also be quick to test. I downloaded 1.4.51 of the three lighttpd packages used on the machine from bodhi (they hadn't madde it into updates-testing yet) and restarted, and unfortunately the problem persists (if I create an empty external.conf, then the problem disappears.)\n\nSo since it wasn't fixed by the new release, and you've asked for the .conf file, I'm attaching it. (My final comment on not attaching it to begin with - I've had more than my share of BZes where the reporter attached tons of irrelevant noise, and just made it too long to filter out the useful stuff, so I tend to go minimalist when I report (esp. if I don't know what would/wouldn't be relevant), then if someone asks for more specifics, I'll send them.)\n\nI also logged into bodhi and left a +1 karma (but -1 for fixing this BZ) for the package, just in case that helps it along to the updates repo."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12109909",
+						"comment_count": "10",
+						"who": {
+							"text": "rhbugs",
+							"name": "Anssi Johansson"
+						},
+						"bug_when": "2018-10-16 05:46:38 +0000",
+						"thetext": "OK, now I actually tested this myself (on CentOS 7, but that's probably similar enough).\n\nYou initially reported that you got this error message: pclose \"cat external.conf 2>/dev/null\"failed: Success\n\nI believe that the error message you got changed with 1.4.51: commaned \"cat external.conf 2>/dev/null\" exited non-zero: 1\n\nLooking at https://github.com/lighttpd/lighttpd1.4/blob/master/src/configfile.c#L1461 it looks like the change to return an error if the executed command returns an error is intentional. Maybe you (or pi-hole) should arrange it so that the executed command would not return an error, either by having that external.conf in place or by: include_shell \"cat external.conf 2>/dev/null; exit 0\""
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12111131",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-10-16 11:56:54 +0000",
+						"thetext": "lighttpd-1.4.51-1.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-de6d032aae"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12111282",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-10-16 12:37:29 +0000",
+						"thetext": "lighttpd-1.4.51-1.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-a31054181a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12111630",
+						"comment_count": "13",
+						"who": {
+							"text": "gs-redhat.com",
+							"name": "Glenn S"
+						},
+						"bug_when": "2018-10-16 13:51:06 +0000",
+						"thetext": "Yes, lighttpd config file processing intentionally errors out if the 'include_shell' command fails.\n\nAs an alternative, use lighttpd.conf 'include' with a file glob instead of 'include_shell'.  'include' with a file glob will include the files from the file glob, and will not error out if the file glob returns zero files.\n\ninclude \"external*.conf\""
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12112415",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-10-16 15:51:09 +0000",
+						"thetext": "lighttpd-1.4.51-1.fc29 has been pushed to the Fedora 29 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-cd5a9c3c0f"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12115640",
+						"comment_count": "15",
+						"who": {
+							"text": "gs-redhat.com",
+							"name": "Glenn S"
+						},
+						"bug_when": "2018-10-17 11:01:20 +0000",
+						"thetext": "Patch submitted upstream as pull request in https://github.com/pi-hole/pi-hole/pull/2468"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12134381",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-10-23 21:07:55 +0000",
+						"thetext": "lighttpd-1.4.51-1.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12134413",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-10-23 21:24:30 +0000",
+						"thetext": "lighttpd-1.4.51-1.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12160135",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-10-30 17:27:16 +0000",
+						"thetext": "lighttpd-1.4.51-1.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "lighttpd-1.4.51-1.fc27",
+			"release_id": 17,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "lighttpd-mod_geoip-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lighttpd-mod_authn_pam",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lighttpd-mod_authn_mysql-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lighttpd-mod_authn_gssapi",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lighttpd-mod_mysql_vhost",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lighttpd-mod_authn_mysql",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lighttpd-mod_authn_gssapi-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lighttpd-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lighttpd-mod_geoip",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lighttpd-fastcgi",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lighttpd-mod_mysql_vhost-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lighttpd-fastcgi-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lighttpd-mod_authn_pam-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lighttpd-debugsource",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lighttpd",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "lighttpd-mod_geoip",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lighttpd-fastcgi",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lighttpd-mod_authn_gssapi",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lighttpd-mod_geoip-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lighttpd-mod_authn_pam-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lighttpd-debugsource",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lighttpd-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lighttpd-mod_authn_mysql",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lighttpd",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lighttpd-mod_mysql_vhost-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lighttpd-mod_authn_gssapi-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lighttpd-fastcgi-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lighttpd-mod_authn_mysql-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lighttpd-mod_authn_pam",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lighttpd-mod_mysql_vhost",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "lighttpd-mod_mysql_vhost",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "lighttpd-mod_authn_gssapi",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "lighttpd-mod_authn_mysql-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "lighttpd-debugsource",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "lighttpd-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "lighttpd-mod_authn_mysql",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "lighttpd-fastcgi",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "lighttpd-mod_authn_gssapi-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "lighttpd-mod_authn_pam-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "lighttpd-mod_authn_pam",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "lighttpd-mod_mysql_vhost-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "lighttpd-fastcgi-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "lighttpd-mod_geoip",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "lighttpd",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "lighttpd-mod_geoip-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "lighttpd-filesystem",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "noarch"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "lighttpd-mod_authn_mysql",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lighttpd-mod_mysql_vhost-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lighttpd-mod_authn_gssapi",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lighttpd-mod_geoip-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lighttpd-mod_authn_pam-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lighttpd-mod_authn_pam",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lighttpd-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lighttpd-mod_authn_gssapi-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lighttpd-mod_geoip",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lighttpd-debugsource",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lighttpd-fastcgi",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lighttpd-mod_mysql_vhost",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lighttpd",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lighttpd-fastcgi-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lighttpd-mod_authn_mysql-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "lighttpd-mod_authn_gssapi-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lighttpd-mod_authn_gssapi",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lighttpd-mod_geoip-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lighttpd",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lighttpd-fastcgi-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lighttpd-mod_mysql_vhost",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lighttpd-fastcgi",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lighttpd-mod_authn_mysql",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lighttpd-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lighttpd-mod_authn_pam-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lighttpd-mod_authn_mysql-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lighttpd-debugsource",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lighttpd-mod_geoip",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lighttpd-mod_mysql_vhost-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lighttpd-mod_authn_pam",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "lighttpd",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "lighttpd-fastcgi",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "lighttpd-mod_geoip",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "lighttpd-mod_mysql_vhost",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "lighttpd-mod_authn_mysql",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "lighttpd-mod_authn_gssapi",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "lighttpd-mod_authn_pam",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "lighttpd-debugsource",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "lighttpd-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "lighttpd-fastcgi-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "lighttpd-mod_geoip-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "lighttpd-mod_mysql_vhost-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "lighttpd-mod_authn_mysql-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "lighttpd-mod_authn_gssapi-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "lighttpd-mod_authn_pam-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "lighttpd",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "lighttpd-mod_mysql_vhost-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lighttpd-mod_authn_mysql",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lighttpd-mod_authn_mysql-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lighttpd-mod_geoip",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lighttpd-debugsource",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lighttpd-fastcgi",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lighttpd-mod_authn_pam-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lighttpd-mod_authn_pam",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lighttpd-mod_authn_gssapi-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lighttpd",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lighttpd-mod_mysql_vhost",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lighttpd-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lighttpd-mod_authn_gssapi",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lighttpd-mod_geoip-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lighttpd-fastcgi-debuginfo",
+						"version": "1.4.51",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 848927,
+			"text": "This update has been submitted for testing by limb. ",
+			"timestamp": "2018-10-15 13:56:42",
+			"update_id": 124709,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 849356,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2018-10-16 11:57:47",
+			"update_id": 124709,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 852123,
+			"text": "This update has reached 7 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2018-10-23 12:00:24",
+			"update_id": 124709,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 852131,
+			"text": "This update has been submitted for batched by limb. ",
+			"timestamp": "2018-10-23 13:04:31",
+			"update_id": 124709,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 852132,
+			"text": "This update has been submitted for stable by limb. ",
+			"timestamp": "2018-10-23 13:04:43",
+			"update_id": 124709,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 852388,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2018-10-23 21:24:48",
+			"update_id": 124709,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2018-10-23 21:23:56",
+	"date_stable": "2018-10-23 21:23:56",
+	"date_submitted": "2018-10-15 13:56:42",
+	"date_testing": "2018-10-16 11:56:49",
+	"meets_testing_requirements": true,
+	"notes": "https://www.lighttpd.net/2018/10/14/1.4.51/",
+	"pushed": true,
+	"release": {
+		"branch": "f27",
+		"candidate_tag": "f27-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f27",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 27",
+		"mail_template": "fedora_errata_template",
+		"name": "F27",
+		"override_tag": "f27-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f27-signing-pending",
+		"pending_stable_tag": "f27-updates-pending",
+		"pending_testing_tag": "f27-updates-testing-pending",
+		"stable_tag": "f27-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f27-updates-testing",
+		"version": "27"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "medium",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "lighttpd-1.4.51-1.fc27",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2018-de6d032aae",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2018-de6d032aae",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/7f28067f680c104a7d61fcfae961947a4f60c0e71d5ae9a714d248163c123a3d?s=24&d=retro",
+		"email": "gwync@protonmail.com",
+		"groups": [
+			{
+				"name": "releng-team"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "sysadmin-devel"
+			},
+			{
+				"name": "packaging-committee"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "sysadmin-releng"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "sysadmin-cvs"
+			},
+			{
+				"name": "cvsadmin"
+			},
+			{
+				"name": "sysadmin"
+			}
+		],
+		"id": 134,
+		"name": "limb",
+		"openid": "limb.id.fedoraproject.org"
+	},
+	"version_hash": "6098ba51e16d5b16c55f6e21756fbd2c259efd1b"
+}

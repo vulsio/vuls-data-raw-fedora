@@ -1,0 +1,930 @@
+{
+	"alias": "FEDORA-EPEL-2015-0862",
+	"bugs": [
+		{
+			"bug_id": 1194651,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-0278 libuv: incorrect revocation order while relinquishing privileges",
+			"bugzilla": {
+				"bug_id": "1194651",
+				"alias": "CVE-2015-0278",
+				"creation_ts": "2015-02-20 13:04:57 +0000",
+				"short_desc": "CVE-2015-0278 libuv: incorrect revocation order while relinquishing privileges",
+				"delta_ts": "2021-02-17 05:37:59 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "CURRENTRELEASE",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1194653",
+					"1194654",
+					"1194655",
+					"1194656"
+				],
+				"blocked": [
+					{
+						"bug_id": "1194650",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7962521",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-20 13:04:57 +0000",
+						"thetext": "It was found [1] that libuv does not call setgroups before calling setuid/setgid.\nThis may potentially allow an attacker to gain elevated privileges.\nUpstream fix for 0.10: https://github.com/libuv/libuv/pull/215\n\n[1]: https://github.com/libuv/libuv/commit/66ab38918c911bcff025562cf06237d7fedaba0c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7962534",
+						"comment_count": "2",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-20 13:06:38 +0000",
+						"thetext": "\nCreated libuv tracking bugs for this issue:\n\nAffects: fedora-all [bug 1194653]\nAffects: epel-all [bug 1194654]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7973026",
+						"comment_count": "3",
+						"who": {
+							"text": "tchollingsworth",
+							"name": "T.C. Hollingsworth"
+						},
+						"bug_when": "2015-02-24 23:35:24 +0000",
+						"thetext": "Upstream announcement:\nhttps://groups.google.com/d/msg/libuv/0JZxwLMtsMI/jraczskYWWQJ\n\nRed Hat assigned CVE-2015-0278 to this issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7984970",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-28 10:22:02 +0000",
+						"thetext": "v8-3.14.5.10-17.fc21, nodejs-0.10.36-3.fc21, libuv-0.10.34-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8041311",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-13 16:56:10 +0000",
+						"thetext": "v8-3.14.5.10-17.fc20, nodejs-0.10.36-3.fc20, libuv-0.10.34-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8041404",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-13 17:03:31 +0000",
+						"thetext": "compat-libuv010-0.10.34-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8048807",
+						"comment_count": "7",
+						"who": {
+							"text": "sisharma",
+							"name": "Siddharth Sharma"
+						},
+						"bug_when": "2015-03-17 07:45:16 +0000",
+						"thetext": "Analysis\n========\n\nIn code of nodejs010-libuv in function static void uv__process_child_init() in the following code it call setgid() and setuid()\n\n...\n if ((options.flags & UV_PROCESS_SETGID) && setgid(options.gid)) {\n    uv__write_int(error_fd, errno);\n    perror(\"setgid()\");\n    _exit(127);\n  }\n\n  if ((options.flags & UV_PROCESS_SETUID) && setuid(options.uid)) {\n    uv__write_int(error_fd, errno);\n    perror(\"setuid()\");\n    _exit(127);\n  }\n...\n\nbefore calling setgid() and setuid() It does not call setgroups() while dropping privileges. There are ancillary groups associated with process which are inherited from the parent process which can only be altered by superuser.  If some process runs with root or equivalent privileges it should call setgroups() before dropping root privileges."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8084825",
+						"comment_count": "9",
+						"who": {
+							"text": "sisharma",
+							"name": "Siddharth Sharma"
+						},
+						"bug_when": "2015-03-26 04:34:49 +0000",
+						"thetext": "On further analyzing about this flaw present in libuv as shipped with the nodejs10-libuv package present in Red Hat Software Collections, it seems impact of this flaw is low, as it depends on whether nodejs application is running under root privileges or not, so looking at the use cases of libuv with nodejs, nodejs applications would be running with privileges as they are expected to be running and not dropping them later on. As for the other applications using libuv running under superuser/root privileges impact of this flaw would be moderate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8196216",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-30 17:12:43 +0000",
+						"thetext": "v8-3.14.5.10-17.el6, nodejs-0.10.36-3.el6, libuv-0.10.34-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8196226",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-30 17:13:24 +0000",
+						"thetext": "v8-3.14.5.10-17.el7, nodejs-0.10.36-3.el7, libuv-0.10.34-1.el7 has been pushed to the Fedora EPEL 7 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8219864",
+						"comment_count": "12",
+						"who": {
+							"text": "sisharma",
+							"name": "Siddharth Sharma"
+						},
+						"bug_when": "2015-05-11 04:17:15 +0000",
+						"thetext": "Statement:\n\n(none)"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1194654,
+			"security": true,
+			"title": "libuv: incorrect revocation order while relinquishing privileges [epel-all]",
+			"bugzilla": {
+				"bug_id": "1194654",
+				"creation_ts": "2015-02-20 13:06:15 +0000",
+				"short_desc": "libuv: incorrect revocation order while relinquishing privileges [epel-all]",
+				"delta_ts": "2015-04-30 17:13:21 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "1194651",
+						"alias": "CVE-2015-0278",
+						"creation_ts": "2015-02-20 13:04:57 +0000",
+						"short_desc": "CVE-2015-0278 libuv: incorrect revocation order while relinquishing privileges",
+						"delta_ts": "2021-02-17 05:37:59 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "CURRENTRELEASE",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1194653",
+							"1194654",
+							"1194655",
+							"1194656"
+						],
+						"blocked": [
+							{
+								"bug_id": "1194650",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7962521",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-02-20 13:04:57 +0000",
+								"thetext": "It was found [1] that libuv does not call setgroups before calling setuid/setgid.\nThis may potentially allow an attacker to gain elevated privileges.\nUpstream fix for 0.10: https://github.com/libuv/libuv/pull/215\n\n[1]: https://github.com/libuv/libuv/commit/66ab38918c911bcff025562cf06237d7fedaba0c"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7962534",
+								"comment_count": "2",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-02-20 13:06:38 +0000",
+								"thetext": "\nCreated libuv tracking bugs for this issue:\n\nAffects: fedora-all [bug 1194653]\nAffects: epel-all [bug 1194654]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7973026",
+								"comment_count": "3",
+								"who": {
+									"text": "tchollingsworth",
+									"name": "T.C. Hollingsworth"
+								},
+								"bug_when": "2015-02-24 23:35:24 +0000",
+								"thetext": "Upstream announcement:\nhttps://groups.google.com/d/msg/libuv/0JZxwLMtsMI/jraczskYWWQJ\n\nRed Hat assigned CVE-2015-0278 to this issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7984970",
+								"comment_count": "4",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-02-28 10:22:02 +0000",
+								"thetext": "v8-3.14.5.10-17.fc21, nodejs-0.10.36-3.fc21, libuv-0.10.34-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8041311",
+								"comment_count": "5",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-13 16:56:10 +0000",
+								"thetext": "v8-3.14.5.10-17.fc20, nodejs-0.10.36-3.fc20, libuv-0.10.34-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8041404",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-13 17:03:31 +0000",
+								"thetext": "compat-libuv010-0.10.34-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8048807",
+								"comment_count": "7",
+								"who": {
+									"text": "sisharma",
+									"name": "Siddharth Sharma"
+								},
+								"bug_when": "2015-03-17 07:45:16 +0000",
+								"thetext": "Analysis\n========\n\nIn code of nodejs010-libuv in function static void uv__process_child_init() in the following code it call setgid() and setuid()\n\n...\n if ((options.flags & UV_PROCESS_SETGID) && setgid(options.gid)) {\n    uv__write_int(error_fd, errno);\n    perror(\"setgid()\");\n    _exit(127);\n  }\n\n  if ((options.flags & UV_PROCESS_SETUID) && setuid(options.uid)) {\n    uv__write_int(error_fd, errno);\n    perror(\"setuid()\");\n    _exit(127);\n  }\n...\n\nbefore calling setgid() and setuid() It does not call setgroups() while dropping privileges. There are ancillary groups associated with process which are inherited from the parent process which can only be altered by superuser.  If some process runs with root or equivalent privileges it should call setgroups() before dropping root privileges."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8084825",
+								"comment_count": "9",
+								"who": {
+									"text": "sisharma",
+									"name": "Siddharth Sharma"
+								},
+								"bug_when": "2015-03-26 04:34:49 +0000",
+								"thetext": "On further analyzing about this flaw present in libuv as shipped with the nodejs10-libuv package present in Red Hat Software Collections, it seems impact of this flaw is low, as it depends on whether nodejs application is running under root privileges or not, so looking at the use cases of libuv with nodejs, nodejs applications would be running with privileges as they are expected to be running and not dropping them later on. As for the other applications using libuv running under superuser/root privileges impact of this flaw would be moderate."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8196216",
+								"comment_count": "10",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-04-30 17:12:43 +0000",
+								"thetext": "v8-3.14.5.10-17.el6, nodejs-0.10.36-3.el6, libuv-0.10.34-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8196226",
+								"comment_count": "11",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-04-30 17:13:24 +0000",
+								"thetext": "v8-3.14.5.10-17.el7, nodejs-0.10.36-3.el7, libuv-0.10.34-1.el7 has been pushed to the Fedora EPEL 7 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8219864",
+								"comment_count": "12",
+								"who": {
+									"text": "sisharma",
+									"name": "Siddharth Sharma"
+								},
+								"bug_when": "2015-05-11 04:17:15 +0000",
+								"thetext": "Statement:\n\n(none)"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7962527",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-20 13:06:15 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora EPEL.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora EPEL. While\nonly one tracking bug has been filed, please correct all affected versions\nat the same time.  If you need to fix the versions independent of each\nother, you may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7962528",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-20 13:06:20 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1194651,1194654\n\n# Description of your update\nnotes=Security fix for \n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1194651,1194654"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7973148",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-25 00:35:03 +0000",
+						"thetext": "v8-3.14.5.10-17.el6, nodejs-0.10.36-3.el6, libuv-0.10.34-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2015-0864/nodejs-0.10.36-3.el6,libuv-0.10.34-1.el6,v8-3.14.5.10-17.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7973150",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-25 00:35:36 +0000",
+						"thetext": "v8-3.14.5.10-17.el7, nodejs-0.10.36-3.el7, libuv-0.10.34-1.el7 has been submitted as an update for Fedora EPEL 7.\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2015-0862/nodejs-0.10.36-3.el7,libuv-0.10.34-1.el7,v8-3.14.5.10-17.el7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7980416",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-26 19:04:29 +0000",
+						"thetext": "Package v8-3.14.5.10-17.el6, nodejs-0.10.36-3.el6, libuv-0.10.34-1.el6:\n* should fix your issue,\n* was pushed to the Fedora EPEL 6 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=epel-testing v8-3.14.5.10-17.el6 nodejs-0.10.36-3.el6 libuv-0.10.34-1.el6'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2015-0864/nodejs-0.10.36-3.el6,libuv-0.10.34-1.el6,v8-3.14.5.10-17.el6\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8196214",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-30 17:12:38 +0000",
+						"thetext": "v8-3.14.5.10-17.el6, nodejs-0.10.36-3.el6, libuv-0.10.34-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8196224",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-30 17:13:21 +0000",
+						"thetext": "v8-3.14.5.10-17.el7, nodejs-0.10.36-3.el7, libuv-0.10.34-1.el7 has been pushed to the Fedora EPEL 7 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1195457,
+			"title": "nodejs-0.10.36 causes undefined symbols",
+			"bugzilla": {
+				"bug_id": "1195457",
+				"creation_ts": "2015-02-23 21:20:37 +0000",
+				"short_desc": "nodejs-0.10.36 causes undefined symbols",
+				"delta_ts": "2015-04-30 17:13:22 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7968719",
+						"comment_count": "0",
+						"who": {
+							"text": "notting",
+							"name": "Bill Nottingham"
+						},
+						"bug_when": "2015-02-23 21:20:37 +0000",
+						"thetext": "Description of problem:\n\nI did 'yum install npm'. It installed a variety of things, including nodejs.\n\nThis leads to:\n\n[root@nostromo notting]# npm\nnode: symbol lookup error: node: undefined symbol: _ZN2v87Isolate27SetAbortOnUncaughtExceptionEPFbvE\n\nDowngrading to nodejs-0.10.33-1 fixes this.\n\nVersion-Release number of selected component (if applicable):\n\nnpm-1.3.6-6.fc21.noarch\nnodejs-0.10.36-1.fc21.x86_64\n\nHow reproducible:\n\n100%\n\nSteps to Reproduce:\n1. yum install npm\n2. npm\n\nActual results:\n\nnode: symbol lookup error: node: undefined symbol: _ZN2v87Isolate27SetAbortOnUncaughtExceptionEPFbvE"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7968736",
+						"comment_count": "1",
+						"who": {
+							"text": "notting",
+							"name": "Bill Nottingham"
+						},
+						"bug_when": "2015-02-23 21:22:44 +0000",
+						"thetext": "This appears to be a not-fully-specified dep on the current v8 package - if I install v8-3.14.5.10-17.fc21 it fixes the undefined symbol; however, nodejs installs fine with an older version of v8 already installed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7973022",
+						"comment_count": "2",
+						"who": {
+							"text": "tchollingsworth",
+							"name": "T.C. Hollingsworth"
+						},
+						"bug_when": "2015-02-24 23:29:39 +0000",
+						"thetext": "(In reply to Bill Nottingham from comment #1)\n> This appears to be a not-fully-specified dep on the current v8 package\n\nThanks, fixed in http://pkgs.fedoraproject.org/cgit/nodejs.git/commit/?id=09e94a2e546ecc827ac6e6d3792b29a425759470"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7973058",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-25 00:02:23 +0000",
+						"thetext": "nodejs-0.10.36-3.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/nodejs-0.10.36-3.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7973147",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-25 00:33:37 +0000",
+						"thetext": "v8-3.14.5.10-17.fc21, nodejs-0.10.36-3.fc21, libuv-0.10.34-1.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2313/nodejs-0.10.36-3.fc21,libuv-0.10.34-1.fc21,v8-3.14.5.10-17.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7973149",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-25 00:35:05 +0000",
+						"thetext": "v8-3.14.5.10-17.el6, nodejs-0.10.36-3.el6, libuv-0.10.34-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2015-0864/nodejs-0.10.36-3.el6,libuv-0.10.34-1.el6,v8-3.14.5.10-17.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7973151",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-25 00:35:38 +0000",
+						"thetext": "v8-3.14.5.10-17.el7, nodejs-0.10.36-3.el7, libuv-0.10.34-1.el7 has been submitted as an update for Fedora EPEL 7.\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2015-0862/nodejs-0.10.36-3.el7,libuv-0.10.34-1.el7,v8-3.14.5.10-17.el7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7973160",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-25 00:43:56 +0000",
+						"thetext": "v8-3.14.5.10-17.fc20, nodejs-0.10.36-3.fc20, libuv-0.10.34-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2310/nodejs-0.10.36-3.fc20,libuv-0.10.34-1.fc20,v8-3.14.5.10-17.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7975146",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-25 13:27:34 +0000",
+						"thetext": "Package v8-3.14.5.10-17.fc21, nodejs-0.10.36-3.fc21, libuv-0.10.34-1.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing v8-3.14.5.10-17.fc21 nodejs-0.10.36-3.fc21 libuv-0.10.34-1.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2313/nodejs-0.10.36-3.fc21,libuv-0.10.34-1.fc21,v8-3.14.5.10-17.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7984968",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-28 10:21:56 +0000",
+						"thetext": "v8-3.14.5.10-17.fc21, nodejs-0.10.36-3.fc21, libuv-0.10.34-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8041309",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-13 16:56:06 +0000",
+						"thetext": "v8-3.14.5.10-17.fc20, nodejs-0.10.36-3.fc20, libuv-0.10.34-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8041407",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-13 17:03:51 +0000",
+						"thetext": "nodejs-0.10.36-3.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8196215",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-30 17:12:41 +0000",
+						"thetext": "v8-3.14.5.10-17.el6, nodejs-0.10.36-3.el6, libuv-0.10.34-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8196225",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-30 17:13:22 +0000",
+						"thetext": "v8-3.14.5.10-17.el7, nodejs-0.10.36-3.el7, libuv-0.10.34-1.el7 has been pushed to the Fedora EPEL 7 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 1,
+			"nvr": "libuv-0.10.34-1.el7",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"ppc64": [
+					{
+						"name": "libuv",
+						"epoch": 1,
+						"version": "0.10.34",
+						"release": "1.el7",
+						"arch": "ppc64"
+					},
+					{
+						"name": "libuv-static",
+						"epoch": 1,
+						"version": "0.10.34",
+						"release": "1.el7",
+						"arch": "ppc64"
+					},
+					{
+						"name": "libuv-devel",
+						"epoch": 1,
+						"version": "0.10.34",
+						"release": "1.el7",
+						"arch": "ppc64"
+					},
+					{
+						"name": "libuv-debuginfo",
+						"epoch": 1,
+						"version": "0.10.34",
+						"release": "1.el7",
+						"arch": "ppc64"
+					}
+				],
+				"src": [
+					{
+						"name": "libuv",
+						"epoch": 1,
+						"version": "0.10.34",
+						"release": "1.el7",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "libuv-devel",
+						"epoch": 1,
+						"version": "0.10.34",
+						"release": "1.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libuv-static",
+						"epoch": 1,
+						"version": "0.10.34",
+						"release": "1.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libuv",
+						"epoch": 1,
+						"version": "0.10.34",
+						"release": "1.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libuv-debuginfo",
+						"epoch": 1,
+						"version": "0.10.34",
+						"release": "1.el7",
+						"arch": "x86_64"
+					}
+				]
+			}
+		},
+		{
+			"epoch": 0,
+			"nvr": "nodejs-0.10.36-3.el7",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "nodejs-docs",
+						"version": "0.10.36",
+						"release": "3.el7",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "nodejs",
+						"version": "0.10.36",
+						"release": "3.el7",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "nodejs",
+						"version": "0.10.36",
+						"release": "3.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "nodejs-debuginfo",
+						"version": "0.10.36",
+						"release": "3.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "nodejs-devel",
+						"version": "0.10.36",
+						"release": "3.el7",
+						"arch": "x86_64"
+					}
+				]
+			}
+		},
+		{
+			"epoch": 1,
+			"nvr": "v8-3.14.5.10-17.el7",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"src": [
+					{
+						"name": "v8",
+						"epoch": 1,
+						"version": "3.14.5.10",
+						"release": "17.el7",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "v8-devel",
+						"epoch": 1,
+						"version": "3.14.5.10",
+						"release": "17.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "v8-debuginfo",
+						"epoch": 1,
+						"version": "3.14.5.10",
+						"release": "17.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "v8",
+						"epoch": 1,
+						"version": "3.14.5.10",
+						"release": "17.el7",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 300093,
+			"text": "This update has been submitted for testing by patches. ",
+			"timestamp": "2015-02-19 11:17:18",
+			"update_id": 35703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 300094,
+			"text": "This update is currently being pushed to the Fedora EPEL 7 testing updates repository.",
+			"timestamp": "2015-02-19 21:51:42",
+			"update_id": 35703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 300095,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-02-20 00:34:07",
+			"update_id": 35703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 300096,
+			"text": "patches has edited this update. New build(s): nodejs-0.10.36-3.el7, libuv-0.10.34-1.el7. Removed build(s): nodejs-0.10.36-1.el7, libuv-0.10.33-1.el7.",
+			"timestamp": "2015-02-25 00:34:12",
+			"update_id": 35703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 300097,
+			"text": "This update has been submitted for testing by patches. ",
+			"timestamp": "2015-02-25 00:35:40",
+			"update_id": 35703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 300098,
+			"text": "This update is currently being pushed to the Fedora EPEL 7 testing updates repository.",
+			"timestamp": "2015-02-26 16:26:44",
+			"update_id": 35703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 300099,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-02-26 19:04:33",
+			"update_id": 35703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 300100,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2015-03-12 20:39:32",
+			"update_id": 35703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 300101,
+			"text": "This update has been submitted for stable by patches. ",
+			"timestamp": "2015-04-29 21:42:04",
+			"update_id": 35703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 300102,
+			"text": "This update is currently being pushed to the Fedora EPEL 7 stable updates repository.",
+			"timestamp": "2015-04-30 14:41:29",
+			"update_id": 35703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 300103,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-04-30 17:13:24",
+			"update_id": 35703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2015-02-25 00:34:27",
+	"date_pushed": "2015-04-30 17:13:24",
+	"date_stable": "2015-04-30 17:13:24",
+	"date_submitted": "2015-02-19 11:17:13",
+	"date_testing": "2015-02-26 19:04:33",
+	"meets_testing_requirements": true,
+	"notes": "# nodejs\r\n\r\n* tls: re-add 1024-bit SSL certs removed by f9456a2 (Chris Dickinson)\r\n\r\n* timers: don't close interval timers when unrefd (Julien Gilli)\r\n\r\n* timers: don't mutate unref list while iterating it (Julien Gilli)\r\n\r\n* child_process: check execFile args is an array (Sam Roberts)\r\n\r\n* child_process: check fork args is an array (Sam Roberts)\r\n\r\n* crypto: update root certificates (Ben Noordhuis)\r\n\r\n* domains: fix issues with abort on uncaught (Julien Gilli)\r\n\r\n* timers: Avoid linear scan in _unrefActive. (Julien Gilli)\r\n\r\n* timers: fix unref() memory leak (Trevor Norris)\r\n\r\n* debugger: fix when using \"use strict\" (Julien Gilli)\r\n\r\n# libuv\r\n\r\n* linux: fix epoll_pwait() regression with < 2.6.19 (Ben Noordhuis)\r\n\r\n* linux: fix epoll_pwait() sigmask size calculation (Ben Noordhuis)\r\n\r\n* linux: fix sigmask size arg in epoll_pwait() call (Ben Noordhuis)\r\n\r\n* linux: handle O_NONBLOCK != SOCK_NONBLOCK case (Helge Deller)\r\n\r\n* doc: update project links (Ben Noordhuis)\r\n\r\n* unix: add flag for blocking SIGPROF during poll (Ben Noordhuis)\r\n\r\n* unix, windows: add uv_loop_configure() function (Ben Noordhuis)\r\n\r\n# v8\r\n\r\n* Fix debugger and strict mode regression (Julien Gilli)\r\n\r\n* don't busy loop in cpu profiler thread (Ben Noordhuis)\r\n\r\n* add api for aborting on uncaught exception (Julien Gilli)",
+	"pushed": true,
+	"release": {
+		"branch": "epel7",
+		"candidate_tag": "epel7-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "epel7",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 7",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EPEL-7",
+		"override_tag": "epel7-override",
+		"package_manager": "unspecified",
+		"pending_signing_tag": "epel7-signing-pending",
+		"pending_stable_tag": "epel7-pending",
+		"pending_testing_tag": "epel7-testing-pending",
+		"stable_tag": "epel7",
+		"state": "current",
+		"testing_tag": "epel7-testing",
+		"version": "7"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "libuv-0.10.34-1.el7 nodejs-0.10.36-3.el7 v8-3.14.5.10-17.el7",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2015-0862",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2015-0862",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/72e5bd14adbc9e9839b22e207a1a44839a43ccfe93c969467eabd438391a46a9?s=24&d=retro",
+		"groups": [
+			{
+				"name": "proventesters"
+			}
+		],
+		"id": 442,
+		"name": "patches",
+		"openid": "patches.id.fedoraproject.org"
+	},
+	"version_hash": "78f1aee7b1c25a6e022ce83c6db721249d1be0df"
+}

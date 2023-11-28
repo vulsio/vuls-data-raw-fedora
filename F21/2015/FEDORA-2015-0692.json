@@ -1,0 +1,951 @@
+{
+	"alias": "FEDORA-2015-0692",
+	"bugs": [
+		{
+			"bug_id": 1129777,
+			"title": "RFE: dwfl_core_file_report: use NT_FILE core note if the link_map chain is broken",
+			"bugzilla": {
+				"bug_id": "1129777",
+				"creation_ts": "2014-08-13 15:46:37 +0000",
+				"short_desc": "RFE: dwfl_core_file_report: use NT_FILE core note if the link_map chain is broken",
+				"delta_ts": "2015-01-20 20:59:35 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7382032",
+						"comment_count": "0",
+						"who": {
+							"text": "mmilata",
+							"name": "Martin Milata"
+						},
+						"bug_when": "2014-08-13 15:46:37 +0000",
+						"thetext": "The dwfl_core_file_report function follows dynamic linker's link_map chain in order to determine the shared libraries used by the executable. As this data structure is located in writable memory it can be overwritten by garbage, which is sometimes the case [1].\n\nSince version 3.7 (commit 2aa362c49), Linux kernel adds NT_FILE note to core files which contains the files mapped by the process, including shared libraries.\n\nWould it make sense to try to detect in dwfl_core_file_report if the link_map chain is broken and fall back on NT_FILE in this case?\n\nI'm aware we can save the /proc/PID/maps file and call dwfl_linux_proc_maps_report on it, however it does not report the VDSO segment to elfutils as is the case with dwfl_core_file_report.\n\n[1] https://github.com/abrt/satyr/issues/127#issuecomment-46957546"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7382989",
+						"comment_count": "1",
+						"who": {
+							"text": "jan.kratochvil",
+							"name": "Jan Kratochvil"
+						},
+						"bug_when": "2014-08-13 21:05:34 +0000",
+						"thetext": "elfutils already has been (even before the unwinder implementation) scanning all mmap()ped files in address space / core file. This works even for core files thanks to the first ELF page being dumped, build-id present and /usr/lib/debug/.build-id/ links present.\n\nIsn't the problem that AFAIK ABRT does not provide /usr/lib/debug/.build-id/ with all the links expected there?\n\n(I admit I haven't tried to reproduce it now, there may be some bugs.)\n\nThe possible disadvantage is that elfutils may have false positives - mapping more libraries than those really dlopen()ed.  For example a library mmap()ed as a data file for tools-kind application.  But for the unwinding purposes false positives should not matter."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7382997",
+						"comment_count": "2",
+						"who": {
+							"text": "jan.kratochvil",
+							"name": "Jan Kratochvil"
+						},
+						"bug_when": "2014-08-13 21:11:52 +0000",
+						"thetext": "Still NT_FILE would sure work even without /usr/lib/debug/.build-id/ present.\nSo as a general elfutils RFE it is valid but AFAIK ABRT could provide the /usr/lib/debug/.build-id/ links."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7388550",
+						"comment_count": "3",
+						"who": {
+							"text": "mmilata",
+							"name": "Martin Milata"
+						},
+						"bug_when": "2014-08-15 10:23:41 +0000",
+						"thetext": "Indeed, the /usr/lib/debug/.build-id/ links usually aren't there - they are provided by the -debuginfo packages which we don't want to rely on (due to their size).\n\nModifying the rpmbuild script to include the link to binary/library in the main package (and doing mass rebuild) would solve this. I guess ABRT should probably investigate crash-time live-process unwinding which would solve this issue as well."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7428953",
+						"comment_count": "4",
+						"who": {
+							"text": "jan.kratochvil",
+							"name": "Jan Kratochvil"
+						},
+						"bug_when": "2014-08-28 20:48:35 +0000",
+						"thetext": "(In reply to Martin Milata from comment #3)\n> I guess ABRT should probably investigate crash-time live-process unwinding\n> which would solve this issue as well.\n\nThat should be the most reliable way, elfutils fix of deleted files for it is now pending in Bug 1130781."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7440936",
+						"comment_count": "5",
+						"who": {
+							"text": "jan.kratochvil",
+							"name": "Jan Kratochvil"
+						},
+						"bug_when": "2014-09-02 20:40:38 +0000",
+						"thetext": "Created attachment 933905\nelfutils trunk patch for NT_FILE support\n\nThe binary updated file tests/test-core.core.bz2 is required for:\nPASS: run-unstrip-n.sh"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7440945",
+						"comment_count": "6",
+						"who": {
+							"text": "jan.kratochvil",
+							"name": "Jan Kratochvil"
+						},
+						"bug_when": "2014-09-02 20:42:54 +0000",
+						"thetext": "Martin, could you test the patch that it has no regressions against ABRT core files testsuite with removed that its own implementation?\n\nIf there is no such test possible I can sure post it for elfutils as is."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7440946",
+						"comment_count": "7",
+						"who": {
+							"text": "jan.kratochvil",
+							"name": "Jan Kratochvil"
+						},
+						"bug_when": "2014-09-02 20:43:57 +0000",
+						"thetext": "The patch is also on elfutils branch: jankratochvil/NT_FILE\nhttps://git.fedorahosted.org/cgit/elfutils.git/commit/?h=jankratochvil/NT_FILE&id=71f16023e472cd520f7b9186c6865cee08c56015"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7449223",
+						"comment_count": "8",
+						"who": {
+							"text": "mmilata",
+							"name": "Martin Milata"
+						},
+						"bug_when": "2014-09-04 14:59:25 +0000",
+						"thetext": "Tested the patched version (on a core with undamaged link map) and it produces the same output as the unpatched version - no regression here."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7455792",
+						"comment_count": "9",
+						"who": {
+							"text": "jan.kratochvil",
+							"name": "Jan Kratochvil"
+						},
+						"bug_when": "2014-09-07 20:02:38 +0000",
+						"thetext": "Thanks for this test, it is also useful. But I wanted to rather test if the NT_FILE elfutils implementation brings benefits to ABRT:\n\nAt least from\n  https://github.com/abrt/satyr/commit/29a96f46028808994dfaf03fb0c29dde9601f44e\nI guess that inferior with corrupted link_map would get elfutils-backtraced before the revert above (as it was using /proc/PID/maps and not link_map).  While after the revert corrupted link_map breaks the elfutils-backtrace and after applying the NT_FILE elfutils above it the elfutils-backtrace with corrupted link_map could be working again.\n\n(Feel free to IRC me if it is not fully clear.)\n\nIf you do not have such testcase at hand that is sure also OK."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7457021",
+						"comment_count": "10",
+						"who": {
+							"text": "mmilata",
+							"name": "Martin Milata"
+						},
+						"bug_when": "2014-09-08 09:30:01 +0000",
+						"thetext": "Yes, I don't have such test case at hand. But it probably should be part of ABRT once elfutils have this patch merged. I'll look into creating it."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7457318",
+						"comment_count": "11",
+						"who": {
+							"text": "jan.kratochvil",
+							"name": "Jan Kratochvil"
+						},
+						"bug_when": "2014-09-08 11:39:07 +0000",
+						"thetext": "BTW elfutils has a testcase tests/*linkmap-cut*:\n  https://git.fedorahosted.org/cgit/elfutils.git/commit/?h=jankratochvil/NT_FILE\n\nlink_map was corrupted there by hand (by hexedit) and NT_FILE pathnames were made relative (/home/../filename -> ./filename).\n\nI was more expecting you can grep some real world core files from ABRT for such case but if you do not have any I can go ahead with the patch I have.\nThanks for the regression testing."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7458205",
+						"comment_count": "12",
+						"who": {
+							"text": "mmilata",
+							"name": "Martin Milata"
+						},
+						"bug_when": "2014-09-08 14:43:01 +0000",
+						"thetext": "I think I'd be able to find some real world example - downloading all the matching libraries is bit of a pain, though. I have created \"artificial\" test case[1] and the unwinding works fine with patched elfutils (as opposed to unpatched).\n\n[1] https://github.com/sorki/will-crash/pull/8/files"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7464903",
+						"comment_count": "13",
+						"who": {
+							"text": "jan.kratochvil",
+							"name": "Jan Kratochvil"
+						},
+						"bug_when": "2014-09-10 06:50:30 +0000",
+						"thetext": "[PATCH 1/2] Add is_executable to Dwfl_Module.\nhttps://lists.fedorahosted.org/pipermail/elfutils-devel/2014-September/004129.html\n[PATCH 2/2] Support note NT_FILE for locating files\nhttps://lists.fedorahosted.org/pipermail/elfutils-devel/2014-September/004130.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7523523",
+						"comment_count": "14",
+						"who": {
+							"text": "jan.kratochvil",
+							"name": "Jan Kratochvil"
+						},
+						"bug_when": "2014-09-26 20:47:20 +0000",
+						"thetext": "Checked into upstream repository now.\nKeeping this Bug open for next Fedora elfutils update."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7839189",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-13 12:06:58 +0000",
+						"thetext": "elfutils-0.161-2.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/elfutils-0.161-2.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7839453",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-13 13:08:29 +0000",
+						"thetext": "elfutils-0.161-2.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/elfutils-0.161-2.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7842611",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-14 07:32:29 +0000",
+						"thetext": "Package elfutils-0.161-2.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing elfutils-0.161-2.fc20'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-0677/elfutils-0.161-2.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7855312",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-19 01:35:24 +0000",
+						"thetext": "elfutils-0.161-2.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7862805",
+						"comment_count": "19",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-20 20:59:35 +0000",
+						"thetext": "elfutils-0.161-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1178888,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-9447 elfutils: directory traversal in read_long_names()",
+			"bugzilla": {
+				"bug_id": "1178888",
+				"alias": "CVE-2014-9447",
+				"creation_ts": "2015-01-05 15:26:15 +0000",
+				"short_desc": "CVE-2014-9447 elfutils: directory traversal in read_long_names()",
+				"delta_ts": "2019-09-29 13:26:24 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1181525"
+				],
+				"blocked": [
+					{
+						"bug_id": "1171146",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7807516",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-05 15:26:15 +0000",
+						"thetext": "Directory traversal vulnerability was reported in elfutils [1] 'ar' utility.\nUpstream commit with the analysis:\nhttps://git.fedorahosted.org/cgit/elfutils.git/commit/?id=147018e729e7c22eeabf15b82d26e4bf68a0d18e\n\n[1]: https://lists.fedorahosted.org/pipermail/elfutils-devel/2014-December/004499.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7838720",
+						"comment_count": "1",
+						"who": {
+							"text": "fweimer",
+							"name": "Florian Weimer"
+						},
+						"bug_when": "2015-01-13 10:44:41 +0000",
+						"thetext": "\nCreated elfutils tracking bugs for this issue:\n\nAffects: fedora-all [bug 1181525]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7855313",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-19 01:35:27 +0000",
+						"thetext": "elfutils-0.161-2.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7862806",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-20 20:59:37 +0000",
+						"thetext": "elfutils-0.161-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10556678",
+						"comment_count": "5",
+						"who": {
+							"text": "scorneli",
+							"name": "Stefan Cornelius"
+						},
+						"bug_when": "2017-06-30 11:52:04 +0000",
+						"thetext": "Fixed in RHEL6 via RHEA-2015:1302.\n\nFixed in RHEL7 via RHEA-2015:2126."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1181525,
+			"security": true,
+			"title": "CVE-2014-9447 elfutils: directory traversal in read_long_names() [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1181525",
+				"creation_ts": "2015-01-13 10:44:35 +0000",
+				"short_desc": "CVE-2014-9447 elfutils: directory traversal in read_long_names() [fedora-all]",
+				"delta_ts": "2016-06-08 10:00:00 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1178888",
+						"alias": "CVE-2014-9447",
+						"creation_ts": "2015-01-05 15:26:15 +0000",
+						"short_desc": "CVE-2014-9447 elfutils: directory traversal in read_long_names()",
+						"delta_ts": "2019-09-29 13:26:24 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1181525"
+						],
+						"blocked": [
+							{
+								"bug_id": "1171146",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7807516",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-01-05 15:26:15 +0000",
+								"thetext": "Directory traversal vulnerability was reported in elfutils [1] 'ar' utility.\nUpstream commit with the analysis:\nhttps://git.fedorahosted.org/cgit/elfutils.git/commit/?id=147018e729e7c22eeabf15b82d26e4bf68a0d18e\n\n[1]: https://lists.fedorahosted.org/pipermail/elfutils-devel/2014-December/004499.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7838720",
+								"comment_count": "1",
+								"who": {
+									"text": "fweimer",
+									"name": "Florian Weimer"
+								},
+								"bug_when": "2015-01-13 10:44:41 +0000",
+								"thetext": "\nCreated elfutils tracking bugs for this issue:\n\nAffects: fedora-all [bug 1181525]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7855313",
+								"comment_count": "2",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-01-19 01:35:27 +0000",
+								"thetext": "elfutils-0.161-2.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7862806",
+								"comment_count": "3",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-01-20 20:59:37 +0000",
+								"thetext": "elfutils-0.161-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10556678",
+								"comment_count": "5",
+								"who": {
+									"text": "scorneli",
+									"name": "Stefan Cornelius"
+								},
+								"bug_when": "2017-06-30 11:52:04 +0000",
+								"thetext": "Fixed in RHEL6 via RHEA-2015:1302.\n\nFixed in RHEL7 via RHEA-2015:2126."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7838717",
+						"comment_count": "0",
+						"who": {
+							"text": "fweimer",
+							"name": "Florian Weimer"
+						},
+						"bug_when": "2015-01-13 10:44:35 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7838719",
+						"comment_count": "1",
+						"who": {
+							"text": "fweimer",
+							"name": "Florian Weimer"
+						},
+						"bug_when": "2015-01-13 10:44:40 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1178888,1181525\n\n# Description of your update\nnotes=Security fix for CVE-2014-9447\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1178888,1181525"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7839188",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-13 12:06:56 +0000",
+						"thetext": "elfutils-0.161-2.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/elfutils-0.161-2.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7839452",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-13 13:08:27 +0000",
+						"thetext": "elfutils-0.161-2.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/elfutils-0.161-2.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7842610",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-14 07:32:27 +0000",
+						"thetext": "Package elfutils-0.161-2.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing elfutils-0.161-2.fc20'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-0677/elfutils-0.161-2.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7855311",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-19 01:35:20 +0000",
+						"thetext": "elfutils-0.161-2.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7862804",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-20 20:59:33 +0000",
+						"thetext": "elfutils-0.161-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "elfutils-0.161-2.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "elfutils-devel",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-libelf",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-debuginfo",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-libelf-devel",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-libelf-devel-static",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-devel-static",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-libs",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "elfutils-debuginfo",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-libelf-devel",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-libelf",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-devel",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-libs",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-libelf-devel-static",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-devel-static",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "elfutils",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "elfutils-libs",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-libelf",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-libelf-devel",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-devel-static",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-debuginfo",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-libelf-devel-static",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-devel",
+						"version": "0.161",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 68097,
+			"text": "This update has been submitted for testing by mjw. ",
+			"timestamp": "2015-01-13 12:07:25",
+			"update_id": 9555,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 68098,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/27729/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-01-13 12:25:17",
+			"update_id": 9555,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 68099,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/27729/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-01-13 12:26:06",
+			"update_id": 9555,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 68100,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2015-01-13 23:30:09",
+			"update_id": 9555,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 68101,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-01-14 07:33:01",
+			"update_id": 9555,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 68102,
+			"karma": 1,
+			"text": "No issues.",
+			"timestamp": "2015-01-16 10:34:16",
+			"update_id": 9555,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/e5045d506aa85d296de0918e4dd52b74cc33dec956be122a03bfdbe4be24e97f?s=24&d=retro",
+				"email": "decathorpe@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "rust-sig"
+					},
+					{
+						"name": "libreoffice-sig"
+					},
+					{
+						"name": "diversity-pride"
+					}
+				],
+				"id": 388,
+				"name": "decathorpe",
+				"openid": "decathorpe.id.fedoraproject.org"
+			},
+			"user_id": 388
+		},
+		{
+			"id": 68103,
+			"text": "Critical path update approved",
+			"timestamp": "2015-01-16 10:34:17",
+			"update_id": 9555,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 68104,
+			"karma": 1,
+			"text": "i686 no regressions noticed",
+			"timestamp": "2015-01-17 19:42:59",
+			"update_id": 9555,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/7ee064ba1639cce664b344a002c8677261611d0ca8b42872b14e9d33d3efd82b?s=24&d=retro",
+				"email": "micsim2007@outlook.com",
+				"groups": [
+					{}
+				],
+				"id": 179,
+				"name": "arehtykitna",
+				"openid": "arehtykitna.id.fedoraproject.org"
+			},
+			"user_id": 179
+		},
+		{
+			"id": 68105,
+			"karma": 1,
+			"text": "All seems to be good here.",
+			"timestamp": "2015-01-17 20:31:46",
+			"update_id": 9555,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/0fd1d5acbf668178227e981c4ef1fcab1f7313bb3d090445347ec7e53fa59914?s=24&d=retro",
+				"id": 567,
+				"name": "rorgoroth",
+				"openid": "rorgoroth.id.fedoraproject.org"
+			},
+			"user_id": 567
+		},
+		{
+			"id": 68106,
+			"text": "This update has reached the stable karma threshold and will be pushed to the stable updates repository",
+			"timestamp": "2015-01-17 20:31:49",
+			"update_id": 9555,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 68107,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/29084/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-01-17 20:35:47",
+			"update_id": 9555,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 68108,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2015-01-18 18:42:24",
+			"update_id": 9555,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 68109,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-01-19 01:34:54",
+			"update_id": 9555,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2015-01-19 01:34:54",
+	"date_stable": "2015-01-19 01:34:54",
+	"date_submitted": "2015-01-13 12:07:10",
+	"date_testing": "2015-01-14 07:33:01",
+	"karma": 3,
+	"meets_testing_requirements": true,
+	"notes": "Update to elfutils 0.161. Security fix for CVE-2014-9447.",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "elfutils-0.161-2.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-0692",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-0692",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/0f32874b1ae3083205c874c83cd2d21715c89b8645483f353e90ae499c67c944?s=24&d=retro",
+		"email": "fedora@wildebeest.org",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "cla_redhat"
+			},
+			{
+				"name": "gitelfutils"
+			}
+		],
+		"id": 944,
+		"name": "mjw",
+		"openid": "mjw.id.fedoraproject.org"
+	},
+	"version_hash": "cf15a0dfaef77ec5fea2f1f24c57867674208417"
+}

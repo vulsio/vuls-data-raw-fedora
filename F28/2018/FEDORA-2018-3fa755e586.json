@@ -1,0 +1,602 @@
+{
+	"alias": "FEDORA-2018-3fa755e586",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1595591,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2018-1000532 beep: External control of file name or path via --device option",
+			"bugzilla": {
+				"bug_id": "1595591",
+				"alias": "CVE-2018-1000532",
+				"creation_ts": "2018-06-27 08:05:54 +0000",
+				"short_desc": "CVE-2018-1000532 beep: External control of file name or path via --device option",
+				"delta_ts": "2019-09-29 14:43:14 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "UPSTREAM",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1595592"
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11744683",
+						"comment_count": "0",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2018-06-27 08:05:54 +0000",
+						"thetext": "\nbeep version 1.3 and up contains a External Control of File Name or Path vulnerability in --device option that can allow a local unprivileged user to inhibit execution of arbitrary programs by other users, allowing DoS.\n\nReferences:\n\nhttps://github.com/johnath/beep/issues/11#issuecomment-379514298"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11744686",
+						"comment_count": "1",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2018-06-27 08:06:18 +0000",
+						"thetext": "Created beep tracking bugs for this issue:\n\nAffects: fedora-all [bug 1595592]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12328210",
+						"comment_count": "2",
+						"who": {
+							"text": "rhbugs",
+							"name": "Hans Ulrich Niedermann"
+						},
+						"bug_when": "2018-12-28 14:40:12 +0000",
+						"thetext": "Summary on the impact of CVE-2018-1000532:\n\nAs Fedora ships the beep package, the beep executable never changes priviledges\n(via setuid or sudo). So out of the box, CVE-2018-1000532 has no effect on Fedora\nusers of the `beep` package.\n\nHowever, Fedora users must explictly reconfigure their system for `beep` to\nactually beep the speaker, as the `pcspkr.ko` module is not loaded on Fedora by\ndefault). And while they were at it, they might as well have set up `sudo` to\nprovide priviledges for `beep`. The Fedora `beep` package even suggests that\nkind of setup in the commented out example configuration it ships in the file\n`/etc/sudoers.d/beep` and the text in `README.fedora`.\n\nI have no idea how many Fedora users might actually have set up `beep` to\ngain priviledges through `sudo`.\n\nSome people may have even set the `beep` executable setuid root. We neither\nsuggest or mention setuid root. `beep` does not refuse to run if\n`(geteuid() != getuid())` either, though. I have no idea how many people might\nbe affected here.\n\nI am not aware of other ways `beep` could be set up to gain priviledges than\n`sudo` or setuid root, so this concludes my summary on the impact of\nCVE-2018-1000532 on Fedora users."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12328698",
+						"comment_count": "3",
+						"who": {
+							"text": "rhbugs",
+							"name": "Hans Ulrich Niedermann"
+						},
+						"bug_when": "2018-12-29 05:25:47 +0000",
+						"thetext": "Unfortunately, upstream's `README` and upstream's `beep.1` man page both\nsuggest making `/usr/bin/beep` setuid-root. The Fedora package ships both\nfiles. This might have increased the number of people running beep setuid\nroot.\n\nHowever, a simple package update should overwrite the /usr/bin/beep\nexecutable with mode 0755, i.e. without the setuid bit set, and also the\nnew /usr/bin/beep will not do anything if running setuid root or from sudo,\nso the new update should close the hole for those people as well."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12354696",
+						"comment_count": "4",
+						"who": {
+							"text": "rhbugs",
+							"name": "Hans Ulrich Niedermann"
+						},
+						"bug_when": "2019-01-10 12:22:03 +0000",
+						"thetext": "I forgot to explain how the new beep packages fix the issue. So here comes that explanation.\n\nOld beep (before the beep-1.3-26.fc* packages) used the KIOCSOUND API, which\nworks on devices like /dev/tty[0-9]+. For that API, the kernel insists that\nyou are either root, or own the TTY. That caused the setuid and sudo based\nmethods to be used.\n\nThe kernel people have probably notice that issue many years ago and introduced\na better API: The evdev input device API. This uses the well-known device name\n/dev/input/by-path/platform-pcspkr-event-spkr which is a symlink to an input event\ndevice like e.g. /dev/input/event42. The system administrator can use normal file\npermissions to allow write access to /dev/input/by-path/platform-pcspkr-event-spkr\nwhich allows us to avoid the whole issue of being root.\n\nUnfortunately, old beep did not try /dev/input/by-path/platform-pcspkr-event-spkr\nby default - you had to explicitly give the device name on the command line!\n\nNew beep tries /dev/input/by-path/platform-pcspkr-event-spkr first. The new beep\npackages (beep-1.3-26.fc* and later) set up a \"beep\" group and allow group write\naccess for members of the beep group. This means being root is not required any\nmore for running beep.\n\nAlso, new beep aborts before doing anything if it detects being run setuid or\nvia sudo, so even if there are remaining sudo configurations, or someone makes\nbeep setuid-root by habit, beep will not do anything any more in those cases."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12825619",
+						"comment_count": "5",
+						"who": {
+							"text": "prodsec-dev",
+							"name": "Product Security DevOps Team"
+						},
+						"bug_when": "2019-06-10 10:30:42 +0000",
+						"thetext": "This CVE Bugzilla entry is for community support informational purposes only as it does not affect a package in a commercially supported Red Hat product. Refer to the dependent bugs for status of those individual community products."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1595592,
+			"security": true,
+			"title": "CVE-2018-1000532 beep: External control of file name or path via --device option [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1595592",
+				"creation_ts": "2018-06-27 08:06:13 +0000",
+				"short_desc": "CVE-2018-1000532 beep: External control of file name or path via --device option [fedora-all]",
+				"delta_ts": "2019-01-11 00:16:26 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1595591",
+						"alias": "CVE-2018-1000532",
+						"creation_ts": "2018-06-27 08:05:54 +0000",
+						"short_desc": "CVE-2018-1000532 beep: External control of file name or path via --device option",
+						"delta_ts": "2019-09-29 14:43:14 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "UPSTREAM",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1595592"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "11744683",
+								"comment_count": "0",
+								"who": {
+									"text": "anemec",
+									"name": "Andrej Nemec"
+								},
+								"bug_when": "2018-06-27 08:05:54 +0000",
+								"thetext": "\nbeep version 1.3 and up contains a External Control of File Name or Path vulnerability in --device option that can allow a local unprivileged user to inhibit execution of arbitrary programs by other users, allowing DoS.\n\nReferences:\n\nhttps://github.com/johnath/beep/issues/11#issuecomment-379514298"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11744686",
+								"comment_count": "1",
+								"who": {
+									"text": "anemec",
+									"name": "Andrej Nemec"
+								},
+								"bug_when": "2018-06-27 08:06:18 +0000",
+								"thetext": "Created beep tracking bugs for this issue:\n\nAffects: fedora-all [bug 1595592]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12328210",
+								"comment_count": "2",
+								"who": {
+									"text": "rhbugs",
+									"name": "Hans Ulrich Niedermann"
+								},
+								"bug_when": "2018-12-28 14:40:12 +0000",
+								"thetext": "Summary on the impact of CVE-2018-1000532:\n\nAs Fedora ships the beep package, the beep executable never changes priviledges\n(via setuid or sudo). So out of the box, CVE-2018-1000532 has no effect on Fedora\nusers of the `beep` package.\n\nHowever, Fedora users must explictly reconfigure their system for `beep` to\nactually beep the speaker, as the `pcspkr.ko` module is not loaded on Fedora by\ndefault). And while they were at it, they might as well have set up `sudo` to\nprovide priviledges for `beep`. The Fedora `beep` package even suggests that\nkind of setup in the commented out example configuration it ships in the file\n`/etc/sudoers.d/beep` and the text in `README.fedora`.\n\nI have no idea how many Fedora users might actually have set up `beep` to\ngain priviledges through `sudo`.\n\nSome people may have even set the `beep` executable setuid root. We neither\nsuggest or mention setuid root. `beep` does not refuse to run if\n`(geteuid() != getuid())` either, though. I have no idea how many people might\nbe affected here.\n\nI am not aware of other ways `beep` could be set up to gain priviledges than\n`sudo` or setuid root, so this concludes my summary on the impact of\nCVE-2018-1000532 on Fedora users."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12328698",
+								"comment_count": "3",
+								"who": {
+									"text": "rhbugs",
+									"name": "Hans Ulrich Niedermann"
+								},
+								"bug_when": "2018-12-29 05:25:47 +0000",
+								"thetext": "Unfortunately, upstream's `README` and upstream's `beep.1` man page both\nsuggest making `/usr/bin/beep` setuid-root. The Fedora package ships both\nfiles. This might have increased the number of people running beep setuid\nroot.\n\nHowever, a simple package update should overwrite the /usr/bin/beep\nexecutable with mode 0755, i.e. without the setuid bit set, and also the\nnew /usr/bin/beep will not do anything if running setuid root or from sudo,\nso the new update should close the hole for those people as well."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12354696",
+								"comment_count": "4",
+								"who": {
+									"text": "rhbugs",
+									"name": "Hans Ulrich Niedermann"
+								},
+								"bug_when": "2019-01-10 12:22:03 +0000",
+								"thetext": "I forgot to explain how the new beep packages fix the issue. So here comes that explanation.\n\nOld beep (before the beep-1.3-26.fc* packages) used the KIOCSOUND API, which\nworks on devices like /dev/tty[0-9]+. For that API, the kernel insists that\nyou are either root, or own the TTY. That caused the setuid and sudo based\nmethods to be used.\n\nThe kernel people have probably notice that issue many years ago and introduced\na better API: The evdev input device API. This uses the well-known device name\n/dev/input/by-path/platform-pcspkr-event-spkr which is a symlink to an input event\ndevice like e.g. /dev/input/event42. The system administrator can use normal file\npermissions to allow write access to /dev/input/by-path/platform-pcspkr-event-spkr\nwhich allows us to avoid the whole issue of being root.\n\nUnfortunately, old beep did not try /dev/input/by-path/platform-pcspkr-event-spkr\nby default - you had to explicitly give the device name on the command line!\n\nNew beep tries /dev/input/by-path/platform-pcspkr-event-spkr first. The new beep\npackages (beep-1.3-26.fc* and later) set up a \"beep\" group and allow group write\naccess for members of the beep group. This means being root is not required any\nmore for running beep.\n\nAlso, new beep aborts before doing anything if it detects being run setuid or\nvia sudo, so even if there are remaining sudo configurations, or someone makes\nbeep setuid-root by habit, beep will not do anything any more in those cases."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12825619",
+								"comment_count": "5",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2019-06-10 10:30:42 +0000",
+								"thetext": "This CVE Bugzilla entry is for community support informational purposes only as it does not affect a package in a commercially supported Red Hat product. Refer to the dependent bugs for status of those individual community products."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11744684",
+						"comment_count": "0",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2018-06-27 08:06:13 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11744685",
+						"comment_count": "1",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2018-06-27 08:06:16 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1595591,1595592\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12327721",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-12-28 03:44:43 +0000",
+						"thetext": "beep-1.3-23.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-3fa755e586"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12327722",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-12-28 03:45:23 +0000",
+						"thetext": "beep-1.3-23.fc29 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2018-41cce740a2"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12327723",
+						"comment_count": "4",
+						"who": {
+							"text": "rhbugs",
+							"name": "Hans Ulrich Niedermann"
+						},
+						"bug_when": "2018-12-28 03:46:50 +0000",
+						"thetext": "The given template misses a `severity=` line and the related comments.\n\n(In reply to Andrej Nemec from comment #1)\n> Use the following template to for the 'fedpkg update' request to submit an\n> update for this issue as it contains the top-level parent bug(s) as well as\n> this tracking bug.  This will ensure that all associated bugs get updated\n> when new packages are pushed to stable.\n> \n> =====\n> \n> # bugfix, security, enhancement, newpackage (required)\n> type=security\n> \n> # testing, stable\n> request=testing\n> \n> # Bug numbers: 1234,9876\n> bugs=1595591,1595592\n> \n> # Description of your update\n> notes=Security fix for [PUT CVEs HERE]\n> \n> # Enable request automation based on the stable/unstable karma thresholds\n> autokarma=True\n> stable_karma=3\n> unstable_karma=-3\n> \n> # Automatically close bugs when this marked as stable\n> close_bugs=True\n> \n> # Suggest that users restart after update\n> suggest_reboot=False\n> \n> ======"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12327781",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-12-28 05:29:38 +0000",
+						"thetext": "beep-1.3-24.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-276a5f97b6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12327782",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-12-28 05:30:06 +0000",
+						"thetext": "beep-1.3-24.fc29 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2018-95fe3aaa74"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12327813",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-12-28 06:25:16 +0000",
+						"thetext": "beep-1.3-24.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-276a5f97b6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12327916",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-12-28 08:31:08 +0000",
+						"thetext": "beep-1.3-24.fc29 has been pushed to the Fedora 29 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-95fe3aaa74"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12328695",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-12-29 05:20:07 +0000",
+						"thetext": "beep-1.3-26.fc29 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2018-92eff16e03"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12328696",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-12-29 05:20:44 +0000",
+						"thetext": "beep-1.3-26.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-e4732930df"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12329068",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-12-30 02:29:37 +0000",
+						"thetext": "beep-1.3-26.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-e4732930df"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12329088",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-12-30 03:17:17 +0000",
+						"thetext": "beep-1.3-26.fc29 has been pushed to the Fedora 29 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-92eff16e03"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12353821",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-01-10 08:21:23 +0000",
+						"thetext": "beep-1.3-26.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12356860",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-01-11 00:16:26 +0000",
+						"thetext": "beep-1.3-26.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "beep-1.3-23.fc28",
+			"release_id": 21,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "beep-debugsource",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "beep-debuginfo",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "beep",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "beep",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "beep-debuginfo",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "beep-debugsource",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "beep",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "beep-debuginfo",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "beep-debugsource",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "i686"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "beep",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "beep-debuginfo",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "beep-debugsource",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "ppc64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "beep",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "beep-debuginfo",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "beep-debugsource",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "beep",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "beep-debugsource",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "beep-debuginfo",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "beep",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "beep-debugsource",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "beep",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "beep-debuginfo",
+						"version": "1.3",
+						"release": "23.fc28",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 879094,
+			"text": "This update has been submitted for testing by ndim. ",
+			"timestamp": "2018-12-28 03:44:39",
+			"update_id": 129108,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_submitted": "2018-12-28 03:44:39",
+	"notes": "Security fix for CVE-2018-1000532 and a few smaller fixes",
+	"release": {
+		"branch": "f28",
+		"candidate_tag": "f28-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f28",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 28",
+		"mail_template": "fedora_errata_template",
+		"name": "F28",
+		"override_tag": "f28-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f28-signing-pending",
+		"pending_stable_tag": "f28-updates-pending",
+		"pending_testing_tag": "f28-updates-testing-pending",
+		"stable_tag": "f28-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f28-updates-testing",
+		"version": "28"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "medium",
+	"stable_karma": 3,
+	"status": "unpushed",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "beep-1.3-23.fc28",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2018-3fa755e586",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2018-3fa755e586",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/84d903c60df961cc5b3ac64dc19924e121262610b12d0fb0c6086f748424bf4f?s=24&d=retro",
+		"email": "rhbugs@n-dimensional.de",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "giterlang"
+			}
+		],
+		"id": 1526,
+		"name": "ndim",
+		"openid": "ndim.id.fedoraproject.org"
+	},
+	"version_hash": "3a3c4e7c47a522cbce4e7aed60cd284b7635fe9a"
+}

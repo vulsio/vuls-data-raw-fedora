@@ -1,0 +1,2188 @@
+{
+	"alias": "FEDORA-2021-fbb258debf",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 1995289,
+			"feedback": [
+				{
+					"bug_id": 1995289,
+					"comment": {
+						"id": 2176727,
+						"karma": 1,
+						"text": "Works for me.",
+						"timestamp": "2021-08-20 08:44:04",
+						"update_id": 334828,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/290d95a94a5c1b5498bf69a89652967ca022fdcb42f39ebb13678acd3a87f9bc?s=24&d=retro",
+							"email": "edgar.hoch@ims.uni-stuttgart.de",
+							"groups": [
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "signed_fpca"
+								}
+							],
+							"id": 1677,
+							"name": "imsedgar",
+							"openid": "imsedgar.id.fedoraproject.org"
+						},
+						"user_id": 1677
+					},
+					"comment_id": 2176727,
+					"karma": 1
+				},
+				{
+					"bug_id": 1995289,
+					"comment": {
+						"id": 2176763,
+						"karma": 1,
+						"timestamp": "2021-08-20 09:41:37",
+						"update_id": 334828,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/1a8afd83231ef5ba905344806ba95b39f2abd77b399b0ee217ec3e6fa30a4825?s=24&d=retro",
+							"email": "bojan@rexursive.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								}
+							],
+							"id": 198,
+							"name": "bojan",
+							"openid": "bojan.id.fedoraproject.org"
+						},
+						"user_id": 198
+					},
+					"comment_id": 2176763
+				}
+			],
+			"title": "bind-9.16.20 is available",
+			"bugzilla": {
+				"bug_id": "1995289",
+				"creation_ts": "2021-08-18 18:20:12 +0000",
+				"short_desc": "bind-9.16.20 is available",
+				"delta_ts": "2021-08-26 13:22:34 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "FutureFeature, Triaged",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"blocked": [
+					{
+						"bug_id": "1997504",
+						"creation_ts": "2021-08-25 12:17:24 +0000",
+						"short_desc": "masterfile-format map incompatible after 9.16.20 release",
+						"delta_ts": "2021-08-30 20:41:42 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"priority": "unspecified",
+						"bug_severity": "unspecified",
+						"depends_on": [
+							"1995289"
+						],
+						"external_bugs": {
+							"text": "isc-projects/bind9/-/issues/2872",
+							"name": "Internet Systems Consortium (ISC)"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "15420561",
+								"comment_count": "0",
+								"who": {
+									"text": "pemensik",
+									"name": "Petr Menšík"
+								},
+								"bug_when": "2021-08-25 12:17:24 +0000",
+								"thetext": "Description of problem:\nAfter release of 9.16.20, some internal changes were made to BIND structures, which made masterfile-format map incompatible with previous versions.\n\nI attached bind-9.16-nodelock-count.patch to revert responsible change, making it compatible again. But that means memory requirements in some uses are higher than necessary and different from upstream version.\n\nVersion-Release number of selected component (if applicable):\nbind-9.16.20-2.fc36\n\nISC written KB article [1] describing possible solutions. map format is not recommended for primary zones, raw is recommended for faster loading instead. On secondary zones, changed format would require new fetch of whole zone again. Increasing traffic of the server just for a while.\n\nAfter this bug fix, size of structures would return to those in 9.16.20 release. And instead version of map files would be increased, so named can refuse them correctly without a crash. If using map format for primary zone, use named-compilezone -f map -F raw to load map file BEFORE the upgrade, convert it into raw temporary file. AFTER upgrade, use named-compilezone -f raw -F map to convert it back to map format, this time with higher version.\n\nNo action is required on slave zones, just expect them to refetch affected zones after upgrade.\n\nThis bug works just for pointers to upstream issues and documents.\n\n1. https://kb.isc.org/docs/map-zone-format-incompatibility-in-bind-9-16-20-and-9-17-17\n2. https://downloads.isc.org/isc/bind9/9.16.20/patches/bind-9.16.20-map-format-fix.patch"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15420911",
+								"comment_count": "1",
+								"who": {
+									"text": "pemensik",
+									"name": "Petr Menšík"
+								},
+								"bug_when": "2021-08-25 13:20:32 +0000",
+								"thetext": "Example of supported format file:\n\nnamed-checkzone -f map root-servers.net /var/named/slaves/db.root-servers.net \nzone root-servers.net/IN: loaded serial 2021081700\nOK\n\nExample of invalid format file:\nnamed-checkzone -f map root-servers.net /var/named/slaves/db.root-servers.net \nzone root-servers.net/IN: loading from master file /var/named/slaves/db.root-servers.net failed: invalid file\nzone root-servers.net/IN: not loaded due to errors.\n\nIn case this happens and zone would not be fetched manually, bind would have to be downgraded:\n\ndnf downgrade bind\n\nfor each map file, create a copy in different format. text format is the most portable.\n\nORIGIN=root-servers.net\n# adjust whatever file naming you use\nnamed-compilezone -f map -F text -o db.$ORIGIN.txt $ORIGIN db.$ORIGIN\n\ndnf upgrade bind\n\nfor each txt file, convert it back to new map version\n\nORIGIN=root-servers.net\n# adjust whatever file naming you use\nnamed-compilezone -f text -F map -o db.$ORIGIN $ORIGIN db.$ORIGIN.txt\n\nrndc reload"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15422040",
+								"comment_count": "2",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2021-08-25 17:59:42 +0000",
+								"thetext": "FEDORA-2021-e67471c3d8 has been submitted as an update to Fedora 34. https://bodhi.fedoraproject.org/updates/FEDORA-2021-e67471c3d8"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15422042",
+								"comment_count": "3",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2021-08-25 18:00:20 +0000",
+								"thetext": "FEDORA-2021-9556804a32 has been submitted as an update to Fedora 35. https://bodhi.fedoraproject.org/updates/FEDORA-2021-9556804a32"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15422734",
+								"comment_count": "4",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2021-08-25 20:42:32 +0000",
+								"thetext": "FEDORA-2021-e67471c3d8 has been pushed to the Fedora 34 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2021-e67471c3d8`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2021-e67471c3d8\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15427434",
+								"comment_count": "5",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2021-08-26 19:49:29 +0000",
+								"thetext": "FEDORA-2021-9556804a32 has been pushed to the Fedora 35 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2021-9556804a32`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2021-9556804a32\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15440776",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2021-08-30 20:41:42 +0000",
+								"thetext": "FEDORA-2021-e67471c3d8 has been pushed to the Fedora 34 stable repository.\nIf problem still persists, please make note of it in this bug report."
+							}
+						]
+					}
+				],
+				"external_bugs": {
+					"text": "isc-projects/bind9/-/issues/2872",
+					"name": "Internet Systems Consortium (ISC)"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "15399710",
+						"comment_count": "0",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2021-08-18 18:20:12 +0000",
+						"thetext": "Latest upstream release: 9.16.20\nCurrent version/release in rawhide: 9.16.19-4.fc35\nURL: https://www.isc.org/bind/\n\nPlease consult the package updates policy before you issue an update to a stable branch: https://docs.fedoraproject.org/en-US/fesco/Updates_Policy/\n\n\nMore information about the service that created this bug can be found at: https://fedoraproject.org/wiki/Upstream_release_monitoring\n\n\nPlease keep in mind that with any upstream change, there may also be packaging changes that need to be made. Specifically, please remember that it is your responsibility to review the new version to ensure that the licensing is still correct and that no non-free or legally problematic items have been added upstream.\n\n\nBased on the information from anitya: https://release-monitoring.org/project/77661/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15399711",
+						"comment_count": "1",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2021-08-18 18:20:21 +0000",
+						"thetext": "Created attachment 1815325\n[patch] Update to 9.16.20 (#1995289)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15399788",
+						"comment_count": "2",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2021-08-18 18:50:19 +0000",
+						"thetext": "the-new-hotness/release-monitoring.org's scratch build of bind-9.16.20-1.fc32.src.rpm for rawhide completed http://koji.fedoraproject.org/koji/taskinfo?taskID=74091389"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15403048",
+						"comment_count": "3",
+						"who": {
+							"text": "pemensik",
+							"name": "Petr Menšík"
+						},
+						"bug_when": "2021-08-19 14:31:09 +0000",
+						"thetext": "Found new issue when trying new build, there seems to be incompatible change in map fileformat zone."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15403054",
+						"comment_count": "4",
+						"who": {
+							"text": "pemensik",
+							"name": "Petr Menšík"
+						},
+						"bug_when": "2021-08-19 14:32:14 +0000",
+						"thetext": "Built in rawhide"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15404290",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-19 18:41:38 +0000",
+						"thetext": "FEDORA-2021-fbb258debf has been submitted as an update to Fedora 34. https://bodhi.fedoraproject.org/updates/FEDORA-2021-fbb258debf"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15405001",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-20 01:26:27 +0000",
+						"thetext": "FEDORA-2021-fbb258debf has been pushed to the Fedora 34 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2021-fbb258debf`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2021-fbb258debf\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15408445",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-21 01:06:58 +0000",
+						"thetext": "FEDORA-2021-fbb258debf has been pushed to the Fedora 34 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15413980",
+						"comment_count": "8",
+						"who": {
+							"text": "pspacek",
+							"name": "Petr Špaček"
+						},
+						"bug_when": "2021-08-23 17:00:52 +0000",
+						"thetext": "FTR recommened way to patch out this issue is https://ftp.isc.org/isc/bind9/9.16.20/patches/bind-9.16.20-map-format-fix.patch"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15422412",
+						"comment_count": "9",
+						"who": {
+							"text": "pemensik",
+							"name": "Petr Menšík"
+						},
+						"bug_when": "2021-08-25 19:30:31 +0000",
+						"thetext": "Recommended way rebuilt with reference to bug #1997504, which was created to gather links about the issue. Solution is still unmerged upstream AFAIK, is there agreement it is the best approach?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15425783",
+						"comment_count": "10",
+						"who": {
+							"text": "pspacek",
+							"name": "Petr Špaček"
+						},
+						"bug_when": "2021-08-26 13:22:34 +0000",
+						"thetext": "(In reply to Petr Menšík from comment #9)\n> Recommended way rebuilt with reference to bug #1997504, which was created to\n> gather links about the issue. Solution is still unmerged upstream AFAIK, is\n> there agreement it is the best approach?\n\nYes it is, barring unforeseen complications. The only thing which is holding the merge is missing documentation and release notes."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1995313,
+			"feedback": [
+				{
+					"bug_id": 1995313,
+					"comment": {
+						"id": 2176727,
+						"karma": 1,
+						"text": "Works for me.",
+						"timestamp": "2021-08-20 08:44:04",
+						"update_id": 334828,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/290d95a94a5c1b5498bf69a89652967ca022fdcb42f39ebb13678acd3a87f9bc?s=24&d=retro",
+							"email": "edgar.hoch@ims.uni-stuttgart.de",
+							"groups": [
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "signed_fpca"
+								}
+							],
+							"id": 1677,
+							"name": "imsedgar",
+							"openid": "imsedgar.id.fedoraproject.org"
+						},
+						"user_id": 1677
+					},
+					"comment_id": 2176727
+				},
+				{
+					"bug_id": 1995313,
+					"comment": {
+						"id": 2176763,
+						"karma": 1,
+						"timestamp": "2021-08-20 09:41:37",
+						"update_id": 334828,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/1a8afd83231ef5ba905344806ba95b39f2abd77b399b0ee217ec3e6fa30a4825?s=24&d=retro",
+							"email": "bojan@rexursive.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								}
+							],
+							"id": 198,
+							"name": "bojan",
+							"openid": "bojan.id.fedoraproject.org"
+						},
+						"user_id": 198
+					},
+					"comment_id": 2176763
+				}
+			],
+			"security": true,
+			"title": "CVE-2021-25218 bind: Too strict assertion check could be triggered when responses require UDP fragmentation if RRL is in use [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1995313",
+				"creation_ts": "2021-08-18 19:34:50 +0000",
+				"short_desc": "CVE-2021-25218 bind: Too strict assertion check could be triggered when responses require UDP fragmentation if RRL is in use [fedora-all]",
+				"delta_ts": "2021-08-21 01:07:01 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "1995312",
+						"alias": "CVE-2021-25218",
+						"creation_ts": "2021-08-18 19:34:42 +0000",
+						"short_desc": "CVE-2021-25218 bind: Too strict assertion check could be triggered when responses require UDP fragmentation if RRL is in use",
+						"delta_ts": "2022-04-17 21:34:27 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "NOTABUG",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"1995313",
+							"1995662",
+							"1995663",
+							"1995664",
+							"1995665",
+							"1995666",
+							"1995667",
+							"1995668",
+							"1995669",
+							"1995670",
+							"1995671",
+							"1995672",
+							"1995673",
+							"1995678",
+							"1996631"
+						],
+						"blocked": [
+							{
+								"bug_id": "1995314",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "15399888",
+								"comment_count": "0",
+								"who": {
+									"text": "gsuckevi",
+									"name": "Guilherme de Almeida Suckevicz"
+								},
+								"bug_when": "2021-08-18 19:34:42 +0000",
+								"thetext": "If named attempts to respond over UDP with a response that is larger than the current effective interface maximum transmission unit (MTU), and if response-rate limiting (RRL) is active, an assertion failure is triggered (resulting in termination of the named server process).\n\nReference:\nhttps://kb.isc.org/docs/cve-2021-25218"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15399892",
+								"comment_count": "1",
+								"who": {
+									"text": "gsuckevi",
+									"name": "Guilherme de Almeida Suckevicz"
+								},
+								"bug_when": "2021-08-18 19:35:01 +0000",
+								"thetext": "Created bind tracking bugs for this issue:\n\nAffects: fedora-all [bug 1995313]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15401792",
+								"comment_count": "2",
+								"who": {
+									"text": "rschiron",
+									"name": "Riccardo Schirone"
+								},
+								"bug_when": "2021-08-19 09:52:10 +0000",
+								"thetext": "oss-security email:\nhttps://seclists.org/oss-sec/2021/q3/112"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15401799",
+								"comment_count": "3",
+								"who": {
+									"text": "rschiron",
+									"name": "Riccardo Schirone"
+								},
+								"bug_when": "2021-08-19 09:54:49 +0000",
+								"thetext": "Upstream patches:\nhttps://github.com/isc-projects/bind9/commit/513e58d53aff2ade611e56c9ce8c2664ad2488ac\nhttps://downloads.isc.org/isc/bind9/9.17.17/patches/CVE-2021-25218.patch\nhttps://downloads.isc.org/isc/bind9/9.16.20/patches/CVE-2021-25218.patch"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15402575",
+								"comment_count": "4",
+								"who": {
+									"text": "rschiron",
+									"name": "Riccardo Schirone"
+								},
+								"bug_when": "2021-08-19 13:09:45 +0000",
+								"thetext": "Upstream issue:\nhttps://gitlab.isc.org/isc-projects/bind9/-/issues/2839"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15402629",
+								"comment_count": "5",
+								"who": {
+									"text": "rschiron",
+									"name": "Riccardo Schirone"
+								},
+								"bug_when": "2021-08-19 13:19:20 +0000",
+								"thetext": "According to the upstream patch and the linked issue, the reachable assertion seems to be in lib/ns/client.c:ns_client_error()\n\n```\nvoid\nns_client_error(ns_client_t *client, isc_result_t result) {\n\t[...]\n\t/*\n\t * Try to rate limit error responses.\n\t */\n\tif (client->view != NULL && client->view->rrl != NULL) {\n\t\tbool wouldlog;\n\t\tchar log_buf[DNS_RRL_LOG_BUF_LEN];\n\t\tdns_rrl_result_t rrl_result;\n\t\tint loglevel;\n\n\t\tINSIST(rcode != dns_rcode_noerror && rcode != dns_rcode_nxdomain);   // REACHABLE ASSERTION\n\t[...]\n}\n```"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15402718",
+								"comment_count": "6",
+								"who": {
+									"text": "rschiron",
+									"name": "Riccardo Schirone"
+								},
+								"bug_when": "2021-08-19 13:32:00 +0000",
+								"thetext": "libns was exported as a separate library from bin/named in https://gitlab.isc.org/bshastry/bind9/-/commit/8eb88aafee951859264e36c315b1289cd8c2088b . The same INSIST assertion can be found in previous versions in bin/named/client.c:ns_client_error().\n\nThe code in ns_client_error() function was first introduced with https://gitlab.isc.org/isc-projects/bind9/-/commit/55e5c51e661e23e24573db84114a3837817745c9 , which adds support for DNS Response Rate Limiting (DNS RRL)."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15405905",
+								"comment_count": "12",
+								"who": {
+									"text": "pspacek",
+									"name": "Petr Špaček"
+								},
+								"bug_when": "2021-08-20 09:00:38 +0000",
+								"thetext": "FTR libns is meant only for BIND-internal use."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15406862",
+								"comment_count": "14",
+								"who": {
+									"text": "rschiron",
+									"name": "Riccardo Schirone"
+								},
+								"bug_when": "2021-08-20 13:21:52 +0000",
+								"thetext": "As explained in https://gitlab.isc.org/isc-projects/bind9/commit/15996f0cb15631b95a801e3e88928494a69ad6ee , ns_client_error() was supposed to be called with a failure rcode and never with dns_rcode_noerror (nor dns_rcode_nxdomain). However due to https://gitlab.isc.org/isc-projects/bind9/commit/82a81287f9d5845450d692398a6c24e0f9c0a19c#3601b983e9bdb916e8f6d2263823c5ea9826bc38_286_298 some code paths were overriding the rcode value to be dns_rcode_noerror.\n\nFor this reason, versions of bind without commit 82a81287f9d5845450d692398a6c24e0f9c0a19c or `rcode_override` field cannot trigger the assertion in ns_client_error(), even if the function and the assertion are still in the code base."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "15399889",
+						"comment_count": "0",
+						"who": {
+							"text": "gsuckevi",
+							"name": "Guilherme de Almeida Suckevicz"
+						},
+						"bug_when": "2021-08-18 19:34:50 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15399890",
+						"comment_count": "1",
+						"who": {
+							"text": "gsuckevi",
+							"name": "Guilherme de Almeida Suckevicz"
+						},
+						"bug_when": "2021-08-18 19:34:53 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1995312,1995313\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15404291",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-19 18:41:41 +0000",
+						"thetext": "FEDORA-2021-fbb258debf has been submitted as an update to Fedora 34. https://bodhi.fedoraproject.org/updates/FEDORA-2021-fbb258debf"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15405002",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-20 01:26:30 +0000",
+						"thetext": "FEDORA-2021-fbb258debf has been pushed to the Fedora 34 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2021-fbb258debf`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2021-fbb258debf\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15408446",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-21 01:07:01 +0000",
+						"thetext": "FEDORA-2021-fbb258debf has been pushed to the Fedora 34 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 32,
+			"nvr": "bind-9.16.20-2.fc34",
+			"release_id": 47,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "bind-libs-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-pkcs11-libs-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-libs",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-debugsource",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-pkcs11-libs",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-devel",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-pkcs11-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-utils-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-utils",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-pkcs11-utils-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-pkcs11-utils",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-dnssec-utils-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-dnssec-utils",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-pkcs11",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-dlz-mysql",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-dlz-mysql-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-dlz-ldap",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-dlz-sqlite3",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-pkcs11-devel",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-dlz-filesystem",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-dlz-ldap-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-dlz-sqlite3-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-dlz-filesystem-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-chroot",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "bind-pkcs11-libs-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-libs-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-debugsource",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-libs",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-pkcs11-libs",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-devel",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-pkcs11-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-utils-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-pkcs11-utils-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-dnssec-utils-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-utils",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-pkcs11",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-pkcs11-utils",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-dnssec-utils",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-dlz-mysql-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-pkcs11-devel",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-dlz-mysql",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-dlz-ldap-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-dlz-sqlite3-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-dlz-filesystem-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-dlz-ldap",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-dlz-sqlite3",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-dlz-filesystem",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-chroot",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "bind-pkcs11-libs-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-libs-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-debugsource",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-libs",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-pkcs11-libs",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-devel",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-pkcs11-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-utils-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-pkcs11-utils-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-dnssec-utils-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-utils",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-pkcs11",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-pkcs11-utils",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-dnssec-utils",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-dlz-mysql-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-dlz-mysql",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-pkcs11-devel",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-dlz-ldap-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-dlz-sqlite3-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-dlz-ldap",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-dlz-filesystem-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-dlz-sqlite3",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-dlz-filesystem",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-chroot",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "bind-doc",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "noarch"
+					},
+					{
+						"name": "python3-bind",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "noarch"
+					},
+					{
+						"name": "bind-dnssec-doc",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "noarch"
+					},
+					{
+						"name": "bind-license",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "noarch"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "bind-pkcs11-libs",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-debugsource",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-pkcs11-libs-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-libs",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-libs-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-devel",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-pkcs11-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-utils-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-utils",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-pkcs11-utils",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-pkcs11-utils-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-dnssec-utils-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-pkcs11",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-dnssec-utils",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-dlz-mysql",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-dlz-mysql-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-dlz-ldap",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-dlz-sqlite3",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-pkcs11-devel",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-dlz-filesystem",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-dlz-ldap-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-dlz-sqlite3-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-dlz-filesystem-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-chroot",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "bind-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-dnssec-utils",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-dlz-ldap-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-pkcs11-devel",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-pkcs11-libs-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-pkcs11",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-dlz-ldap",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-dlz-sqlite3",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-dlz-filesystem-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-utils-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-dnssec-utils-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-utils",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-devel",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-libs-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-dlz-filesystem",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-debugsource",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-chroot",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-dlz-sqlite3-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-pkcs11-utils",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-pkcs11-libs",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-libs",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-pkcs11-utils-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-dlz-mysql-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-pkcs11-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-dlz-mysql",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "bind",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "bind-pkcs11-libs-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-libs-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-pkcs11-libs",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-libs",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-debugsource",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-devel",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-pkcs11-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-utils-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-pkcs11-utils-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-dnssec-utils-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-utils",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-pkcs11",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-pkcs11-utils",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-dnssec-utils",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-dlz-mysql-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-dlz-mysql",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-pkcs11-devel",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-dlz-ldap-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-dlz-sqlite3-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-dlz-ldap",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-dlz-filesystem-debuginfo",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-dlz-sqlite3",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-dlz-filesystem",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-chroot",
+						"epoch": 32,
+						"version": "9.16.20",
+						"release": "2.fc34",
+						"arch": "x86_64"
+					}
+				]
+			}
+		},
+		{
+			"epoch": 0,
+			"nvr": "bind-dyndb-ldap-11.9-4.fc34",
+			"release_id": 47,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "bind-dyndb-ldap-debuginfo",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-dyndb-ldap",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "aarch64"
+					},
+					{
+						"name": "bind-dyndb-ldap-debugsource",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "bind-dyndb-ldap-debuginfo",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-dyndb-ldap-debugsource",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "bind-dyndb-ldap",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "bind-dyndb-ldap-debuginfo",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-dyndb-ldap",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "i686"
+					},
+					{
+						"name": "bind-dyndb-ldap-debugsource",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "bind-dyndb-ldap-debugsource",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-dyndb-ldap",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "bind-dyndb-ldap-debuginfo",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "bind-dyndb-ldap-debuginfo",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-dyndb-ldap",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "s390x"
+					},
+					{
+						"name": "bind-dyndb-ldap-debugsource",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "bind-dyndb-ldap",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "bind-dyndb-ldap-debuginfo",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-dyndb-ldap-debugsource",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "x86_64"
+					},
+					{
+						"name": "bind-dyndb-ldap",
+						"version": "11.9",
+						"release": "4.fc34",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 2175916,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2021-08-19 18:40:20",
+			"update_id": 334828,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2175917,
+			"text": "This update has been submitted for testing by bodhi. ",
+			"timestamp": "2021-08-19 18:41:34",
+			"update_id": 334828,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2175918,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2021-08-19 18:41:34",
+			"update_id": 334828,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2176410,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2021-08-20 01:26:38",
+			"update_id": 334828,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"bug_feedback": [
+				{
+					"bug": {
+						"bug_id": 1995289,
+						"title": "bind-9.16.20 is available"
+					},
+					"bug_id": 1995289,
+					"comment_id": 2176727,
+					"karma": 1
+				},
+				{
+					"bug": {
+						"bug_id": 1995313,
+						"security": true,
+						"title": "CVE-2021-25218 bind: Too strict assertion check could be triggered when responses require UDP fragmentation if RRL is in use [fedora-all]"
+					},
+					"bug_id": 1995313,
+					"comment_id": 2176727
+				}
+			],
+			"id": 2176727,
+			"karma": 1,
+			"text": "Works for me.",
+			"timestamp": "2021-08-20 08:44:04",
+			"update_id": 334828,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/290d95a94a5c1b5498bf69a89652967ca022fdcb42f39ebb13678acd3a87f9bc?s=24&d=retro",
+				"email": "edgar.hoch@ims.uni-stuttgart.de",
+				"groups": [
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "signed_fpca"
+					}
+				],
+				"id": 1677,
+				"name": "imsedgar",
+				"openid": "imsedgar.id.fedoraproject.org"
+			},
+			"user_id": 1677
+		},
+		{
+			"id": 2176750,
+			"karma": 1,
+			"text": "Works great!  LGTM!  =)",
+			"timestamp": "2021-08-20 09:31:44",
+			"update_id": 334828,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/307632fc7188138f052f244345e779451863879298f2e6d73023011a05b1f1f6?s=24&d=retro",
+				"email": "besser82.fpo@gmail.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "designteam"
+					},
+					{
+						"name": "shogun-ca"
+					},
+					{
+						"name": "alt-gtk-de-sig"
+					}
+				],
+				"id": 206,
+				"name": "besser82",
+				"openid": "besser82.id.fedoraproject.org"
+			},
+			"user_id": 206
+		},
+		{
+			"id": 2176759,
+			"text": "This update can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2021-08-20 09:33:52",
+			"update_id": 334828,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"bug_feedback": [
+				{
+					"bug": {
+						"bug_id": 1995289,
+						"title": "bind-9.16.20 is available"
+					},
+					"bug_id": 1995289,
+					"comment_id": 2176763
+				},
+				{
+					"bug": {
+						"bug_id": 1995313,
+						"security": true,
+						"title": "CVE-2021-25218 bind: Too strict assertion check could be triggered when responses require UDP fragmentation if RRL is in use [fedora-all]"
+					},
+					"bug_id": 1995313,
+					"comment_id": 2176763
+				}
+			],
+			"id": 2176763,
+			"karma": 1,
+			"timestamp": "2021-08-20 09:41:37",
+			"update_id": 334828,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/1a8afd83231ef5ba905344806ba95b39f2abd77b399b0ee217ec3e6fa30a4825?s=24&d=retro",
+				"email": "bojan@rexursive.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 198,
+				"name": "bojan",
+				"openid": "bojan.id.fedoraproject.org"
+			},
+			"user_id": 198
+		},
+		{
+			"id": 2176764,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2021-08-20 09:41:39",
+			"update_id": 334828,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2177867,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2021-08-21 01:07:12",
+			"update_id": 334828,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2021-08-21 01:05:40",
+	"date_stable": "2021-08-21 01:05:40",
+	"date_submitted": "2021-08-19 18:40:20",
+	"date_testing": "2021-08-20 01:25:55",
+	"from_tag": "f34-build-side-44810",
+	"karma": 3,
+	"meets_testing_requirements": true,
+	"notes": "- [Upstream release notes](https://downloads.isc.org/isc/bind9/9.16.20/doc/arm/html/notes.html#notes-for-bind-9-16-20)\n- Includes fix for [map file compatibility issue](https://gitlab.isc.org/isc-projects/bind9/-/issues/2872)",
+	"pushed": true,
+	"release": {
+		"branch": "f34",
+		"candidate_tag": "f34-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f34",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 34",
+		"mail_template": "fedora_errata_template",
+		"name": "F34",
+		"override_tag": "f34-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f34-signing-pending",
+		"pending_stable_tag": "f34-updates-pending",
+		"pending_testing_tag": "f34-updates-testing-pending",
+		"stable_tag": "f34-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f34-updates-testing",
+		"version": "34"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "high",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "bind-9.16.20-2.fc34 bind-dyndb-ldap-11.9-4.fc34",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2021-fbb258debf",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2021-fbb258debf",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/0db4e7d0cca898a63a8af2fb0a59d558b16bd4b4a1c1afb6942f460ca9e98970?s=24&d=retro",
+		"email": "pemensik@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "dns-sig"
+			}
+		],
+		"id": 3184,
+		"name": "pemensik",
+		"openid": "pemensik.id.fedoraproject.org"
+	},
+	"version_hash": "1fb5491f47f9cb2eaffa5371109c4a9374b18068"
+}

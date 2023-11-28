@@ -1,0 +1,732 @@
+{
+	"alias": "FEDORA-2018-2f8f5f75f1",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1630042,
+			"security": true,
+			"title": "CVE-2018-16790 mongo-c-driver: libbson: Heap-based buffer over-read in _bson_iter_next_internal in bson-iter.c [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1630042",
+				"creation_ts": "2018-09-17 20:41:54 +0000",
+				"short_desc": "CVE-2018-16790 mongo-c-driver: libbson: Heap-based buffer over-read in _bson_iter_next_internal in bson-iter.c [fedora-all]",
+				"delta_ts": "2018-09-29 22:00:32 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1627923",
+						"alias": "CVE-2018-16790",
+						"creation_ts": "2018-09-11 21:29:23 +0000",
+						"short_desc": "CVE-2018-16790 libbson: Heap-based buffer over-read in _bson_iter_next_internal in bson-iter.c",
+						"delta_ts": "2021-10-25 22:17:37 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1627924",
+							"1627925",
+							"1629988",
+							"1629989",
+							"1630042"
+						],
+						"blocked": [
+							{
+								"bug_id": "1627926",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "12007472",
+								"comment_count": "0",
+								"who": {
+									"text": "psampaio",
+									"name": "Pedro Sampaio"
+								},
+								"bug_when": "2018-09-11 21:29:23 +0000",
+								"thetext": "The function _bson_iter_next_internal in bson-iter.c in libbson 1.12.0, as used in MongoDB mongo-c-driver and other products, has a heap-based buffer over-read via a crafted bson buffer.\n\nUpstream bug:\n\nhttps://jira.mongodb.org/browse/CDRIVER-2819"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12007479",
+								"comment_count": "1",
+								"who": {
+									"text": "psampaio",
+									"name": "Pedro Sampaio"
+								},
+								"bug_when": "2018-09-11 21:29:51 +0000",
+								"thetext": "Created libbson tracking bugs for this issue:\n\nAffects: epel-7 [bug 1627925]\nAffects: fedora-all [bug 1627924]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12008985",
+								"comment_count": "2",
+								"who": {
+									"text": "ppisar",
+									"name": "Petr Pisar"
+								},
+								"bug_when": "2018-09-12 08:51:45 +0000",
+								"thetext": "libbson was merged into mongo-c-driver in Fedora ≥ 29."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12009864",
+								"comment_count": "3",
+								"who": {
+									"text": "ppisar",
+									"name": "Petr Pisar"
+								},
+								"bug_when": "2018-09-12 12:44:01 +0000",
+								"thetext": "Created attachment 1482654\nReproducer\n\nBased on the upstream report.\n\nValgrind reports for libbson-1.9.5:\n\n==9083== Conditional jump or move depends on uninitialised value(s)\n==9083==    at 0x4859161: _bson_iter_next_internal (bson-iter.c:600)\n==9083==    by 0x485A824: bson_iter_visit_all (bson-iter.c:1900)\n==9083==    by 0x48572CF: _bson_as_json_visit_all (bson.c:3121)\n==9083==    by 0x4012BF: main (in /tmp/a.out)\n\nValgrind reports for libbson bundled within mongo-c-driver-1.12.0:\n\n==9084== Conditional jump or move depends on uninitialised value(s)\n==9084==    at 0x4868829: _bson_iter_next_internal (bson-iter.c:634)\n==9084==    by 0x486A454: bson_iter_visit_all (bson-iter.c:1934)\n==9084==    by 0x4865BCA: _bson_as_json_visit_all (bson.c:3158)\n==9084==    by 0x4012BF: main (in /tmp/a.out)\n\nBoth of them point uninitialized value read at:\n\n      if (subtype == BSON_SUBTYPE_BINARY_DEPRECATED) {\n         int32_t binary_len;\n\n         if (l < 4) {\n            iter->err_off = o;\n            goto mark_invalid;\n         }\n\n         /* subtype 2 has a redundant length header in the data */\n         memcpy (&binary_len, (iter->raw + iter->d3), sizeof (binary_len));\n         binary_len = BSON_UINT32_FROM_LE (binary_len);\n→        if (binary_len + 4 != l) {\n            iter->err_off = iter->d3;\n            goto mark_invalid;\n         }\n      }\n\nWhile sanitizer reports a buffer overread at two different places:\n\n      if (subtype == BSON_SUBTYPE_BINARY_DEPRECATED) {\n         int32_t binary_len;\n\n         if (l < 4) {\n→           iter->err_off = o;\n            goto mark_invalid;\n         }\n\n         /* subtype 2 has a redundant length header in the data */\n→        memcpy (&binary_len, (iter->raw + iter->d3), sizeof (binary_len));\n         binary_len = BSON_UINT32_FROM_LE (binary_len);\n         if (binary_len + 4 != l) {\n            iter->err_off = iter->d3;\n            goto mark_invalid;\n         }\n      }"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12017778",
+								"comment_count": "4",
+								"who": {
+									"text": "sgayou",
+									"name": "Scott Gayou"
+								},
+								"bug_when": "2018-09-14 15:15:06 +0000",
+								"thetext": "Reduced the reproducer to something a bit more actionable. Working upstream here: https://jira.mongodb.org/browse/CDRIVER-2819, but I'll post the comment here as well.\n\nLooks like we're running off the end of a binary buffer.\n\nReproducer that triggers the ASAN error can be reduced to:\n{0x11, 0x0, 0x0, 0x0, 0x5, 0xe, 0x19, 0x2e, 0x0, 0x4, 0x0, 0x0, 0x0, 0x2, 0x0, 0x0, 0x0}\n\nwhich I believe decodes to:\n\n0x11, 0x0, 0x0, 0x0 – Length of document is 0x11 (17) bytes\n0x5, – binary data\n0xe, 0x19, 0x2e, 0x0 – cstr\n0x4, 0x0, 0x0, 0x0 – length of binary element (4)\n0x2, – binary subtype (Binary (Old))\n0x0, 0x0, 0x0, (Missing final byte)\n\nThus, if we change the final binary length to a 3 instead of a 4, we no longer trigger the out of bounds read.\n\nLooking at the code now..."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12018266",
+								"comment_count": "5",
+								"who": {
+									"text": "sgayou",
+									"name": "Scott Gayou"
+								},
+								"bug_when": "2018-09-14 18:43:11 +0000",
+								"thetext": "Upstream Patch:\n\nhttps://github.com/mongodb/mongo-c-driver/commit/0d9a4d98bfdf4acd2c0138d4aaeb4e2e0934bd84"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12025031",
+								"comment_count": "8",
+								"who": {
+									"text": "sgayou",
+									"name": "Scott Gayou"
+								},
+								"bug_when": "2018-09-17 20:41:59 +0000",
+								"thetext": "Created mongo-c-driver tracking bugs for this issue:\n\nAffects: fedora-all [bug 1630042]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12026358",
+								"comment_count": "9",
+								"who": {
+									"text": "ppisar",
+									"name": "Petr Pisar"
+								},
+								"bug_when": "2018-09-18 08:42:40 +0000",
+								"thetext": "EPEL7's libbson-1.3.5 does not manifest this bug because bson_iter_next() does not read the redundant length header of BSON_SUBTYPE_BINARY_DEPRECATED by memcpy(). Otherwise the parser code is the same. I will apply the fix there. Making the parser stricter is not a bad thing."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "12025029",
+						"comment_count": "0",
+						"who": {
+							"text": "sgayou",
+							"name": "Scott Gayou"
+						},
+						"bug_when": "2018-09-17 20:41:54 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12025030",
+						"comment_count": "1",
+						"who": {
+							"text": "sgayou",
+							"name": "Scott Gayou"
+						},
+						"bug_when": "2018-09-17 20:41:57 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1627923,1630042\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12026036",
+						"comment_count": "2",
+						"who": {
+							"text": "fedora",
+							"name": "Remi Collet"
+						},
+						"bug_when": "2018-09-18 07:13:59 +0000",
+						"thetext": "Notice: mongo-c-driver provides libbson only in F29+"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12026038",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-18 07:14:21 +0000",
+						"thetext": "mongo-c-driver-1.13.0-1.fc29 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2018-2f8f5f75f1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12036438",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-20 16:16:38 +0000",
+						"thetext": "mongo-c-driver-1.13.0-1.fc29 has been pushed to the Fedora 29 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-2f8f5f75f1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12064054",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-29 22:00:32 +0000",
+						"thetext": "mongo-c-driver-1.13.0-1.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "mongo-c-driver-1.13.0-1.fc29",
+			"release_id": 23,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "mongo-c-driver-debugsource",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "aarch64"
+					},
+					{
+						"name": "mongo-c-driver",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "aarch64"
+					},
+					{
+						"name": "mongo-c-driver-libs",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libbson-debuginfo",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "aarch64"
+					},
+					{
+						"name": "mongo-c-driver-libs-debuginfo",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libbson",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libbson-devel",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "aarch64"
+					},
+					{
+						"name": "mongo-c-driver-devel",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "aarch64"
+					},
+					{
+						"name": "mongo-c-driver-debuginfo",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "libbson",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "mongo-c-driver-debuginfo",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "mongo-c-driver-libs-debuginfo",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "mongo-c-driver-libs",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libbson-debuginfo",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "mongo-c-driver",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "mongo-c-driver-debugsource",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "mongo-c-driver-devel",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libbson-devel",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "libbson",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "i686"
+					},
+					{
+						"name": "mongo-c-driver-libs-debuginfo",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "i686"
+					},
+					{
+						"name": "mongo-c-driver-debugsource",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "i686"
+					},
+					{
+						"name": "libbson-debuginfo",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "i686"
+					},
+					{
+						"name": "mongo-c-driver-debuginfo",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "i686"
+					},
+					{
+						"name": "mongo-c-driver",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "i686"
+					},
+					{
+						"name": "mongo-c-driver-devel",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "i686"
+					},
+					{
+						"name": "mongo-c-driver-libs",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "i686"
+					},
+					{
+						"name": "libbson-devel",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "libbson",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libbson-debuginfo",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "mongo-c-driver-libs",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libbson-devel",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "mongo-c-driver-libs-debuginfo",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "mongo-c-driver-debugsource",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "mongo-c-driver",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "mongo-c-driver-debuginfo",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "mongo-c-driver-devel",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "mongo-c-driver",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "s390x"
+					},
+					{
+						"name": "mongo-c-driver-libs",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "s390x"
+					},
+					{
+						"name": "mongo-c-driver-devel",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "s390x"
+					},
+					{
+						"name": "libbson",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "s390x"
+					},
+					{
+						"name": "libbson-devel",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "s390x"
+					},
+					{
+						"name": "mongo-c-driver-debugsource",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "s390x"
+					},
+					{
+						"name": "mongo-c-driver-debuginfo",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "s390x"
+					},
+					{
+						"name": "mongo-c-driver-libs-debuginfo",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "s390x"
+					},
+					{
+						"name": "libbson-debuginfo",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "mongo-c-driver",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "mongo-c-driver-debuginfo",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "x86_64"
+					},
+					{
+						"name": "mongo-c-driver-libs",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "x86_64"
+					},
+					{
+						"name": "mongo-c-driver",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "x86_64"
+					},
+					{
+						"name": "mongo-c-driver-debugsource",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libbson-debuginfo",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "x86_64"
+					},
+					{
+						"name": "mongo-c-driver-devel",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "x86_64"
+					},
+					{
+						"name": "mongo-c-driver-libs-debuginfo",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libbson-devel",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libbson",
+						"version": "1.13.0",
+						"release": "1.fc29",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 835750,
+			"text": "This update has been submitted for testing by remi. ",
+			"timestamp": "2018-09-18 07:13:05",
+			"update_id": 122857,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 835751,
+			"text": "remi edited this update.",
+			"timestamp": "2018-09-18 07:14:16",
+			"update_id": 122857,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 836749,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2018-09-20 16:19:50",
+			"update_id": 122857,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 840440,
+			"text": "This update has reached 7 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2018-09-27 18:00:27",
+			"update_id": 122857,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 840721,
+			"text": "This update has been submitted for batched by remi. ",
+			"timestamp": "2018-09-28 05:37:49",
+			"update_id": 122857,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 841247,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2018-09-29 03:00:32",
+			"update_id": 122857,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 841397,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2018-09-29 22:02:24",
+			"update_id": 122857,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2018-09-18 07:14:16",
+	"date_pushed": "2018-09-29 22:00:08",
+	"date_stable": "2018-09-29 22:00:08",
+	"date_submitted": "2018-09-18 07:13:05",
+	"date_testing": "2018-09-20 16:15:44",
+	"meets_testing_requirements": true,
+	"notes": "**libbson 1.13.0**\n\n**Features:**\n\n*    New functions to save and restore progress of a bson_iter_t:\n    bson_iter_key_len, bson_iter_offset, and son_iter_init_from_data_at_offset\n    Additional functions bson_iter_overwrite_date_time, bson_iter_overwrite_oid,   and bson_iter_overwrite_timestamp. All fixed-length BSON values can now be    updated in place.\n\n**Bug fixes:**\n\n*    Fix crash when iterating corrupt BSON.\n\n---\n\n**libmongoc 1.13.0**\n\n**Features:**\n\n*    Report a new error code, MONGOC_ERROR_GRIDFS_CORRUPT, when a chunk larger    than chunkSize is detected. Before, the driver had crashed with an assert.    Restructure of install directory. All mongoc headers are under mongoc/    and all bson headers are under bson/. The preferred way of including the    headers are mongoc/mongoc.h and bson/bson.h respectively.    Forwarding headers in the root are provided for backwards compatibility.\n*    The default CMake build type had been unspecified, now it is RelWithDebInfo.\n*    Support LibreSSL 2.7+.\n\n**Bug fixes:**\n\n*    mongoc_collection_replace_one is now a correctly exported symbol.\n*    Fix multiple issues with readConcern and writeConcern inheritance.\n*    Fix rare crash with mongodb+srv URIs on Windows.\n*    mongoc_gridfs_create_file_from_stream ignored errors while writing chunks    to the server.\n*    The following functions should not have taken a \"bypassDocumentValidation\"    option in bson_t *opts, the option is now prohibited:\n    *    mongoc_bulk_operation_insert_with_opts\n    *    mongoc_bulk_operation_update_one_with_opts\n    *    mongoc_bulk_operation_update_many_with_opts\n    *    mongoc_bulk_operation_replace_one_with_opts\n*    The heartbeat-succeeded and heartbeat-failed events (part of SDAM\n    Monitoring) had uninitialized \"duration\" fields, they are now set correctly.\n\n",
+	"pushed": true,
+	"release": {
+		"branch": "f29",
+		"candidate_tag": "f29-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f29",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 29",
+		"mail_template": "fedora_errata_template",
+		"name": "F29",
+		"override_tag": "f29-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f29-signing-pending",
+		"pending_stable_tag": "f29-updates-pending",
+		"pending_testing_tag": "f29-updates-testing-pending",
+		"stable_tag": "f29-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f29-updates-testing",
+		"version": "29"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "mongo-c-driver-1.13.0-1.fc29",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2018-2f8f5f75f1",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2018-2f8f5f75f1",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/33ddfefecc66c71eb7d6eb60503cf7f665d3bceb22e2f8e3af2704260a995ab2?s=24&d=retro",
+		"email": "fedora@famillecollet.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "centosproject-email-aliases"
+			},
+			{
+				"name": "sig-sclo"
+			}
+		],
+		"id": 94,
+		"name": "remi",
+		"openid": "remi.id.fedoraproject.org"
+	},
+	"version_hash": "a611c81a3c823c6759369b14396d30d364eb5996"
+}

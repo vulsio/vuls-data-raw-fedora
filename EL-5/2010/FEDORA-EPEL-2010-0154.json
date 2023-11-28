@@ -1,0 +1,788 @@
+{
+	"alias": "FEDORA-EPEL-2010-0154",
+	"bugs": [
+		{
+			"bug_id": 502881,
+			"security": true,
+			"title": "CVE-2010-0156 puppet: several insecure tempfile creation issues",
+			"bugzilla": {
+				"bug_id": "502881",
+				"alias": "CVE-2010-0156",
+				"creation_ts": "2009-05-27 15:39:47 +0000",
+				"short_desc": "CVE-2010-0156 puppet: several insecure tempfile creation issues",
+				"delta_ts": "2010-03-03 00:20:11 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened, Security, Triaged",
+				"priority": "low",
+				"bug_severity": "medium",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "2192084",
+						"comment_count": "0",
+						"who": {
+							"text": "opensource",
+							"name": "Till Maas"
+						},
+						"bug_when": "2009-05-27 15:39:47 +0000",
+						"thetext": "Description of problem:\nI noticed that puppet may create several predictable files in /tmp, e.g.\n\n/tmp/daemonout\n/tmp/puppetdoc.txt\n/tmp/puppetdoc.tex\n\nThere are also a lot more in the tests, but they may not be run in Fedora's F10 spec, and even more in the puppet source, e.g. for the dmg installation provider.\n\nVersion-Release number of selected component (if applicable):\npuppet-0.24.8-1.fc10\n\nHow reproducible:\nalways\n\nSteps to Reproduce:\n1. grep -nR /tmp/ /usr/lib/ruby/site_ruby/1.8/puppet\n\nActual results:\nContains ruby code like:\n/usr/lib/ruby/site_ruby/1.8/puppet/daemon.rb:33:            File.open(\"/tmp/daemonout\", \"w\") { |f|\n\nExpected results:\nShould only report findings that are not executed, e.g. in comments or help information\n\nAdditional info:\nCurrent git seems to contain even more issues, e.g. \nlib/puppet/network/server.rb:25:            File.open(\"/tmp/daemonout\", \"w\") { |f|"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2238612",
+						"comment_count": "1",
+						"who": {
+							"text": "vanmeeuwen+fedora",
+							"name": "Jeroen van Meeuwen"
+						},
+						"bug_when": "2009-06-24 14:27:38 +0000",
+						"thetext": "This is an issue the file already exists, with arbitrary content and only with permissive permissions, am I right?\n\nWould it help to put these files in, say, 0750, puppet:puppet, /var/cache/puppet/, so that only the puppet user (and root) can write to these files?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2243241",
+						"comment_count": "2",
+						"who": {
+							"text": "opensource",
+							"name": "Till Maas"
+						},
+						"bug_when": "2009-06-27 15:50:36 +0000",
+						"thetext": "(In reply to comment #1)\n> This is an issue the file already exists, with arbitrary content and only with\n> permissive permissions, am I right?\n\nI do not understand this question. But a typical attack in this case would be to create a symlink in e.g. /tmp/daemonout that points to a file that only root can write to, to manipulate the contents of this file.\n\n> Would it help to put these files in, say, 0750, puppet:puppet,\n> /var/cache/puppet/, so that only the puppet user (and root) can write to these\n> files?  \n\n/tmp/daemonout should probably be in /var/log or some puppet log file should be used instead imho. For the puppetdoc and test files the Tempfile class in ruby should be used to generate securely temporary files or maybe a temporary directory within /tmp. The class Tempfile is already used in other locations in puppet."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2318285",
+						"comment_count": "3",
+						"who": {
+							"text": "vanmeeuwen+fedora",
+							"name": "Jeroen van Meeuwen"
+						},
+						"bug_when": "2009-08-12 23:00:04 +0000",
+						"thetext": "(In reply to comment #2)\n> (In reply to comment #1)\n> > This is an issue the file already exists, with arbitrary content and only with\n> > permissive permissions, am I right?\n> \n> I do not understand this question. But a typical attack in this case would be\n> to create a symlink in e.g. /tmp/daemonout that points to a file that only root\n> can write to, to manipulate the contents of this file.\n> \n\nA file in /tmp/ is not just readable, writeable or executable to just anyone just because it is in /tmp/. The same file system permissions apply to files and directories created in /tmp/ as do they anywhere else. The only difference with /tmp/ is that anyone can create files there, and anyone can list the directories content;\n\nWith umask, files created in /tmp/ would not even be group-readable or writeable:\n\n==\nEvery 1.0s: find /tmp/ -name *puppet* -exec ls -lh {} \\;                                                                                                                                                            Thu Aug 13 00:12:39 2009\n\n-rw-------. 1 root root 0 2009-08-13 00:12 ./puppet.15122.0\n==\n\nI fail to see how this is a security problem, unless the file is created with extraneous permissions before the puppet daemon creates the file itself.\n\nIf you can explain or give me some reference I'll be happy to read up ;-)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2318684",
+						"comment_count": "4",
+						"who": {
+							"text": "opensource",
+							"name": "Till Maas"
+						},
+						"bug_when": "2009-08-13 08:29:17 +0000",
+						"thetext": "(In reply to comment #3)\n> (In reply to comment #2)\n> > (In reply to comment #1)\n> > > This is an issue the file already exists, with arbitrary content and only with\n> > > permissive permissions, am I right?\n> > \n> > I do not understand this question. But a typical attack in this case would be\n> > to create a symlink in e.g. /tmp/daemonout that points to a file that only root\n> > can write to, to manipulate the contents of this file.\n> > \n> \n> A file in /tmp/ is not just readable, writeable or executable to just anyone\n> just because it is in /tmp/. The same file system permissions apply to files\n> and directories created in /tmp/ as do they anywhere else. The only difference\n> with /tmp/ is that anyone can create files there, and anyone can list the\n> directories content;\n\n> I fail to see how this is a security problem, unless the file is created with\n> extraneous permissions before the puppet daemon creates the file itself.\n\nHere are some step by step instructions, that hopefull help to understand the problem:\n\n1) backup your /etc/shadow file, e.g. with cp /etc/shadow /root/shadow.puppet-backup\n2) As a non root user run: ln -s /etc/shadow /tmp/puppet.tex\n3) As root run: puppetdoc -m pdf\n4) notice that /etc/shadow has been overwritten with latex code: less /etc/shadow\n5) restore /etc/shadow: cp /root/shadow.puppet-backup /etc/shadow\n\n> If you can explain or give me some reference I'll be happy to read up ;-)  \n\nhttp://capec.mitre.org/data/definitions/27.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2320143",
+						"comment_count": "5",
+						"who": {
+							"text": "vanmeeuwen+fedora",
+							"name": "Jeroen van Meeuwen"
+						},
+						"bug_when": "2009-08-13 21:58:14 +0000",
+						"thetext": "So, a form of understanding is in my brain now...\n\nWould the solution be to not use /tmp/, but some directory non-root users cannot just write to (cannot create symbolic links to other files in)?\n\nI'd suggest:\n\n puppet:puppet drwxr-x--- /var/run/puppet\n\nor something similar?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2320896",
+						"comment_count": "6",
+						"who": {
+							"text": "opensource",
+							"name": "Till Maas"
+						},
+						"bug_when": "2009-08-14 13:36:30 +0000",
+						"thetext": "(In reply to comment #5)\n> So, a form of understanding is in my brain now...\n> \n> Would the solution be to not use /tmp/, but some directory non-root users\n> cannot just write to (cannot create symbolic links to other files in)?\n> \n> I'd suggest:\n> \n>  puppet:puppet drwxr-x--- /var/run/puppet\n> \n> or something similar?  \n\nBasically I already answerded this in comment:2, but I can also provide more details if needed:\n /tmp/daemonout is a logfile and should got to /var/log, the other files should be created using the ruby tempfile class[0] or using a temporary directory, e.g. for the pdf creation there are iirc also some other helper files created with the same basename, e.g. instead of /tmp/puppetdoc.tex /tmp/puppetdoc.aux can probably also be used.\n\n[0] http://www.ruby-doc.org/stdlib/libdoc/tempfile/rdoc/index.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2479025",
+						"comment_count": "7",
+						"who": {
+							"text": "triage",
+							"name": "Bug Zapper"
+						},
+						"bug_when": "2009-11-18 12:01:57 +0000",
+						"thetext": "\nThis message is a reminder that Fedora 10 is nearing its end of life.\nApproximately 30 (thirty) days from now Fedora will stop maintaining\nand issuing updates for Fedora 10.  It is Fedora's policy to close all\nbug reports from releases that are no longer maintained.  At that time\nthis bug will be closed as WONTFIX if it remains open with a Fedora \n'version' of '10'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version prior to Fedora 10's end of life.\n\nBug Reporter: Thank you for reporting this issue and we are sorry that \nwe may not be able to fix it before Fedora 10 is end of life.  If you \nwould still like to see this bug fixed and are able to reproduce it \nagainst a later version of Fedora please change the 'version' of this \nbug to the applicable version.  If you are unable to change the version, \nplease add a comment here and someone will do it for you.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events.  Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete.\n\nThe process we are following is described here: \nhttp://fedoraproject.org/wiki/BugZappers/HouseKeeping"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2545578",
+						"comment_count": "8",
+						"who": {
+							"text": "triage",
+							"name": "Bug Zapper"
+						},
+						"bug_when": "2009-12-18 09:29:48 +0000",
+						"thetext": "\nFedora 10 changed to end-of-life (EOL) status on 2009-12-17. Fedora 10 is \nno longer maintained, which means that it will not receive any further \nsecurity or bug fix updates. As a result we are closing this bug.\n\nIf you can reproduce this bug against a currently maintained version of \nFedora please feel free to reopen this bug against that version.\n\nThank you for reporting this bug and we are sorry it could not be fixed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2563416",
+						"comment_count": "9",
+						"who": {
+							"text": "opensource",
+							"name": "Till Maas"
+						},
+						"bug_when": "2010-01-03 22:14:00 +0000",
+						"thetext": "reproduced exploit from comment:4 with /tmp/puppetdoc.tex in step 2 with puppet-0.24.8-4.fc12"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2563464",
+						"comment_count": "10",
+						"who": {
+							"text": "opensource",
+							"name": "Till Maas"
+						},
+						"bug_when": "2010-01-03 23:24:59 +0000",
+						"thetext": "add co-maintainer Todd M. Zullinger to CC list"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2563581",
+						"comment_count": "11",
+						"who": {
+							"text": "james",
+							"name": "James Turnbull"
+						},
+						"bug_when": "2010-01-04 03:03:53 +0000",
+						"thetext": "We're happy to have these propagated upstream - we're currently looking at a broader fix than just these files.  For the moment happy to have you add me as a CC to any tickets such as these."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2563726",
+						"comment_count": "12",
+						"who": {
+							"text": "james",
+							"name": "James Turnbull"
+						},
+						"bug_when": "2010-01-04 07:13:50 +0000",
+						"thetext": "This is the fix we're proposing:\n\nhttp://github.com/MarkusQ/puppet/commit/0e9db34ba0afe0ea0bee3afd005a011e3099d055\n\nCan you please test and provide feedback?\n\nThanks"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2564180",
+						"comment_count": "13",
+						"who": {
+							"text": "vanmeeuwen+fedora",
+							"name": "Jeroen van Meeuwen"
+						},
+						"bug_when": "2010-01-04 12:04:41 +0000",
+						"thetext": "This looks fine to me, although I wonder what mysterious side-effects one could trigger now that the file (symlink) is being deleted, and Puppet awaits re-creation and then fails. I guess it needs to, since the file may also be a Puppet file created during a previous (aborted?) run..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2565080",
+						"comment_count": "14",
+						"who": {
+							"text": "tmz",
+							"name": "Todd Zullinger"
+						},
+						"bug_when": "2010-01-04 17:23:18 +0000",
+						"thetext": "James, thanks to you and Markus for the quick work.  I tested a little on CentOS 5 and Fedora 10 (I'm travelling and don't have handy access to an F-12 box with 0.25.x right now).  I only tested puppetdoc, and noted that while the patch from Markus prevents the tmp file problem, it does result in a traceback rather than a simple warning as I think is intended:\n\n[root@localhost ~]# echo 'Secret root stuff' > /etc/test\n[root@localhost ~]# chmod 400 /etc/test\n\n[user@localhost ~]$ ln -sv /etc/test /tmp/puppetdoc.tex\n\n[root@localhost ~]# puppetdoc -m pdf\ncreating pdf\n/usr/lib/ruby/site_ruby/1.8/puppet/util.rb:411:in `secure_open': private method `warn' called for Puppet:Module (NoMethodError)\n\tfrom /usr/lib/ruby/site_ruby/1.8/puppet/util/reference.rb:51:in `pdf'\n\tfrom /usr/lib/ruby/site_ruby/1.8/puppet/application/puppetdoc.rb:160:in `other'\n\tfrom /usr/lib/ruby/site_ruby/1.8/puppet/application.rb:226:in `send'\n\tfrom /usr/lib/ruby/site_ruby/1.8/puppet/application.rb:226:in `run_command'\n\tfrom /usr/lib/ruby/site_ruby/1.8/puppet/application.rb:217:in `run'\n\tfrom /usr/lib/ruby/site_ruby/1.8/puppet/application.rb:306:in `exit_on_fail'\n\tfrom /usr/lib/ruby/site_ruby/1.8/puppet/application.rb:217:in `run'\n\tfrom /usr/bin/puppetdoc:65\n\nI'm not sure how to quickly test the other code paths and I don't have as much time as I'd like to look into it.  But I will try and test anything if you or Markus have suggestions."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2565093",
+						"comment_count": "15",
+						"who": {
+							"text": "james",
+							"name": "James Turnbull"
+						},
+						"bug_when": "2010-01-04 17:32:46 +0000",
+						"thetext": "Todd - we'll do some more testing and get back to you."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2565137",
+						"comment_count": "16",
+						"who": {
+							"text": "james",
+							"name": "James Turnbull"
+						},
+						"bug_when": "2010-01-04 17:58:17 +0000",
+						"thetext": "Try the updated fix in that same branch."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2565469",
+						"comment_count": "17",
+						"who": {
+							"text": "tmz",
+							"name": "Todd Zullinger"
+						},
+						"bug_when": "2010-01-04 19:56:02 +0000",
+						"thetext": "James, no traceback with the typo fixed.  I didn't get any warning when running puppetdoc, though it did do what it is intended -- deleted the symlink and created it as a regular file.  If it's supposed to log or print a warning, let me know and I'll test or look further."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2566091",
+						"comment_count": "18",
+						"who": {
+							"text": "opensource",
+							"name": "Till Maas"
+						},
+						"bug_when": "2010-01-04 23:42:48 +0000",
+						"thetext": "I just got an CVE number for this issue:\nCVE-2010-0156"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2566410",
+						"comment_count": "19",
+						"who": {
+							"text": "james",
+							"name": "James Turnbull"
+						},
+						"bug_when": "2010-01-05 06:48:49 +0000",
+						"thetext": "Okay we've merged the branch and released 0.25.2 with the fix in it."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2566586",
+						"comment_count": "20",
+						"who": {
+							"text": "james",
+							"name": "James Turnbull"
+						},
+						"bug_when": "2010-01-05 10:03:34 +0000",
+						"thetext": "We also back-ported the patch to 0.24.x and created a new 0.24.x release numbered 0.24.9.  I'll announce that shortly."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2568530",
+						"comment_count": "21",
+						"who": {
+							"text": "tmz",
+							"name": "Todd Zullinger"
+						},
+						"bug_when": "2010-01-05 23:21:07 +0000",
+						"thetext": "I've built and submitted puppet-0.25.2 for Fedora and EPEL branches.  It's marked as a security update and submitted for updates-testing, as we'd like to get at least a little bit of testing to ensure there aren't any big problems hiding in the update.\n\nThanks to James and Markus for quickly working to implement a fix and get it into 0.25.2 in the 11th hour.  Someday I hope to repay you with inebriating beverages of your choice. :)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2570862",
+						"comment_count": "22",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-07 01:00:31 +0000",
+						"thetext": "puppet-0.25.2-1.fc12.1 has been pushed to the Fedora 12 testing repository.  If problems still persist, please make note of it in this bug report.\n If you want to test the update, you can install it with \n su -c 'yum --enablerepo=updates-testing update puppet'.  You can provide feedback for this update here: http://admin.fedoraproject.org/updates/F12/FEDORA-2010-0251"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2570864",
+						"comment_count": "23",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-07 01:00:41 +0000",
+						"thetext": "puppet-0.25.2-1.fc11.1 has been pushed to the Fedora 11 testing repository.  If problems still persist, please make note of it in this bug report.\n If you want to test the update, you can install it with \n su -c 'yum --enablerepo=updates-testing update puppet'.  You can provide feedback for this update here: http://admin.fedoraproject.org/updates/F11/FEDORA-2010-0254"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2573063",
+						"comment_count": "24",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-07 21:42:24 +0000",
+						"thetext": "puppet-0.25.2-1.el5.1 has been pushed to the Fedora EPEL 5 testing repository.  If problems still persist, please make note of it in this bug report.\n If you want to test the update, you can install it with \n su -c 'yum --enablerepo=updates-testing update puppet'.  You can provide feedback for this update here: http://admin.fedoraproject.org/updates/EL-5/FEDORA-EPEL-2010-0031"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2584099",
+						"comment_count": "25",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-12 23:55:14 +0000",
+						"thetext": "puppet-0.25.3-1.el5 has been pushed to the Fedora EPEL 5 testing repository.  If problems still persist, please make note of it in this bug report.\n If you want to test the update, you can install it with \n su -c 'yum --enablerepo=updates-testing update puppet'.  You can provide feedback for this update here: http://admin.fedoraproject.org/updates/EL-5/FEDORA-EPEL-2010-0054"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2584102",
+						"comment_count": "26",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-12 23:55:29 +0000",
+						"thetext": "puppet-0.25.3-1.el4 has been pushed to the Fedora EPEL 4 testing repository.  If problems still persist, please make note of it in this bug report.\n If you want to test the update, you can install it with \n su -c 'yum --enablerepo=updates-testing update puppet'.  You can provide feedback for this update here: http://admin.fedoraproject.org/updates/EL-4/FEDORA-EPEL-2010-0046"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2586687",
+						"comment_count": "27",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-14 01:19:35 +0000",
+						"thetext": "puppet-0.25.3-1.fc12 has been pushed to the Fedora 12 testing repository.  If problems still persist, please make note of it in this bug report.\n If you want to test the update, you can install it with \n su -c 'yum --enablerepo=updates-testing update puppet'.  You can provide feedback for this update here: http://admin.fedoraproject.org/updates/F12/FEDORA-2010-0492"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2586719",
+						"comment_count": "28",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-14 01:23:38 +0000",
+						"thetext": "puppet-0.25.3-1.fc11 has been pushed to the Fedora 11 testing repository.  If problems still persist, please make note of it in this bug report.\n If you want to test the update, you can install it with \n su -c 'yum --enablerepo=updates-testing update puppet'.  You can provide feedback for this update here: http://admin.fedoraproject.org/updates/F11/FEDORA-2010-0523"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2598771",
+						"comment_count": "29",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-20 01:55:30 +0000",
+						"thetext": "puppet-0.25.3-2.fc11 has been submitted as an update for Fedora 11.\nhttp://admin.fedoraproject.org/updates/puppet-0.25.3-2.fc11"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2598772",
+						"comment_count": "30",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-20 01:55:37 +0000",
+						"thetext": "puppet-0.25.3-2.fc12 has been submitted as an update for Fedora 12.\nhttp://admin.fedoraproject.org/updates/puppet-0.25.3-2.fc12"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2598773",
+						"comment_count": "31",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-20 01:55:42 +0000",
+						"thetext": "puppet-0.25.3-2.el5 has been submitted as an update for Fedora EPEL 5.\nhttp://admin.fedoraproject.org/updates/puppet-0.25.3-2.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2598774",
+						"comment_count": "32",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-20 01:55:46 +0000",
+						"thetext": "puppet-0.25.3-2.el4 has been submitted as an update for Fedora EPEL 4.\nhttp://admin.fedoraproject.org/updates/puppet-0.25.3-2.el4"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2600926",
+						"comment_count": "33",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-20 22:39:27 +0000",
+						"thetext": "puppet-0.25.3-2.el4 has been pushed to the Fedora EPEL 4 testing repository.  If problems still persist, please make note of it in this bug report.\n If you want to test the update, you can install it with \n su -c 'yum --enablerepo=updates-testing update puppet'.  You can provide feedback for this update here: http://admin.fedoraproject.org/updates/EL-4/FEDORA-EPEL-2010-0095"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2600928",
+						"comment_count": "34",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-20 22:39:38 +0000",
+						"thetext": "puppet-0.25.3-2.el5 has been pushed to the Fedora EPEL 5 testing repository.  If problems still persist, please make note of it in this bug report.\n If you want to test the update, you can install it with \n su -c 'yum --enablerepo=updates-testing update puppet'.  You can provide feedback for this update here: http://admin.fedoraproject.org/updates/EL-5/FEDORA-EPEL-2010-0097"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2601068",
+						"comment_count": "35",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-21 00:08:09 +0000",
+						"thetext": "puppet-0.25.3-2.fc12 has been pushed to the Fedora 12 testing repository.  If problems still persist, please make note of it in this bug report.\n If you want to test the update, you can install it with \n su -c 'yum --enablerepo=updates-testing update puppet'.  You can provide feedback for this update here: http://admin.fedoraproject.org/updates/F12/FEDORA-2010-0834"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2601116",
+						"comment_count": "36",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-21 00:13:48 +0000",
+						"thetext": "puppet-0.25.3-2.fc11 has been pushed to the Fedora 11 testing repository.  If problems still persist, please make note of it in this bug report.\n If you want to test the update, you can install it with \n su -c 'yum --enablerepo=updates-testing update puppet'.  You can provide feedback for this update here: http://admin.fedoraproject.org/updates/F11/FEDORA-2010-0865"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2620304",
+						"comment_count": "37",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-31 15:45:19 +0000",
+						"thetext": "puppet-0.25.4-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttp://admin.fedoraproject.org/updates/puppet-0.25.4-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2620305",
+						"comment_count": "38",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-31 15:45:28 +0000",
+						"thetext": "puppet-0.25.4-1.fc11 has been submitted as an update for Fedora 11.\nhttp://admin.fedoraproject.org/updates/puppet-0.25.4-1.fc11"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2620306",
+						"comment_count": "39",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-31 15:45:33 +0000",
+						"thetext": "puppet-0.25.4-1.el4 has been submitted as an update for Fedora EPEL 4.\nhttp://admin.fedoraproject.org/updates/puppet-0.25.4-1.el4"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2620307",
+						"comment_count": "40",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-01-31 15:45:38 +0000",
+						"thetext": "puppet-0.25.4-1.fc12 has been submitted as an update for Fedora 12.\nhttp://admin.fedoraproject.org/updates/puppet-0.25.4-1.fc12"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2623122",
+						"comment_count": "41",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-02-02 01:15:11 +0000",
+						"thetext": "puppet-0.25.4-1.fc12 has been pushed to the Fedora 12 testing repository.  If problems still persist, please make note of it in this bug report.\n If you want to test the update, you can install it with \n su -c 'yum --enablerepo=updates-testing update puppet'.  You can provide feedback for this update here: http://admin.fedoraproject.org/updates/F12/FEDORA-2010-1336"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2623136",
+						"comment_count": "42",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-02-02 01:17:31 +0000",
+						"thetext": "puppet-0.25.4-1.fc11 has been pushed to the Fedora 11 testing repository.  If problems still persist, please make note of it in this bug report.\n If you want to test the update, you can install it with \n su -c 'yum --enablerepo=updates-testing update puppet'.  You can provide feedback for this update here: http://admin.fedoraproject.org/updates/F11/FEDORA-2010-1347"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2627675",
+						"comment_count": "43",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-02-03 20:02:55 +0000",
+						"thetext": "puppet-0.25.4-1.el5 has been pushed to the Fedora EPEL 5 testing repository.  If problems still persist, please make note of it in this bug report.\n If you want to test the update, you can install it with \n su -c 'yum --enablerepo=updates-testing update puppet'.  You can provide feedback for this update here: http://admin.fedoraproject.org/updates/EL-5/FEDORA-EPEL-2010-0154"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2627691",
+						"comment_count": "44",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-02-03 20:05:01 +0000",
+						"thetext": "puppet-0.25.4-1.el4 has been pushed to the Fedora EPEL 4 testing repository.  If problems still persist, please make note of it in this bug report.\n If you want to test the update, you can install it with \n su -c 'yum --enablerepo=updates-testing update puppet'.  You can provide feedback for this update here: http://admin.fedoraproject.org/updates/EL-4/FEDORA-EPEL-2010-0163"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2686983",
+						"comment_count": "45",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-03-02 00:53:12 +0000",
+						"thetext": "puppet-0.25.4-1.fc11 has been pushed to the Fedora 11 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2687090",
+						"comment_count": "46",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-03-02 01:09:38 +0000",
+						"thetext": "puppet-0.25.4-1.fc12 has been pushed to the Fedora 12 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2689392",
+						"comment_count": "47",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-03-03 00:17:50 +0000",
+						"thetext": "puppet-0.25.4-1.el4 has been pushed to the Fedora EPEL 4 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2689398",
+						"comment_count": "48",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-03-03 00:20:06 +0000",
+						"thetext": "puppet-0.25.4-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "puppet-0.25.4-1.el5",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "puppet",
+						"version": "0.25.4",
+						"release": "1.el5",
+						"arch": "noarch"
+					},
+					{
+						"name": "puppet-server",
+						"version": "0.25.4",
+						"release": "1.el5",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "puppet",
+						"version": "0.25.4",
+						"release": "1.el5",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 25021,
+			"karma": 1,
+			"text": "This is working great for me :-)",
+			"timestamp": "2010-02-01 06:54:20",
+			"update_id": 3543,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/f95273a8fbc224e989028bcb5abfdf7fa5e26aadecec06e04f1002dc93799241?s=24&d=retro",
+				"id": 901,
+				"name": "ricky",
+				"openid": "ricky.id.fedoraproject.org"
+			},
+			"user_id": 901
+		},
+		{
+			"id": 25022,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2010-02-03 20:02:57",
+			"update_id": 3543,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 25023,
+			"karma": 1,
+			"text": "Tested in multiple environment",
+			"timestamp": "2010-02-18 11:22:49",
+			"update_id": 3543,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/b2c33bbe9476faac306f5f3274378df3dd680dbb1c99133a18a84cc18d04cbd9?s=24&d=retro",
+				"email": "vanmeeuwen+fedora@kolabsys.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					}
+				],
+				"id": 798,
+				"name": "kanarip",
+				"openid": "kanarip.id.fedoraproject.org"
+			},
+			"user_id": 798
+		},
+		{
+			"id": 25024,
+			"text": "Works great here.\n\nkarma: +1",
+			"timestamp": "2010-02-22 21:55:22",
+			"update_id": 3543,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/ffa4b7625be5eced4d6d3ea49cd8c8f60d0c6bd502ed5eb97e52e63f15583009?s=24&d=retro",
+				"id": 207,
+				"name": "anonymous",
+				"openid": "anonymous.id.fedoraproject.org"
+			},
+			"user_id": 207
+		},
+		{
+			"id": 25025,
+			"text": "This update has been submitted for stable",
+			"timestamp": "2010-02-28 03:47:45",
+			"update_id": 3543,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/a48a72e5754f0b2cf38fac2815d4e1ae1c5b60f10df13da0463714d020965e58?s=24&d=retro",
+				"email": "tmz@pobox.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "web"
+					},
+					{
+						"name": "gitfedora-web"
+					},
+					{
+						"name": "git-maint"
+					},
+					{
+						"name": "gitkeychecker"
+					}
+				],
+				"id": 136,
+				"name": "tmz",
+				"openid": "tmz.id.fedoraproject.org"
+			},
+			"user_id": 136
+		},
+		{
+			"id": 25026,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2010-03-03 00:20:14",
+			"update_id": 3543,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2010-03-03 00:20:14",
+	"date_stable": "2010-03-03 00:20:14",
+	"date_submitted": "2010-01-31 15:45:15",
+	"date_testing": "2010-02-03 20:02:57",
+	"karma": 2,
+	"meets_testing_requirements": true,
+	"notes": "The update from 0.24.x to 0.25.x brings many, many changes and improvements to puppet. The upstream release notes cover them in detail:\r\n\r\nhttp://reductivelabs.com/trac/puppet/wiki/ReleaseNotes\r\n\r\nOf note is that 0.25.x clients do not work with 0.24.x masters, so it is important to update the master before or at the same time as clients.",
+	"pushed": true,
+	"release": {
+		"branch": "el5",
+		"candidate_tag": "dist-5E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "dist-5E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 5",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-5",
+		"override_tag": "dist-5E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-5E-epel",
+		"state": "archived",
+		"testing_tag": "dist-5E-epel-testing",
+		"version": "5"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "puppet-0.25.4-1.el5",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2010-0154",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2010-0154",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/a48a72e5754f0b2cf38fac2815d4e1ae1c5b60f10df13da0463714d020965e58?s=24&d=retro",
+		"email": "tmz@pobox.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "web"
+			},
+			{
+				"name": "gitfedora-web"
+			},
+			{
+				"name": "git-maint"
+			},
+			{
+				"name": "gitkeychecker"
+			}
+		],
+		"id": 136,
+		"name": "tmz",
+		"openid": "tmz.id.fedoraproject.org"
+	},
+	"version_hash": "9f3ec8d0103e4fc573ab3960fdf1c7571f86dad1"
+}

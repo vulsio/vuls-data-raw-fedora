@@ -1,0 +1,789 @@
+{
+	"alias": "FEDORA-2017-93988a5e1a",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1513335,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2017-17044 xsa246 xen: x86: infinite loop due to missing PoD error checking (XSA-246)",
+			"bugzilla": {
+				"bug_id": "1513335",
+				"alias": "xsa246",
+				"creation_ts": "2017-11-15 08:45:37 +0000",
+				"short_desc": "CVE-2017-17044 xsa246 xen: x86: infinite loop due to missing PoD error checking (XSA-246)",
+				"delta_ts": "2021-02-17 01:14:55 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "NOTABUG",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1518214"
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10990260",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2017-11-15 08:45:37 +0000",
+						"thetext": "ISSUE DESCRIPTION\n=================\n\nFailure to recognize errors being returned from low level functions in\nPopulate on Demand (PoD) code may result in higher level code entering\nan infinite loop.\n\nIMPACT\n======\n\nA malicious HVM guest can cause one pcpu to permanently hang.  This\nnormally cascades into the whole system freezing, resulting in a a\nhost Denial of Service (DoS).\n\nVULNERABLE SYSTEMS\n==================\n\nXen versions from 3.4.x onwards are affected.\n\nOnly x86 systems are vulnerable.  ARM is not vulnerable.\n\nx86 PV VMs cannot leverage the vulnerability.\n\nOnly systems with 2MiB or 1GiB HAP pages enabled are vulnerable.\n\nThe vulnerability is largely restricted to HVM guests which have been\nconstructed in Populate-on-Demand mode (i.e. with memory < maxmem):\n\nx86 HVM domains without PoD (i.e. started with memory == maxmem, or\nwithout mentioning \"maxmem\" in the guest config file) also cannot\nleverage the vulnerability, in recent enough Xen versions:\n4.8.x and later: all versions safe if PoD not configured\n4.7.x: 4.7.1 and later safe if PoD not configured\n4.6.x: 4.6.4 and later safe if PoD not configured\n4.5.x: 4.5.4 and later safe if PoD not configured\n4.4.x and earlier: all versions vulnerable even if PoD not configured\n\nThe commit required to prevent this vulnerability when PoD\nnot configured is 2a99aa99fc84a45f505f84802af56b006d14c52e\nxen/physmap: Do not permit a guest to populate PoD pages for itself\nand the corresponding backports.\n\nMITIGATION\n==========\n\nRunning only PV guests will avoid this issue.\n\nRunning HVM guests only in non-PoD mode (maxmem == memory) will also\navoid this issue.  NOTE: In older releases of Xen, an HVM guest can\ncreate PoD entries itself; so this mitigation will not be effective.\n\nSpecifying \"hap_1gb=0 hap_2mb=0\" on the hypervisor command line will\navoid the vulnerability.\n\nAlternatively, running all x86 HVM guests in shadow mode will also\navoid this vulnerability.  (For example, by specifying \"hap=0\" in the\nxl domain configuration file.)\n\nExternal References:\n\nhttp://xenbits.xen.org/xsa/advisory-246.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10990261",
+						"comment_count": "1",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2017-11-15 08:45:40 +0000",
+						"thetext": "Acknowledgments:\n\nName: the Xen project\nUpstream: Julien Grall (Linaro)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11039777",
+						"comment_count": "2",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2017-11-28 12:42:12 +0000",
+						"thetext": "Created xen tracking bugs for this issue:\n\nAffects: fedora-all [bug 1518214]"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1513336,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2017-17045 xsa247 xen: Missing p2m error checking in PoD code (XSA-247)",
+			"bugzilla": {
+				"bug_id": "1513336",
+				"alias": "xsa247",
+				"creation_ts": "2017-11-15 08:48:56 +0000",
+				"short_desc": "CVE-2017-17045 xsa247 xen: Missing p2m error checking in PoD code (XSA-247)",
+				"delta_ts": "2021-02-17 01:14:56 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "NOTABUG",
+				"keywords": "Security",
+				"priority": "high",
+				"bug_severity": "high",
+				"depends_on": [
+					"1518214"
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10990268",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2017-11-15 08:48:56 +0000",
+						"thetext": "ISSUE DESCRIPTION\n=================\n\nCertain actions require modification of entries in a guest's P2M\n(Physical-to-Machine) table.  When large pages are in use for this\ntable, such an operation may incur a memory allocation (to replace a\nlarge mapping with individual smaller ones).  If this allocation\nfails, the p2m_set_entry() function will return an error.\n\nUnfortunately, several places in the populate-on-demand code don't\ncheck the return value of p2m_set_entry() to see if it succeeded.\n\nIn some cases, the operation was meant to remove an entry from the p2m\ntable.  If this removal fails, a malicious guest may engineer that the\npage be returned to the Xen free list, making it available to be\nallocated to another domain, while it retains a writable mapping to\nthe page.\n\nIn other cases, the operation was meant to remove special\npopulate-on-demand entries; if this removal fails, the internal\naccounting becomes inconsistent and may eventually hit a BUG().\n\nThe allocation involved comes from a separate pool of memory created\nwhen the domain is created; under normal operating conditions it never\nfails, but a malicious guest may be able to engineer situations where\nthis pool is exhausted.\n\nIMPACT\n======\n\nAn unprivileged guest can retain a writable mapping of freed memory.\nDepending on how this page is used, it could result in either an\ninformation leak, or full privilege escalation.\n\nAlternatively, an unprivileged guest can cause Xen to hit a BUG(),\ncausing a clean crash - ie, host-wide denial-of-service (DoS).\n\nVULNERABLE SYSTEMS\n==================\n\nAll systems from Xen 3.4 are vulnerable.\n\nOnly x86 systems are vulnerable.  ARM is not vulnerable.\n\nx86 PV VMs cannot leverage the vulnerability.\n\nOnly systems with 2MiB or 1GiB HAP pages enabled are vulnerable.\n\nThe vulnerability is largely restricted to HVM guests which have been\nconstructed in Populate-on-Demand mode (i.e. with memory < maxmem):\n\nx86 HVM domains without PoD (i.e. started with memory == maxmem, or\nwithout mentioning \"maxmem\" in the guest config file) also cannot\nleverage the vulnerability, in recent enough Xen versions:\n4.8.x and later: all versions safe if PoD not configured\n4.7.x: 4.7.1 and later safe if PoD not configured\n4.6.x: 4.6.4 and later safe if PoD not configured\n4.5.x: 4.5.4 and later safe if PoD not configured\n4.4.x and earlier: all versions vulnerable even if PoD not configured\n\nThe commit required to prevent this vulnerability when PoD\nnot configured is 2a99aa99fc84a45f505f84802af56b006d14c52e\nxen/physmap: Do not permit a guest to populate PoD pages for itself\nand the corresponding backports.\n\nMITIGATION\n==========\n\nRunning only PV guests will avoid this issue.\n\nRunning HVM guests only in non-PoD mode (maxmem == memory) will also\navoid this issue.  NOTE: In older releases of Xen, an HVM guest can\ncreate PoD entries itself; so this mitigation will not be effective.\n\nSpecifying \"hap_1gb=0 hap_2mb=0\" on the hypervisor command line will\nalso avoid the vulnerability.\n\nAlternatively, running all x86 HVM guests in shadow mode will also\navoid this vulnerability.  (For example, by specifying \"hap=0\" in the\nxl domain configuration file.)\n\nExternal References:\n\nhttp://xenbits.xen.org/xsa/advisory-247.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11039767",
+						"comment_count": "2",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2017-11-28 12:39:20 +0000",
+						"thetext": "Acknowledgments:\n\nName: the Xen project\nUpstream: George Dunlap (Citrix)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11039778",
+						"comment_count": "3",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2017-11-28 12:42:26 +0000",
+						"thetext": "Created xen tracking bugs for this issue:\n\nAffects: fedora-all [bug 1518214]"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1518214,
+			"security": true,
+			"title": "xen: various flaws [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1518214",
+				"creation_ts": "2017-11-28 12:42:04 +0000",
+				"short_desc": "xen: various flaws [fedora-all]",
+				"delta_ts": "2018-01-02 16:22:12 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened, Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "1513335",
+						"alias": "xsa246",
+						"creation_ts": "2017-11-15 08:45:37 +0000",
+						"short_desc": "CVE-2017-17044 xsa246 xen: x86: infinite loop due to missing PoD error checking (XSA-246)",
+						"delta_ts": "2021-02-17 01:14:55 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "NOTABUG",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1518214"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "10990260",
+								"comment_count": "0",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2017-11-15 08:45:37 +0000",
+								"thetext": "ISSUE DESCRIPTION\n=================\n\nFailure to recognize errors being returned from low level functions in\nPopulate on Demand (PoD) code may result in higher level code entering\nan infinite loop.\n\nIMPACT\n======\n\nA malicious HVM guest can cause one pcpu to permanently hang.  This\nnormally cascades into the whole system freezing, resulting in a a\nhost Denial of Service (DoS).\n\nVULNERABLE SYSTEMS\n==================\n\nXen versions from 3.4.x onwards are affected.\n\nOnly x86 systems are vulnerable.  ARM is not vulnerable.\n\nx86 PV VMs cannot leverage the vulnerability.\n\nOnly systems with 2MiB or 1GiB HAP pages enabled are vulnerable.\n\nThe vulnerability is largely restricted to HVM guests which have been\nconstructed in Populate-on-Demand mode (i.e. with memory < maxmem):\n\nx86 HVM domains without PoD (i.e. started with memory == maxmem, or\nwithout mentioning \"maxmem\" in the guest config file) also cannot\nleverage the vulnerability, in recent enough Xen versions:\n4.8.x and later: all versions safe if PoD not configured\n4.7.x: 4.7.1 and later safe if PoD not configured\n4.6.x: 4.6.4 and later safe if PoD not configured\n4.5.x: 4.5.4 and later safe if PoD not configured\n4.4.x and earlier: all versions vulnerable even if PoD not configured\n\nThe commit required to prevent this vulnerability when PoD\nnot configured is 2a99aa99fc84a45f505f84802af56b006d14c52e\nxen/physmap: Do not permit a guest to populate PoD pages for itself\nand the corresponding backports.\n\nMITIGATION\n==========\n\nRunning only PV guests will avoid this issue.\n\nRunning HVM guests only in non-PoD mode (maxmem == memory) will also\navoid this issue.  NOTE: In older releases of Xen, an HVM guest can\ncreate PoD entries itself; so this mitigation will not be effective.\n\nSpecifying \"hap_1gb=0 hap_2mb=0\" on the hypervisor command line will\navoid the vulnerability.\n\nAlternatively, running all x86 HVM guests in shadow mode will also\navoid this vulnerability.  (For example, by specifying \"hap=0\" in the\nxl domain configuration file.)\n\nExternal References:\n\nhttp://xenbits.xen.org/xsa/advisory-246.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10990261",
+								"comment_count": "1",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2017-11-15 08:45:40 +0000",
+								"thetext": "Acknowledgments:\n\nName: the Xen project\nUpstream: Julien Grall (Linaro)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11039777",
+								"comment_count": "2",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2017-11-28 12:42:12 +0000",
+								"thetext": "Created xen tracking bugs for this issue:\n\nAffects: fedora-all [bug 1518214]"
+							}
+						]
+					},
+					{
+						"bug_id": "1513336",
+						"alias": "xsa247",
+						"creation_ts": "2017-11-15 08:48:56 +0000",
+						"short_desc": "CVE-2017-17045 xsa247 xen: Missing p2m error checking in PoD code (XSA-247)",
+						"delta_ts": "2021-02-17 01:14:56 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "NOTABUG",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"1518214"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "10990268",
+								"comment_count": "0",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2017-11-15 08:48:56 +0000",
+								"thetext": "ISSUE DESCRIPTION\n=================\n\nCertain actions require modification of entries in a guest's P2M\n(Physical-to-Machine) table.  When large pages are in use for this\ntable, such an operation may incur a memory allocation (to replace a\nlarge mapping with individual smaller ones).  If this allocation\nfails, the p2m_set_entry() function will return an error.\n\nUnfortunately, several places in the populate-on-demand code don't\ncheck the return value of p2m_set_entry() to see if it succeeded.\n\nIn some cases, the operation was meant to remove an entry from the p2m\ntable.  If this removal fails, a malicious guest may engineer that the\npage be returned to the Xen free list, making it available to be\nallocated to another domain, while it retains a writable mapping to\nthe page.\n\nIn other cases, the operation was meant to remove special\npopulate-on-demand entries; if this removal fails, the internal\naccounting becomes inconsistent and may eventually hit a BUG().\n\nThe allocation involved comes from a separate pool of memory created\nwhen the domain is created; under normal operating conditions it never\nfails, but a malicious guest may be able to engineer situations where\nthis pool is exhausted.\n\nIMPACT\n======\n\nAn unprivileged guest can retain a writable mapping of freed memory.\nDepending on how this page is used, it could result in either an\ninformation leak, or full privilege escalation.\n\nAlternatively, an unprivileged guest can cause Xen to hit a BUG(),\ncausing a clean crash - ie, host-wide denial-of-service (DoS).\n\nVULNERABLE SYSTEMS\n==================\n\nAll systems from Xen 3.4 are vulnerable.\n\nOnly x86 systems are vulnerable.  ARM is not vulnerable.\n\nx86 PV VMs cannot leverage the vulnerability.\n\nOnly systems with 2MiB or 1GiB HAP pages enabled are vulnerable.\n\nThe vulnerability is largely restricted to HVM guests which have been\nconstructed in Populate-on-Demand mode (i.e. with memory < maxmem):\n\nx86 HVM domains without PoD (i.e. started with memory == maxmem, or\nwithout mentioning \"maxmem\" in the guest config file) also cannot\nleverage the vulnerability, in recent enough Xen versions:\n4.8.x and later: all versions safe if PoD not configured\n4.7.x: 4.7.1 and later safe if PoD not configured\n4.6.x: 4.6.4 and later safe if PoD not configured\n4.5.x: 4.5.4 and later safe if PoD not configured\n4.4.x and earlier: all versions vulnerable even if PoD not configured\n\nThe commit required to prevent this vulnerability when PoD\nnot configured is 2a99aa99fc84a45f505f84802af56b006d14c52e\nxen/physmap: Do not permit a guest to populate PoD pages for itself\nand the corresponding backports.\n\nMITIGATION\n==========\n\nRunning only PV guests will avoid this issue.\n\nRunning HVM guests only in non-PoD mode (maxmem == memory) will also\navoid this issue.  NOTE: In older releases of Xen, an HVM guest can\ncreate PoD entries itself; so this mitigation will not be effective.\n\nSpecifying \"hap_1gb=0 hap_2mb=0\" on the hypervisor command line will\nalso avoid the vulnerability.\n\nAlternatively, running all x86 HVM guests in shadow mode will also\navoid this vulnerability.  (For example, by specifying \"hap=0\" in the\nxl domain configuration file.)\n\nExternal References:\n\nhttp://xenbits.xen.org/xsa/advisory-247.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11039767",
+								"comment_count": "2",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2017-11-28 12:39:20 +0000",
+								"thetext": "Acknowledgments:\n\nName: the Xen project\nUpstream: George Dunlap (Citrix)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11039778",
+								"comment_count": "3",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2017-11-28 12:42:26 +0000",
+								"thetext": "Created xen tracking bugs for this issue:\n\nAffects: fedora-all [bug 1518214]"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11039775",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2017-11-28 12:42:04 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11039776",
+						"comment_count": "1",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2017-11-28 12:42:09 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1513335,1513336,1518214\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11042848",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-28 22:37:45 +0000",
+						"thetext": "xen-4.9.1-2.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2017-4bfcd57172"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11042922",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-11-28 23:06:09 +0000",
+						"thetext": "xen-4.8.2-8.fc26 has been submitted as an update to Fedora 26. https://bodhi.fedoraproject.org/updates/FEDORA-2017-93988a5e1a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11056911",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-12-02 19:52:21 +0000",
+						"thetext": "xen-4.9.1-2.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2017-4bfcd57172"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11057093",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-12-02 22:37:59 +0000",
+						"thetext": "xen-4.8.2-8.fc26 has been pushed to the Fedora 26 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2017-93988a5e1a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11083996",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-12-10 05:07:31 +0000",
+						"thetext": "xen-4.9.1-2.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11110230",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-12-14 19:02:46 +0000",
+						"thetext": "xen-4.8.2-9.fc26 has been submitted as an update to Fedora 26. https://bodhi.fedoraproject.org/updates/FEDORA-2017-16a414b3c5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11112812",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-12-15 12:19:01 +0000",
+						"thetext": "xen-4.8.2-9.fc26 has been pushed to the Fedora 26 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2017-16a414b3c5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11147884",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-01-02 16:22:12 +0000",
+						"thetext": "xen-4.8.2-9.fc26 has been pushed to the Fedora 26 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "xen-4.8.2-8.fc26",
+			"release_id": 16,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "xen-debuginfo",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-ocaml-devel",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-doc",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-runtime",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-hypervisor",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-libs",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-ocaml",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-devel",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-licenses",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "xen-doc",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-ocaml-devel",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-debuginfo",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-hypervisor",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-libs",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-licenses",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-runtime",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-ocaml",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-devel",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "xen-hypervisor",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-debuginfo",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-doc",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-ocaml-devel",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-ocaml",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-runtime",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-licenses",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-devel",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-libs",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "xen",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "xen-licenses",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-devel",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-libs",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-hypervisor",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-debuginfo",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-doc",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-runtime",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-ocaml",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-ocaml-devel",
+						"version": "4.8.2",
+						"release": "8.fc26",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 702325,
+			"text": "This update has been submitted for testing by myoung. ",
+			"timestamp": "2017-11-28 23:06:03",
+			"update_id": 103301,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 703994,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2017-12-02 22:40:39",
+			"update_id": 103301,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 704269,
+			"karma": 1,
+			"text": "works for me in a VM",
+			"timestamp": "2017-12-03 13:57:26",
+			"update_id": 103301,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/054959f4db5d1ad8f22cae1ba73e26ebfd3edd6690c21cc7ee00608f294ff22a?s=24&d=retro",
+				"email": "cserpentis@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 739,
+				"name": "cserpentis",
+				"openid": "cserpentis.id.fedoraproject.org"
+			},
+			"user_id": 739
+		},
+		{
+			"id": 704526,
+			"karma": 1,
+			"text": "Works",
+			"timestamp": "2017-12-04 10:08:43",
+			"update_id": 103301,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/cd6029d8d81108a2a69c38a2373d2a185c0e86224b8ee4971cd77bb6cdad7a20?s=24&d=retro",
+				"email": "walter.pete@yandex.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 491,
+				"name": "pwalter",
+				"openid": "pwalter.id.fedoraproject.org"
+			},
+			"user_id": 491
+		},
+		{
+			"id": 708806,
+			"text": "This update has been obsoleted by [xen-4.8.2-9.fc26](https://bodhi.fedoraproject.org/updates/FEDORA-2017-16a414b3c5).",
+			"timestamp": "2017-12-14 19:02:31",
+			"update_id": 103301,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2017-12-02 21:50:37",
+	"date_submitted": "2017-11-28 23:06:03",
+	"date_testing": "2017-12-02 21:50:37",
+	"karma": 2,
+	"meets_testing_requirements": true,
+	"notes": "xen: various flaws (#1518214)\nx86: infinite loop due to missing PoD error checking [XSA-246]\nMissing p2m error checking in PoD code [XSA-247]",
+	"release": {
+		"branch": "f26",
+		"candidate_tag": "f26-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f26",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 26",
+		"mail_template": "fedora_errata_template",
+		"name": "F26",
+		"override_tag": "f26-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f26-signing-pending",
+		"pending_stable_tag": "f26-updates-pending",
+		"pending_testing_tag": "f26-updates-testing-pending",
+		"stable_tag": "f26-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f26-updates-testing",
+		"version": "26"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "obsolete",
+	"suggest": "unspecified",
+	"title": "xen-4.8.2-8.fc26",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2017-93988a5e1a",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2017-93988a5e1a",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/452c109725b44d08b366f9b865d80b0ed8e42a74addb73d34d139d0bdba27b63?s=24&d=retro",
+		"email": "m.a.young@durham.ac.uk",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 129,
+		"name": "myoung",
+		"openid": "myoung.id.fedoraproject.org"
+	},
+	"version_hash": "13255ae55aa6e564b141d90e51d57d55045a1a5e"
+}

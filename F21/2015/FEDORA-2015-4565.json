@@ -1,0 +1,726 @@
+{
+	"alias": "FEDORA-2015-4565",
+	"bugs": [
+		{
+			"bug_id": 1204676,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-2331 libzip: integer overflow when processing ZIP archives",
+			"bugzilla": {
+				"bug_id": "1204676",
+				"alias": "CVE-2015-2331",
+				"creation_ts": "2015-03-23 10:58:49 +0000",
+				"short_desc": "CVE-2015-2331 libzip: integer overflow when processing ZIP archives",
+				"delta_ts": "2021-02-17 05:30:49 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "NOTABUG",
+				"keywords": "Security",
+				"priority": "high",
+				"bug_severity": "high",
+				"depends_on": [
+					"1204677",
+					"1204678",
+					"1208530",
+					"1208531",
+					"1208532",
+					"1208533",
+					"1209880"
+				],
+				"blocked": [
+					{
+						"bug_id": "1204679",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8072847",
+						"comment_count": "0",
+						"who": {
+							"text": "mprpic",
+							"name": "Martin Prpič"
+						},
+						"bug_when": "2015-03-23 10:58:49 +0000",
+						"thetext": "An integer overflow flaw, leading to a heap-based buffer overflow, was found in the way libzip, which is embedded in PHP, processed certain ZIP archives. If an attacker were able to supply a specially crafted ZIP archive to an application using libzip, it could cause the application to crash or, possibly, execute arbitrary code.\n\nUpstream patch:\n\nhttps://github.com/php/php-src/commit/ef8fc4b53d92fbfcd8ef1abbd6f2f5fe2c4a11e5\n\nUpstream issue:\n\nhttps://bugs.php.net/bug.php?id=69253\n\nAccording to http://seclists.org/oss-sec/2015/q1/885 , libzip upstream has been notified of this issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8072853",
+						"comment_count": "1",
+						"who": {
+							"text": "mprpic",
+							"name": "Martin Prpič"
+						},
+						"bug_when": "2015-03-23 10:59:44 +0000",
+						"thetext": "\nCreated libzip tracking bugs for this issue:\n\nAffects: fedora-all [bug 1204677]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8072856",
+						"comment_count": "2",
+						"who": {
+							"text": "mprpic",
+							"name": "Martin Prpič"
+						},
+						"bug_when": "2015-03-23 10:59:48 +0000",
+						"thetext": "\nCreated mingw-libzip tracking bugs for this issue:\n\nAffects: fedora-all [bug 1204678]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8085827",
+						"comment_count": "4",
+						"who": {
+							"text": "falonso",
+							"name": "Francisco Alonso"
+						},
+						"bug_when": "2015-03-26 10:03:32 +0000",
+						"thetext": "libzip upstream commit:\n\nhttp://hg.nih.at/libzip/rev/9f11d54f692e"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8103331",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-31 21:42:09 +0000",
+						"thetext": "mingw-libzip-0.11.2-3.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8114688",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-05 14:31:47 +0000",
+						"thetext": "mingw-libzip-0.11.2-3.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8114694",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-05 14:33:05 +0000",
+						"thetext": "mingw-libzip-0.11.2-3.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8122085",
+						"comment_count": "20",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-04-08 07:08:40 +0000",
+						"thetext": "While the patch that was applied to libzip (either upstream or bundled with PHP, see comment 4 and comment 0 respectively) is applicable to libzip versions prior to 0.11, it is only required in 0.11 and later.  The 0.11 version introduced Zip64 support and made it possible to call the affected _zip_cdir_new() with large enough nentry argument to trigger overflow.\n\nIn versions before 0.11, the _zip_cdir_new() function was called from _zip_readcdir() function when reading Zip files.  The nentry value is directly read from an input file as short / 2 byte value.  Hence the maximum possible nentry value is 0xffff / 65535.  This is insufficient to trigger integer overflow when multiplied by sizeof(struct zip_dirent).\n\nThe following libzip upstream commit adds support for reading Zip64 central directory.\n\nhttp://hg.nih.at/libzip/rev/6a817a320838\n\nIn this format, number of entries in the directory is stored as 64 bit value, rather than 16 bit used in the original Zip format.  There are now two code paths to call _zip_cdir_new() when reading Zip file - _zip_read_eocd() handling old central directory format and _zip_read_eocd64() handling Zip64 central directory.  In the latter case, nentry value is 64 bit and hence can trigger integer overflow in _zip_cdir_new().\n\nNote that only this upstream commit changed nentry type in _zip_cdir_new() from int to zip_uint64_t, so it seems integer overflow was only possible on 32 bit systems for versions between this and the above commit.\n\nhttp://hg.nih.at/libzip/rev/52de63d0c791#l7.1\n\nNote that there is similar problem in the _zip_cdir_grow() function, which was introduced via the following commit:\n\nhttp://hg.nih.at/libzip/rev/54290e506680\n\nAccording to the NEWS file, it first appeared in version 0.9.1.  It seems this change can make it possible for a malicious Zip file to cause nentry to be incremented to value that triggers integer overflow (only on 32 bit systems, as nentry continues to be int).  However, as nentry is only incremented slowly (by 0xffff, which means less than 4mb increase on each re-allocation), it's not really possible to trigger this without causing memory allocation failure earlier.  Note that upstream commit linked in comment 4 does not correct the _zip_cdir_grow() function, but that function is no longer called in current 0.11.2 version.\n\nThe libzip packages in Red Hat Enterprise Linux 6 and 7 are based on upstream versions 0.9 and 0.10.1, and hence are not affected by this issue.\n\nThe PHP packages in Red Hat products embed the following libzip versions:\n- PHP 5.3.3 (in Red Hat Enterprise Linux 5 and 6) - libzip 0.9.3\n- PHP 5.4 and 5.5 (in Red Hat Enterprise Linux 7 and Red Hat Software Collections) - libzip 0.10.1\n- PHP 5.6 - libzip 0.11.2\n\nTherefore no PHP packages in Red Hat products were affected.  Neither upstream PHP 5.4 and 5.5 needed this handled as a security fix."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8123014",
+						"comment_count": "23",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-04-08 12:09:33 +0000",
+						"thetext": "Statement:\n\nThis issue did not affect the versions of PHP as shipped with Red Hat Enterprise Linux 5, 6 and 7, and the versions of libzip as shipped with Red Hat Enterprise Linux 6 and 7."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8152322",
+						"comment_count": "25",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-17 02:29:29 +0000",
+						"thetext": "libzip-0.11.2-5.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8165756",
+						"comment_count": "26",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-21 19:00:21 +0000",
+						"thetext": "libzip-0.11.2-5.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8166014",
+						"comment_count": "27",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-21 19:28:20 +0000",
+						"thetext": "libzip-0.11.2-5.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8169100",
+						"comment_count": "28",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-04-22 15:05:09 +0000",
+						"thetext": "(In reply to Tomas Hoger from comment #20)\n> Note that upstream commit linked in comment 4 does not correct the\n> _zip_cdir_grow() function, but that function is no longer called in\n> current 0.11.2 version.\n\nUnused _zip_cdir_grow() was now removed upstream:\n\nhttp://hg.nih.at/libzip/rev/0fdf910ee373\n\nAdditional related commits, which add checks to memory allocation where overflows are not practically possible because of slow increase in memory usage (similar to what's described for _zip_cdir_grow() in comment 20) or called after zip_open(), and hence constrained by zip_open() / _zip_cdir_new() limits or checks.\n\nhttp://hg.nih.at/libzip/rev/60accba29159#l12.1\nhttp://hg.nih.at/libzip/rev/d9ed3a4b84d7#l5.1\nhttp://hg.nih.at/libzip/rev/88c842788362"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1204678,
+			"security": true,
+			"title": "CVE-2015-2331 mingw-libzip: php: libzip: integer overflow when processing ZIP archives [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1204678",
+				"creation_ts": "2015-03-23 10:59:39 +0000",
+				"short_desc": "CVE-2015-2331 mingw-libzip: php: libzip: integer overflow when processing ZIP archives [fedora-all]",
+				"delta_ts": "2015-04-05 14:33:03 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "1204676",
+						"alias": "CVE-2015-2331",
+						"creation_ts": "2015-03-23 10:58:49 +0000",
+						"short_desc": "CVE-2015-2331 libzip: integer overflow when processing ZIP archives",
+						"delta_ts": "2021-02-17 05:30:49 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "NOTABUG",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"1204677",
+							"1204678",
+							"1208530",
+							"1208531",
+							"1208532",
+							"1208533",
+							"1209880"
+						],
+						"blocked": [
+							{
+								"bug_id": "1204679",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "8072847",
+								"comment_count": "0",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2015-03-23 10:58:49 +0000",
+								"thetext": "An integer overflow flaw, leading to a heap-based buffer overflow, was found in the way libzip, which is embedded in PHP, processed certain ZIP archives. If an attacker were able to supply a specially crafted ZIP archive to an application using libzip, it could cause the application to crash or, possibly, execute arbitrary code.\n\nUpstream patch:\n\nhttps://github.com/php/php-src/commit/ef8fc4b53d92fbfcd8ef1abbd6f2f5fe2c4a11e5\n\nUpstream issue:\n\nhttps://bugs.php.net/bug.php?id=69253\n\nAccording to http://seclists.org/oss-sec/2015/q1/885 , libzip upstream has been notified of this issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8072853",
+								"comment_count": "1",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2015-03-23 10:59:44 +0000",
+								"thetext": "\nCreated libzip tracking bugs for this issue:\n\nAffects: fedora-all [bug 1204677]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8072856",
+								"comment_count": "2",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2015-03-23 10:59:48 +0000",
+								"thetext": "\nCreated mingw-libzip tracking bugs for this issue:\n\nAffects: fedora-all [bug 1204678]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8085827",
+								"comment_count": "4",
+								"who": {
+									"text": "falonso",
+									"name": "Francisco Alonso"
+								},
+								"bug_when": "2015-03-26 10:03:32 +0000",
+								"thetext": "libzip upstream commit:\n\nhttp://hg.nih.at/libzip/rev/9f11d54f692e"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8103331",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-31 21:42:09 +0000",
+								"thetext": "mingw-libzip-0.11.2-3.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8114688",
+								"comment_count": "16",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-04-05 14:31:47 +0000",
+								"thetext": "mingw-libzip-0.11.2-3.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8114694",
+								"comment_count": "17",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-04-05 14:33:05 +0000",
+								"thetext": "mingw-libzip-0.11.2-3.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8122085",
+								"comment_count": "20",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-04-08 07:08:40 +0000",
+								"thetext": "While the patch that was applied to libzip (either upstream or bundled with PHP, see comment 4 and comment 0 respectively) is applicable to libzip versions prior to 0.11, it is only required in 0.11 and later.  The 0.11 version introduced Zip64 support and made it possible to call the affected _zip_cdir_new() with large enough nentry argument to trigger overflow.\n\nIn versions before 0.11, the _zip_cdir_new() function was called from _zip_readcdir() function when reading Zip files.  The nentry value is directly read from an input file as short / 2 byte value.  Hence the maximum possible nentry value is 0xffff / 65535.  This is insufficient to trigger integer overflow when multiplied by sizeof(struct zip_dirent).\n\nThe following libzip upstream commit adds support for reading Zip64 central directory.\n\nhttp://hg.nih.at/libzip/rev/6a817a320838\n\nIn this format, number of entries in the directory is stored as 64 bit value, rather than 16 bit used in the original Zip format.  There are now two code paths to call _zip_cdir_new() when reading Zip file - _zip_read_eocd() handling old central directory format and _zip_read_eocd64() handling Zip64 central directory.  In the latter case, nentry value is 64 bit and hence can trigger integer overflow in _zip_cdir_new().\n\nNote that only this upstream commit changed nentry type in _zip_cdir_new() from int to zip_uint64_t, so it seems integer overflow was only possible on 32 bit systems for versions between this and the above commit.\n\nhttp://hg.nih.at/libzip/rev/52de63d0c791#l7.1\n\nNote that there is similar problem in the _zip_cdir_grow() function, which was introduced via the following commit:\n\nhttp://hg.nih.at/libzip/rev/54290e506680\n\nAccording to the NEWS file, it first appeared in version 0.9.1.  It seems this change can make it possible for a malicious Zip file to cause nentry to be incremented to value that triggers integer overflow (only on 32 bit systems, as nentry continues to be int).  However, as nentry is only incremented slowly (by 0xffff, which means less than 4mb increase on each re-allocation), it's not really possible to trigger this without causing memory allocation failure earlier.  Note that upstream commit linked in comment 4 does not correct the _zip_cdir_grow() function, but that function is no longer called in current 0.11.2 version.\n\nThe libzip packages in Red Hat Enterprise Linux 6 and 7 are based on upstream versions 0.9 and 0.10.1, and hence are not affected by this issue.\n\nThe PHP packages in Red Hat products embed the following libzip versions:\n- PHP 5.3.3 (in Red Hat Enterprise Linux 5 and 6) - libzip 0.9.3\n- PHP 5.4 and 5.5 (in Red Hat Enterprise Linux 7 and Red Hat Software Collections) - libzip 0.10.1\n- PHP 5.6 - libzip 0.11.2\n\nTherefore no PHP packages in Red Hat products were affected.  Neither upstream PHP 5.4 and 5.5 needed this handled as a security fix."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8123014",
+								"comment_count": "23",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-04-08 12:09:33 +0000",
+								"thetext": "Statement:\n\nThis issue did not affect the versions of PHP as shipped with Red Hat Enterprise Linux 5, 6 and 7, and the versions of libzip as shipped with Red Hat Enterprise Linux 6 and 7."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8152322",
+								"comment_count": "25",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-04-17 02:29:29 +0000",
+								"thetext": "libzip-0.11.2-5.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8165756",
+								"comment_count": "26",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-04-21 19:00:21 +0000",
+								"thetext": "libzip-0.11.2-5.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8166014",
+								"comment_count": "27",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-04-21 19:28:20 +0000",
+								"thetext": "libzip-0.11.2-5.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8169100",
+								"comment_count": "28",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-04-22 15:05:09 +0000",
+								"thetext": "(In reply to Tomas Hoger from comment #20)\n> Note that upstream commit linked in comment 4 does not correct the\n> _zip_cdir_grow() function, but that function is no longer called in\n> current 0.11.2 version.\n\nUnused _zip_cdir_grow() was now removed upstream:\n\nhttp://hg.nih.at/libzip/rev/0fdf910ee373\n\nAdditional related commits, which add checks to memory allocation where overflows are not practically possible because of slow increase in memory usage (similar to what's described for _zip_cdir_grow() in comment 20) or called after zip_open(), and hence constrained by zip_open() / _zip_cdir_new() limits or checks.\n\nhttp://hg.nih.at/libzip/rev/60accba29159#l12.1\nhttp://hg.nih.at/libzip/rev/d9ed3a4b84d7#l5.1\nhttp://hg.nih.at/libzip/rev/88c842788362"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8072851",
+						"comment_count": "0",
+						"who": {
+							"text": "mprpic",
+							"name": "Martin Prpič"
+						},
+						"bug_when": "2015-03-23 10:59:39 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8072852",
+						"comment_count": "1",
+						"who": {
+							"text": "mprpic",
+							"name": "Martin Prpič"
+						},
+						"bug_when": "2015-03-23 10:59:42 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1204676,1204678\n\n# Description of your update\nnotes=Security fix for CVE-2015-2331\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1204676,1204678"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8074648",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-23 16:52:45 +0000",
+						"thetext": "mingw-libzip-0.11.2-3.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/mingw-libzip-0.11.2-3.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8074649",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-23 16:52:52 +0000",
+						"thetext": "mingw-libzip-0.11.2-3.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/mingw-libzip-0.11.2-3.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8074651",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-23 16:52:59 +0000",
+						"thetext": "mingw-libzip-0.11.2-3.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/mingw-libzip-0.11.2-3.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8089426",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-26 21:45:04 +0000",
+						"thetext": "Package mingw-libzip-0.11.2-3.fc22:\n* should fix your issue,\n* was pushed to the Fedora 22 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing mingw-libzip-0.11.2-3.fc22'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-4559/mingw-libzip-0.11.2-3.fc22\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8103330",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-31 21:42:04 +0000",
+						"thetext": "mingw-libzip-0.11.2-3.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8114687",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-05 14:31:45 +0000",
+						"thetext": "mingw-libzip-0.11.2-3.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8114693",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-05 14:33:03 +0000",
+						"thetext": "mingw-libzip-0.11.2-3.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "mingw-libzip-0.11.2-3.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "mingw64-libzip",
+						"version": "0.11.2",
+						"release": "3.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw32-libzip-debuginfo",
+						"version": "0.11.2",
+						"release": "3.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw32-libzip",
+						"version": "0.11.2",
+						"release": "3.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw64-libzip-debuginfo",
+						"version": "0.11.2",
+						"release": "3.fc21",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "mingw-libzip",
+						"version": "0.11.2",
+						"release": "3.fc21",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 283099,
+			"text": "This update has been submitted for testing by smani. ",
+			"timestamp": "2015-03-23 16:52:54",
+			"update_id": 34072,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 283100,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/50892/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-03-23 17:09:34",
+			"update_id": 34072,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 283101,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/50892/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-03-23 17:11:13",
+			"update_id": 34072,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 283102,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2015-03-24 21:53:54",
+			"update_id": 34072,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 283103,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-03-26 21:45:17",
+			"update_id": 34072,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 283104,
+			"text": "This update has reached 7 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2015-04-02 22:42:08",
+			"update_id": 34072,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 283105,
+			"text": "This update has been submitted for stable by smani. ",
+			"timestamp": "2015-04-03 16:39:36",
+			"update_id": 34072,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 283106,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/54867/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-04-03 17:08:03",
+			"update_id": 34072,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 283107,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2015-04-05 02:21:43",
+			"update_id": 34072,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 283108,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-04-05 14:31:49",
+			"update_id": 34072,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2015-04-05 14:31:49",
+	"date_stable": "2015-04-05 14:31:49",
+	"date_submitted": "2015-03-23 16:52:49",
+	"date_testing": "2015-03-26 21:45:17",
+	"meets_testing_requirements": true,
+	"notes": "Security fix for CVE-2015-2331.",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "mingw-libzip-0.11.2-3.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-4565",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-4565",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/45d3b000186539c7dfca915d2fa0176ec9db448e552c9cf548251f4922e664bd?s=24&d=retro",
+		"email": "manisandro@gmail.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 117,
+		"name": "smani",
+		"openid": "smani.id.fedoraproject.org"
+	},
+	"version_hash": "2fd2ee4d33efd0ac9f6c18d755779eaa4c099ad3"
+}

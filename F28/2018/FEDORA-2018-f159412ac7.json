@@ -1,0 +1,1167 @@
+{
+	"alias": "FEDORA-2018-f159412ac7",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1631056,
+			"feedback": [
+				{
+					"bug_id": 1631056,
+					"comment": {
+						"id": 863889,
+						"karma": 1,
+						"text": "Works for me. ",
+						"timestamp": "2018-11-18 00:45:39",
+						"update_id": 126748,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/913ea456a77e8c120bdd8f932b79be176a34f4681111688f4b659847fd3c88ff?s=24&d=retro",
+							"email": "alvarez.davis@gmail.com",
+							"id": 4535,
+							"name": "davisclick",
+							"openid": "davisclick.id.fedoraproject.org"
+						},
+						"user_id": 4535
+					},
+					"comment_id": 863889
+				}
+			],
+			"security": true,
+			"title": "CVE-2018-17097 soundtouch: Double free in WavFileBase class in WavFile.cpp [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1631056",
+				"creation_ts": "2018-09-19 20:04:25 +0000",
+				"short_desc": "CVE-2018-17097 soundtouch: Double free in WavFileBase class in WavFile.cpp [fedora-all]",
+				"delta_ts": "2018-11-25 02:03:32 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1631054",
+						"alias": "CVE-2018-17097",
+						"creation_ts": "2018-09-19 20:04:10 +0000",
+						"short_desc": "CVE-2018-17097 soundtouch: Out-of-bounds heap write in WavOutFile::write()",
+						"delta_ts": "2021-10-25 22:17:55 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1631056",
+							"1631057",
+							"1631059"
+						],
+						"blocked": [
+							{
+								"bug_id": "1631058",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "12032929",
+								"comment_count": "0",
+								"who": {
+									"text": "psampaio",
+									"name": "Pedro Sampaio"
+								},
+								"bug_when": "2018-09-19 20:04:10 +0000",
+								"thetext": "The WavFileBase class in WavFile.cpp in Olli Parviainen SoundTouch 2.0 allows remote attackers to cause a denial of service (double free) or possibly have unspecified other impact, as demonstrated by SoundStretch.\n\nUpstream issue:\n\nhttps://gitlab.com/soundtouch/soundtouch/issues/14\n\nReferences:\n\nhttps://github.com/TeamSeri0us/pocs/tree/master/soundtouch/2018_09_03"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12032939",
+								"comment_count": "1",
+								"who": {
+									"text": "psampaio",
+									"name": "Pedro Sampaio"
+								},
+								"bug_when": "2018-09-19 20:04:45 +0000",
+								"thetext": "Created soundtouch tracking bugs for this issue:\n\nAffects: epel-6 [bug 1631057]\nAffects: fedora-all [bug 1631056]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12129241",
+								"comment_count": "3",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2018-10-22 15:02:36 +0000",
+								"thetext": "This is not double free in fact, it is actually off-by-one error that happens in WavOutFile::write(float*, int) function:\n\n        case 3:\n        {\n            char *temp2 = (char *)temp;\n            for (int i = 0; i < numElems; i ++)\n            {\n                int value = saturate(buffer[i] * 8388608.0f, -8388608.0f, 8388607.0f);\n                *((int*)temp2) = _swap32(value);\n                temp2 += 3;\n            }\n            break;\n\ntemp is allocated with size numElems * 3. In the last loop when i == numElems - 1, int value is stored into temp2 which on most architectures has 4 bytes, therefore the last byte is written out of bounds, which overwrites the PREV_INUSE bit in next chunk. When convBuff is later freed, glibc finds that PREV_INUSE bit is clear, triggering double free detection as a result."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12129242",
+								"comment_count": "4",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2018-10-22 15:02:44 +0000",
+								"thetext": "Statement:\n\nThis issue did not affect the versions of soundtouch as shipped with Red Hat Enterprise Linux 7 as they did not include the vulnerable code."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12129439",
+								"comment_count": "5",
+								"who": {
+									"text": "sergio",
+									"name": "Sergio Basto"
+								},
+								"bug_when": "2018-10-22 15:34:33 +0000",
+								"thetext": "hi, can you provide a patch to apply in source code ? please \n\nUpstream still not solve the problem [1] \n\nThanks.\n\n[1] \nhttps://gitlab.com/soundtouch/soundtouch/issues/14"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12177414",
+								"comment_count": "6",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2018-11-05 16:01:36 +0000",
+								"thetext": "Upstream patch:\n\nhttps://gitlab.com/soundtouch/soundtouch/commit/7f594f8b7d10bbc16a4a31de8ec5a279af9c7378\n\n(https://gitlab.com/soundtouch/soundtouch/commit/09e04252dde9ef02a7d254315b13089996afe302 - this was the previous attempt to fix which was found incomplete)"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "12032933",
+						"comment_count": "0",
+						"who": {
+							"text": "psampaio",
+							"name": "Pedro Sampaio"
+						},
+						"bug_when": "2018-09-19 20:04:25 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12032934",
+						"comment_count": "1",
+						"who": {
+							"text": "psampaio",
+							"name": "Pedro Sampaio"
+						},
+						"bug_when": "2018-09-19 20:04:31 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1631054,1631056\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12207711",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-14 20:33:02 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc29 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2018-09802a742a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12207714",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-14 20:33:13 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-f159412ac7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12207717",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-14 20:33:28 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-dbe9da512d"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12208355",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-15 04:15:12 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-dbe9da512d"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12208408",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-15 04:54:43 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc29 has been pushed to the Fedora 29 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-09802a742a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12208502",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-15 06:02:40 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-f159412ac7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12215758",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-18 03:56:48 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12224650",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-21 03:11:53 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12233303",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-25 02:03:32 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1631061,
+			"feedback": [
+				{
+					"bug_id": 1631061,
+					"comment": {
+						"id": 863889,
+						"karma": 1,
+						"text": "Works for me. ",
+						"timestamp": "2018-11-18 00:45:39",
+						"update_id": 126748,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/913ea456a77e8c120bdd8f932b79be176a34f4681111688f4b659847fd3c88ff?s=24&d=retro",
+							"email": "alvarez.davis@gmail.com",
+							"id": 4535,
+							"name": "davisclick",
+							"openid": "davisclick.id.fedoraproject.org"
+						},
+						"user_id": 4535
+					},
+					"comment_id": 863889
+				}
+			],
+			"security": true,
+			"title": "CVE-2018-17096 soundtouch: Assertion failure in BPMDetect class in BPMDetect.cpp [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1631061",
+				"creation_ts": "2018-09-19 20:09:12 +0000",
+				"short_desc": "CVE-2018-17096 soundtouch: Assertion failure in BPMDetect class in BPMDetect.cpp [fedora-all]",
+				"delta_ts": "2018-11-25 02:03:30 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1631060",
+						"alias": "CVE-2018-17096",
+						"creation_ts": "2018-09-19 20:08:59 +0000",
+						"short_desc": "CVE-2018-17096 soundtouch: Assertion failure in BPMDetect class in BPMDetect.cpp",
+						"delta_ts": "2021-10-25 22:17:59 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1631061",
+							"1631062",
+							"1631063",
+							"1645574"
+						],
+						"blocked": [
+							{
+								"bug_id": "1631058",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "12032951",
+								"comment_count": "0",
+								"who": {
+									"text": "psampaio",
+									"name": "Pedro Sampaio"
+								},
+								"bug_when": "2018-09-19 20:08:59 +0000",
+								"thetext": "The BPMDetect class in BPMDetect.cpp in libSoundTouch.a in Olli Parviainen SoundTouch 2.0 allows remote attackers to cause a denial of service (assertion failure and application exit), as demonstrated by SoundStretch.\n\nUpstream issue:\n\nhttps://gitlab.com/soundtouch/soundtouch/issues/14\n\nReferences:\n\nhttps://github.com/TeamSeri0us/pocs/tree/master/soundtouch/2018_09_03"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12032958",
+								"comment_count": "1",
+								"who": {
+									"text": "psampaio",
+									"name": "Pedro Sampaio"
+								},
+								"bug_when": "2018-09-19 20:09:30 +0000",
+								"thetext": "Created soundtouch tracking bugs for this issue:\n\nAffects: epel-6 [bug 1631062]\nAffects: fedora-all [bug 1631061]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12170806",
+								"comment_count": "4",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2018-11-02 14:49:40 +0000",
+								"thetext": "Upstream patch:\n\nhttps://gitlab.com/soundtouch/soundtouch/commit/a1c400eb2cff849c0e5f9d6916d69ffea3ad2c85"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12172126",
+								"comment_count": "6",
+								"who": {
+									"text": "sergio",
+									"name": "Sergio Basto"
+								},
+								"bug_when": "2018-11-03 03:18:39 +0000",
+								"thetext": "I'm following [1] , looks to me upstream will release a new version with security fixes for CVE-2018-17096,  CVE-2018-17097 and CVE-2018-17098   \n\n\n\n[1]\nhttps://gitlab.com/soundtouch/soundtouch/issues/14"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "12032952",
+						"comment_count": "0",
+						"who": {
+							"text": "psampaio",
+							"name": "Pedro Sampaio"
+						},
+						"bug_when": "2018-09-19 20:09:12 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12032954",
+						"comment_count": "1",
+						"who": {
+							"text": "psampaio",
+							"name": "Pedro Sampaio"
+						},
+						"bug_when": "2018-09-19 20:09:16 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1631060,1631061\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12207710",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-14 20:32:59 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc29 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2018-09802a742a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12207713",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-14 20:33:11 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-f159412ac7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12207716",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-14 20:33:25 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-dbe9da512d"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12208354",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-15 04:15:09 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-dbe9da512d"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12208407",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-15 04:54:41 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc29 has been pushed to the Fedora 29 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-09802a742a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12208501",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-15 06:02:37 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-f159412ac7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12215757",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-18 03:56:42 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12224649",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-21 03:11:51 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12233302",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-25 02:03:30 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1631065,
+			"feedback": [
+				{
+					"bug_id": 1631065,
+					"comment": {
+						"id": 863889,
+						"karma": 1,
+						"text": "Works for me. ",
+						"timestamp": "2018-11-18 00:45:39",
+						"update_id": 126748,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/913ea456a77e8c120bdd8f932b79be176a34f4681111688f4b659847fd3c88ff?s=24&d=retro",
+							"email": "alvarez.davis@gmail.com",
+							"id": 4535,
+							"name": "davisclick",
+							"openid": "davisclick.id.fedoraproject.org"
+						},
+						"user_id": 4535
+					},
+					"comment_id": 863889
+				}
+			],
+			"security": true,
+			"title": "CVE-2018-17098 soundtouch: Heap corruption in WavFileBase class in WavFile.cpp [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1631065",
+				"creation_ts": "2018-09-19 20:11:46 +0000",
+				"short_desc": "CVE-2018-17098 soundtouch: Heap corruption in WavFileBase class in WavFile.cpp [fedora-all]",
+				"delta_ts": "2018-11-25 02:03:26 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1631064",
+						"alias": "CVE-2018-17098",
+						"creation_ts": "2018-09-19 20:11:32 +0000",
+						"short_desc": "CVE-2018-17098 soundtouch: Heap corruption in WavFileBase class in WavFile.cpp",
+						"delta_ts": "2021-10-25 22:18:03 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1631065",
+							"1631066",
+							"1631067"
+						],
+						"blocked": [
+							{
+								"bug_id": "1631058",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "12032968",
+								"comment_count": "0",
+								"who": {
+									"text": "psampaio",
+									"name": "Pedro Sampaio"
+								},
+								"bug_when": "2018-09-19 20:11:32 +0000",
+								"thetext": "The WavFileBase class in WavFile.cpp in Olli Parviainen SoundTouch 2.0 allows remote attackers to cause a denial of service (heap corruption from size inconsistency) or possibly have unspecified other impact, as demonstrated by SoundStretch.\n\nUpstream issue:\n\nhttps://gitlab.com/soundtouch/soundtouch/issues/14\n\nReferences:\n\nhttps://github.com/TeamSeri0us/pocs/tree/master/soundtouch/2018_09_03"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12032975",
+								"comment_count": "1",
+								"who": {
+									"text": "psampaio",
+									"name": "Pedro Sampaio"
+								},
+								"bug_when": "2018-09-19 20:12:04 +0000",
+								"thetext": "Created soundtouch tracking bugs for this issue:\n\nAffects: epel-6 [bug 1631066]\nAffects: fedora-all [bug 1631065]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12185122",
+								"comment_count": "3",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2018-11-07 14:09:34 +0000",
+								"thetext": "The root cause of this issue is the same as of CVE-2018-17097. The same upstream patch fixes both issues:\n\nhttps://gitlab.com/soundtouch/soundtouch/commit/7f594f8b7d10bbc16a4a31de8ec5a279af9c7378"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12185125",
+								"comment_count": "4",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2018-11-07 14:10:53 +0000",
+								"thetext": "Statement:\n\nThis issue did not affect the versions of soundtouch as shipped with Red Hat Enterprise Linux 7 as they did not include the vulnerable code."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "12032969",
+						"comment_count": "0",
+						"who": {
+							"text": "psampaio",
+							"name": "Pedro Sampaio"
+						},
+						"bug_when": "2018-09-19 20:11:46 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12032970",
+						"comment_count": "1",
+						"who": {
+							"text": "psampaio",
+							"name": "Pedro Sampaio"
+						},
+						"bug_when": "2018-09-19 20:11:51 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1631064,1631065\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12207709",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-14 20:32:54 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc29 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2018-09802a742a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12207712",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-14 20:33:08 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-f159412ac7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12207715",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-14 20:33:23 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-dbe9da512d"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12208353",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-15 04:15:05 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-dbe9da512d"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12208406",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-15 04:54:37 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc29 has been pushed to the Fedora 29 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-09802a742a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12208500",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-15 06:02:34 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-f159412ac7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12215756",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-18 03:56:32 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12224648",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-21 03:11:48 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12233301",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-11-25 02:03:26 +0000",
+						"thetext": "soundtouch-2.1.1-1.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "soundtouch-2.1.1-1.fc28",
+			"release_id": 21,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "soundtouch-debuginfo",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "soundtouch-devel",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "soundtouch",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "soundtouch-debugsource",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "soundtouch",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "soundtouch-debugsource",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "soundtouch-debuginfo",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "soundtouch-devel",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "soundtouch",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "soundtouch-debugsource",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "soundtouch-debuginfo",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "soundtouch-devel",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "i686"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "soundtouch-devel",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "soundtouch-debuginfo",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "soundtouch",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "soundtouch-debugsource",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "ppc64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "soundtouch-debuginfo",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "soundtouch-devel",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "soundtouch-debugsource",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "soundtouch",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "soundtouch",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "soundtouch-devel",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "soundtouch-debugsource",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "soundtouch-debuginfo",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "soundtouch",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "soundtouch-devel",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "soundtouch",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "soundtouch-debuginfo",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "soundtouch-debugsource",
+						"version": "2.1.1",
+						"release": "1.fc28",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 862402,
+			"text": "This update has been submitted for testing by sergiomb. ",
+			"timestamp": "2018-11-14 20:33:04",
+			"update_id": 126749,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 862697,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2018-11-15 06:03:06",
+			"update_id": 126749,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 862799,
+			"karma": 1,
+			"text": "no regressions noted",
+			"timestamp": "2018-11-15 12:32:02",
+			"update_id": 126749,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/d826994e83ce867281f73d85986dd475938841874b75a83a82cdb184f6af8749?s=24&d=retro",
+				"email": "rosset.filipe@gmail.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "l10n"
+					},
+					{
+						"name": "cvsl10n"
+					},
+					{
+						"name": "fedora-br"
+					}
+				],
+				"id": 124,
+				"name": "filiperosset",
+				"openid": "filiperosset.id.fedoraproject.org"
+			},
+			"user_id": 124
+		},
+		{
+			"id": 864631,
+			"karma": 1,
+			"text": "works for me",
+			"timestamp": "2018-11-20 00:29:47",
+			"update_id": 126749,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/c82951c2d404ca0cfea20f51b040175ba4d1624f51e8ec366e75565b672e943d?s=24&d=retro",
+				"email": "h.reindl@thelounge.net",
+				"id": 182,
+				"name": "hreindl",
+				"openid": "hreindl.id.fedoraproject.org"
+			},
+			"user_id": 182
+		},
+		{
+			"id": 864813,
+			"karma": 1,
+			"text": "Works",
+			"timestamp": "2018-11-20 12:51:01",
+			"update_id": 126749,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/cd6029d8d81108a2a69c38a2373d2a185c0e86224b8ee4971cd77bb6cdad7a20?s=24&d=retro",
+				"email": "walter.pete@yandex.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 491,
+				"name": "pwalter",
+				"openid": "pwalter.id.fedoraproject.org"
+			},
+			"user_id": 491
+		},
+		{
+			"id": 864814,
+			"text": "This update has been submitted for batched by bodhi. ",
+			"timestamp": "2018-11-20 12:51:02",
+			"update_id": 126749,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 865013,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2018-11-20 23:45:46",
+			"update_id": 126749,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 865079,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2018-11-21 03:12:44",
+			"update_id": 126749,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2018-11-21 03:09:31",
+	"date_stable": "2018-11-21 03:09:31",
+	"date_submitted": "2018-11-14 20:33:04",
+	"date_testing": "2018-11-15 06:01:44",
+	"karma": 3,
+	"meets_testing_requirements": true,
+	"notes": "Security fix version for CVE-2018-17098  , CVE-2018-17096 and CVE-2018-17097 ",
+	"pushed": true,
+	"release": {
+		"branch": "f28",
+		"candidate_tag": "f28-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f28",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 28",
+		"mail_template": "fedora_errata_template",
+		"name": "F28",
+		"override_tag": "f28-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f28-signing-pending",
+		"pending_stable_tag": "f28-updates-pending",
+		"pending_testing_tag": "f28-updates-testing-pending",
+		"stable_tag": "f28-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f28-updates-testing",
+		"version": "28"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "high",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "soundtouch-2.1.1-1.fc28",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2018-f159412ac7",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2018-f159412ac7",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/7704b19ee9a5ceec13acb44db0e3f95bf189b1735143ac708dd8b0ae9ca177d4?s=24&d=retro",
+		"email": "sergio@serjux.com",
+		"groups": [
+			{
+				"name": "nodejs-sig"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "clamav"
+			}
+		],
+		"id": 271,
+		"name": "sergiomb",
+		"openid": "sergiomb.id.fedoraproject.org"
+	},
+	"version_hash": "9f7b46bfd6145076537af92e5398bfed649be631"
+}

@@ -1,0 +1,677 @@
+{
+	"alias": "FEDORA-2023-ca393d660a",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2183336,
+			"feedback": [
+				{
+					"bug_id": 2183336,
+					"comment": {
+						"id": 3012439,
+						"karma": 1,
+						"text": "Successfully boots my Windows 11 Enterprise Evaluation ISO which was previously getting stuck at the splash screen.",
+						"timestamp": "2023-05-05 12:42:17",
+						"update_id": 507818,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/36d26c2eac2edb997021b62954b4e4d6250fc697d1bd6a2ba90cd13378072a4c?s=24&d=retro",
+							"email": "rmy@pobox.com",
+							"groups": [
+								{
+									"name": "ipausers"
+								}
+							],
+							"id": 6281,
+							"name": "rmyorston",
+							"openid": "rmyorston.id.fedoraproject.org"
+						},
+						"user_id": 6281
+					},
+					"comment_id": 3012439,
+					"karma": 1
+				}
+			],
+			"title": "20230301 EDK2-ovmf fails to boot windows iso",
+			"bugzilla": {
+				"bug_id": "2183336",
+				"creation_ts": "2023-03-30 21:54:51 +0000",
+				"short_desc": "20230301 EDK2-ovmf fails to boot windows iso",
+				"delta_ts": "2023-06-01 02:16:07 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17157801",
+						"comment_count": "0",
+						"who": {
+							"text": "echo"
+						},
+						"bug_when": "2023-03-30 21:54:51 +0000",
+						"thetext": "Description of problem:\nWhen booting a Windows ISO with the 20230301 edk2, the iso does not move beyond the TianoCore splash screen\n\nVersion-Release number of selected component (if applicable):\n20230301gitf80f052277c8-1.fc38\n\nHow reproducible:\nEasily reproducible\n\nSteps to Reproduce:\n1. Open Terminal\n2. qemu-system-x86_64 -m 4G -smp 4 --enable-kvm -cdrom /path/to/Win11_22H2_English_x64v1.iso -bios /usr/share/OVMF/OVMF_CODE.fd\n3. Press button to boot CD\n\nActual results:\nSits on TianoCore splashscreen\n\nExpected results:\nBoot to installation screen\n\nAdditional info:\nRolling back to edk2-ovmf-20220826gitba0e0e4c6a17-1 allows boot\n\nEdit:\nCorrected OVMF in command run from OVMF_CODE.secboot.fd to OVMF_CODE.fd"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17168515",
+						"comment_count": "1",
+						"who": {
+							"text": "kraxel",
+							"name": "Gerd Hoffmann"
+						},
+						"bug_when": "2023-04-04 08:00:30 +0000",
+						"thetext": "> How reproducible:\n> Easily reproducible\n> \n> Steps to Reproduce:\n> 1. Open Terminal\n> 2. qemu-system-x86_64 -m 4G -smp 4 --enable-kvm -cdrom\n> /path/to/Win11_22H2_English_x64v1.iso -bios\n> /usr/share/OVMF/OVMF_CODE.secboot.fd\n> 3. Press button to boot CD\n> \n> Actual results:\n> Sits on TianoCore splashscreen\n\nSurely not.\n\nThe secboot ovmf builds do (a) require q35, and (b) require pflash storage for efi variables.\nWhen you mis-configure things as described you don't even reach the splash screen.\n\nIf you expect me to take the time checking out the bug report,\nthen please invest the time to write up the exact reproducer steps."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17173224",
+						"comment_count": "2",
+						"who": {
+							"text": "echo"
+						},
+						"bug_when": "2023-04-05 21:36:18 +0000",
+						"thetext": "Apologies, the wrong ovmf was listed in the command. I am using the non-secboot OVMF_CODE.fd [updated above].\nq35 it's not required unless using SMM in the configuration. I am not utilizing it so there is no need for this flag and it's additional arguments."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17182935",
+						"comment_count": "3",
+						"who": {
+							"text": "kraxel",
+							"name": "Gerd Hoffmann"
+						},
+						"bug_when": "2023-04-11 14:54:30 +0000",
+						"thetext": "> Actual results:\n> Sits on TianoCore splashscreen\n\nHmm.  For me it is just much slower for some reason,\nwhen waiting long enougth the installer actually starts."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17183061",
+						"comment_count": "4",
+						"who": {
+							"text": "kraxel",
+							"name": "Gerd Hoffmann"
+						},
+						"bug_when": "2023-04-11 15:36:37 +0000",
+						"thetext": "(In reply to Gerd Hoffmann from comment #3)\n> > Actual results:\n> > Sits on TianoCore splashscreen\n> \n> Hmm.  For me it is just much slower for some reason,\n> when waiting long enougth the installer actually starts.\n\nOops, no.  It's a matter of storage configuration, not of the edk2 version.\n\npc + -cdrom   ->  IDE cdrom   ->  very slow boot.\nq35 + -cdrom  ->  SATA cdrom  ->  needs ~ 5sec here.\nvirtio-scsi + scsi cdrom      ->  less than a second.\n\nIDE probably uses PIO mode, which implies there are *lots* of vmexits to handle I/O."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17231186",
+						"comment_count": "5",
+						"who": {
+							"text": "echo"
+						},
+						"bug_when": "2023-04-30 03:07:03 +0000",
+						"thetext": "(In reply to Gerd Hoffmann from comment #4)\n> (In reply to Gerd Hoffmann from comment #3)\n> > > Actual results:\n> > > Sits on TianoCore splashscreen\n> > \n> > Hmm.  For me it is just much slower for some reason,\n> > when waiting long enougth the installer actually starts.\n> \n> Oops, no.  It's a matter of storage configuration, not of the edk2 version.\n> \n> pc + -cdrom   ->  IDE cdrom   ->  very slow boot.\n> q35 + -cdrom  ->  SATA cdrom  ->  needs ~ 5sec here.\n> virtio-scsi + scsi cdrom      ->  less than a second.\n> \n> IDE probably uses PIO mode, which implies there are *lots* of vmexits to\n> handle I/O.\n\nI went ahead and tried with q35 but still no dice, still hangs after \"Press any button to continue\". I tried a few other flags, cpu, vga, spice, cdrom to see it maybe it was something else breaking things but nothing really seemed to change. I tried pointing to the ovmf-4m version but that one threw a could not load PC BIOS error (same on the older working package and I suspect a permission issue).\n\nDoing some more research didn't bring about any new information beyond downgrading or using a different distro's package to get things working:\nhttps://github.com/tianocore/edk2/discussions/3221#discussioncomment-5501246\nhttps://unix.stackexchange.com/questions/741019/windows-11-kvm-guest-hangs-on-install-in-fedora-37\n\nWhen I have a bit more time I'll work on compiling from source (both the package's source and edk source directly) to see if I experience the same issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17238508",
+						"comment_count": "6",
+						"who": {
+							"text": "kraxel",
+							"name": "Gerd Hoffmann"
+						},
+						"bug_when": "2023-05-03 11:46:47 +0000",
+						"thetext": "> -cdrom /path/to/Win11_22H2_English_x64v1.iso\n\nOh, 22H2.  That's probably the same thing as bug 2189136 then.\n\nTry https://copr.fedorainfracloud.org/coprs/kraxel/edk2.testbuilds/\n(in a hour or so, compiling still ...)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17243100",
+						"comment_count": "7",
+						"who": {
+							"text": "echo"
+						},
+						"bug_when": "2023-05-05 02:41:03 +0000",
+						"thetext": "Created attachment 1962443\nedk2 debug output\n\nqemu edk2 debug output\n\n-debugcon file:debug.log -global isa-debugcon.iobase=0x402"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17243101",
+						"comment_count": "8",
+						"who": {
+							"text": "echo"
+						},
+						"bug_when": "2023-05-05 02:43:27 +0000",
+						"thetext": "(In reply to Gerd Hoffmann from comment #6)\n> > -cdrom /path/to/Win11_22H2_English_x64v1.iso\n> \n> Oh, 22H2.  That's probably the same thing as bug 2189136 then.\n> \n> Try https://copr.fedorainfracloud.org/coprs/kraxel/edk2.testbuilds/\n> (in a hour or so, compiling still ...).\n\nYup, I was able to confirm it is the same issue, debug file attached; and the test build works."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17243117",
+						"comment_count": "9",
+						"who": {
+							"text": "echo"
+						},
+						"bug_when": "2023-05-05 02:51:00 +0000",
+						"thetext": "bug 2189136 contains more details on the issue\n\n*** This bug has been marked as a duplicate of bug 2189136 ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17243558",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-05-05 09:01:49 +0000",
+						"thetext": "FEDORA-2023-adf7efd2ce has been submitted as an update to Fedora 39. https://bodhi.fedoraproject.org/updates/FEDORA-2023-adf7efd2ce"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17243586",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-05-05 09:16:31 +0000",
+						"thetext": "FEDORA-2023-adf7efd2ce has been pushed to the Fedora 39 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17243721",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-05-05 10:06:44 +0000",
+						"thetext": "FEDORA-2023-1c98da35aa has been submitted as an update to Fedora 38. https://bodhi.fedoraproject.org/updates/FEDORA-2023-1c98da35aa"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17243796",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-05-05 10:47:07 +0000",
+						"thetext": "FEDORA-2023-1aabe4d460 has been submitted as an update to Fedora 37. https://bodhi.fedoraproject.org/updates/FEDORA-2023-1aabe4d460"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17244488",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-05-05 15:55:12 +0000",
+						"thetext": "FEDORA-2023-1c98da35aa has been pushed to the Fedora 38 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --refresh --advisory=FEDORA-2023-1c98da35aa`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2023-1c98da35aa\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17244532",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-05-05 16:12:05 +0000",
+						"thetext": "FEDORA-2023-1aabe4d460 has been pushed to the Fedora 37 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --refresh --advisory=FEDORA-2023-1aabe4d460`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2023-1aabe4d460\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17270664",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-05-11 01:56:36 +0000",
+						"thetext": "FEDORA-2023-1c98da35aa has been pushed to the Fedora 38 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17286883",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-05-16 02:32:16 +0000",
+						"thetext": "FEDORA-2023-ca393d660a has been pushed to the Fedora 37 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --refresh --advisory=FEDORA-2023-ca393d660a`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2023-ca393d660a\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17341026",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-06-01 02:16:07 +0000",
+						"thetext": "FEDORA-2023-ca393d660a has been pushed to the Fedora 37 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "edk2-20230301gitf80f052277c8-26.fc37",
+			"release_id": 62,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "edk2-tools-debuginfo",
+						"version": "20230301gitf80f052277c8",
+						"release": "26.fc37",
+						"arch": "aarch64"
+					},
+					{
+						"name": "edk2-debugsource",
+						"version": "20230301gitf80f052277c8",
+						"release": "26.fc37",
+						"arch": "aarch64"
+					},
+					{
+						"name": "edk2-tools",
+						"version": "20230301gitf80f052277c8",
+						"release": "26.fc37",
+						"arch": "aarch64"
+					}
+				],
+				"noarch": [
+					{
+						"name": "edk2-aarch64",
+						"version": "20230301gitf80f052277c8",
+						"release": "26.fc37",
+						"arch": "noarch"
+					},
+					{
+						"name": "edk2-arm",
+						"version": "20230301gitf80f052277c8",
+						"release": "26.fc37",
+						"arch": "noarch"
+					},
+					{
+						"name": "edk2-ovmf-experimental",
+						"version": "20230301gitf80f052277c8",
+						"release": "26.fc37",
+						"arch": "noarch"
+					},
+					{
+						"name": "edk2-ovmf",
+						"version": "20230301gitf80f052277c8",
+						"release": "26.fc37",
+						"arch": "noarch"
+					},
+					{
+						"name": "edk2-riscv64",
+						"version": "20230301gitf80f052277c8",
+						"release": "26.fc37",
+						"arch": "noarch"
+					},
+					{
+						"name": "edk2-tools-python",
+						"version": "20230301gitf80f052277c8",
+						"release": "26.fc37",
+						"arch": "noarch"
+					},
+					{
+						"name": "edk2-ovmf-ia32",
+						"version": "20230301gitf80f052277c8",
+						"release": "26.fc37",
+						"arch": "noarch"
+					},
+					{
+						"name": "edk2-ovmf-xen",
+						"version": "20230301gitf80f052277c8",
+						"release": "26.fc37",
+						"arch": "noarch"
+					},
+					{
+						"name": "edk2-tools-doc",
+						"version": "20230301gitf80f052277c8",
+						"release": "26.fc37",
+						"arch": "noarch"
+					},
+					{
+						"name": "edk2-ext4",
+						"version": "20230301gitf80f052277c8",
+						"release": "26.fc37",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "edk2",
+						"version": "20230301gitf80f052277c8",
+						"release": "26.fc37",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "edk2-tools-debuginfo",
+						"version": "20230301gitf80f052277c8",
+						"release": "26.fc37",
+						"arch": "x86_64"
+					},
+					{
+						"name": "edk2-debugsource",
+						"version": "20230301gitf80f052277c8",
+						"release": "26.fc37",
+						"arch": "x86_64"
+					},
+					{
+						"name": "edk2-tools",
+						"version": "20230301gitf80f052277c8",
+						"release": "26.fc37",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3023259,
+			"text": "This update has been submitted for testing by kraxel. ",
+			"timestamp": "2023-05-15 14:10:05",
+			"update_id": 510711,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3023260,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2023-05-15 14:10:06",
+			"update_id": 510711,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3023262,
+			"text": "This update has obsoleted [edk2-20230301gitf80f052277c8-4.fc37](https://bodhi.fedoraproject.org/updates/FEDORA-2023-1aabe4d460), and has inherited its bugs and notes.",
+			"timestamp": "2023-05-15 14:10:07",
+			"update_id": 510711,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3023344,
+			"text": "This update's test gating status has been changed to 'passed'.",
+			"timestamp": "2023-05-15 15:47:26",
+			"update_id": 510711,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3024739,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2023-05-16 02:32:35",
+			"update_id": 510711,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3027962,
+			"karma": 1,
+			"timestamp": "2023-05-17 14:48:19",
+			"update_id": 510711,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/5545678c86b7a87ee5d907a87573978f63c78b2d498edda166dac72f81003f73?s=24&d=retro",
+				"email": "geraldo.simiao.kutz@gmail.com",
+				"groups": [
+					{
+						"name": "qa"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "fedora-br"
+					},
+					{
+						"name": "advocates"
+					},
+					{
+						"name": "respins-sig"
+					}
+				],
+				"id": 5881,
+				"name": "geraldosimiao",
+				"openid": "geraldosimiao.id.fedoraproject.org"
+			},
+			"user_id": 5881
+		},
+		{
+			"id": 3039873,
+			"karma": 1,
+			"timestamp": "2023-05-27 18:57:02",
+			"update_id": 510711,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/095ecc96fb18fe07b8fc5e49dda91896264a448882a703e218393b837e5ece2e?s=24&d=retro",
+				"email": "rai.neeraj510@gmail.com",
+				"groups": [
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "signed_fpca"
+					}
+				],
+				"id": 6630,
+				"name": "rai510",
+				"openid": "rai510.id.fedoraproject.org"
+			},
+			"user_id": 6630
+		},
+		{
+			"id": 3039900,
+			"text": "This update can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2023-05-27 18:58:20",
+			"update_id": 510711,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3041829,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2023-05-30 02:34:23",
+			"update_id": 510711,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3042897,
+			"text": "This update's test gating status has been changed to 'failed'.",
+			"timestamp": "2023-05-30 23:36:18",
+			"update_id": 510711,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3042957,
+			"text": "FEDORA-2023-ca393d660a ejected from the push because 'Required tests did not pass on this update'",
+			"timestamp": "2023-05-31 00:14:09",
+			"update_id": 510711,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3042976,
+			"text": "This update's test gating status has been changed to 'passed'.",
+			"timestamp": "2023-05-31 00:28:37",
+			"update_id": 510711,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3043020,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2023-05-31 00:31:34",
+			"update_id": 510711,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3044542,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2023-06-01 02:17:37",
+			"update_id": 510711,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"critpath_groups": "critical-path-base critical-path-compose",
+	"date_approved": "2023-05-30 02:34:22",
+	"date_pushed": "2023-06-01 02:15:50",
+	"date_stable": "2023-06-01 02:15:50",
+	"date_submitted": "2023-05-15 14:10:05",
+	"date_testing": "2023-05-16 02:31:31",
+	"karma": 2,
+	"meets_testing_requirements": true,
+	"notes": "include latest dbx update (may 9th, black lotus edition).\n\n----\n\ndrop ASSERT from NestedInterruptTplLib (rhbz#2183336).",
+	"pushed": true,
+	"release": {
+		"branch": "f37",
+		"candidate_tag": "f37-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f37",
+		"eol": "2023-12-05",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 37",
+		"mail_template": "fedora_errata_template",
+		"name": "F37",
+		"override_tag": "f37-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f37-signing-pending",
+		"pending_stable_tag": "f37-updates-pending",
+		"pending_testing_tag": "f37-updates-testing-pending",
+		"stable_tag": "f37-updates",
+		"state": "current",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f37-updates-testing",
+		"version": "37"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "low",
+	"stable_days": 14,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "passed",
+	"title": "edk2-20230301gitf80f052277c8-26.fc37",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2023-ca393d660a",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2023-ca393d660a",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/2305ea9b1ecd52e8c46abc31fecde596d44a1eb5e7f62644f46b0c37f035c25a?s=24&d=retro",
+		"email": "kraxel@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "virtmaint-sig"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "cla_redhat"
+			}
+		],
+		"id": 1445,
+		"name": "kraxel",
+		"openid": "kraxel.id.fedoraproject.org"
+	},
+	"version_hash": "a41d07e8c15b80084aeba53bcd2741ff3022a68b"
+}

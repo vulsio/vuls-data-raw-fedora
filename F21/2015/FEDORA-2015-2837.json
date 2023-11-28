@@ -1,0 +1,1786 @@
+{
+	"alias": "FEDORA-2015-2837",
+	"bugs": [
+		{
+			"bug_id": 1157689,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-7817 glibc: command execution in wordexp() with WRDE_NOCMD specified",
+			"bugzilla": {
+				"bug_id": "1157689",
+				"alias": "CVE-2014-7817",
+				"creation_ts": "2014-10-27 13:54:49 +0000",
+				"short_desc": "CVE-2014-7817 glibc: command execution in wordexp() with WRDE_NOCMD specified",
+				"delta_ts": "2023-05-12 23:56:48 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1153288",
+					"1167569",
+					"1170118",
+					"1170121",
+					"1170487",
+					"1171296"
+				],
+				"blocked": [
+					{
+						"bug_id": "1157695",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2015:0016",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7615032",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2014-10-27 13:54:49 +0000",
+						"thetext": "Tim Waugh from Red Hat has reported the below issue:\n\nThe wordexp() function will perform command substitution even when explicitly told not to, when expanding \"$((`...`))\".\n...\n#include <wordexp.h>\nint main (void)\n{\n  wordexp_t we;\n  return wordexp (\"$((1`touch /tmp/x`))\", &we, WRDE_NOCMD);\n}\n\nglibc-2.20-5.fc21.x86_64\n...\n\nThis can allow a local authenticated attacker to execute arbitrary commands with the credentials of a process calling wordexp() on an attacker-supplied data."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7615508",
+						"comment_count": "1",
+						"who": {
+							"text": "codonell",
+							"name": "Carlos O'Donell"
+						},
+						"bug_when": "2014-10-27 15:53:58 +0000",
+						"thetext": "I can confirm this on glibc master. This is a bug in wordep in glibc. The bug is in the function parse_arth (and technicall parse_backtick and parse_comm should be hardened), it fails to check for WRDE_NOCMD when processing backticks. The expectation in the code was that higher levels would check for WRDE_NOCMD, and they do, but parse_arith does not, and that's sufficient to show the flaw in the design. Each of the parse_* functions that handles part of the input should be defensive and return errors if any unchecked expansions might pass them code which should be executed on the shell, particularly if you're about to call exec_comm.\n\nThe attached patch fixes the issue in parse_arith, parse_backtick and parse_comm. The parse_backtick and parse_comm are the *only* two functions that call the shell for expansion and in each of them we now check for WRDE_NOCMD. That should harden the entire interface against accidental execution of commands like \"$((1`echo +1`))\".\n\nCould someone please look into which RHEL versions have tha vulnerability?\n\nIt looks like:\n- Upstream (no OS).\n- Fedora Rawhide\n- Fedora F21\n- Fedora 20\n\nAre all impacted by this."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7615576",
+						"comment_count": "2",
+						"who": {
+							"text": "codonell",
+							"name": "Carlos O'Donell"
+						},
+						"bug_when": "2014-10-27 16:03:11 +0000",
+						"thetext": "Testing final patch for this with test case..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7617031",
+						"comment_count": "3",
+						"who": {
+							"text": "codonell",
+							"name": "Carlos O'Donell"
+						},
+						"bug_when": "2014-10-28 03:22:28 +0000",
+						"thetext": "Created attachment 951233\nCVE-2014-7817-wordexp.diff\n\nPatch attached.\n\nCVE-2014-7817:\n\nThe function wordexp() fails to properly handle the WRDE_NOCMD\nflag when processing arithmetic inputs in the form of \"$((... ``))\"\nwhere \"...\" can be anything valid. The backticks in the arithmetic\nepxression are evaluated by in a shell even if WRDE_NOCMD forbade\ncommand substitution. This allows an attacker to attempt to pass\ndangerous commands via constructs of the above form, and bypass\nthe WRDE_NOCMD flag. This patch fixes this by checking for WRDE_NOCMD\nin parse_arith(). The patch also hardens parse_backticks() and\nparse_comm() to check for WRDE_NOCMD flag and return an error instead\nof ever running a shell.\n\nWe expand the testsuite and add 3 new regression tests of roughtly\nthe same form but with a couple of nested levels.\n\nOn top of the 3 new tests we add fork validation to the WRDE_NOCMD\ntesting. If any forks are detected during the execution of a wordexp()\ncall with WRDE_NOCMD, the test is marked as failed. This is slightly\nheuristic since vfork might be used, but it provides a higher level\nof assurance that no shells were executed as part of command substitution\nwith WRDE_NOCMD in effect. In addition it doesn't require libpthread or\nlibdl, instead we use the public implementation namespace function\n__register_atfork (already part of the public ABI for libpthread).\n\nTested on x86_64 with no regressions.\n\n2014-10-27  Carlos O'Donell  <carlos@redhat.com>\n\n        * wordexp-test.c (__dso_handle): Add prototype.\n        (__register_atfork): Likewise.\n        (__app_register_atfork): New function.\n        (registered_forks): New global.\n        (register_fork): New function.\n        (test_case): Add 3 new tests for WRDE_CMDSUB.\n        (main): Call __app_register_atfork.\n        (testit): If WRDE_NOCMD set registered_forks to zero, run test, and\n        if fork count is non-zero fail the test.\n        * posix/wordexp.c (parse_arith): Return WRDE_NOCMD if WRDE_NOCMD flag\n        is set and parsing '`'.\n        (parse_comm): Return WRDE_NOCMD if WRDE_NOCMD flag is set.\n        (parse_backtick): Return WRDE_NOCMD if WRDE_NOCMD flag is set and\n        parsing '`'."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7617048",
+						"comment_count": "4",
+						"who": {
+							"text": "codonell",
+							"name": "Carlos O'Donell"
+						},
+						"bug_when": "2014-10-28 03:31:02 +0000",
+						"thetext": "Next steps?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7618912",
+						"comment_count": "5",
+						"who": {
+							"text": "codonell",
+							"name": "Carlos O'Donell"
+						},
+						"bug_when": "2014-10-28 15:00:56 +0000",
+						"thetext": "How serious do we think this CVE is?\n\nHow likely is it to impact users?\n\nI don't have a good grasp on this.\n\nMy testing shows that:\n\n- glibc usptream (Vulnerable)\n- Fedora 21 (Vulnerable)\n- Fedora 20 (Vulnerable)\n- Fedora 19 (Vuldnerable)\n- RHEL 5 (Vulnerable)\n- RHEL 6 (VUlnerable)\n- RHEL 7 (Vulnerable)\n\nThe bug appears to have been present since the initial rewrite in 1997.\n\nTo exploit the bug you need:\n(a) Access to the system, either local or remote.\n(b) An application with higher privs that will run your input directly without checking for shell backticks or subshells, which is feasible given the expectation of WRDE_NOCMD\n\nWhat is the probabiliy of this?\n\nHow much do we need to patch?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7623493",
+						"comment_count": "6",
+						"who": {
+							"text": "codonell",
+							"name": "Carlos O'Donell"
+						},
+						"bug_when": "2014-10-29 18:40:26 +0000",
+						"thetext": "I got the go ahead from secalert@redhat.com (Vincent Danen) to contact upstream maintainers privately.\n\nUpstream glibc maintainers contacted privately about the CVE. If they agree to the embargo I will share the details and the fix. This should provide us with useful feedback about the perceived severity."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7652136",
+						"comment_count": "7",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2014-11-07 16:46:47 +0000",
+						"thetext": "After an internal discussion Red Hat Product Security did assess this as having Moderate impact on the products we ship.\nI will prepare this flaw for further processing on Monday."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7652371",
+						"comment_count": "8",
+						"who": {
+							"text": "codonell",
+							"name": "Carlos O'Donell"
+						},
+						"bug_when": "2014-11-07 18:22:11 +0000",
+						"thetext": "Upstream glibc maintainers have reviewed CVE in private.\n\nWe see only mailx as alredy vulnerable to wordexp attack, but it does not use WRDE_NOCMD and therefore can't be fixed by this CVE fix.\n\nIn addition to mailx the alsa-lib package uses wordexp with WRDE_NOCMD to parse configuration files. It is the only package to date that has been identified as posing a possible threat. It would require though that a non-root user convince root to install a special .asoundrc or convince root to modify the default configuration to include malicious shell code. If the user could already do either of those things they wouldn't need the exploit.\n\nMy opinion is that this is a moderate to low severity CVE."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7690225",
+						"comment_count": "9",
+						"who": {
+							"text": "falonso",
+							"name": "Francisco Alonso"
+						},
+						"bug_when": "2014-11-20 09:18:34 +0000",
+						"thetext": "This issue is public now:\n\nhttps://sourceware.org/ml/libc-alpha/2014-11/msg00519.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7694591",
+						"comment_count": "10",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2014-11-21 09:22:28 +0000",
+						"thetext": "Acknowledgement:\n\nThis issue was discovered by Tim Waugh of the Red Hat Developer Experience Team."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7704013",
+						"comment_count": "11",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2014-11-25 05:23:07 +0000",
+						"thetext": "\nCreated glibc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1167569]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7712412",
+						"comment_count": "12",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2014-11-27 05:25:33 +0000",
+						"thetext": "Statement:\n\nThis issue affects the version of glibc package as shipped with Red Hat Enterprise Linux 5, 6 and 7. Red Hat Product Security has rated this issue as having Moderate security impact.\n\nRed Hat Enterprise Linux 5 is now in Extended Life Cycle phase of the support and maintenance life cycle. This issue is not currently planned to be addressed in future updates. For additional information, refer to the Red Hat Enterprise Linux Life Cycle: https://access.redhat.com/support/policy/updates/errata"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7779236",
+						"comment_count": "18",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2014-12-18 20:31:39 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:2023 https://rhn.redhat.com/errata/RHSA-2014-2023.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7815934",
+						"comment_count": "19",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-01-07 17:18:14 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2015:0016 https://rhn.redhat.com/errata/RHSA-2015-0016.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999932",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:25:22 +0000",
+						"thetext": "glibc-2.18-19.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999953",
+						"comment_count": "21",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:26:56 +0000",
+						"thetext": "glibc-2.20-8.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1167569,
+			"security": true,
+			"title": "CVE-2014-7817 glibc: command execution in wordexp() with WRDE_NOCMD specified [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1167569",
+				"creation_ts": "2014-11-25 05:22:57 +0000",
+				"short_desc": "CVE-2014-7817 glibc: command execution in wordexp() with WRDE_NOCMD specified [fedora-all]",
+				"delta_ts": "2016-11-24 12:21:04 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1157689",
+						"alias": "CVE-2014-7817",
+						"creation_ts": "2014-10-27 13:54:49 +0000",
+						"short_desc": "CVE-2014-7817 glibc: command execution in wordexp() with WRDE_NOCMD specified",
+						"delta_ts": "2023-05-12 23:56:48 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1153288",
+							"1167569",
+							"1170118",
+							"1170121",
+							"1170487",
+							"1171296"
+						],
+						"blocked": [
+							{
+								"bug_id": "1157695",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:0016",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7615032",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2014-10-27 13:54:49 +0000",
+								"thetext": "Tim Waugh from Red Hat has reported the below issue:\n\nThe wordexp() function will perform command substitution even when explicitly told not to, when expanding \"$((`...`))\".\n...\n#include <wordexp.h>\nint main (void)\n{\n  wordexp_t we;\n  return wordexp (\"$((1`touch /tmp/x`))\", &we, WRDE_NOCMD);\n}\n\nglibc-2.20-5.fc21.x86_64\n...\n\nThis can allow a local authenticated attacker to execute arbitrary commands with the credentials of a process calling wordexp() on an attacker-supplied data."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7615508",
+								"comment_count": "1",
+								"who": {
+									"text": "codonell",
+									"name": "Carlos O'Donell"
+								},
+								"bug_when": "2014-10-27 15:53:58 +0000",
+								"thetext": "I can confirm this on glibc master. This is a bug in wordep in glibc. The bug is in the function parse_arth (and technicall parse_backtick and parse_comm should be hardened), it fails to check for WRDE_NOCMD when processing backticks. The expectation in the code was that higher levels would check for WRDE_NOCMD, and they do, but parse_arith does not, and that's sufficient to show the flaw in the design. Each of the parse_* functions that handles part of the input should be defensive and return errors if any unchecked expansions might pass them code which should be executed on the shell, particularly if you're about to call exec_comm.\n\nThe attached patch fixes the issue in parse_arith, parse_backtick and parse_comm. The parse_backtick and parse_comm are the *only* two functions that call the shell for expansion and in each of them we now check for WRDE_NOCMD. That should harden the entire interface against accidental execution of commands like \"$((1`echo +1`))\".\n\nCould someone please look into which RHEL versions have tha vulnerability?\n\nIt looks like:\n- Upstream (no OS).\n- Fedora Rawhide\n- Fedora F21\n- Fedora 20\n\nAre all impacted by this."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7615576",
+								"comment_count": "2",
+								"who": {
+									"text": "codonell",
+									"name": "Carlos O'Donell"
+								},
+								"bug_when": "2014-10-27 16:03:11 +0000",
+								"thetext": "Testing final patch for this with test case..."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7617031",
+								"comment_count": "3",
+								"who": {
+									"text": "codonell",
+									"name": "Carlos O'Donell"
+								},
+								"bug_when": "2014-10-28 03:22:28 +0000",
+								"thetext": "Created attachment 951233\nCVE-2014-7817-wordexp.diff\n\nPatch attached.\n\nCVE-2014-7817:\n\nThe function wordexp() fails to properly handle the WRDE_NOCMD\nflag when processing arithmetic inputs in the form of \"$((... ``))\"\nwhere \"...\" can be anything valid. The backticks in the arithmetic\nepxression are evaluated by in a shell even if WRDE_NOCMD forbade\ncommand substitution. This allows an attacker to attempt to pass\ndangerous commands via constructs of the above form, and bypass\nthe WRDE_NOCMD flag. This patch fixes this by checking for WRDE_NOCMD\nin parse_arith(). The patch also hardens parse_backticks() and\nparse_comm() to check for WRDE_NOCMD flag and return an error instead\nof ever running a shell.\n\nWe expand the testsuite and add 3 new regression tests of roughtly\nthe same form but with a couple of nested levels.\n\nOn top of the 3 new tests we add fork validation to the WRDE_NOCMD\ntesting. If any forks are detected during the execution of a wordexp()\ncall with WRDE_NOCMD, the test is marked as failed. This is slightly\nheuristic since vfork might be used, but it provides a higher level\nof assurance that no shells were executed as part of command substitution\nwith WRDE_NOCMD in effect. In addition it doesn't require libpthread or\nlibdl, instead we use the public implementation namespace function\n__register_atfork (already part of the public ABI for libpthread).\n\nTested on x86_64 with no regressions.\n\n2014-10-27  Carlos O'Donell  <carlos@redhat.com>\n\n        * wordexp-test.c (__dso_handle): Add prototype.\n        (__register_atfork): Likewise.\n        (__app_register_atfork): New function.\n        (registered_forks): New global.\n        (register_fork): New function.\n        (test_case): Add 3 new tests for WRDE_CMDSUB.\n        (main): Call __app_register_atfork.\n        (testit): If WRDE_NOCMD set registered_forks to zero, run test, and\n        if fork count is non-zero fail the test.\n        * posix/wordexp.c (parse_arith): Return WRDE_NOCMD if WRDE_NOCMD flag\n        is set and parsing '`'.\n        (parse_comm): Return WRDE_NOCMD if WRDE_NOCMD flag is set.\n        (parse_backtick): Return WRDE_NOCMD if WRDE_NOCMD flag is set and\n        parsing '`'."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7617048",
+								"comment_count": "4",
+								"who": {
+									"text": "codonell",
+									"name": "Carlos O'Donell"
+								},
+								"bug_when": "2014-10-28 03:31:02 +0000",
+								"thetext": "Next steps?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7618912",
+								"comment_count": "5",
+								"who": {
+									"text": "codonell",
+									"name": "Carlos O'Donell"
+								},
+								"bug_when": "2014-10-28 15:00:56 +0000",
+								"thetext": "How serious do we think this CVE is?\n\nHow likely is it to impact users?\n\nI don't have a good grasp on this.\n\nMy testing shows that:\n\n- glibc usptream (Vulnerable)\n- Fedora 21 (Vulnerable)\n- Fedora 20 (Vulnerable)\n- Fedora 19 (Vuldnerable)\n- RHEL 5 (Vulnerable)\n- RHEL 6 (VUlnerable)\n- RHEL 7 (Vulnerable)\n\nThe bug appears to have been present since the initial rewrite in 1997.\n\nTo exploit the bug you need:\n(a) Access to the system, either local or remote.\n(b) An application with higher privs that will run your input directly without checking for shell backticks or subshells, which is feasible given the expectation of WRDE_NOCMD\n\nWhat is the probabiliy of this?\n\nHow much do we need to patch?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7623493",
+								"comment_count": "6",
+								"who": {
+									"text": "codonell",
+									"name": "Carlos O'Donell"
+								},
+								"bug_when": "2014-10-29 18:40:26 +0000",
+								"thetext": "I got the go ahead from secalert@redhat.com (Vincent Danen) to contact upstream maintainers privately.\n\nUpstream glibc maintainers contacted privately about the CVE. If they agree to the embargo I will share the details and the fix. This should provide us with useful feedback about the perceived severity."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7652136",
+								"comment_count": "7",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2014-11-07 16:46:47 +0000",
+								"thetext": "After an internal discussion Red Hat Product Security did assess this as having Moderate impact on the products we ship.\nI will prepare this flaw for further processing on Monday."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7652371",
+								"comment_count": "8",
+								"who": {
+									"text": "codonell",
+									"name": "Carlos O'Donell"
+								},
+								"bug_when": "2014-11-07 18:22:11 +0000",
+								"thetext": "Upstream glibc maintainers have reviewed CVE in private.\n\nWe see only mailx as alredy vulnerable to wordexp attack, but it does not use WRDE_NOCMD and therefore can't be fixed by this CVE fix.\n\nIn addition to mailx the alsa-lib package uses wordexp with WRDE_NOCMD to parse configuration files. It is the only package to date that has been identified as posing a possible threat. It would require though that a non-root user convince root to install a special .asoundrc or convince root to modify the default configuration to include malicious shell code. If the user could already do either of those things they wouldn't need the exploit.\n\nMy opinion is that this is a moderate to low severity CVE."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7690225",
+								"comment_count": "9",
+								"who": {
+									"text": "falonso",
+									"name": "Francisco Alonso"
+								},
+								"bug_when": "2014-11-20 09:18:34 +0000",
+								"thetext": "This issue is public now:\n\nhttps://sourceware.org/ml/libc-alpha/2014-11/msg00519.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7694591",
+								"comment_count": "10",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2014-11-21 09:22:28 +0000",
+								"thetext": "Acknowledgement:\n\nThis issue was discovered by Tim Waugh of the Red Hat Developer Experience Team."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7704013",
+								"comment_count": "11",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-11-25 05:23:07 +0000",
+								"thetext": "\nCreated glibc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1167569]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7712412",
+								"comment_count": "12",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-11-27 05:25:33 +0000",
+								"thetext": "Statement:\n\nThis issue affects the version of glibc package as shipped with Red Hat Enterprise Linux 5, 6 and 7. Red Hat Product Security has rated this issue as having Moderate security impact.\n\nRed Hat Enterprise Linux 5 is now in Extended Life Cycle phase of the support and maintenance life cycle. This issue is not currently planned to be addressed in future updates. For additional information, refer to the Red Hat Enterprise Linux Life Cycle: https://access.redhat.com/support/policy/updates/errata"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7779236",
+								"comment_count": "18",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-12-18 20:31:39 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:2023 https://rhn.redhat.com/errata/RHSA-2014-2023.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7815934",
+								"comment_count": "19",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-01-07 17:18:14 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2015:0016 https://rhn.redhat.com/errata/RHSA-2015-0016.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7999932",
+								"comment_count": "20",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-04 10:25:22 +0000",
+								"thetext": "glibc-2.18-19.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7999953",
+								"comment_count": "21",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-04 10:26:56 +0000",
+								"thetext": "glibc-2.20-8.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7704011",
+						"comment_count": "0",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2014-11-25 05:22:57 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7704012",
+						"comment_count": "1",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2014-11-25 05:23:05 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1157689,1167569\n\n# Description of your update\nnotes=Security fix for CVE-2014-7817\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1157689,1167569"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7711180",
+						"comment_count": "2",
+						"who": {
+							"text": "codonell",
+							"name": "Carlos O'Donell"
+						},
+						"bug_when": "2014-11-26 16:55:48 +0000",
+						"thetext": "Fedora Rawhide is fixed by pulling in the upstream fix.\n\nhttp://koji.fedoraproject.org/koji/buildinfo?buildID=595248"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7982797",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-27 12:52:27 +0000",
+						"thetext": "glibc-2.18-19.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/glibc-2.18-19.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7982927",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-27 13:27:06 +0000",
+						"thetext": "glibc-2.20-8.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/glibc-2.20-8.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7984990",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-28 10:24:04 +0000",
+						"thetext": "Package glibc-2.20-8.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing glibc-2.20-8.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2837/glibc-2.20-8.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999930",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:25:14 +0000",
+						"thetext": "glibc-2.18-19.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999950",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:26:50 +0000",
+						"thetext": "glibc-2.20-8.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1175369,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-9402 glibc: denial of service in getnetbyname function",
+			"bugzilla": {
+				"bug_id": "1175369",
+				"alias": "CVE-2014-9402",
+				"creation_ts": "2014-12-17 15:28:06 +0000",
+				"short_desc": "CVE-2014-9402 glibc: denial of service in getnetbyname function",
+				"delta_ts": "2021-02-17 05:53:36 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened, Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1175370",
+					"1497132"
+				],
+				"blocked": [
+					{
+						"bug_id": "1175371",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1188240",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1498774",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2018:0805",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7774585",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2014-12-17 15:28:06 +0000",
+						"thetext": "It was reported [1] that getnetbyname function in glibc 2.21 in earlier will enter an infinite loop if the DNS backend is activated in the system Name Service Switch configuration, and the DNS resolver receives a positive answer while processing the network name.\n\nUpstream commit that fixes this issue:\nhttps://sourceware.org/git/gitweb.cgi?p=glibc.git;h=11e3417af6e354f1942c68a271ae51e892b2814d\n\n[1]: https://sourceware.org/bugzilla/show_bug.cgi?id=17630"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7774592",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2014-12-17 15:29:00 +0000",
+						"thetext": "\nCreated glibc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1175370]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7776240",
+						"comment_count": "2",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-12-18 02:54:39 +0000",
+						"thetext": "MITRE assigned CVE-2014-9402 to this issue:\n\nhttp://seclists.org/oss-sec/2014/q4/1080"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7937159",
+						"comment_count": "5",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2015-02-13 20:35:43 +0000",
+						"thetext": "Statement:\n\nA non-standard system configuration (\"networks: file dns\" in /etc/nsswitch.conf) and possibly a DNS spoofing attack is required to exploit this flaw.\n\nRed Hat Product Security has rated this issue as having Low security impact. This issue is not currently planned to be addressed in future updates. For additional information, refer to the Issue Severity Classification: https://access.redhat.com/security/updates/classification/."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11467542",
+						"comment_count": "9",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2018-04-10 08:20:33 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2018:0805 https://access.redhat.com/errata/RHSA-2018:0805"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1175370,
+			"security": true,
+			"title": "glibc: denial of service in getnetbyname function [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1175370",
+				"creation_ts": "2014-12-17 15:28:54 +0000",
+				"short_desc": "glibc: denial of service in getnetbyname function [fedora-all]",
+				"delta_ts": "2016-11-24 12:19:25 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1175369",
+						"alias": "CVE-2014-9402",
+						"creation_ts": "2014-12-17 15:28:06 +0000",
+						"short_desc": "CVE-2014-9402 glibc: denial of service in getnetbyname function",
+						"delta_ts": "2021-02-17 05:53:36 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Reopened, Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1175370",
+							"1497132"
+						],
+						"blocked": [
+							{
+								"bug_id": "1175371",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1188240",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1498774",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2018:0805",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7774585",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2014-12-17 15:28:06 +0000",
+								"thetext": "It was reported [1] that getnetbyname function in glibc 2.21 in earlier will enter an infinite loop if the DNS backend is activated in the system Name Service Switch configuration, and the DNS resolver receives a positive answer while processing the network name.\n\nUpstream commit that fixes this issue:\nhttps://sourceware.org/git/gitweb.cgi?p=glibc.git;h=11e3417af6e354f1942c68a271ae51e892b2814d\n\n[1]: https://sourceware.org/bugzilla/show_bug.cgi?id=17630"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7774592",
+								"comment_count": "1",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2014-12-17 15:29:00 +0000",
+								"thetext": "\nCreated glibc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1175370]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7776240",
+								"comment_count": "2",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-12-18 02:54:39 +0000",
+								"thetext": "MITRE assigned CVE-2014-9402 to this issue:\n\nhttp://seclists.org/oss-sec/2014/q4/1080"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7937159",
+								"comment_count": "5",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2015-02-13 20:35:43 +0000",
+								"thetext": "Statement:\n\nA non-standard system configuration (\"networks: file dns\" in /etc/nsswitch.conf) and possibly a DNS spoofing attack is required to exploit this flaw.\n\nRed Hat Product Security has rated this issue as having Low security impact. This issue is not currently planned to be addressed in future updates. For additional information, refer to the Issue Severity Classification: https://access.redhat.com/security/updates/classification/."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11467542",
+								"comment_count": "9",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2018-04-10 08:20:33 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2018:0805 https://access.redhat.com/errata/RHSA-2018:0805"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7774590",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2014-12-17 15:28:54 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7774591",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2014-12-17 15:28:58 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1175369,1175370\n\n# Description of your update\nnotes=Security fix for \n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1175369,1175370"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7982926",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-27 13:27:04 +0000",
+						"thetext": "glibc-2.20-8.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/glibc-2.20-8.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7984989",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-28 10:24:02 +0000",
+						"thetext": "Package glibc-2.20-8.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing glibc-2.20-8.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2837/glibc-2.20-8.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999949",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:26:47 +0000",
+						"thetext": "glibc-2.20-8.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1184234,
+			"title": "apparent glibc bug causes gnucash to segfault on startup when LD_LIBRARY_PATH is set to nonexistent directory",
+			"bugzilla": {
+				"bug_id": "1184234",
+				"creation_ts": "2015-01-20 20:01:24 +0000",
+				"short_desc": "apparent glibc bug causes gnucash to segfault on startup when LD_LIBRARY_PATH is set to nonexistent directory",
+				"delta_ts": "2017-04-18 20:20:16 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"blocked": [
+					{
+						"bug_id": "1443236",
+						"creation_ts": "2017-04-18 20:15:16 +0000",
+						"short_desc": "Applications encounter SIGSEGV when LD_LIBRARY_PATH LD_LIBRARY_PATH contains only non-existings paths",
+						"delta_ts": "2021-06-10 12:12:50 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Patch",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1184234"
+						],
+						"blocked": [
+							{
+								"bug_id": "1420851",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1471969",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2018:0805",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "10343164",
+								"comment_count": "0",
+								"who": {
+									"text": "kwalker",
+									"name": "Kyle Walker"
+								},
+								"bug_when": "2017-04-18 20:15:16 +0000",
+								"thetext": "Description of problem:\nOpening this bug as an offshoot of the following BZ. The bug report below was originally opened against tigervnc-server, but the problem is actually localized to the glibc package:\n\n    1413085 - tigervnc-server segmentation fault\n\nThis has been observed within the Fedora 21 release, and addressed:\n\n    1184234 - apparent glibc bug causes gnucash to segfault on startup when LD_LIBRARY_PATH is set to nonexistent directory\n\n\nVersion-Release number of selected component (if applicable):\n glibc-2.17-157.el7_3.1.x86_64\n\nHow reproducible:\n Simple\n\nSteps to Reproduce:\n1. Set an invalid LD_LIBRARY_PATH\n    # export LD_LIBRARY_PATH=/pathtonothing\n\n2. Start the vncserver\n    # vncserver -geometry 1280x1024\"\n\n3.\n\nActual results:\n Segfault\n\nExpected results:\n Graceful continue or exit\n\nAdditional info:\nThe upstream issue has been reported in:\n 15378 – Segmentation fault when LD_LIBRARY_PATH contains (only) non-existings paths\n https://sourceware.org/bugzilla/show_bug.cgi?id=15378"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10343918",
+								"comment_count": "2",
+								"who": {
+									"text": "codonell",
+									"name": "Carlos O'Donell"
+								},
+								"bug_when": "2017-04-19 03:00:07 +0000",
+								"thetext": "Thanks for reporting this. We will be looking at this bug as part of our review for RHEL 7.5. If you need a fix sooner please add more information to this bug report. The immediate workaround is to set LD_LIBRARY_PATH in such a way as to avoid the issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11470398",
+								"comment_count": "15",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2018-04-10 13:58:28 +0000",
+								"thetext": "Since the problem described in this bug report should be\nresolved in a recent advisory, it has been closed with a\nresolution of ERRATA.\n\nFor information on the advisory, and where to find the updated\nfiles, follow the link below.\n\nIf the solution does not work for you, open a new bug report.\n\nhttps://access.redhat.com/errata/RHSA-2018:0805"
+							}
+						]
+					}
+				],
+				"external_bugs": {
+					"text": "15378",
+					"name": "Sourceware"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7862599",
+						"comment_count": "0",
+						"who": {
+							"text": "sh1",
+							"name": "Steve Holland"
+						},
+						"bug_when": "2015-01-20 20:01:24 +0000",
+						"thetext": "Description of problem:\nAn apparent glibc bug causes gnucash to segfault on startup when LD_LIBRARY_PATH is set to a nonexistant directory\n\n\nVersion-Release number of selected component (if applicable):\ngnucash-2.6.4-1.fc21.x86_64\nglibc-2.20-7.fc21.x86_64\nglib2-2.42.1-1.fc21.x86_64\ngvfs-1.22.3-1.fc21.x86_64\n\nHow reproducible:\nAlways\n\nSteps to Reproduce:\n1. export LD_LIBRARY_PATH=/nonexistent_path \n2. gnucash &\n3. watch gnucash segfault\n\nActual results:\nSegmentation fault\n\nExpected results:\ngnucash starts successfully. Clearing LD_LIBRARY_PATH, or pointing LD_LIBRARY_PATH at a directory which actually exists, resolves the problem.\n\nAdditional info:\nThe segmentation fault seems to occur when glib's _g_module_open()  calls dlopen() at gmodule-dl.c:97 The filename to be opened is /usr/lib64/gio/modules/libgvfsdbus.so -- part of gvfs2.\n\ndlopen() is given an absolute path, so it should not be searching per the man page: \"If  filename  contains  a slash (\"/\"), then it is\n       interpreted as a  (relative  or  absolute)  pathname.   Otherwise,  the\n       dynamic  linker  searches  for the library ... \" \n(Since filename contains a slash, the otherwise clause is not applicable, so dlopen() should not be searching)\n\ndlopen seems to be searching through LD_LIBRARY_PATH anyway (based on strace output) and a segmentation fault occurs several function calls deep. \n\nClearing LD_LIBRARY_PATH resolves the problem\n\nThis might be the root cause of bug #1177891"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7863358",
+						"comment_count": "1",
+						"who": {
+							"text": "codonell",
+							"name": "Carlos O'Donell"
+						},
+						"bug_when": "2015-01-21 00:25:35 +0000",
+						"thetext": "The core C library is linked into every application and therefore involved in most strack traces. In order to effectively triage the incoming requests we need the help of users and developers alike to determine root causes.\n\nWould you please provde an SOS report, or run gnucash through the debugger to produce a backtrace that can help us sort this bug against other bugs, and  suggest a workaround or solution?\n\nAs it is this bug does not contain enough information for me to conclude that it's a problem with glibc. Please reopen when you have an SOS report or backtrace with symbol information.\n\nUntil then I'm going to move this bug to gnucash for the gnucach maintainers to investigate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7863589",
+						"comment_count": "2",
+						"who": {
+							"text": "sh1",
+							"name": "Steve Holland"
+						},
+						"bug_when": "2015-01-21 03:27:17 +0000",
+						"thetext": "Created attachment 982161\nStack backtrace from gdb\n\nstack backtrace attached; Frame #11 is where it enters the C library, trying to open /usr/lib64/gio/modules/libgvfsdbus.so"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7863670",
+						"comment_count": "3",
+						"who": {
+							"text": "spoyarek",
+							"name": "Siddhesh Poyarekar"
+						},
+						"bug_when": "2015-01-21 04:42:51 +0000",
+						"thetext": "This is a glibc bug.  Allan had posted a patch[1] for it for which I had asked for a test case.  I'll see if I can write one myself and have this fixed.\n\n[1] https://sourceware.org/ml/libc-alpha/2014-10/msg00328.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7904611",
+						"comment_count": "4",
+						"who": {
+							"text": "notting",
+							"name": "Bill Nottingham"
+						},
+						"bug_when": "2015-02-03 16:52:21 +0000",
+						"thetext": "*** Bug 1187980 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7982924",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-27 13:26:59 +0000",
+						"thetext": "glibc-2.20-8.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/glibc-2.20-8.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7984987",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-28 10:23:57 +0000",
+						"thetext": "Package glibc-2.20-8.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing glibc-2.20-8.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2837/glibc-2.20-8.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999947",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:26:42 +0000",
+						"thetext": "glibc-2.20-8.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1188235,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-1472 glibc: heap buffer overflow in glibc swscanf",
+			"bugzilla": {
+				"bug_id": "1188235",
+				"alias": "CVE-2015-1472",
+				"creation_ts": "2015-02-02 11:45:11 +0000",
+				"short_desc": "CVE-2015-1472 glibc: heap buffer overflow in glibc swscanf",
+				"delta_ts": "2021-02-17 05:41:37 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened, Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1188237",
+					"1209106",
+					"1209107",
+					"1242303"
+				],
+				"blocked": [
+					{
+						"bug_id": "1188240",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1210268",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1262918",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2015:2589",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7899656",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-02 11:45:11 +0000",
+						"thetext": "Heap buffer overflow was reported [1] in glibc stdio-common/vfscanf.c.\n\nstdio-common/vfscanf.c has an ADDW macro that tries to determine whether to use malloc or alloca for allocations.  But in the malloc case, it only allocates newsize bytes instead of the required newsize * sizeof (CHAR_T).  Thus the allocated buffer gets overrun in the wide-string case, as shown in the following testcase:\n\n  int\n  main (void)\n  {\n    wchar_t *s = malloc ((SIZE + 1) * sizeof (*s));\n    if (s == NULL)\n      abort ();\n    for (size_t i = 0; i < SIZE; i++)\n      s[i] = L'0';\n    s[SIZE] = L'\\0';\n    int i;\n    if (swscanf (s, L\"%d\", &i) != 1)\n      abort ();\n    if (i != 0)\n      abort ();\n    free (s);\n    return 0;\n  }\n\nCVE request: http://www.openwall.com/lists/oss-security/2015/02/01/8\n\n[1]: https://sourceware.org/bugzilla/show_bug.cgi?id=16618"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7899664",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-02 11:45:40 +0000",
+						"thetext": "\nCreated glibc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1188237]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7913592",
+						"comment_count": "2",
+						"who": {
+							"text": "codonell",
+							"name": "Carlos O'Donell"
+						},
+						"bug_when": "2015-02-06 05:53:36 +0000",
+						"thetext": "Now fixed in upstream.\n\ncommit 5bd80bfe9ca0d955bfbbc002781bc7b01b6bcb06\nAuthor: Paul Pluzhnikov <ppluzhnikov@google.com>\nDate:   Fri Feb 6 00:30:42 2015 -0500\n\n    CVE-2015-1472: wscanf allocates too little memory\n    \n    BZ #16618\n    \n    Under certain conditions wscanf can allocate too little memory for the\n    to-be-scanned arguments and overflow the allocated buffer.  The\n    implementation now correctly computes the required buffer size when\n    using malloc.\n    \n    A regression test was added to tst-sscanf."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7913887",
+						"comment_count": "3",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-02-06 08:30:43 +0000",
+						"thetext": "https://sourceware.org/git/?p=glibc.git;a=commitdiff;h=5bd80bfe9ca0d955bfbbc002781bc7b01b6bcb06"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999952",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:26:52 +0000",
+						"thetext": "glibc-2.20-8.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8256461",
+						"comment_count": "9",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-05-21 15:59:53 +0000",
+						"thetext": "Statement:\n\nThis issue did not affect the versions of glibc as shipped with Red Hat Enterprise Linux 5 and 6 as they did use different memory allocation algorithm in swscanf() function."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8835602",
+						"comment_count": "11",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-11-19 04:16:04 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:2199 https://rhn.redhat.com/errata/RHSA-2015-2199.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8903977",
+						"comment_count": "12",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-12-09 08:58:14 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7.1 EUS - Server and Compute Node Only\n  Red Hat Enterprise Linux 7.1 EUS  - Server and Compute Node Only\n\nVia RHSA-2015:2589 https://rhn.redhat.com/errata/RHSA-2015-2589.html"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1188237,
+			"security": true,
+			"title": "glibc: heap buffer overflow in glibc swscanf [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1188237",
+				"creation_ts": "2015-02-02 11:45:35 +0000",
+				"short_desc": "glibc: heap buffer overflow in glibc swscanf [fedora-all]",
+				"delta_ts": "2016-11-24 12:20:40 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1188235",
+						"alias": "CVE-2015-1472",
+						"creation_ts": "2015-02-02 11:45:11 +0000",
+						"short_desc": "CVE-2015-1472 glibc: heap buffer overflow in glibc swscanf",
+						"delta_ts": "2021-02-17 05:41:37 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Reopened, Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1188237",
+							"1209106",
+							"1209107",
+							"1242303"
+						],
+						"blocked": [
+							{
+								"bug_id": "1188240",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1210268",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1262918",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:2589",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7899656",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-02-02 11:45:11 +0000",
+								"thetext": "Heap buffer overflow was reported [1] in glibc stdio-common/vfscanf.c.\n\nstdio-common/vfscanf.c has an ADDW macro that tries to determine whether to use malloc or alloca for allocations.  But in the malloc case, it only allocates newsize bytes instead of the required newsize * sizeof (CHAR_T).  Thus the allocated buffer gets overrun in the wide-string case, as shown in the following testcase:\n\n  int\n  main (void)\n  {\n    wchar_t *s = malloc ((SIZE + 1) * sizeof (*s));\n    if (s == NULL)\n      abort ();\n    for (size_t i = 0; i < SIZE; i++)\n      s[i] = L'0';\n    s[SIZE] = L'\\0';\n    int i;\n    if (swscanf (s, L\"%d\", &i) != 1)\n      abort ();\n    if (i != 0)\n      abort ();\n    free (s);\n    return 0;\n  }\n\nCVE request: http://www.openwall.com/lists/oss-security/2015/02/01/8\n\n[1]: https://sourceware.org/bugzilla/show_bug.cgi?id=16618"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7899664",
+								"comment_count": "1",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-02-02 11:45:40 +0000",
+								"thetext": "\nCreated glibc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1188237]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7913592",
+								"comment_count": "2",
+								"who": {
+									"text": "codonell",
+									"name": "Carlos O'Donell"
+								},
+								"bug_when": "2015-02-06 05:53:36 +0000",
+								"thetext": "Now fixed in upstream.\n\ncommit 5bd80bfe9ca0d955bfbbc002781bc7b01b6bcb06\nAuthor: Paul Pluzhnikov <ppluzhnikov@google.com>\nDate:   Fri Feb 6 00:30:42 2015 -0500\n\n    CVE-2015-1472: wscanf allocates too little memory\n    \n    BZ #16618\n    \n    Under certain conditions wscanf can allocate too little memory for the\n    to-be-scanned arguments and overflow the allocated buffer.  The\n    implementation now correctly computes the required buffer size when\n    using malloc.\n    \n    A regression test was added to tst-sscanf."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7913887",
+								"comment_count": "3",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-02-06 08:30:43 +0000",
+								"thetext": "https://sourceware.org/git/?p=glibc.git;a=commitdiff;h=5bd80bfe9ca0d955bfbbc002781bc7b01b6bcb06"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7999952",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-04 10:26:52 +0000",
+								"thetext": "glibc-2.20-8.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8256461",
+								"comment_count": "9",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-05-21 15:59:53 +0000",
+								"thetext": "Statement:\n\nThis issue did not affect the versions of glibc as shipped with Red Hat Enterprise Linux 5 and 6 as they did use different memory allocation algorithm in swscanf() function."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8835602",
+								"comment_count": "11",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-11-19 04:16:04 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:2199 https://rhn.redhat.com/errata/RHSA-2015-2199.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8903977",
+								"comment_count": "12",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-12-09 08:58:14 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7.1 EUS - Server and Compute Node Only\n  Red Hat Enterprise Linux 7.1 EUS  - Server and Compute Node Only\n\nVia RHSA-2015:2589 https://rhn.redhat.com/errata/RHSA-2015-2589.html"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7899662",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-02 11:45:35 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7899663",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-02 11:45:39 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1188235,1188237\n\n# Description of your update\nnotes=Security fix for \n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1188235,1188237"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7982925",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-27 13:27:02 +0000",
+						"thetext": "glibc-2.20-8.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/glibc-2.20-8.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7984988",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-28 10:24:00 +0000",
+						"thetext": "Package glibc-2.20-8.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing glibc-2.20-8.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2837/glibc-2.20-8.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999948",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:26:44 +0000",
+						"thetext": "glibc-2.20-8.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "glibc-2.20-8.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "glibc-utils",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "glibc-devel",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "glibc-common",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "glibc",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "glibc-debuginfo",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "glibc-headers",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "glibc-static",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "nscd",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "glibc-debuginfo-common",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "nscd",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "glibc",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "glibc-common",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "glibc-debuginfo",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "glibc-devel",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "glibc-static",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "glibc-headers",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "glibc-utils",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "glibc",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "glibc-debuginfo-common",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "glibc-debuginfo",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "glibc-common",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "nscd",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "glibc-headers",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "glibc-static",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "glibc",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "glibc-utils",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "glibc-devel",
+						"version": "2.20",
+						"release": "8.fc21",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 182284,
+			"text": "This update has been submitted for testing by siddhesh. ",
+			"timestamp": "2015-02-27 13:27:09",
+			"update_id": 23788,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 182285,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/41959/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-02-27 13:43:23",
+			"update_id": 23788,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 182286,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/41959/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-02-27 13:44:31",
+			"update_id": 23788,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 182287,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2015-02-27 23:06:35",
+			"update_id": 23788,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 182288,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-02-28 10:24:06",
+			"update_id": 23788,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 182289,
+			"karma": 1,
+			"text": "works for me",
+			"timestamp": "2015-03-01 17:45:20",
+			"update_id": 23788,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/c82951c2d404ca0cfea20f51b040175ba4d1624f51e8ec366e75565b672e943d?s=24&d=retro",
+				"email": "h.reindl@thelounge.net",
+				"id": 182,
+				"name": "hreindl",
+				"openid": "hreindl.id.fedoraproject.org"
+			},
+			"user_id": 182
+		},
+		{
+			"id": 182290,
+			"text": "Critical path update approved",
+			"timestamp": "2015-03-01 17:45:21",
+			"update_id": 23788,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 182291,
+			"karma": 1,
+			"text": "Working fine for me.",
+			"timestamp": "2015-03-01 22:30:49",
+			"update_id": 23788,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/e62cb974458dc33fcf2225462b8765e0aadcbbd698560c8f8dad6c3e23d5e47e?s=24&d=retro",
+				"email": "dhgutteridge@hotmail.com",
+				"groups": [
+					{}
+				],
+				"id": 194,
+				"name": "dhgutteridge",
+				"openid": "dhgutteridge.id.fedoraproject.org"
+			},
+			"user_id": 194
+		},
+		{
+			"id": 182292,
+			"karma": 1,
+			"text": "works for me",
+			"timestamp": "2015-03-02 01:08:49",
+			"update_id": 23788,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/2087ddb84fdf1774c00fc96323f629621c9046b99eee2aa497044f598f3979d4?s=24&d=retro",
+				"email": "yuwatana@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					}
+				],
+				"id": 125,
+				"name": "yuwata",
+				"openid": "yuwata.id.fedoraproject.org"
+			},
+			"user_id": 125
+		},
+		{
+			"id": 182293,
+			"text": "This update has reached the stable karma threshold and will be pushed to the stable updates repository",
+			"timestamp": "2015-03-02 01:08:52",
+			"update_id": 23788,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 182294,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/43348/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-03-02 01:19:39",
+			"update_id": 23788,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 182295,
+			"karma": 1,
+			"text": "Fixes GnuCash bug (#1184234) for me. No  problems observed.",
+			"timestamp": "2015-03-02 04:43:04",
+			"update_id": 23788,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/cc21fae7f14f0adb4bc3549f4bda7bddf765f1f89f0c1eaaa20660493e8a003c?s=24&d=retro",
+				"id": 1840,
+				"name": "sdh4",
+				"openid": "sdh4.id.fedoraproject.org"
+			},
+			"user_id": 1840
+		},
+		{
+			"id": 182296,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2015-03-03 04:27:27",
+			"update_id": 23788,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 182297,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-03-04 10:26:58",
+			"update_id": 23788,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2015-03-04 10:26:58",
+	"date_stable": "2015-03-04 10:26:58",
+	"date_submitted": "2015-02-27 13:26:49",
+	"date_testing": "2015-02-28 10:24:06",
+	"karma": 4,
+	"meets_testing_requirements": true,
+	"notes": "- Fix  CVE-2014-7817 glibc: command execution in wordexp() with WRDE_NOCMD specified\r\n- Fix CVE-2014-9402  glibc: denial of service in getnetbyname function\r\n- CVE-2015-1472 glibc: heap buffer overflow in glibc swscanf\r\n- Fix segfault when LD_LIBRARY_PATH is set to non-existent directory.",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "glibc-2.20-8.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-2837",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-2837",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/6d069809dd6f854ea67299617954ffe913778b72e08a73ba85ec1c5859a3038f?s=24&d=retro",
+		"email": "sipoyare@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "cla_redhat"
+			},
+			{
+				"name": "triagers"
+			}
+		],
+		"id": 922,
+		"name": "siddhesh",
+		"openid": "siddhesh.id.fedoraproject.org"
+	},
+	"version_hash": "c6ba48e44d0cba9483c1986ea962d3febac7a277"
+}

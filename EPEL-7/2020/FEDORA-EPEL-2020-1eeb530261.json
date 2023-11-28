@@ -1,0 +1,802 @@
+{
+	"alias": "FEDORA-EPEL-2020-1eeb530261",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 1883632,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2020-26137 python-urllib3: CRLF injection via HTTP request method",
+			"bugzilla": {
+				"bug_id": "1883632",
+				"alias": "CVE-2020-26137",
+				"creation_ts": "2020-09-29 18:21:58 +0000",
+				"short_desc": "CVE-2020-26137 python-urllib3: CRLF injection via HTTP request method",
+				"delta_ts": "2022-06-28 09:47:07 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1887224",
+					"1883727",
+					"1883799",
+					"1883800",
+					"1883830",
+					"1883870",
+					"1883871",
+					"1883872",
+					"1883873",
+					"1883876",
+					"1883888",
+					"1883889",
+					"1883890",
+					"1883891",
+					"1883895",
+					"1883899",
+					"1883912",
+					"1883913",
+					"1883914",
+					"1883915",
+					"1883920",
+					"1883921",
+					"1883922",
+					"1885284",
+					"1885340"
+				],
+				"blocked": [
+					{
+						"bug_id": "1877556",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2022:5235",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "14332746",
+						"comment_count": "0",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2020-09-29 18:21:58 +0000",
+						"thetext": "A security issue was found in python-urllib3. HTTPConnection.request() does not properly validate CRLF sequences in the HTTP request method, potentially allowing to manipulate the request by injecting additional HTTP headers. Note that CVE-2020-26116 is strictly related to this bug, as the same flaw was reported in both urllib3 and built-in modules httplib/http.client.\n\nReferences:\n* https://bugs.python.org/issue39603\n\nUpstream patch PR (merged upstream):\n* https://github.com/urllib3/urllib3/pull/1800\n\nUpstream commit:\n* https://github.com/urllib3/urllib3/commit/1dd69c5c5982fae7c87a620d487c2ebf7a6b436b"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14344144",
+						"comment_count": "6",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2020-09-30 12:43:47 +0000",
+						"thetext": "Created python-pip tracking bugs for this issue:\n\nAffects: epel-6 [bug 1883871]\nAffects: fedora-all [bug 1883873]\n\n\nCreated python-pip-epel tracking bugs for this issue:\n\nAffects: epel-7 [bug 1883872]\n\n\nCreated python3-urllib3 tracking bugs for this issue:\n\nAffects: epel-all [bug 1883870]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14344171",
+						"comment_count": "7",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2020-09-30 12:51:39 +0000",
+						"thetext": "Created python-urllib3 tracking bugs for this issue:\n\nAffects: fedora-all [bug 1883876]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14348255",
+						"comment_count": "13",
+						"who": {
+							"text": "pviktori",
+							"name": "Petr Viktorin (@encukou)"
+						},
+						"bug_when": "2020-09-30 15:20:00 +0000",
+						"thetext": "As for the pip bugs, do we know where in pip can an attacker control the HTTP method used? AFAIK, pip itself uses GET and POST but doesn't let you do arbitrary requests."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14349114",
+						"comment_count": "14",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2020-09-30 18:17:43 +0000",
+						"thetext": "In reply to comment #13:\n> As for the pip bugs, do we know where in pip can an attacker control the\n> HTTP method used? AFAIK, pip itself uses GET and POST but doesn't let you do\n> arbitrary requests.\n\nHi Petr, we only have a reproducer for urllib3 and httplib/http.client. I created those bugs to account for the fact that pip is using a vulnerable version of urllib3 (and ideally it should be fixed). I thought this might lead to some troubles, but honestly I don't know if/how this could be exploited in pip. If there's no way for an external attacker to control the HTTP method, we can surely consider closing those bugs as NOTABUG. Thanks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14355492",
+						"comment_count": "16",
+						"who": {
+							"text": "lbalhar",
+							"name": "Lumír Balhar"
+						},
+						"bug_when": "2020-10-02 06:14:21 +0000",
+						"thetext": "I've done an investigation of this security issue. The vulnerable method is `putrequest` from `HTTPConnection` class from `http.client` module in Python standard library. This issue is already fixed upstream for all supported Python versions.\n\n`HTTPConnection` class in urllib3 inherits from the mentioned `HTTPConnection` class from the standard library which means that fixing the vulnerability only in Python itself should be enough. But, as far as I understand, the fix is implemented also in urllib3 because:\n* the library doesn't want to wait for the next Python release and\n* it still maintains support for Python 2.7 where this vulnerability won't be fixed in Python itself (upstream).\n\nPip bundles its own versions of requests and urllib3 and uses only the high level API of requests. I haven't found any possible way how a pip user migh modify the HTTP method when sending a HTTP request. And even if I would be wrong, we are going to fix this vulnerability in Python interpreters so the chain pip > requests > urllib3 > http.client will be fixed all at once.\n\nTherefore I think we can close all pip bugs as notabug."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14355537",
+						"comment_count": "17",
+						"who": {
+							"text": "lbalhar",
+							"name": "Lumír Balhar"
+						},
+						"bug_when": "2020-10-02 06:55:04 +0000",
+						"thetext": "To prove what I said in the previous comment, here is an example of how the fix in Python itself fixes also python-urllib3 package and urllib3 bundled in pip. I'm using the reproducer from the security team.\n\n# python34-3.4.10-6.el7.x86_64 (vulnerable)\n\n$ python3.4 poc.py\n<no error>\n\n<second terminal>$ nc -l -p 3333\nGET / HTTP/1.1\nX-INJECTED: HEADER\nREMAINDER: / HTTP/1.1\nHost: localhost:3333\nAccept-Encoding: identity\n\nThe situation is the same when I use the bundled urllib3 in pip via `PYTHONPATH=/usr/lib/python3.4/site-packages/pip/_vendor/requests/packages/ python3.4 poc.py`\n\n# python34-3.4.10-7.el7.x86_64 (fixed, update: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2020-bd6a96cd24)\n\n$ python3.4 poc.py \nTraceback (most recent call last):\n  File \"poc.py\", line 12, in <module>\n    info = pool_manager.request(method, url)\n  File \"/usr/lib/python3.4/site-packages/urllib3/request.py\", line 80, in request\n    method, url, fields=fields, headers=headers, **urlopen_kw\n  File \"/usr/lib/python3.4/site-packages/urllib3/request.py\", line 171, in request_encode_body\n    return self.urlopen(method, url, **extra_kw)\n  File \"/usr/lib/python3.4/site-packages/urllib3/poolmanager.py\", line 330, in urlopen\n    response = conn.urlopen(method, u.request_uri, **kw)\n  File \"/usr/lib/python3.4/site-packages/urllib3/connectionpool.py\", line 672, in urlopen\n    chunked=chunked,\n  File \"/usr/lib/python3.4/site-packages/urllib3/connectionpool.py\", line 387, in _make_request\n    conn.request(method, url, **httplib_request_kw)\n  File \"/usr/lib64/python3.4/http/client.py\", line 1154, in request\n    self._send_request(method, url, body, headers)\n  File \"/usr/lib64/python3.4/http/client.py\", line 1189, in _send_request\n    self.putrequest(method, url, **skips)\n  File \"/usr/lib64/python3.4/http/client.py\", line 1011, in putrequest\n    self._validate_method(method)\n  File \"/usr/lib64/python3.4/http/client.py\", line 1107, in _validate_method\n    % (method, match.group()))\nValueError: method can't contain control characters. 'GET / HTTP/1.1\\r\\nX-INJECTED: HEADER\\r\\nREMAINDER:' (found at least '\\r')\n\n$ PYTHONPATH=/usr/lib/python3.4/site-packages/pip/_vendor/requests/packages/ python3.4 poc.py \nTraceback (most recent call last):\n  File \"poc.py\", line 12, in <module>\n    info = pool_manager.request(method, url)\n  File \"/usr/lib/python3.4/site-packages/pip/_vendor/requests/packages/urllib3/request.py\", line 73, in request\n    **urlopen_kw)\n  File \"/usr/lib/python3.4/site-packages/pip/_vendor/requests/packages/urllib3/request.py\", line 151, in request_encode_body\n    return self.urlopen(method, url, **extra_kw)\n  File \"/usr/lib/python3.4/site-packages/pip/_vendor/requests/packages/urllib3/poolmanager.py\", line 166, in urlopen\n    response = conn.urlopen(method, u.request_uri, **kw)\n  File \"/usr/lib/python3.4/site-packages/pip/_vendor/requests/packages/urllib3/connectionpool.py\", line 578, in urlopen\n    chunked=chunked)\n  File \"/usr/lib/python3.4/site-packages/pip/_vendor/requests/packages/urllib3/connectionpool.py\", line 362, in _make_request\n    conn.request(method, url, **httplib_request_kw)\n  File \"/usr/lib64/python3.4/http/client.py\", line 1154, in request\n    self._send_request(method, url, body, headers)\n  File \"/usr/lib64/python3.4/http/client.py\", line 1189, in _send_request\n    self.putrequest(method, url, **skips)\n  File \"/usr/lib64/python3.4/http/client.py\", line 1011, in putrequest\n    self._validate_method(method)\n  File \"/usr/lib64/python3.4/http/client.py\", line 1107, in _validate_method\n    % (method, match.group()))\nValueError: method can't contain control characters. 'GET / HTTP/1.1\\r\\nX-INJECTED: HEADER\\r\\nREMAINDER:' (found at least '\\r')"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14385463",
+						"comment_count": "21",
+						"who": {
+							"text": "slong",
+							"name": "Summer Long"
+						},
+						"bug_when": "2020-10-11 22:30:23 +0000",
+						"thetext": "Created python-urllib3 tracking bugs for this issue:\n\nAffects: openstack-rdo [bug 1887224]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14410060",
+						"comment_count": "24",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2020-10-20 20:00:30 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.6 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.7 EUS\n\nVia RHSA-2020:4299 https://access.redhat.com/errata/RHSA-2020:4299"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14410115",
+						"comment_count": "25",
+						"who": {
+							"text": "prodsec-dev",
+							"name": "Product Security DevOps Team"
+						},
+						"bug_when": "2020-10-20 20:21:17 +0000",
+						"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2020-26137"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14491504",
+						"comment_count": "26",
+						"who": {
+							"text": "slong",
+							"name": "Summer Long"
+						},
+						"bug_when": "2020-11-10 04:01:20 +0000",
+						"thetext": "Statement:\n\n* Red Hat OpenShift Container Platform (OCP) 4 delivers the python-urllib3 package which includes vulnerable version of urllib3 module, however from OCP 4.6 the python-urllib3 package is no longer shipped and will not be fixed.\n* In Red Hat OpenStack Platform, because the flaw has a lower impact and the fix would require a substantial amount of development, no update will be provided at this time for the RHOSP python-urllib3 package.\n\nNote: Versions of `python-pip` are marked as not affected because there is no way for a pip user to control the HTTP request method."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14649428",
+						"comment_count": "27",
+						"who": {
+							"text": "yselkowi",
+							"name": "Yaakov Selkowitz"
+						},
+						"bug_when": "2021-01-06 22:56:43 +0000",
+						"thetext": "(In reply to Summer Long from comment #26)\n> * Red Hat OpenShift Container Platform (OCP) 4 delivers the python-urllib3\n> package which includes vulnerable version of urllib3 module, however from\n> OCP 4.6 the python-urllib3 package is no longer shipped and will not be\n> fixed.\n\nOpenShift ships several container images which pull in RHEL8's python[3]-urllib3: the ironic* and kuryr* containers in all 4.y versions, and ansible-operator and its dependants in 4.6+."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14693079",
+						"comment_count": "28",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2021-01-20 04:37:00 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.5\n\nVia RHSA-2021:0034 https://access.redhat.com/errata/RHSA-2021:0034"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14695639",
+						"comment_count": "29",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2021-01-20 16:53:20 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 3.11\n\nVia RHSA-2021:0079 https://access.redhat.com/errata/RHSA-2021:0079"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15074461",
+						"comment_count": "30",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2021-05-18 13:49:42 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2021:1631 https://access.redhat.com/errata/RHSA-2021:1631"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15075827",
+						"comment_count": "31",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2021-05-18 14:50:29 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2021:1761 https://access.redhat.com/errata/RHSA-2021:1761"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16393607",
+						"comment_count": "32",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2022-06-28 09:47:03 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2022:5235 https://access.redhat.com/errata/RHSA-2022:5235"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1883870,
+			"security": true,
+			"title": "CVE-2020-26137 python3-urllib3: python-urllib3: CRLF injection via HTTP request method [epel-all]",
+			"bugzilla": {
+				"bug_id": "1883870",
+				"creation_ts": "2020-09-30 12:43:01 +0000",
+				"short_desc": "CVE-2020-26137 python3-urllib3: python-urllib3: CRLF injection via HTTP request method [epel-all]",
+				"delta_ts": "2020-10-17 13:42:12 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1883632",
+						"alias": "CVE-2020-26137",
+						"creation_ts": "2020-09-29 18:21:58 +0000",
+						"short_desc": "CVE-2020-26137 python-urllib3: CRLF injection via HTTP request method",
+						"delta_ts": "2022-06-28 09:47:07 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1887224",
+							"1883727",
+							"1883799",
+							"1883800",
+							"1883830",
+							"1883870",
+							"1883871",
+							"1883872",
+							"1883873",
+							"1883876",
+							"1883888",
+							"1883889",
+							"1883890",
+							"1883891",
+							"1883895",
+							"1883899",
+							"1883912",
+							"1883913",
+							"1883914",
+							"1883915",
+							"1883920",
+							"1883921",
+							"1883922",
+							"1885284",
+							"1885340"
+						],
+						"blocked": [
+							{
+								"bug_id": "1877556",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2022:5235",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "14332746",
+								"comment_count": "0",
+								"who": {
+									"text": "mcascell",
+									"name": "Mauro Matteo Cascella"
+								},
+								"bug_when": "2020-09-29 18:21:58 +0000",
+								"thetext": "A security issue was found in python-urllib3. HTTPConnection.request() does not properly validate CRLF sequences in the HTTP request method, potentially allowing to manipulate the request by injecting additional HTTP headers. Note that CVE-2020-26116 is strictly related to this bug, as the same flaw was reported in both urllib3 and built-in modules httplib/http.client.\n\nReferences:\n* https://bugs.python.org/issue39603\n\nUpstream patch PR (merged upstream):\n* https://github.com/urllib3/urllib3/pull/1800\n\nUpstream commit:\n* https://github.com/urllib3/urllib3/commit/1dd69c5c5982fae7c87a620d487c2ebf7a6b436b"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14344144",
+								"comment_count": "6",
+								"who": {
+									"text": "mcascell",
+									"name": "Mauro Matteo Cascella"
+								},
+								"bug_when": "2020-09-30 12:43:47 +0000",
+								"thetext": "Created python-pip tracking bugs for this issue:\n\nAffects: epel-6 [bug 1883871]\nAffects: fedora-all [bug 1883873]\n\n\nCreated python-pip-epel tracking bugs for this issue:\n\nAffects: epel-7 [bug 1883872]\n\n\nCreated python3-urllib3 tracking bugs for this issue:\n\nAffects: epel-all [bug 1883870]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14344171",
+								"comment_count": "7",
+								"who": {
+									"text": "mcascell",
+									"name": "Mauro Matteo Cascella"
+								},
+								"bug_when": "2020-09-30 12:51:39 +0000",
+								"thetext": "Created python-urllib3 tracking bugs for this issue:\n\nAffects: fedora-all [bug 1883876]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14348255",
+								"comment_count": "13",
+								"who": {
+									"text": "pviktori",
+									"name": "Petr Viktorin (@encukou)"
+								},
+								"bug_when": "2020-09-30 15:20:00 +0000",
+								"thetext": "As for the pip bugs, do we know where in pip can an attacker control the HTTP method used? AFAIK, pip itself uses GET and POST but doesn't let you do arbitrary requests."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14349114",
+								"comment_count": "14",
+								"who": {
+									"text": "mcascell",
+									"name": "Mauro Matteo Cascella"
+								},
+								"bug_when": "2020-09-30 18:17:43 +0000",
+								"thetext": "In reply to comment #13:\n> As for the pip bugs, do we know where in pip can an attacker control the\n> HTTP method used? AFAIK, pip itself uses GET and POST but doesn't let you do\n> arbitrary requests.\n\nHi Petr, we only have a reproducer for urllib3 and httplib/http.client. I created those bugs to account for the fact that pip is using a vulnerable version of urllib3 (and ideally it should be fixed). I thought this might lead to some troubles, but honestly I don't know if/how this could be exploited in pip. If there's no way for an external attacker to control the HTTP method, we can surely consider closing those bugs as NOTABUG. Thanks."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14355492",
+								"comment_count": "16",
+								"who": {
+									"text": "lbalhar",
+									"name": "Lumír Balhar"
+								},
+								"bug_when": "2020-10-02 06:14:21 +0000",
+								"thetext": "I've done an investigation of this security issue. The vulnerable method is `putrequest` from `HTTPConnection` class from `http.client` module in Python standard library. This issue is already fixed upstream for all supported Python versions.\n\n`HTTPConnection` class in urllib3 inherits from the mentioned `HTTPConnection` class from the standard library which means that fixing the vulnerability only in Python itself should be enough. But, as far as I understand, the fix is implemented also in urllib3 because:\n* the library doesn't want to wait for the next Python release and\n* it still maintains support for Python 2.7 where this vulnerability won't be fixed in Python itself (upstream).\n\nPip bundles its own versions of requests and urllib3 and uses only the high level API of requests. I haven't found any possible way how a pip user migh modify the HTTP method when sending a HTTP request. And even if I would be wrong, we are going to fix this vulnerability in Python interpreters so the chain pip > requests > urllib3 > http.client will be fixed all at once.\n\nTherefore I think we can close all pip bugs as notabug."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14355537",
+								"comment_count": "17",
+								"who": {
+									"text": "lbalhar",
+									"name": "Lumír Balhar"
+								},
+								"bug_when": "2020-10-02 06:55:04 +0000",
+								"thetext": "To prove what I said in the previous comment, here is an example of how the fix in Python itself fixes also python-urllib3 package and urllib3 bundled in pip. I'm using the reproducer from the security team.\n\n# python34-3.4.10-6.el7.x86_64 (vulnerable)\n\n$ python3.4 poc.py\n<no error>\n\n<second terminal>$ nc -l -p 3333\nGET / HTTP/1.1\nX-INJECTED: HEADER\nREMAINDER: / HTTP/1.1\nHost: localhost:3333\nAccept-Encoding: identity\n\nThe situation is the same when I use the bundled urllib3 in pip via `PYTHONPATH=/usr/lib/python3.4/site-packages/pip/_vendor/requests/packages/ python3.4 poc.py`\n\n# python34-3.4.10-7.el7.x86_64 (fixed, update: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2020-bd6a96cd24)\n\n$ python3.4 poc.py \nTraceback (most recent call last):\n  File \"poc.py\", line 12, in <module>\n    info = pool_manager.request(method, url)\n  File \"/usr/lib/python3.4/site-packages/urllib3/request.py\", line 80, in request\n    method, url, fields=fields, headers=headers, **urlopen_kw\n  File \"/usr/lib/python3.4/site-packages/urllib3/request.py\", line 171, in request_encode_body\n    return self.urlopen(method, url, **extra_kw)\n  File \"/usr/lib/python3.4/site-packages/urllib3/poolmanager.py\", line 330, in urlopen\n    response = conn.urlopen(method, u.request_uri, **kw)\n  File \"/usr/lib/python3.4/site-packages/urllib3/connectionpool.py\", line 672, in urlopen\n    chunked=chunked,\n  File \"/usr/lib/python3.4/site-packages/urllib3/connectionpool.py\", line 387, in _make_request\n    conn.request(method, url, **httplib_request_kw)\n  File \"/usr/lib64/python3.4/http/client.py\", line 1154, in request\n    self._send_request(method, url, body, headers)\n  File \"/usr/lib64/python3.4/http/client.py\", line 1189, in _send_request\n    self.putrequest(method, url, **skips)\n  File \"/usr/lib64/python3.4/http/client.py\", line 1011, in putrequest\n    self._validate_method(method)\n  File \"/usr/lib64/python3.4/http/client.py\", line 1107, in _validate_method\n    % (method, match.group()))\nValueError: method can't contain control characters. 'GET / HTTP/1.1\\r\\nX-INJECTED: HEADER\\r\\nREMAINDER:' (found at least '\\r')\n\n$ PYTHONPATH=/usr/lib/python3.4/site-packages/pip/_vendor/requests/packages/ python3.4 poc.py \nTraceback (most recent call last):\n  File \"poc.py\", line 12, in <module>\n    info = pool_manager.request(method, url)\n  File \"/usr/lib/python3.4/site-packages/pip/_vendor/requests/packages/urllib3/request.py\", line 73, in request\n    **urlopen_kw)\n  File \"/usr/lib/python3.4/site-packages/pip/_vendor/requests/packages/urllib3/request.py\", line 151, in request_encode_body\n    return self.urlopen(method, url, **extra_kw)\n  File \"/usr/lib/python3.4/site-packages/pip/_vendor/requests/packages/urllib3/poolmanager.py\", line 166, in urlopen\n    response = conn.urlopen(method, u.request_uri, **kw)\n  File \"/usr/lib/python3.4/site-packages/pip/_vendor/requests/packages/urllib3/connectionpool.py\", line 578, in urlopen\n    chunked=chunked)\n  File \"/usr/lib/python3.4/site-packages/pip/_vendor/requests/packages/urllib3/connectionpool.py\", line 362, in _make_request\n    conn.request(method, url, **httplib_request_kw)\n  File \"/usr/lib64/python3.4/http/client.py\", line 1154, in request\n    self._send_request(method, url, body, headers)\n  File \"/usr/lib64/python3.4/http/client.py\", line 1189, in _send_request\n    self.putrequest(method, url, **skips)\n  File \"/usr/lib64/python3.4/http/client.py\", line 1011, in putrequest\n    self._validate_method(method)\n  File \"/usr/lib64/python3.4/http/client.py\", line 1107, in _validate_method\n    % (method, match.group()))\nValueError: method can't contain control characters. 'GET / HTTP/1.1\\r\\nX-INJECTED: HEADER\\r\\nREMAINDER:' (found at least '\\r')"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14385463",
+								"comment_count": "21",
+								"who": {
+									"text": "slong",
+									"name": "Summer Long"
+								},
+								"bug_when": "2020-10-11 22:30:23 +0000",
+								"thetext": "Created python-urllib3 tracking bugs for this issue:\n\nAffects: openstack-rdo [bug 1887224]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14410060",
+								"comment_count": "24",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2020-10-20 20:00:30 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.6 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.7 EUS\n\nVia RHSA-2020:4299 https://access.redhat.com/errata/RHSA-2020:4299"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14410115",
+								"comment_count": "25",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2020-10-20 20:21:17 +0000",
+								"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2020-26137"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14491504",
+								"comment_count": "26",
+								"who": {
+									"text": "slong",
+									"name": "Summer Long"
+								},
+								"bug_when": "2020-11-10 04:01:20 +0000",
+								"thetext": "Statement:\n\n* Red Hat OpenShift Container Platform (OCP) 4 delivers the python-urllib3 package which includes vulnerable version of urllib3 module, however from OCP 4.6 the python-urllib3 package is no longer shipped and will not be fixed.\n* In Red Hat OpenStack Platform, because the flaw has a lower impact and the fix would require a substantial amount of development, no update will be provided at this time for the RHOSP python-urllib3 package.\n\nNote: Versions of `python-pip` are marked as not affected because there is no way for a pip user to control the HTTP request method."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14649428",
+								"comment_count": "27",
+								"who": {
+									"text": "yselkowi",
+									"name": "Yaakov Selkowitz"
+								},
+								"bug_when": "2021-01-06 22:56:43 +0000",
+								"thetext": "(In reply to Summer Long from comment #26)\n> * Red Hat OpenShift Container Platform (OCP) 4 delivers the python-urllib3\n> package which includes vulnerable version of urllib3 module, however from\n> OCP 4.6 the python-urllib3 package is no longer shipped and will not be\n> fixed.\n\nOpenShift ships several container images which pull in RHEL8's python[3]-urllib3: the ironic* and kuryr* containers in all 4.y versions, and ansible-operator and its dependants in 4.6+."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14693079",
+								"comment_count": "28",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2021-01-20 04:37:00 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.5\n\nVia RHSA-2021:0034 https://access.redhat.com/errata/RHSA-2021:0034"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14695639",
+								"comment_count": "29",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2021-01-20 16:53:20 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 3.11\n\nVia RHSA-2021:0079 https://access.redhat.com/errata/RHSA-2021:0079"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15074461",
+								"comment_count": "30",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2021-05-18 13:49:42 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2021:1631 https://access.redhat.com/errata/RHSA-2021:1631"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15075827",
+								"comment_count": "31",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2021-05-18 14:50:29 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2021:1761 https://access.redhat.com/errata/RHSA-2021:1761"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "16393607",
+								"comment_count": "32",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2022-06-28 09:47:03 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2022:5235 https://access.redhat.com/errata/RHSA-2022:5235"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "14344134",
+						"comment_count": "0",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2020-09-30 12:43:01 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof epel-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora EPEL. While\nonly one tracking bug has been filed, please correct all affected versions\nat the same time.  If you need to fix the versions independent of each\nother, you may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14344135",
+						"comment_count": "1",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2020-09-30 12:43:03 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1883632,1883870\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14356069",
+						"comment_count": "2",
+						"who": {
+							"text": "mhroncok",
+							"name": "Miro Hrončok"
+						},
+						"bug_when": "2020-10-02 10:37:40 +0000",
+						"thetext": "IIRC This can be fixed by fixing Python."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14356541",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-10-02 13:18:35 +0000",
+						"thetext": "FEDORA-EPEL-2020-1eeb530261 has been submitted as an update to Fedora EPEL 7. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2020-1eeb530261"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14358551",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-10-03 02:11:44 +0000",
+						"thetext": "FEDORA-EPEL-2020-1eeb530261 has been pushed to the Fedora EPEL 7 testing repository.\n\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2020-1eeb530261\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14401592",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-10-17 13:42:12 +0000",
+						"thetext": "FEDORA-EPEL-2020-1eeb530261 has been pushed to the Fedora EPEL 7 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "python3-urllib3-1.25.6-2.el7",
+			"release_id": 8,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "python36-urllib3",
+						"version": "1.25.6",
+						"release": "2.el7",
+						"arch": "noarch"
+					},
+					{
+						"name": "python34-urllib3",
+						"version": "1.25.6",
+						"release": "2.el7",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "python3-urllib3",
+						"version": "1.25.6",
+						"release": "2.el7",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 1659368,
+			"text": "This update has been submitted for testing by orion. ",
+			"timestamp": "2020-10-02 13:18:31",
+			"update_id": 246790,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1659369,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2020-10-02 13:18:32",
+			"update_id": 246790,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1659370,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2020-10-02 13:18:32",
+			"update_id": 246790,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1659375,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2020-10-02 13:25:10",
+			"update_id": 246790,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1660666,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2020-10-03 02:11:45",
+			"update_id": 246790,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1685652,
+			"text": "This update can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2020-10-17 02:13:58",
+			"update_id": 246790,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1685653,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2020-10-17 02:13:59",
+			"update_id": 246790,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1685940,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2020-10-17 13:43:59",
+			"update_id": 246790,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2020-10-17 13:42:06",
+	"date_stable": "2020-10-17 13:42:06",
+	"date_submitted": "2020-10-02 13:18:31",
+	"date_testing": "2020-10-03 02:11:41",
+	"meets_testing_requirements": true,
+	"notes": "Security fix for CVE-2020-26137: CRLF injection via HTTP request method",
+	"pushed": true,
+	"release": {
+		"branch": "epel7",
+		"candidate_tag": "epel7-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "epel7",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 7",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EPEL-7",
+		"override_tag": "epel7-override",
+		"package_manager": "unspecified",
+		"pending_signing_tag": "epel7-signing-pending",
+		"pending_stable_tag": "epel7-pending",
+		"pending_testing_tag": "epel7-testing-pending",
+		"stable_tag": "epel7",
+		"state": "current",
+		"testing_tag": "epel7-testing",
+		"version": "7"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "medium",
+	"stable_days": 14,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "python3-urllib3-1.25.6-2.el7",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2020-1eeb530261",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2020-1eeb530261",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/b6fd449fcea49e2de27dacf226d46a01a0c8a44918672843e45bf5ac0bd0060b?s=24&d=retro",
+		"email": "orion@nwra.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "astro-sig"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "epel-packagers-sig"
+			},
+			{
+				"name": "scitech_sig"
+			},
+			{
+				"name": "packaging-committee"
+			},
+			{
+				"name": "scitech"
+			},
+			{
+				"name": "clamav"
+			}
+		],
+		"id": 97,
+		"name": "orion",
+		"openid": "orion.id.fedoraproject.org"
+	},
+	"version_hash": "037429aa91a2fdd58dd257a17c8e7dc50ea9a73e"
+}

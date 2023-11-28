@@ -1,0 +1,1018 @@
+{
+	"alias": "FEDORA-EPEL-2016-bafacd5846",
+	"bugs": [
+		{
+			"bug_id": 1281493,
+			"title": "Unable to use TLSv1.1 or TLSv1.2 protocol when TLSProtocol is set to TLSv1",
+			"bugzilla": {
+				"bug_id": "1281493",
+				"creation_ts": "2015-11-12 16:16:03 +0000",
+				"short_desc": "Unable to use TLSv1.1 or TLSv1.2 protocol when TLSProtocol is set to TLSv1",
+				"delta_ts": "2019-08-15 18:56:01 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened",
+				"priority": "unspecified",
+				"bug_severity": "high",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8815738",
+						"comment_count": "0",
+						"who": {
+							"text": "obonhomme",
+							"name": "Olivier BONHOMME"
+						},
+						"bug_when": "2015-11-12 16:16:03 +0000",
+						"thetext": "Description of problem:\n\nWhen enabling TLSProtocol option value with TLSv1 parameter which is the one available on the proftpd version available on EPEL 6, only TLSv1 protocol is usable => It is not possible to connect to proftpd using TLSv1.1 or TLSv1.2\n\nThe only way allowing TLSv1.2 to work is to remove the TLSProtocol option but in that use case, SSLv23 is usable which can be a major security issue.\n\nVersion-Release number of selected component (if applicable): 1.3.3g-el6\n\nThis seems related to this bug : http://bugs.proftpd.org/show_bug.cgi?id=4024. \n\nDo you think it would be possible to backport that patch into the EPEL 6 proftpd version in order to have a good TLS configuration management ?\n\nHow reproducible:\n\n1.Enable TLSProtocols with the TLSv1 value into the proftpd.conf file.\n2.Try to make a connection using openssl s_client forcing using tls1_2 parameter\n\n\nActual results:\n\nUnable to negotiate the TLSv1.2 connection. Same results with TLSv1.1\n\nExpected results:\n\nWith TLSProtocols restricted to TLSv1 it should be possible to do a TLSv1.1 or a TLSv1.2 connection.\nAdditional info:"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8816201",
+						"comment_count": "1",
+						"who": {
+							"text": "paul",
+							"name": "Paul Howarth"
+						},
+						"bug_when": "2015-11-12 18:51:20 +0000",
+						"thetext": "Hmm, this looks to be non-trivial.\n\nThe version of mod_tls included with EL-6's proftpd-1.3.3g is so old that it doesn't have any knowledge of TLSv1.1 or TLSv1.2, so it would need substantial patching to rectify that.\n\nI've also considered updating mod_tls to a more recent version, but ones that know about newer TLS versions also seem to want to build against proftpd 1.3.4 or 1.3.5 rather than 1.3.3.\n\nNot sure what to do about this at the moment."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8816509",
+						"comment_count": "2",
+						"who": {
+							"text": "obonhomme",
+							"name": "Olivier BONHOMME"
+						},
+						"bug_when": "2015-11-12 21:11:00 +0000",
+						"thetext": "Hello Paul,\n\nMaybe I'm going to say something stupid since I don't know proftpd as good as you but if I don't enable the TLSProtocol option and try to make an openssl connection forcing TLSv1.2 or TLSv1.1 mode, it works.\n\nSo for me TLSv1.2 can work with proftpd 1.3.3g. So wouldn't it possible to have just a workaround allowing TLSv1.1 and TLSv1.2 connections when TLSProtocol is set to TLSv1 ?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8818668",
+						"comment_count": "3",
+						"who": {
+							"text": "paul",
+							"name": "Paul Howarth"
+						},
+						"bug_when": "2015-11-13 15:46:50 +0000",
+						"thetext": "OK, so maybe it wasn't that hard. Please try this scratch build:\n\nhttp://koji.fedoraproject.org/koji/taskinfo?taskID=11821089\n\nI've left the defaults unchanged so as not to break any existing set-ups, and I've also left the meaning of \"TLSv1\" unchanged. So what you'll want is:\n\nTLSProtocol TLSv1.1\nor\nTLSProtocol TLSv1.2\nor\nTLSProtocol TLSv1.1 TLSv1.2"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8823397",
+						"comment_count": "4",
+						"who": {
+							"text": "obonhomme",
+							"name": "Olivier BONHOMME"
+						},
+						"bug_when": "2015-11-16 10:46:57 +0000",
+						"thetext": "Hello Paul,\n\nI just downloaded and installed your test package. Here are the results : \n\n- With TLSProtocol TLSv1\n  * Client Connection with TLSv1.1: KO\n  * Client Connection with TLSv1.2: KO\n  * Client Connection with TLSv1 : OK\n\n- With TLSProtocol TLSv1.1\n  * Client Connection with TLSv1.1: OK\n  * Client Connection with TLSv1.2: KO\n  * Client Connection with TLSv1 : KO\n\n- With TLSProtocol TLSv1.2\n  * Client Connection with TLSv1.1: KO\n  * Client Connection with TLSv1.2: OK\n  * Client Connection with TLSv1 : KO\n\n- With TLSProtocol TLSv1.1 TLSv1.28\n  * Client Connection with TLSv1.1: OK\n  * Client Connection with TLSv1.2: OK\n  * Client Connection with TLSv1 : KO\n\n- With TLSProtocol TLSv1 TLSv1.1 TLSv1.2\n  * Client Connection with TLSv1.1: OK\n  * Client Connection with TLSv1.2: OK\n  * Client Connection with TLSv1 : OK\n\nSo these results seems OK for me and your proftpd version has the behaviour I was waiting for."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8823863",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-11-16 13:35:59 +0000",
+						"thetext": "proftpd-1.3.3g-7.el6 has been submitted as an update to Fedora EPEL 6. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2015-a57010c117"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8824776",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-11-16 16:21:17 +0000",
+						"thetext": "proftpd-1.3.3g-7.el6 has been pushed to the Fedora EPEL 6 testing repository. If problems still persist, please make note of it in this bug report.\nIf you want to test the update, you can install it with\n$ su -c 'yum --enablerepo=epel-testing update proftpd'\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2015-a57010c117"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8874408",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-12-01 18:24:10 +0000",
+						"thetext": "proftpd-1.3.3g-7.el6 has been pushed to the Fedora EPEL 6 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9148971",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-03-15 11:08:26 +0000",
+						"thetext": "proftpd-1.3.3g-5.el5 has been submitted as an update to Fedora EPEL 5. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-bafacd5846"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9151344",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-03-16 02:16:44 +0000",
+						"thetext": "proftpd-1.3.3g-5.el5 has been pushed to the Fedora EPEL 5 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-bafacd5846"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9405357",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-06-11 10:34:06 +0000",
+						"thetext": "proftpd-1.3.3g-6.el5 has been submitted as an update to Fedora EPEL 5. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-bafacd5846"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9406653",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-06-12 23:17:02 +0000",
+						"thetext": "proftpd-1.3.3g-6.el5 has been pushed to the Fedora EPEL 5 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-bafacd5846"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9473953",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-07-02 15:18:23 +0000",
+						"thetext": "proftpd-1.3.3g-6.el5 has been pushed to the Fedora EPEL 5 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1297264,
+			"title": "Backport fix for handling/propagation of SUID/SGID bits from parent directory",
+			"bugzilla": {
+				"bug_id": "1297264",
+				"creation_ts": "2016-01-11 03:00:01 +0000",
+				"short_desc": "Backport fix for handling/propagation of SUID/SGID bits from parent directory",
+				"delta_ts": "2019-08-15 18:56:52 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened",
+				"priority": "unspecified",
+				"bug_severity": "low",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8968395",
+						"comment_count": "0",
+						"who": {
+							"text": "srlnrow",
+							"name": "Roger Williams"
+						},
+						"bug_when": "2016-01-11 03:00:01 +0000",
+						"thetext": "Description of problem:\n\nAn update of the proftpd EPEL package for el6 a few years ago introduced a bug related to not respecting SUID/SGID bits on a parent directory. The proftpd upstream identified this issue and fixed it back to v1.3.4. See the final comments (26-30) in their tracker:\n\nhttp://bugs.proftpd.org/show_bug.cgi?id=3841\n\nBut the problem is still present in the EPEL package. Can the bugfix be backported to that?\n\nVersion-Release number of selected component (if applicable):\n\nproftpd-1.3.3g-7.el6\n\nHow reproducible:\n\nEvery time.\n\nSteps to Reproduce:\n1. Make a parent directory in an anonymous area. Define a group and SGID for that directory.\n2. Connect anonymously using proftpd. Make a subdirectory of that parent.\n\n\nActual results:\nThe newly created subdirectory will be missing the SGID bit.\n\nExpected results:\nThe newly created subdirectory should have SGID set to match the parent. (This was the case in early proftpd.*.el6 versions before the bug was introduced)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8972776",
+						"comment_count": "1",
+						"who": {
+							"text": "paul",
+							"name": "Paul Howarth"
+						},
+						"bug_when": "2016-01-12 11:55:09 +0000",
+						"thetext": "I'm struggling to reproduce this; the SGID bit is working for me in my tests, both with and without use of UserOwner/GroupOwner. If I create a directory in an anonymous area with the SGID bit set, I always get the SGID bit in the resulting directory.\n\nCan you tell me what configuration you're using for proftpd, and the directory structure/permissions?\n\nIt looks like the fix for CVE-2012-6095 introduced whatever issue you're having. The update looks easy enough to backport once I can actually reproduce the issue to test it."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8972850",
+						"comment_count": "2",
+						"who": {
+							"text": "paul",
+							"name": "Paul Howarth"
+						},
+						"bug_when": "2016-01-12 12:14:35 +0000",
+						"thetext": "Here is a scratch build you can try:\n\nhttp://koji.fedoraproject.org/koji/taskinfo?taskID=12515129"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8974488",
+						"comment_count": "3",
+						"who": {
+							"text": "srlnrow",
+							"name": "Roger Williams"
+						},
+						"bug_when": "2016-01-12 19:44:00 +0000",
+						"thetext": "Here is part of the server configuration:\nServerType                      standalone\nUmask                           022\n...\n<Anonymous /data/ftp>\n  User                          ftpanon\n  Group                         ftpanon\n  UserAlias                     ftp ftpanon\n  UserAlias                     anonymous ftpanon\n...\n  <Directory pub/incoming>\n    <Limit WRITE>\n      AllowAll\n    </Limit>\n  </Directory>\n\n\nHere are the actual permissions of the pub/incoming directory:\n\ndrwxrwsrwx 13 root    ftpanon 12288 Jan 13 08:26 incoming/\n\n\nNow use an ftp client to make a directory in pub/incoming:\n\n230 Anonymous login ok, restrictions apply.\nftp> cd pub/incoming\n250 CWD command successful\nftp> mkdir foo\n257 \"/pub/incoming/foo\" - Directory successfully created\nftp> quit\n221 Goodbye.\n\n\nAnd here are the permissions of the newly-created directory:\n\ndrwxr-xr-x  2 ftpanon ftpanon  4096 Jan 13 08:26 foo/\n\n[missing the sgid bit on the directory. This used to be propagated]\n\n\nContact me directly if you need more detail of the configuration.\n\n--\nRoger W"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8977011",
+						"comment_count": "4",
+						"who": {
+							"text": "paul",
+							"name": "Paul Howarth"
+						},
+						"bug_when": "2016-01-13 14:22:32 +0000",
+						"thetext": "OK, I've reproduced the problem (I got rid of mod_vroot in my configuration) and the scratch build from Comment #2 fixes it for me. Can you give it a try?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8978533",
+						"comment_count": "5",
+						"who": {
+							"text": "srlnrow",
+							"name": "Roger Williams"
+						},
+						"bug_when": "2016-01-14 00:57:36 +0000",
+						"thetext": "Looks good.\n\n[ Standard CentOS 6.x with proftpd-1.3.3g-7]\n\n230 Anonymous login ok, restrictions apply.\nftp> cd pub/incoming\n250 CWD command successful\nftp> mkdir made-with-1.3.3g-7    \n257 \"/pub/incoming/made-with-1.3.3g-7\" - Directory successfully created\nftp> quit\n221 Goodbye.\n\n[ Installed your proftpd-1.3.3g-8.el6.x86_64.rpm ]\n\n230 Anonymous login ok, restrictions apply.\nftp> cd pub/incoming\n250 CWD command successful\nftp> mkdir made-with-1.3.3g-8\n257 \"/pub/incoming/made-with-1.3.3g-8\" - Directory successfully created\nftp> quit\n221 Goodbye.\n\nThese are the created directory permissions for comparison:\n\ndrwxrwsrwx 4 root    ftpanon 4096 Jan 14 13:51 ./\ndrwxr-xr-x 3 root    root    4096 Jan 14 13:39 ../\ndrwxr-xr-x 2 ftpanon ftpanon 4096 Jan 14 13:49 made-with-1.3.3g-7/\ndrwxr-sr-x 2 ftpanon ftpanon 4096 Jan 14 13:51 made-with-1.3.3g-8/\n\n\nSo, the SGID bit is being propagated as expected now.\n\nThanks,\nRoger W."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8979222",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-01-14 08:37:39 +0000",
+						"thetext": "proftpd-1.3.3g-8.el6 has been submitted as an update to Fedora EPEL 6. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-690aa89065"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8982600",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-01-15 08:55:03 +0000",
+						"thetext": "proftpd-1.3.3g-8.el6 has been pushed to the Fedora EPEL 6 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-690aa89065"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9023997",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-02-01 01:53:36 +0000",
+						"thetext": "proftpd-1.3.3g-8.el6 has been pushed to the Fedora EPEL 6 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9148973",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-03-15 11:08:30 +0000",
+						"thetext": "proftpd-1.3.3g-5.el5 has been submitted as an update to Fedora EPEL 5. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-bafacd5846"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9151345",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-03-16 02:16:47 +0000",
+						"thetext": "proftpd-1.3.3g-5.el5 has been pushed to the Fedora EPEL 5 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-bafacd5846"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9405358",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-06-11 10:34:12 +0000",
+						"thetext": "proftpd-1.3.3g-6.el5 has been submitted as an update to Fedora EPEL 5. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-bafacd5846"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9406654",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-06-12 23:17:06 +0000",
+						"thetext": "proftpd-1.3.3g-6.el5 has been pushed to the Fedora EPEL 5 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-bafacd5846"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9473954",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-07-02 15:18:27 +0000",
+						"thetext": "proftpd-1.3.3g-6.el5 has been pushed to the Fedora EPEL 5 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1317420,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2016-3125 proftpd: usage of 1024 bit DH key even with manual parameters set",
+			"bugzilla": {
+				"bug_id": "1317420",
+				"alias": "CVE-2016-3125",
+				"creation_ts": "2016-03-14 08:44:46 +0000",
+				"short_desc": "CVE-2016-3125 proftpd: usage of 1024 bit DH key even with manual parameters set",
+				"delta_ts": "2021-02-17 04:10:42 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "UPSTREAM",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1317421",
+					"1317422"
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "9145406",
+						"comment_count": "0",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2016-03-14 08:44:46 +0000",
+						"thetext": "\nThe ProFTPD daemon supports TLS encrypted connections via the mod_tls module. This module has a configuration option TLSDHParamFile to specify user-defined Diffie Hellman parameters.\n\nA vulnerability was found in ProFTPD before 1.3.5b. The software would ignore the user-defined parameters and use Diffie Hellman key exchanges with 1024 bit\n\nOriginal report:\n\nhttp://bugs.proftpd.org/show_bug.cgi?id=4230\n\nExternal references:\n\nhttp://proftpd.org/docs/RELEASE_NOTES-1.3.5b\n\nCVE assignment:\n\nhttp://seclists.org/oss-sec/2016/q1/612"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9145412",
+						"comment_count": "1",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2016-03-14 08:45:57 +0000",
+						"thetext": "\nCreated proftpd tracking bugs for this issue:\n\nAffects: fedora-all [bug 1317421]\nAffects: epel-all [bug 1317422]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9162921",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-03-20 20:20:55 +0000",
+						"thetext": "proftpd-1.3.5b-1.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9163150",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-03-21 01:51:50 +0000",
+						"thetext": "proftpd-1.3.5b-1.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9180317",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-03-26 18:11:49 +0000",
+						"thetext": "proftpd-1.3.5b-1.fc24 has been pushed to the Fedora 24 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9181219",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-03-28 01:54:42 +0000",
+						"thetext": "proftpd-1.3.5b-1.el7 has been pushed to the Fedora EPEL 7 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9473956",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-07-02 15:18:32 +0000",
+						"thetext": "proftpd-1.3.3g-6.el5 has been pushed to the Fedora EPEL 5 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9474022",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-07-02 16:19:56 +0000",
+						"thetext": "proftpd-1.3.3g-10.el6 has been pushed to the Fedora EPEL 6 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12822544",
+						"comment_count": "8",
+						"who": {
+							"text": "prodsec-dev",
+							"name": "Product Security DevOps Team"
+						},
+						"bug_when": "2019-06-08 02:49:42 +0000",
+						"thetext": "This CVE Bugzilla entry is for community support informational purposes only as it does not affect a package in a commercially supported Red Hat product. Refer to the dependent bugs for status of those individual community products."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1317422,
+			"security": true,
+			"title": "CVE-2016-3125 proftpd: usage of 1024 bit DH key even with manual parameters set [epel-all]",
+			"bugzilla": {
+				"bug_id": "1317422",
+				"creation_ts": "2016-03-14 08:45:46 +0000",
+				"short_desc": "CVE-2016-3125 proftpd: usage of 1024 bit DH key even with manual parameters set [epel-all]",
+				"delta_ts": "2016-07-02 16:20:04 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened, Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1317420",
+						"alias": "CVE-2016-3125",
+						"creation_ts": "2016-03-14 08:44:46 +0000",
+						"short_desc": "CVE-2016-3125 proftpd: usage of 1024 bit DH key even with manual parameters set",
+						"delta_ts": "2021-02-17 04:10:42 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "UPSTREAM",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1317421",
+							"1317422"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "9145406",
+								"comment_count": "0",
+								"who": {
+									"text": "anemec",
+									"name": "Andrej Nemec"
+								},
+								"bug_when": "2016-03-14 08:44:46 +0000",
+								"thetext": "\nThe ProFTPD daemon supports TLS encrypted connections via the mod_tls module. This module has a configuration option TLSDHParamFile to specify user-defined Diffie Hellman parameters.\n\nA vulnerability was found in ProFTPD before 1.3.5b. The software would ignore the user-defined parameters and use Diffie Hellman key exchanges with 1024 bit\n\nOriginal report:\n\nhttp://bugs.proftpd.org/show_bug.cgi?id=4230\n\nExternal references:\n\nhttp://proftpd.org/docs/RELEASE_NOTES-1.3.5b\n\nCVE assignment:\n\nhttp://seclists.org/oss-sec/2016/q1/612"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9145412",
+								"comment_count": "1",
+								"who": {
+									"text": "anemec",
+									"name": "Andrej Nemec"
+								},
+								"bug_when": "2016-03-14 08:45:57 +0000",
+								"thetext": "\nCreated proftpd tracking bugs for this issue:\n\nAffects: fedora-all [bug 1317421]\nAffects: epel-all [bug 1317422]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9162921",
+								"comment_count": "2",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2016-03-20 20:20:55 +0000",
+								"thetext": "proftpd-1.3.5b-1.fc22 has been pushed to the Fedora 22 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9163150",
+								"comment_count": "3",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2016-03-21 01:51:50 +0000",
+								"thetext": "proftpd-1.3.5b-1.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9180317",
+								"comment_count": "4",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2016-03-26 18:11:49 +0000",
+								"thetext": "proftpd-1.3.5b-1.fc24 has been pushed to the Fedora 24 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9181219",
+								"comment_count": "5",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2016-03-28 01:54:42 +0000",
+								"thetext": "proftpd-1.3.5b-1.el7 has been pushed to the Fedora EPEL 7 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9473956",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2016-07-02 15:18:32 +0000",
+								"thetext": "proftpd-1.3.3g-6.el5 has been pushed to the Fedora EPEL 5 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9474022",
+								"comment_count": "7",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2016-07-02 16:19:56 +0000",
+								"thetext": "proftpd-1.3.3g-10.el6 has been pushed to the Fedora EPEL 6 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12822544",
+								"comment_count": "8",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2019-06-08 02:49:42 +0000",
+								"thetext": "This CVE Bugzilla entry is for community support informational purposes only as it does not affect a package in a commercially supported Red Hat product. Refer to the dependent bugs for status of those individual community products."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "9145410",
+						"comment_count": "0",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2016-03-14 08:45:46 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora EPEL.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora EPEL. While\nonly one tracking bug has been filed, please correct all affected versions\nat the same time.  If you need to fix the versions independent of each\nother, you may clone this bug as appropriate.\n    \n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9145411",
+						"comment_count": "1",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2016-03-14 08:45:54 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1317420,1317422\n\n# Description of your update\nnotes=Security fix for CVE-2016-3125\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9145490",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-03-14 09:12:36 +0000",
+						"thetext": "proftpd-1.3.5b-1.el7 has been submitted as an update to Fedora EPEL 7. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-3c6d565eff"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9148964",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-03-15 11:04:45 +0000",
+						"thetext": "proftpd-1.3.3g-9.el6 has been submitted as an update to Fedora EPEL 6. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-7640e3144a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9148975",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-03-15 11:08:33 +0000",
+						"thetext": "proftpd-1.3.3g-5.el5 has been submitted as an update to Fedora EPEL 5. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-bafacd5846"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9151346",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-03-16 02:16:50 +0000",
+						"thetext": "proftpd-1.3.3g-5.el5 has been pushed to the Fedora EPEL 5 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-bafacd5846"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9151352",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-03-16 02:20:50 +0000",
+						"thetext": "proftpd-1.3.3g-9.el6 has been pushed to the Fedora EPEL 6 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-7640e3144a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9181218",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-03-28 01:54:40 +0000",
+						"thetext": "proftpd-1.3.5b-1.el7 has been pushed to the Fedora EPEL 7 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9405356",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-06-11 10:29:56 +0000",
+						"thetext": "proftpd-1.3.3g-10.el6 has been submitted as an update to Fedora EPEL 6. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-7640e3144a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9405359",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-06-11 10:34:17 +0000",
+						"thetext": "proftpd-1.3.3g-6.el5 has been submitted as an update to Fedora EPEL 5. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-bafacd5846"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9406655",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-06-12 23:17:09 +0000",
+						"thetext": "proftpd-1.3.3g-6.el5 has been pushed to the Fedora EPEL 5 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-bafacd5846"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9406689",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-06-12 23:19:35 +0000",
+						"thetext": "proftpd-1.3.3g-10.el6 has been pushed to the Fedora EPEL 6 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-7640e3144a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9473955",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-07-02 15:18:29 +0000",
+						"thetext": "proftpd-1.3.3g-6.el5 has been pushed to the Fedora EPEL 5 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9474021",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-07-02 16:19:54 +0000",
+						"thetext": "proftpd-1.3.3g-10.el6 has been pushed to the Fedora EPEL 6 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "proftpd-1.3.3g-6.el5",
+			"release_id": 9,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"i386": [
+					{
+						"name": "proftpd-mysql",
+						"version": "1.3.3g",
+						"release": "6.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "proftpd-postgresql",
+						"version": "1.3.3g",
+						"release": "6.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "proftpd",
+						"version": "1.3.3g",
+						"release": "6.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "proftpd-ldap",
+						"version": "1.3.3g",
+						"release": "6.el5",
+						"arch": "i386"
+					}
+				],
+				"ppc": [
+					{
+						"name": "proftpd",
+						"version": "1.3.3g",
+						"release": "6.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "proftpd-ldap",
+						"version": "1.3.3g",
+						"release": "6.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "proftpd-mysql",
+						"version": "1.3.3g",
+						"release": "6.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "proftpd-postgresql",
+						"version": "1.3.3g",
+						"release": "6.el5",
+						"arch": "ppc"
+					}
+				],
+				"src": [
+					{
+						"name": "proftpd",
+						"version": "1.3.3g",
+						"release": "6.el5",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "proftpd",
+						"version": "1.3.3g",
+						"release": "6.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "proftpd-mysql",
+						"version": "1.3.3g",
+						"release": "6.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "proftpd-postgresql",
+						"version": "1.3.3g",
+						"release": "6.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "proftpd-ldap",
+						"version": "1.3.3g",
+						"release": "6.el5",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"comments": [
+		{
+			"id": 400784,
+			"text": "This update has been submitted for testing by pghmcfc. ",
+			"timestamp": "2016-03-15 11:08:22",
+			"update_id": 52923,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 401187,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2016-03-16 02:16:53",
+			"update_id": 52923,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 409874,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2016-03-30 06:00:18",
+			"update_id": 52923,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 445309,
+			"text": "pghmcfc edited this update.\n\nNew build(s):\n\n- proftpd-1.3.3g-6.el5\n\nRemoved build(s):\n\n- proftpd-1.3.3g-5.el5",
+			"timestamp": "2016-06-11 10:33:51",
+			"update_id": 52923,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 445310,
+			"text": "This update has been submitted for testing by pghmcfc. ",
+			"timestamp": "2016-06-11 10:34:01",
+			"update_id": 52923,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 445711,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2016-06-12 23:17:14",
+			"update_id": 52923,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 452900,
+			"text": "This update has been submitted for stable by pghmcfc. ",
+			"timestamp": "2016-06-30 12:57:19",
+			"update_id": 52923,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 453728,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2016-07-02 15:18:35",
+			"update_id": 52923,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2016-06-11 10:34:02",
+	"date_pushed": "2016-07-02 13:21:42",
+	"date_stable": "2016-07-02 13:21:42",
+	"date_submitted": "2016-03-15 11:08:22",
+	"date_testing": "2016-06-12 22:55:04",
+	"meets_testing_requirements": true,
+	"notes": "This update fixes issues with selection of inappropriate DH parameters, which could lead to encrypted traffic being more easily decrypted than it should be.\n\n * http://bugs.proftpd.org/show_bug.cgi?id=3868\n * http://bugs.proftpd.org/show_bug.cgi?id=4230 (CVE-2016-3125)\n\nThe update also adds support for specifying TLSv1.1 and TLSv1.2, and fixes an SUID/SGID directory permission setting regression introduced with an earlier update addressing CVE-2012-6095.\n",
+	"pushed": true,
+	"release": {
+		"branch": "el5",
+		"candidate_tag": "dist-5E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "dist-5E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 5",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-5",
+		"override_tag": "dist-5E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-5E-epel",
+		"state": "archived",
+		"testing_tag": "dist-5E-epel-testing",
+		"version": "5"
+	},
+	"severity": "low",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "proftpd-1.3.3g-6.el5",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2016-bafacd5846",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2016-bafacd5846",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/f9800f2daf8aabc0b33bca9b4033019c74db77b3baca2d9f98cc629147430e20?s=24&d=retro",
+		"email": "paul@city-fan.org",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "perl-maint-sig"
+			}
+		],
+		"id": 165,
+		"name": "pghmcfc",
+		"openid": "pghmcfc.id.fedoraproject.org"
+	},
+	"version_hash": "f76fcaacad634d2241b5a98307e7dfd89891d0ea"
+}

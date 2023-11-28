@@ -1,0 +1,1644 @@
+{
+	"alias": "FEDORA-2015-11027",
+	"bugs": [
+		{
+			"bug_id": 1226918,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-3210 pcre: heap buffer overflow in pcre_compile2() / compile_regex()",
+			"bugzilla": {
+				"bug_id": "1226918",
+				"creation_ts": "2015-06-01 12:46:08 +0000",
+				"short_desc": "CVE-2015-3210 pcre: heap buffer overflow in pcre_compile2() / compile_regex()",
+				"delta_ts": "2021-02-17 05:14:35 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "DUPLICATE",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1236659",
+					"1236660"
+				],
+				"blocked": [
+					{
+						"bug_id": "1226929",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8292708",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-06-01 12:46:08 +0000",
+						"thetext": "Following issue was reorted in the PCRE library:\n\"\"\"\nLatest version of PCRE is prone to a Heap Overflow vulnerability which could caused by the following regular expression.\n\n/^(?P=B)((?P=B)(?J:(?P<B>c)(?P<B>a(?P=B)))>WGXCREDITS)/\n\nTo reproduce the problem, we could use pcretest provide by PCRE library or applications which is wrapped with PCRE such as PHP.\nFor pcretest, simply type the regular expression after the re>\nFor PHP, latest version of PHP 5.6.9 (wrapped with PCRE 8.37) could be triggered by following code snippet:\n\n<?php\npreg_match(\"/^(?P=B)((?P=B)(?J:(?P<B>c)(?P<B>a(?P=B)))>WGXCREDITS)/\",\"ADLAB\",$arr);\n?>\n\nFirst, pcre_compile2 invoke compile_regex() to calucate the size of memory that is used to save the regular expression.\nre then points to the new allocated memory with the size above.\nNext, pcre_compile2 invoke compile_regex() again to fill the regular expression into the allocated memory.\nThe problem here is that more data is written then expected.\n\nFollowing test is conveyed under Kali Linux (based on Debian x64) with php 5.6.9:\n==============================================================\ngdb php poc.php\n9217    re = (REAL_PCRE *)(PUBL(malloc))(size);\n(gdb) x/10i $rip\n=> 0x46f3cb <php_pcre_compile2+2187>:   mov    rdi,rbp\n   0x46f3ce <php_pcre_compile2+2190>:   call   QWORD PTR [rax]\n(gdb) x $rbp\n   0x97:        Cannot access memory at address 0x97\n==============================================================\n\nSo the expected size of the above regular expression is 0x97 = 151.\nAnd the base address of allocated memory is 0x1007480.\nHere is the layout of 0x1007480 just before the second compile_regexp:\n\n==============================================================\n(gdb) x/160x 0x1007480\n0x1007480:     [0x45    0x52    0x43    0x50    0x97    0x00    0x00    0x00\n0x1007488:      0x00    0x00    0x00    0x00    0x00    0x04    0x00    0x00\n0x1007490:      0xff    0xff    0xff    0xff    0xff    0xff    0xff    0xff\n0x1007498:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074a0:      0x00    0x00    0x40    0x00    0x04    0x00    0x02    0x00\n0x10074a8:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074b0:      0xd0    0x7a    0x00    0x01    0x00    0x00    0x00    0x00\n0x10074b8:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074c0:      0x00    0x02    0x42    0x00    0x00    0x03    0x42    0x00\n0x10074c8:      0x83    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074d0:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074d8:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074e0:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074e8:      0x80    0x48    0xd8    0xf6    0xff    0x7f    0x00    0x00\n0x10074f0:      0xff    0xff    0xff    0xff    0x00    0x00    0x00    0x00\n0x10074f8:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x1007500:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x1007508:      0x60    0x75    0x00    0x01    0x00    0x00    0x00    0x00\n0x1007510:      0xff    0xff    0xff    0xff    0xff    0xff    0xff]   0xff\n0x1007518:      0xa1    0x01    0x00    0x00    0x00    0x00    0x00    0x00\n==============================================================\n\nAfter the second compile_regexp:\n\n==============================================================\n(gdb) x/160x 0x1007480\n0x1007480:     [0x45    0x52    0x43    0x50    0x97    0x00    0x00    0x00\n0x1007488:      0x00    0x00    0x00    0x00    0x00    0x04    0x00    0x00\n0x1007490:      0xff    0xff    0xff    0xff    0xff    0xff    0xff    0xff\n0x1007498:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074a0:      0x00    0x00    0x40    0x00    0x04    0x00    0x02    0x00\n0x10074a8:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074b0:      0xd0    0x7a    0x00    0x01    0x00    0x00    0x00    0x00\n0x10074b8:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074c0:      0x00    0x02    0x42    0x00    0x00    0x03    0x42    0x00\n0x10074c8:      0x83    0x00    0x51    0x1b    0x73    0x00    0x00    0x00\n0x10074d0:      0x02    0x85    0x00    0x45    0x00    0x01    0x73    0x00\n0x10074d8:      0x00    0x00    0x02    0x83    0x00    0x22    0x85    0x00\n0x10074e0:      0x07    0x00    0x02    0x1d    0x63    0x78    0x00    0x07\n0x10074e8:      0x81    0x00    0x12    0x85    0x00    0x0c    0x00    0x03\n0x10074f0:      0x1d    0x61    0x73    0x00    0x00    0x00    0x02    0x78\n0x10074f8:      0x00    0x0c    0x78    0x00    0x12    0x78    0x00    0x22\n0x1007500:      0x1d    0x3e    0x1d    0x57    0x1d    0x47    0x1d    0x58\n0x1007508:      0x1d    0x43    0x1d    0x52    0x1d    0x45    0x1d    0x44\n0x1007510:      0x1d    0x49    0x1d    0x54    0x1d    0x53    0x78]  *0x00\n0x1007518:     *0x45   *0x78   *0x00   *0x51    0x00    0x00    0x00    0x00\n==============================================================\n\nObviously, 5 more bytes is written on the heap in this case.\nThis overflow can be used to modify adjacent length field of array/vector/string, gaining the attacker the ability to read/write the whole memory \nin the context of the affected application (The same trick as CVE-2013-0634).\n\"\"\"\n\nUpstream bug: https://bugs.exim.org/show_bug.cgi?id=1636"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8292825",
+						"comment_count": "2",
+						"who": {
+							"text": "ppisar",
+							"name": "Petr Pisar"
+						},
+						"bug_when": "2015-06-01 13:09:35 +0000",
+						"thetext": "I know. I also know that Red Hat Security Team does handle regular expression-driven crashes as security issues. Are you going to close this one as deferred?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8339344",
+						"comment_count": "4",
+						"who": {
+							"text": "ppisar",
+							"name": "Petr Pisar"
+						},
+						"bug_when": "2015-06-16 07:10:08 +0000",
+						"thetext": "*** Bug 1232053 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8384014",
+						"comment_count": "6",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2015-06-29 16:40:43 +0000",
+						"thetext": "Statement:\n\n(none)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8384020",
+						"comment_count": "7",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2015-06-29 16:41:20 +0000",
+						"thetext": "\nCreated pcre tracking bugs for this issue:\n\nAffects: fedora-all [bug 1236659]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8384021",
+						"comment_count": "8",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2015-06-29 16:41:23 +0000",
+						"thetext": "\nCreated mingw-pcre tracking bugs for this issue:\n\nAffects: fedora-all [bug 1236660]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8396253",
+						"comment_count": "9",
+						"who": {
+							"text": "ppisar",
+							"name": "Petr Pisar"
+						},
+						"bug_when": "2015-07-01 06:45:08 +0000",
+						"thetext": "Upstream fixed it by:\n\ncommit 4b79af6b4cbeb5326ae5e4d83f3e935e00286c19\nAuthor: ph10 <ph10@2f5784b3-3f2a-0410-8824-cb99058d5e15>\nDate:   Fri May 15 17:17:03 2015 +0000\n\n    Fix buffer overflow for named recursive back reference when the name is\n    duplicated.\n    \n    \n    git-svn-id: svn://vcs.exim.org/pcre/code/trunk@1558 2f5784b3-3f2a-0410-8824-\ncb99058d5e15"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8403076",
+						"comment_count": "10",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2015-07-02 21:01:05 +0000",
+						"thetext": "Please note that php 5.6 in SCL 2 ships an embedded version of PCRE 8.34 which is vulnerable, however this issue is difficult to exploit (the attacker must create custom regex patterns), and the impact of exploitation is limited (e.g. PHP runs as a non root user within the web server SELinux context in almost all cases)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8434551",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-13 19:13:44 +0000",
+						"thetext": "pcre-8.37-2.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8453817",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-18 02:04:59 +0000",
+						"thetext": "pcre-8.35-12.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9087270",
+						"comment_count": "13",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2016-02-23 09:30:47 +0000",
+						"thetext": "\n\n*** This bug has been marked as a duplicate of bug 1287623 ***"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1236659,
+			"security": true,
+			"title": "CVE-2015-3210 pcre: heap buffer overflow in pcre_compile2() / compile_regex() [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1236659",
+				"creation_ts": "2015-06-29 16:41:10 +0000",
+				"short_desc": "CVE-2015-3210 pcre: heap buffer overflow in pcre_compile2() / compile_regex() [fedora-all]",
+				"delta_ts": "2016-11-08 16:04:40 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1226918",
+						"creation_ts": "2015-06-01 12:46:08 +0000",
+						"short_desc": "CVE-2015-3210 pcre: heap buffer overflow in pcre_compile2() / compile_regex()",
+						"delta_ts": "2021-02-17 05:14:35 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "DUPLICATE",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1236659",
+							"1236660"
+						],
+						"blocked": [
+							{
+								"bug_id": "1226929",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "8292708",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-06-01 12:46:08 +0000",
+								"thetext": "Following issue was reorted in the PCRE library:\n\"\"\"\nLatest version of PCRE is prone to a Heap Overflow vulnerability which could caused by the following regular expression.\n\n/^(?P=B)((?P=B)(?J:(?P<B>c)(?P<B>a(?P=B)))>WGXCREDITS)/\n\nTo reproduce the problem, we could use pcretest provide by PCRE library or applications which is wrapped with PCRE such as PHP.\nFor pcretest, simply type the regular expression after the re>\nFor PHP, latest version of PHP 5.6.9 (wrapped with PCRE 8.37) could be triggered by following code snippet:\n\n<?php\npreg_match(\"/^(?P=B)((?P=B)(?J:(?P<B>c)(?P<B>a(?P=B)))>WGXCREDITS)/\",\"ADLAB\",$arr);\n?>\n\nFirst, pcre_compile2 invoke compile_regex() to calucate the size of memory that is used to save the regular expression.\nre then points to the new allocated memory with the size above.\nNext, pcre_compile2 invoke compile_regex() again to fill the regular expression into the allocated memory.\nThe problem here is that more data is written then expected.\n\nFollowing test is conveyed under Kali Linux (based on Debian x64) with php 5.6.9:\n==============================================================\ngdb php poc.php\n9217    re = (REAL_PCRE *)(PUBL(malloc))(size);\n(gdb) x/10i $rip\n=> 0x46f3cb <php_pcre_compile2+2187>:   mov    rdi,rbp\n   0x46f3ce <php_pcre_compile2+2190>:   call   QWORD PTR [rax]\n(gdb) x $rbp\n   0x97:        Cannot access memory at address 0x97\n==============================================================\n\nSo the expected size of the above regular expression is 0x97 = 151.\nAnd the base address of allocated memory is 0x1007480.\nHere is the layout of 0x1007480 just before the second compile_regexp:\n\n==============================================================\n(gdb) x/160x 0x1007480\n0x1007480:     [0x45    0x52    0x43    0x50    0x97    0x00    0x00    0x00\n0x1007488:      0x00    0x00    0x00    0x00    0x00    0x04    0x00    0x00\n0x1007490:      0xff    0xff    0xff    0xff    0xff    0xff    0xff    0xff\n0x1007498:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074a0:      0x00    0x00    0x40    0x00    0x04    0x00    0x02    0x00\n0x10074a8:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074b0:      0xd0    0x7a    0x00    0x01    0x00    0x00    0x00    0x00\n0x10074b8:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074c0:      0x00    0x02    0x42    0x00    0x00    0x03    0x42    0x00\n0x10074c8:      0x83    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074d0:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074d8:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074e0:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074e8:      0x80    0x48    0xd8    0xf6    0xff    0x7f    0x00    0x00\n0x10074f0:      0xff    0xff    0xff    0xff    0x00    0x00    0x00    0x00\n0x10074f8:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x1007500:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x1007508:      0x60    0x75    0x00    0x01    0x00    0x00    0x00    0x00\n0x1007510:      0xff    0xff    0xff    0xff    0xff    0xff    0xff]   0xff\n0x1007518:      0xa1    0x01    0x00    0x00    0x00    0x00    0x00    0x00\n==============================================================\n\nAfter the second compile_regexp:\n\n==============================================================\n(gdb) x/160x 0x1007480\n0x1007480:     [0x45    0x52    0x43    0x50    0x97    0x00    0x00    0x00\n0x1007488:      0x00    0x00    0x00    0x00    0x00    0x04    0x00    0x00\n0x1007490:      0xff    0xff    0xff    0xff    0xff    0xff    0xff    0xff\n0x1007498:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074a0:      0x00    0x00    0x40    0x00    0x04    0x00    0x02    0x00\n0x10074a8:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074b0:      0xd0    0x7a    0x00    0x01    0x00    0x00    0x00    0x00\n0x10074b8:      0x00    0x00    0x00    0x00    0x00    0x00    0x00    0x00\n0x10074c0:      0x00    0x02    0x42    0x00    0x00    0x03    0x42    0x00\n0x10074c8:      0x83    0x00    0x51    0x1b    0x73    0x00    0x00    0x00\n0x10074d0:      0x02    0x85    0x00    0x45    0x00    0x01    0x73    0x00\n0x10074d8:      0x00    0x00    0x02    0x83    0x00    0x22    0x85    0x00\n0x10074e0:      0x07    0x00    0x02    0x1d    0x63    0x78    0x00    0x07\n0x10074e8:      0x81    0x00    0x12    0x85    0x00    0x0c    0x00    0x03\n0x10074f0:      0x1d    0x61    0x73    0x00    0x00    0x00    0x02    0x78\n0x10074f8:      0x00    0x0c    0x78    0x00    0x12    0x78    0x00    0x22\n0x1007500:      0x1d    0x3e    0x1d    0x57    0x1d    0x47    0x1d    0x58\n0x1007508:      0x1d    0x43    0x1d    0x52    0x1d    0x45    0x1d    0x44\n0x1007510:      0x1d    0x49    0x1d    0x54    0x1d    0x53    0x78]  *0x00\n0x1007518:     *0x45   *0x78   *0x00   *0x51    0x00    0x00    0x00    0x00\n==============================================================\n\nObviously, 5 more bytes is written on the heap in this case.\nThis overflow can be used to modify adjacent length field of array/vector/string, gaining the attacker the ability to read/write the whole memory \nin the context of the affected application (The same trick as CVE-2013-0634).\n\"\"\"\n\nUpstream bug: https://bugs.exim.org/show_bug.cgi?id=1636"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8292825",
+								"comment_count": "2",
+								"who": {
+									"text": "ppisar",
+									"name": "Petr Pisar"
+								},
+								"bug_when": "2015-06-01 13:09:35 +0000",
+								"thetext": "I know. I also know that Red Hat Security Team does handle regular expression-driven crashes as security issues. Are you going to close this one as deferred?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8339344",
+								"comment_count": "4",
+								"who": {
+									"text": "ppisar",
+									"name": "Petr Pisar"
+								},
+								"bug_when": "2015-06-16 07:10:08 +0000",
+								"thetext": "*** Bug 1232053 has been marked as a duplicate of this bug. ***"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8384014",
+								"comment_count": "6",
+								"who": {
+									"text": "kseifried",
+									"name": "Kurt Seifried"
+								},
+								"bug_when": "2015-06-29 16:40:43 +0000",
+								"thetext": "Statement:\n\n(none)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8384020",
+								"comment_count": "7",
+								"who": {
+									"text": "kseifried",
+									"name": "Kurt Seifried"
+								},
+								"bug_when": "2015-06-29 16:41:20 +0000",
+								"thetext": "\nCreated pcre tracking bugs for this issue:\n\nAffects: fedora-all [bug 1236659]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8384021",
+								"comment_count": "8",
+								"who": {
+									"text": "kseifried",
+									"name": "Kurt Seifried"
+								},
+								"bug_when": "2015-06-29 16:41:23 +0000",
+								"thetext": "\nCreated mingw-pcre tracking bugs for this issue:\n\nAffects: fedora-all [bug 1236660]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8396253",
+								"comment_count": "9",
+								"who": {
+									"text": "ppisar",
+									"name": "Petr Pisar"
+								},
+								"bug_when": "2015-07-01 06:45:08 +0000",
+								"thetext": "Upstream fixed it by:\n\ncommit 4b79af6b4cbeb5326ae5e4d83f3e935e00286c19\nAuthor: ph10 <ph10@2f5784b3-3f2a-0410-8824-cb99058d5e15>\nDate:   Fri May 15 17:17:03 2015 +0000\n\n    Fix buffer overflow for named recursive back reference when the name is\n    duplicated.\n    \n    \n    git-svn-id: svn://vcs.exim.org/pcre/code/trunk@1558 2f5784b3-3f2a-0410-8824-\ncb99058d5e15"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8403076",
+								"comment_count": "10",
+								"who": {
+									"text": "kseifried",
+									"name": "Kurt Seifried"
+								},
+								"bug_when": "2015-07-02 21:01:05 +0000",
+								"thetext": "Please note that php 5.6 in SCL 2 ships an embedded version of PCRE 8.34 which is vulnerable, however this issue is difficult to exploit (the attacker must create custom regex patterns), and the impact of exploitation is limited (e.g. PHP runs as a non root user within the web server SELinux context in almost all cases)."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8434551",
+								"comment_count": "11",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-07-13 19:13:44 +0000",
+								"thetext": "pcre-8.37-2.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8453817",
+								"comment_count": "12",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-07-18 02:04:59 +0000",
+								"thetext": "pcre-8.35-12.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9087270",
+								"comment_count": "13",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2016-02-23 09:30:47 +0000",
+								"thetext": "\n\n*** This bug has been marked as a duplicate of bug 1287623 ***"
+							}
+						]
+					},
+					{
+						"bug_id": "1287623",
+						"alias": "CVE-2015-8384",
+						"creation_ts": "2015-12-02 13:11:24 +0000",
+						"short_desc": "CVE-2015-3210 CVE-2015-8384 pcre: buffer overflow caused by recursive back reference by name within certain group (8.38/4)",
+						"delta_ts": "2019-09-29 13:40:12 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"1236659",
+							"1287625",
+							"1287626",
+							"1287627",
+							"1287628",
+							"1330455",
+							"1330456"
+						],
+						"blocked": [
+							{
+								"bug_id": "1287727",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2016:2750",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "8881822",
+								"comment_count": "0",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2015-12-02 13:11:24 +0000",
+								"thetext": "It was discovered that PCRE before 8.38 mishandles the /(?J)(?'d'(?'d'\\g{d}))/ pattern and related patterns with certain recursive back references within group that had the same name as another group."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8881845",
+								"comment_count": "1",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2015-12-02 13:13:17 +0000",
+								"thetext": "\nCreated pcre tracking bugs for this issue:\n\nAffects: fedora-all [bug 1287625]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8881848",
+								"comment_count": "2",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2015-12-02 13:13:27 +0000",
+								"thetext": "\nCreated glib2 tracking bugs for this issue:\n\nAffects: fedora-all [bug 1287627]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8881849",
+								"comment_count": "3",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2015-12-02 13:13:34 +0000",
+								"thetext": "\nCreated mingw-pcre tracking bugs for this issue:\n\nAffects: fedora-all [bug 1287626]\nAffects: epel-7 [bug 1287628]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8882972",
+								"comment_count": "4",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2015-12-02 15:22:56 +0000",
+								"thetext": "Corresponds to item 4 in http://vcs.pcre.org/pcre/code/trunk/ChangeLog?view=markup"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8883152",
+								"comment_count": "5",
+								"who": {
+									"text": "ppisar",
+									"name": "Petr Pisar"
+								},
+								"bug_when": "2015-12-02 15:44:51 +0000",
+								"thetext": "Fixed in upstream with:\n\ncommit 4b79af6b4cbeb5326ae5e4d83f3e935e00286c19\nAuthor: ph10 <ph10@2f5784b3-3f2a-0410-8824-cb99058d5e15>\nDate:   Fri May 15 17:17:03 2015 +0000\n\n    Fix buffer overflow for named recursive back reference when the name is\n    duplicated.\n    \n    \n    git-svn-id: svn://vcs.exim.org/pcre/code/trunk@1558 2f5784b3-3f2a-0410-8824-\ncb99058d5e15"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8883434",
+								"comment_count": "6",
+								"who": {
+									"text": "ppisar",
+									"name": "Petr Pisar"
+								},
+								"bug_when": "2015-12-02 16:38:11 +0000",
+								"thetext": "This is duplicate of CVE-2015-3210 (bug #1226918)."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8886689",
+								"comment_count": "7",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2015-12-03 11:56:22 +0000",
+								"thetext": "(In reply to Petr Pisar from comment #6)\n> This is duplicate of CVE-2015-3210 (bug #1226918).\n\nWhile both bugs link to the same patch, they are being treated as separate issue. Explanation from MITRE on this is posted on oss-sec:\n\nhttp://seclists.org/oss-sec/2015/q4/422"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9076483",
+								"comment_count": "8",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2016-02-18 17:27:40 +0000",
+								"thetext": "(In reply to Petr Pisar from comment #5)\n> commit 4b79af6b4cbeb5326ae5e4d83f3e935e00286c19\n> Author: ph10 <ph10@2f5784b3-3f2a-0410-8824-cb99058d5e15>\n> Date:   Fri May 15 17:17:03 2015 +0000\n> \n> Fix buffer overflow for named recursive back reference when the name is\n> duplicated.\n\nUpstream commit link:\n\nhttp://vcs.pcre.org/pcre?view=revision&revision=1558"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9076489",
+								"comment_count": "9",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2016-02-18 17:30:33 +0000",
+								"thetext": "Yet another issue introduced in upstream version 8.34, which refactored named group handling code and apparently several bugs were introduced in the process."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9076505",
+								"comment_count": "10",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2016-02-18 17:34:24 +0000",
+								"thetext": "Upstream bug report referenced by the duplicate CVE-2015-3210 (see comment 6 above):\n\nhttps://bugs.exim.org/show_bug.cgi?id=1636"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9087271",
+								"comment_count": "11",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2016-02-23 09:30:47 +0000",
+								"thetext": "*** Bug 1226918 has been marked as a duplicate of this bug. ***"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9360562",
+								"comment_count": "13",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2016-05-26 08:41:43 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n\nVia RHSA-2016:1132 https://access.redhat.com/errata/RHSA-2016:1132"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9892195",
+								"comment_count": "14",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2016-11-15 11:47:52 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.3 EUS\n\nVia RHSA-2016:2750 https://rhn.redhat.com/errata/RHSA-2016-2750.html"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8384016",
+						"comment_count": "0",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2015-06-29 16:41:10 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8384017",
+						"comment_count": "1",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2015-06-29 16:41:13 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1226918,1236659\n\n# Description of your update\nnotes=Security fix for CVE-2015-3210\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1226918,1236659"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8396488",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-01 07:52:04 +0000",
+						"thetext": "pcre-8.37-2.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/pcre-8.37-2.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8396553",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-01 08:04:53 +0000",
+						"thetext": "pcre-8.35-12.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/pcre-8.35-12.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8402461",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-02 17:07:54 +0000",
+						"thetext": "Package pcre-8.35-12.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing pcre-8.35-12.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-11019/pcre-8.35-12.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8434548",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-13 19:13:37 +0000",
+						"thetext": "pcre-8.37-2.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8453815",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-18 02:04:55 +0000",
+						"thetext": "pcre-8.35-12.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8883445",
+						"comment_count": "7",
+						"who": {
+							"text": "ppisar",
+							"name": "Petr Pisar"
+						},
+						"bug_when": "2015-12-02 16:41:12 +0000",
+						"thetext": "*** Bug 1287625 has been marked as a duplicate of this bug. ***"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1237223,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-5073 pcre: heap buffer overflow in find_fixedlength()",
+			"bugzilla": {
+				"bug_id": "1237223",
+				"alias": "CVE-2015-8388",
+				"creation_ts": "2015-06-30 14:47:20 +0000",
+				"short_desc": "CVE-2015-5073 CVE-2015-8388 pcre: buffer overflow for forward reference within backward assertion with excess closing parenthesis (8.38/18)",
+				"delta_ts": "2019-09-29 13:34:27 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1237224",
+					"1237225",
+					"1330455",
+					"1330456",
+					"1330508",
+					"1330509"
+				],
+				"blocked": [
+					{
+						"bug_id": "1287727",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2016:2750",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8393082",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-06-30 14:47:20 +0000",
+						"thetext": "Quoting http://www.openwall.com/lists/oss-security/2015/06/26/1:\n\n\"\"\"\nPCRE is a regular expression C library inspired by the regular expression\ncapabilities in the Perl programming language.\nThe PCRE library is incorporated into a number of prominent programs, such\nas Adobe Flash, Apache, Nginx, PHP.\n\nPCRE library is prone to a vulnerability which leads to Heap Overflow.\nDuring subpattern calculation of a malformed regular expression, an offset\nthat is used as an array index is fully controlled and can be large enough\nso that unexpected heap memory regions are accessed.\nOne could at least exploit this issue to read objects nearby of the\naffected application's memory.\nSuch information discloure may also be used to bypass memory protection\nmethod such as ASLR.\n\nReference:\nhttps://bugs.exim.org/show_bug.cgi?id=1651\n\"\"\"\n\nThe patch is available in the upstream bug:\n\nhttps://bugs.exim.org/show_bug.cgi?id=1651"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8393088",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-06-30 14:47:54 +0000",
+						"thetext": "\nCreated pcre tracking bugs for this issue:\n\nAffects: fedora-all [bug 1237224]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8393089",
+						"comment_count": "2",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-06-30 14:47:57 +0000",
+						"thetext": "\nCreated mingw-pcre tracking bugs for this issue:\n\nAffects: fedora-all [bug 1237225]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8396379",
+						"comment_count": "3",
+						"who": {
+							"text": "ppisar",
+							"name": "Petr Pisar"
+						},
+						"bug_when": "2015-07-01 07:24:55 +0000",
+						"thetext": "Upstream fixed it with:\n\ncommit 764692f9aea9eab50fdba6cb537441d8b34c6c37\nAuthor: ph10 <ph10@2f5784b3-3f2a-0410-8824-cb99058d5e15>\nDate:   Tue Jun 23 16:34:53 2015 +0000\n\n    Fix buffer overflow for forward reference within backward assertion with excess\n    closing parenthesis. Bugzilla 1651.\n    \n    \n    git-svn-id: svn://vcs.exim.org/pcre/code/trunk@1571 2f5784b3-3f2a-0410-8824-cb99058d5e15"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8434552",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-13 19:13:47 +0000",
+						"thetext": "pcre-8.37-2.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8453818",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-18 02:05:02 +0000",
+						"thetext": "pcre-8.35-12.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8883143",
+						"comment_count": "6",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-12-02 15:43:27 +0000",
+						"thetext": "Upstream commit:\n\nhttp://vcs.pcre.org/pcre?view=revision&revision=1571\n\nFixed upstream in version 8.38."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9078445",
+						"comment_count": "7",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2016-02-19 11:55:34 +0000",
+						"thetext": "Introduced in pcre 8.00:\n\nhttp://vcs.pcre.org/pcre?view=revision&revision=454"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9079870",
+						"comment_count": "8",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2016-02-19 20:38:38 +0000",
+						"thetext": "*** Bug 1287654 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9079871",
+						"comment_count": "9",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2016-02-19 20:39:58 +0000",
+						"thetext": "Adding duplicate CVE."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9316916",
+						"comment_count": "12",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2016-05-11 13:07:23 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2016:1025 https://rhn.redhat.com/errata/RHSA-2016-1025.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9360539",
+						"comment_count": "13",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2016-05-26 08:38:32 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n\nVia RHSA-2016:1132 https://access.redhat.com/errata/RHSA-2016:1132"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9892188",
+						"comment_count": "14",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2016-11-15 11:46:52 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.3 EUS\n\nVia RHSA-2016:2750 https://rhn.redhat.com/errata/RHSA-2016-2750.html"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1237224,
+			"security": true,
+			"title": "CVE-2015-5073 pcre: heap buffer overflow in find_fixedlength() [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1237224",
+				"creation_ts": "2015-06-30 14:47:42 +0000",
+				"short_desc": "CVE-2015-5073 pcre: heap buffer overflow in find_fixedlength() [fedora-all]",
+				"delta_ts": "2016-11-08 16:01:36 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1237223",
+						"alias": "CVE-2015-8388",
+						"creation_ts": "2015-06-30 14:47:20 +0000",
+						"short_desc": "CVE-2015-5073 CVE-2015-8388 pcre: buffer overflow for forward reference within backward assertion with excess closing parenthesis (8.38/18)",
+						"delta_ts": "2019-09-29 13:34:27 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1237224",
+							"1237225",
+							"1330455",
+							"1330456",
+							"1330508",
+							"1330509"
+						],
+						"blocked": [
+							{
+								"bug_id": "1287727",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2016:2750",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "8393082",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-06-30 14:47:20 +0000",
+								"thetext": "Quoting http://www.openwall.com/lists/oss-security/2015/06/26/1:\n\n\"\"\"\nPCRE is a regular expression C library inspired by the regular expression\ncapabilities in the Perl programming language.\nThe PCRE library is incorporated into a number of prominent programs, such\nas Adobe Flash, Apache, Nginx, PHP.\n\nPCRE library is prone to a vulnerability which leads to Heap Overflow.\nDuring subpattern calculation of a malformed regular expression, an offset\nthat is used as an array index is fully controlled and can be large enough\nso that unexpected heap memory regions are accessed.\nOne could at least exploit this issue to read objects nearby of the\naffected application's memory.\nSuch information discloure may also be used to bypass memory protection\nmethod such as ASLR.\n\nReference:\nhttps://bugs.exim.org/show_bug.cgi?id=1651\n\"\"\"\n\nThe patch is available in the upstream bug:\n\nhttps://bugs.exim.org/show_bug.cgi?id=1651"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8393088",
+								"comment_count": "1",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-06-30 14:47:54 +0000",
+								"thetext": "\nCreated pcre tracking bugs for this issue:\n\nAffects: fedora-all [bug 1237224]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8393089",
+								"comment_count": "2",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-06-30 14:47:57 +0000",
+								"thetext": "\nCreated mingw-pcre tracking bugs for this issue:\n\nAffects: fedora-all [bug 1237225]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8396379",
+								"comment_count": "3",
+								"who": {
+									"text": "ppisar",
+									"name": "Petr Pisar"
+								},
+								"bug_when": "2015-07-01 07:24:55 +0000",
+								"thetext": "Upstream fixed it with:\n\ncommit 764692f9aea9eab50fdba6cb537441d8b34c6c37\nAuthor: ph10 <ph10@2f5784b3-3f2a-0410-8824-cb99058d5e15>\nDate:   Tue Jun 23 16:34:53 2015 +0000\n\n    Fix buffer overflow for forward reference within backward assertion with excess\n    closing parenthesis. Bugzilla 1651.\n    \n    \n    git-svn-id: svn://vcs.exim.org/pcre/code/trunk@1571 2f5784b3-3f2a-0410-8824-cb99058d5e15"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8434552",
+								"comment_count": "4",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-07-13 19:13:47 +0000",
+								"thetext": "pcre-8.37-2.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8453818",
+								"comment_count": "5",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-07-18 02:05:02 +0000",
+								"thetext": "pcre-8.35-12.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8883143",
+								"comment_count": "6",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-12-02 15:43:27 +0000",
+								"thetext": "Upstream commit:\n\nhttp://vcs.pcre.org/pcre?view=revision&revision=1571\n\nFixed upstream in version 8.38."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9078445",
+								"comment_count": "7",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2016-02-19 11:55:34 +0000",
+								"thetext": "Introduced in pcre 8.00:\n\nhttp://vcs.pcre.org/pcre?view=revision&revision=454"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9079870",
+								"comment_count": "8",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2016-02-19 20:38:38 +0000",
+								"thetext": "*** Bug 1287654 has been marked as a duplicate of this bug. ***"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9079871",
+								"comment_count": "9",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2016-02-19 20:39:58 +0000",
+								"thetext": "Adding duplicate CVE."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9316916",
+								"comment_count": "12",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2016-05-11 13:07:23 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2016:1025 https://rhn.redhat.com/errata/RHSA-2016-1025.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9360539",
+								"comment_count": "13",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2016-05-26 08:38:32 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n\nVia RHSA-2016:1132 https://access.redhat.com/errata/RHSA-2016:1132"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9892188",
+								"comment_count": "14",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2016-11-15 11:46:52 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.2 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.3 EUS\n\nVia RHSA-2016:2750 https://rhn.redhat.com/errata/RHSA-2016-2750.html"
+							}
+						]
+					},
+					{
+						"bug_id": "1287654",
+						"creation_ts": "2015-12-02 13:35:04 +0000",
+						"short_desc": "CVE-2015-8388 pcre: Buffer overflow caused by certain patterns with an unmatched closing parenthesis (8.38/18)",
+						"delta_ts": "2019-09-29 13:40:12 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "DUPLICATE",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1237224",
+							"1287655",
+							"1287656",
+							"1287657",
+							"1287658"
+						],
+						"blocked": [
+							{
+								"bug_id": "1287727",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "8882054",
+								"comment_count": "0",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2015-12-02 13:35:04 +0000",
+								"thetext": "It was discovered that PCRE before 8.38 mishandles the /(?=di(?<=(?1))|(?=(.))))/ pattern and related patterns with an unmatched closing parenthesis that contained a backward assertion which itself contained a forward reference, which allows remote attackers to cause a denial of service (buffer overflow) or possibly have unspecified other impact via a crafted regular expression."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8882068",
+								"comment_count": "1",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2015-12-02 13:35:57 +0000",
+								"thetext": "\nCreated pcre tracking bugs for this issue:\n\nAffects: fedora-all [bug 1287655]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8882069",
+								"comment_count": "2",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2015-12-02 13:36:06 +0000",
+								"thetext": "\nCreated glib2 tracking bugs for this issue:\n\nAffects: fedora-all [bug 1287657]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8882071",
+								"comment_count": "3",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2015-12-02 13:36:15 +0000",
+								"thetext": "\nCreated mingw-pcre tracking bugs for this issue:\n\nAffects: fedora-all [bug 1287656]\nAffects: epel-7 [bug 1287658]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8882981",
+								"comment_count": "4",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2015-12-02 15:23:53 +0000",
+								"thetext": "Corresponds to item 18 in http://vcs.pcre.org/pcre/code/trunk/ChangeLog?view=markup"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8883287",
+								"comment_count": "5",
+								"who": {
+									"text": "ppisar",
+									"name": "Petr Pisar"
+								},
+								"bug_when": "2015-12-02 15:59:56 +0000",
+								"thetext": "Fixed in upstream with:\n\ncommit 764692f9aea9eab50fdba6cb537441d8b34c6c37\nAuthor: ph10 <ph10@2f5784b3-3f2a-0410-8824-cb99058d5e15>\nDate:   Tue Jun 23 16:34:53 2015 +0000\n\n    Fix buffer overflow for forward reference within backward assertion with exc\ness\n    closing parenthesis. Bugzilla 1651.\n    \n    \n    git-svn-id: svn://vcs.exim.org/pcre/code/trunk@1571 2f5784b3-3f2a-0410-8824-\ncb99058d5e15"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8885243",
+								"comment_count": "6",
+								"who": {
+									"text": "carnil",
+									"name": "Salvatore Bonaccorso"
+								},
+								"bug_when": "2015-12-02 21:40:38 +0000",
+								"thetext": "Is this CVE a duplicate of CVE-2015-5073?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8887136",
+								"comment_count": "7",
+								"who": {
+									"text": "ppisar",
+									"name": "Petr Pisar"
+								},
+								"bug_when": "2015-12-03 14:13:33 +0000",
+								"thetext": "I think it is."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9079869",
+								"comment_count": "8",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2016-02-19 20:38:38 +0000",
+								"thetext": "\n\n*** This bug has been marked as a duplicate of bug 1237223 ***"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8393083",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-06-30 14:47:42 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8393084",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-06-30 14:47:46 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1237223,1237224\n\n# Description of your update\nnotes=Security fix for CVE-2015-5073\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1237223,1237224"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8396489",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-01 07:52:07 +0000",
+						"thetext": "pcre-8.37-2.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/pcre-8.37-2.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8396554",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-01 08:04:55 +0000",
+						"thetext": "pcre-8.35-12.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/pcre-8.35-12.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8402462",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-02 17:07:56 +0000",
+						"thetext": "Package pcre-8.35-12.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing pcre-8.35-12.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-11019/pcre-8.35-12.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8434549",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-13 19:13:40 +0000",
+						"thetext": "pcre-8.37-2.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8453816",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-18 02:04:56 +0000",
+						"thetext": "pcre-8.35-12.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8887133",
+						"comment_count": "7",
+						"who": {
+							"text": "ppisar",
+							"name": "Petr Pisar"
+						},
+						"bug_when": "2015-12-03 14:12:21 +0000",
+						"thetext": "*** Bug 1287655 has been marked as a duplicate of this bug. ***"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "pcre-8.37-2.fc22",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "pcre-static",
+						"version": "8.37",
+						"release": "2.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "pcre",
+						"version": "8.37",
+						"release": "2.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "pcre-devel",
+						"version": "8.37",
+						"release": "2.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "pcre-tools",
+						"version": "8.37",
+						"release": "2.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "pcre-debuginfo",
+						"version": "8.37",
+						"release": "2.fc22",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "pcre",
+						"version": "8.37",
+						"release": "2.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "pcre-static",
+						"version": "8.37",
+						"release": "2.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "pcre-tools",
+						"version": "8.37",
+						"release": "2.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "pcre-debuginfo",
+						"version": "8.37",
+						"release": "2.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "pcre-devel",
+						"version": "8.37",
+						"release": "2.fc22",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "pcre",
+						"version": "8.37",
+						"release": "2.fc22",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "pcre",
+						"version": "8.37",
+						"release": "2.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "pcre-devel",
+						"version": "8.37",
+						"release": "2.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "pcre-debuginfo",
+						"version": "8.37",
+						"release": "2.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "pcre-static",
+						"version": "8.37",
+						"release": "2.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "pcre-tools",
+						"version": "8.37",
+						"release": "2.fc22",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 296111,
+			"text": "This update has been submitted for testing by ppisar. ",
+			"timestamp": "2015-07-01 07:52:11",
+			"update_id": 35334,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296112,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/102525/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-07-01 08:00:38",
+			"update_id": 35334,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 296113,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/102525/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-07-01 08:01:38",
+			"update_id": 35334,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 296114,
+			"text": "This update is currently being pushed to the Fedora 22 testing updates repository.",
+			"timestamp": "2015-07-01 08:22:41",
+			"update_id": 35334,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296115,
+			"text": "This update is currently being pushed to the Fedora 22 testing updates repository.",
+			"timestamp": "2015-07-02 08:30:48",
+			"update_id": 35334,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296116,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-07-02 17:08:55",
+			"update_id": 35334,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296117,
+			"karma": 1,
+			"text": "LGTM  =)",
+			"timestamp": "2015-07-08 10:58:05",
+			"update_id": 35334,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/307632fc7188138f052f244345e779451863879298f2e6d73023011a05b1f1f6?s=24&d=retro",
+				"email": "besser82.fpo@gmail.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "designteam"
+					},
+					{
+						"name": "shogun-ca"
+					},
+					{
+						"name": "alt-gtk-de-sig"
+					}
+				],
+				"id": 206,
+				"name": "besser82",
+				"openid": "besser82.id.fedoraproject.org"
+			},
+			"user_id": 206
+		},
+		{
+			"id": 296118,
+			"karma": 1,
+			"text": "No issues in a F22 Xen VM.",
+			"timestamp": "2015-07-09 20:09:59",
+			"update_id": 35334,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/fbb28238d8e88f4a6ca70e8409ab425f0139e2596b4f9c411d1da55f4c4fe3c1?s=24&d=retro",
+				"email": "mhayden@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "fesco"
+					},
+					{
+						"name": "gitfedora-security-team"
+					},
+					{
+						"name": "aws-fedora-ci"
+					},
+					{
+						"name": "cloud-sig"
+					}
+				],
+				"id": 536,
+				"name": "mhayden",
+				"openid": "mhayden.id.fedoraproject.org"
+			},
+			"user_id": 536
+		},
+		{
+			"id": 296119,
+			"text": "Critical path update approved",
+			"timestamp": "2015-07-09 20:10:02",
+			"update_id": 35334,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296120,
+			"karma": 1,
+			"text": "looks good",
+			"timestamp": "2015-07-10 00:42:09",
+			"update_id": 35334,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/3a4918ad8bd04f4cc7a9750e9217bcf5422ed3e399f02a0b2bc1727addb6c8fa?s=24&d=retro",
+				"id": 123,
+				"name": "fcon",
+				"openid": "fcon.id.fedoraproject.org"
+			},
+			"user_id": 123
+		},
+		{
+			"id": 296121,
+			"text": "This update has reached the stable karma threshold and will be pushed to the stable updates repository",
+			"timestamp": "2015-07-10 00:42:13",
+			"update_id": 35334,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296122,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/104757/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-07-10 00:59:05",
+			"update_id": 35334,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 296123,
+			"text": "This update is currently being pushed to the Fedora 22 stable updates repository.",
+			"timestamp": "2015-07-10 21:19:02",
+			"update_id": 35334,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296124,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-07-13 19:13:49",
+			"update_id": 35334,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2015-07-13 19:13:49",
+	"date_stable": "2015-07-13 19:13:49",
+	"date_submitted": "2015-07-01 07:51:57",
+	"date_testing": "2015-07-02 17:08:55",
+	"karma": 3,
+	"meets_testing_requirements": true,
+	"notes": "This release fixes two heap buffer overflows when compiling certain regular expressions: CVE-2015-3210 and CVE-2015-5073.",
+	"pushed": true,
+	"release": {
+		"branch": "f22",
+		"candidate_tag": "f22-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f22",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 22",
+		"mail_template": "fedora_errata_template",
+		"name": "F22",
+		"override_tag": "f22-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f22-updates-pending",
+		"pending_testing_tag": "f22-updates-testing-pending",
+		"stable_tag": "f22-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f22-updates-testing",
+		"version": "22"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "pcre-8.37-2.fc22",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-11027",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-11027",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/12f13283140a3e56271e48fbe0cdccc1fd09b0859759f11ac65baf89dae48515?s=24&d=retro",
+		"email": "ppisar@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "modularity-wg"
+			},
+			{
+				"name": "l10n"
+			},
+			{
+				"name": "cvsl10n"
+			},
+			{
+				"name": "perl-maint-sig"
+			}
+		],
+		"id": 227,
+		"name": "ppisar",
+		"openid": "ppisar.id.fedoraproject.org"
+	},
+	"version_hash": "06d48b7db31f2d5242426111ee19040145f08925"
+}

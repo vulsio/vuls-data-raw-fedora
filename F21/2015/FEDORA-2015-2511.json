@@ -1,0 +1,2920 @@
+{
+	"alias": "FEDORA-2015-2511",
+	"bugs": [
+		{
+			"bug_id": 963283,
+			"title": "e2fsck.conf makes e2fsck ignore check intervals",
+			"bugzilla": {
+				"bug_id": "963283",
+				"creation_ts": "2013-05-15 14:58:16 +0000",
+				"short_desc": "e2fsck.conf makes e2fsck ignore check intervals",
+				"delta_ts": "2015-03-14 07:14:37 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "5917683",
+						"comment_count": "0",
+						"who": {
+							"text": "opensource",
+							"name": "Till Maas"
+						},
+						"bug_when": "2013-05-15 14:58:16 +0000",
+						"thetext": "Description of problem:\n/etc/e2fsck.conf contains:\n[options] \n# This will prevent e2fsck from stopping boot just because the clock is wrong                                                                           broken_system_clock = 1\n\nThis makes e2fsck ignore check intervals defined with \"tune2fs -i\".\n\nVersion-Release number of selected component (if applicable):\ne2fsprogs-1.42.3-3.fc17\n\nHow reproducible:\nalways\n\nSteps to Reproduce:\n1. Use tune2fs -c 0 to ignore mount counts (e.g. on a desktop system to ignore too often fsck runs)\n  \nActual results:\nFilesystem is never checked\n\nExpected results:\nFilesystem should be checked according to check interval\n\nAdditional info:"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5917735",
+						"comment_count": "1",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2013-05-15 15:12:03 +0000",
+						"thetext": "broken_system_clock = 1 should not in and of itself disable interval checks (barring a bug, of course)\n\nmke2fs does now, however, disable interval checks by default.\n\nfor the fs you're looking at, what does \n\n# dumpe2fs -h | grep interval\n\nsay?\n\nHow have you arrived at the conclusion that broken_system_clock breaks this?\n\nIt does look like check_if_skip() might have broken logic but just wanted to double check the items above as well.\n\nThanks,\n-Eric"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5917748",
+						"comment_count": "2",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2013-05-15 15:16:30 +0000",
+						"thetext": "FWIW, this was added because:\n\n+* Fri Apr 20 2012 Eric Sandeen <sandeen@@redhat.com> 1.42.2-5\n+- Add broken system clock config to e2fsck.conf to let boot\n+  continue even if system clock very wrong.\n\nGah, I always hated this time based check stuff.  Guess I'll have to go back & revisit it all.  Especially since I didn't put a bug number on the above change :("
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5917774",
+						"comment_count": "3",
+						"who": {
+							"text": "opensource",
+							"name": "Till Maas"
+						},
+						"bug_when": "2013-05-15 15:23:19 +0000",
+						"thetext": "(In reply to comment #1)\n> broken_system_clock = 1 should not in and of itself disable interval checks\n> (barring a bug, of course)\n> \n> mke2fs does now, however, disable interval checks by default.\n\nWhy is this? I always found time based checks more useful than count based checks for desktop systems.\n\n> for the fs you're looking at, what does \n> \n> # dumpe2fs -h | grep interval\n> \n> say?\n\n# dumpe2fs -h /dev/mapper/_dev_sda1 | grep interval \ndumpe2fs 1.42.3 (14-May-2012)\nCheck interval:           15552000 (6 months)\n\n> How have you arrived at the conclusion that broken_system_clock breaks this?\n\nI looked at the source of e2fsck/unix.c:\n 379 .·······} else if (!broken_system_clock && fs->super->s_checkinterval &&\n 380 .·······.·······   ((ctx->now - lastcheck) >=\n 381 .·······.·······    ((time_t) fs->super->s_checkinterval))) {\n 382 .·······.·······reason = _(\" has gone %u days without being checked\");\n 383 .·······.·······reason_arg = (ctx->now - fs->super->s_lastcheck)/(3600*24);\n 384 .·······.·······if (batt && ((ctx->now - fs->super->s_lastcheck) <\n 385 .·······.·······.·······     fs->super->s_checkinterval*2))\n 386 .·······.·······.·······reason = 0;\n 387 .·······}\n\n \nAlso I tried manually to check the filesystem with fsck and it only worked after I changed the config file."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5917791",
+						"comment_count": "4",
+						"who": {
+							"text": "opensource",
+							"name": "Till Maas"
+						},
+						"bug_when": "2013-05-15 15:26:24 +0000",
+						"thetext": "(In reply to comment #2)\n> FWIW, this was added because:\n> \n> +* Fri Apr 20 2012 Eric Sandeen <sandeen@@redhat.com> 1.42.2-5\n> +- Add broken system clock config to e2fsck.conf to let boot\n> +  continue even if system clock very wrong.\n> \n> Gah, I always hated this time based check stuff.  Guess I'll have to go back\n> & revisit it all.  Especially since I didn't put a bug number on the above\n> change :(\n\nYes, I missed a bug number as well. On launchpad there is also shown how to mask time related errors specifically:\nhttps://bugs.launchpad.net/ubuntu/+source/initramfs-tools/+bug/563618/comments/4\n\nThis might disable the boot problems without breaking the check scheduling."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5917846",
+						"comment_count": "5",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2013-05-15 15:36:30 +0000",
+						"thetext": "Yeah, it seems like this is too big a hammer.  I'll have to try to remember why boot was actually failing (dropping to a shell IIRC) when the clock was wrong.\n\nthe time / mount-count based checks are off by default for a couple reasons:\n\na) ext[34] are journaling filesystems which, barring bugs, misconfiguration, and hardware problems, don't require routine full fscks.\n\nb) sysadmins generally prefer to schedule downtime, and not have it set randomly at mkfs time.  Unexpected, long boot times at random intervals is much less preferable than intentionally scheduled maintenance windows, if periodic checks are desired."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6071746",
+						"comment_count": "6",
+						"who": {
+							"text": "bcotton",
+							"name": "Fedora End Of Life"
+						},
+						"bug_when": "2013-07-03 22:22:44 +0000",
+						"thetext": "This message is a reminder that Fedora 17 is nearing its end of life.\nApproximately 4 (four) weeks from now Fedora will stop maintaining\nand issuing updates for Fedora 17. It is Fedora's policy to close all\nbug reports from releases that are no longer maintained. At that time\nthis bug will be closed as WONTFIX if it remains open with a Fedora \n'version' of '17'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version prior to Fedora 17's end of life.\n\nBug Reporter:  Thank you for reporting this issue and we are sorry that \nwe may not be able to fix it before Fedora 17 is end of life. If you \nwould still like  to see this bug fixed and are able to reproduce it \nagainst a later version  of Fedora, you are encouraged  change the \n'version' to a later Fedora version prior to Fedora 17's end of life.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6075636",
+						"comment_count": "7",
+						"who": {
+							"text": "opensource",
+							"name": "Till Maas"
+						},
+						"bug_when": "2013-07-04 03:00:51 +0000",
+						"thetext": "still broken in git 2cc6bb2850cde9e77d9676252b5007bb60d58565, therefore I assume it is also still broken in earlier Fedora releases."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7825748",
+						"comment_count": "8",
+						"who": {
+							"text": "bcotton",
+							"name": "Fedora End Of Life"
+						},
+						"bug_when": "2015-01-09 18:07:37 +0000",
+						"thetext": "This message is a notice that Fedora 19 is now at end of life. Fedora \nhas stopped maintaining and issuing updates for Fedora 19. It is \nFedora's policy to close all bug reports from releases that are no \nlonger maintained. Approximately 4 (four) weeks from now this bug will\nbe closed as EOL if it remains open with a Fedora 'version' of '19'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora 19 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora, you are encouraged  change the 'version' to a later Fedora \nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7916418",
+						"comment_count": "9",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-02-07 19:49:41 +0000",
+						"thetext": "*** Bug 1167202 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7916765",
+						"comment_count": "10",
+						"who": {
+							"text": "opensource",
+							"name": "Till Maas"
+						},
+						"bug_when": "2015-02-08 06:54:46 +0000",
+						"thetext": "still broken in commit:f21542d0bf5b7a3dc97d3fe519682e239b4dc072\n\nIt is now 1.5 years since I reported this bug.\n\n(In reply to Eric Sandeen from comment #5)\n\n> b) sysadmins generally prefer to schedule downtime, and not have it set\n> randomly at mkfs time.  Unexpected, long boot times at random intervals is\n> much less preferable than intentionally scheduled maintenance windows, if\n> periodic checks are desired.\n\nI add this to my e2fsck.conf files:\n\nallow_cancellation = true\n\nThis allows to cancel the checks, so the checks can be aborted (maybe include this in the fedora default config?). Also if sysadmins do not want filesystems to be checked, they can disable it at the filesystem level or manually add the entry to the config file. IMHO it is still not a sane default."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7920214",
+						"comment_count": "11",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-02-09 16:01:20 +0000",
+						"thetext": "I apologize for this bug staying open for so long.\n\nUpstream, new filesystems are no longer created with a periodic check enabled, so it hasn't been at the top of my list.  And the problems which started this before (forced fsck / boot failure when the clock was wrong) was pretty unfortunate.\n\nI need to go back through and re-remember all the various hacks which exist to try to work around that problem, and pick the least-worst behavior when checks are enabled and the clock is wrong.\n\n-Eric"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7952264",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-17 21:24:31 +0000",
+						"thetext": "e2fsprogs-1.42.12-2.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/e2fsprogs-1.42.12-2.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7952299",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-17 21:30:39 +0000",
+						"thetext": "e2fsprogs-1.42.12-2.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/e2fsprogs-1.42.12-2.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7957563",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-19 02:57:28 +0000",
+						"thetext": "Package e2fsprogs-1.42.12-2.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing e2fsprogs-1.42.12-2.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2241/e2fsprogs-1.42.12-2.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7964514",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-21 04:24:28 +0000",
+						"thetext": "e2fsprogs-1.42.12-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7972152",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-24 17:55:51 +0000",
+						"thetext": "e2fsprogs-1.42.12-3.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/e2fsprogs-1.42.12-3.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999902",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:23:01 +0000",
+						"thetext": "e2fsprogs-1.42.12-3.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8038447",
+						"comment_count": "18",
+						"who": {
+							"text": "bugzilla_acct_1959",
+							"name": "Jonathan S"
+						},
+						"bug_when": "2015-03-12 20:23:29 +0000",
+						"thetext": "This update seems to cause a serious problem.\n\nI have two Fedora 21 computers - one dual-boots to Windows and so uses local-time, the other uses UTC.\n\nThe computer using UTC is fine.\nHowever, since this update, the dual-booter using local-time reports at every boot \"Superblock last write time is in the future\" and therefore proceeds to perform a fsck at *every* boot. This has happened every time (10 times) since this update was applied. This error *never* happened before.\n\nI'm in the Netherlands (currently UTC+1), so I assume the check is made under UTC looking at a superblock written using UTC+1. If this assumption is correct, all local-time machines in timezones ahead of UTC will get fsck'd at every boot.\n\nI notice:\nhttp://forums.fedoraforum.org/showthread.php?p=1726736\nThe first poster is in Madrid (also UTC+1), using Fedora 21, and note he says everything was fine until March 5th, which accords exactly with the release of this update."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8038463",
+						"comment_count": "19",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-03-12 20:29:59 +0000",
+						"thetext": "> This update seems to cause a serious problem.\n\nHohum, that's what the testing repo is for :(\n\nNow I'm behind a rock and a hard place; the old commit tried to fix this problem, but broke all time-based checking.  With it reverted, you get checks on every boot.\n\nWell, please file a bug, and we'll try to give it one more round, though I'm not sure there's any real hope of a fix for time-based checks if we can't trust the clock.\n\nIn the meantime, you can work around it with:\n\nbroken_system_clock = 1\n\nin /etc/e2fsck.conf\n\nThat may just be what you need to do in your case...\n\n-Eric"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8038483",
+						"comment_count": "20",
+						"who": {
+							"text": "bugzilla_acct_1959",
+							"name": "Jonathan S"
+						},
+						"bug_when": "2015-03-12 20:41:38 +0000",
+						"thetext": "FURTHER INFO\n\nSeems that the ultimate cause may be the changing of system-time when switching root at startup. The first fsck of the root drive occurs before switching root (does it update the superblock last write time??). Then, after switching root, all drives are checked again - at which time fsck reports \"Superblock last write time is in the future.\"\n\nExtract of 'journalctl -t systemd-fsck' for ONE boot. (PC BIOS time = 21:10, which is really Netherlands local-time - that is, what my watch says!):\n\n-- Reboot --\nMar 12 22:10:36 -REDACTED- systemd-fsck[262]: My_Passport: clean, 195374/60661760 files, 11677452/242646016 blocks\nMar 12 21:10:43 -REDACTED- systemd-fsck[372]: My_Passport: Superblock last write time is in the future.\nMar 12 21:10:43 -REDACTED- systemd-fsck[372]: (by less than a day, probably due to the hardware clock being incorrectly set).  FIXED.\nMar 12 21:11:24 -REDACTED- systemd-fsck[372]: My_Passport: 195374/60661760 files (1.0% non-contiguous), 11677452/242646016 blocks\n\nNote the first time is one hour ahead of PC BIOS time - the correct time only gets applied when switching root (when the journal is stopped and restarted with the correct time).\nLooks like Fedora assumes it's using UTC (and applying one hour ahead to get 22:10) before it rights itself later in the boot process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8038517",
+						"comment_count": "21",
+						"who": {
+							"text": "opensource",
+							"name": "Till Maas"
+						},
+						"bug_when": "2015-03-12 21:10:34 +0000",
+						"thetext": "(In reply to Eric Sandeen from comment #19)\n\n> Well, please file a bug, and we'll try to give it one more round, though I'm\n> not sure there's any real hope of a fix for time-based checks if we can't\n> trust the clock.\n\nIMHO the real problem here is that fsck runs twice, once in the initramfs one once afterwards. Maybe this can just be fixed? Also the initramfs could be fixed to have the proper time instead of just assuming BIOS time is UTC."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8040692",
+						"comment_count": "22",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-03-13 14:16:17 +0000",
+						"thetext": "Perhaps.  The other problem is that e2fsprogs is supposed to ignore deltas within 24h, but it seems to only go one way (i.e. if you are up to 24h ahead, it's ok, but not if you are behind ((or is it vice-versa)).\n\nAnyway, if you open a new bug I'd appreciate it, and we'll work this out there, since this bug is now closed.\n\nThanks,\n-Eric"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8042526",
+						"comment_count": "23",
+						"who": {
+							"text": "opensource",
+							"name": "Till Maas"
+						},
+						"bug_when": "2015-03-14 07:14:37 +0000",
+						"thetext": "Bug about dracut using the wrong time:\nhttps://bugzilla.redhat.com/show_bug.cgi?id=1201978"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1170803,
+			"title": "calls e2fsck on all ext volumes, provides no status indicator, and hangs indefinitely if e2fsck doesn't exit",
+			"bugzilla": {
+				"bug_id": "1170803",
+				"creation_ts": "2014-12-04 22:11:17 +0000",
+				"short_desc": "calls e2fsck on all ext volumes, provides no status indicator, and hangs indefinitely if e2fsck doesn't exit",
+				"delta_ts": "2017-10-11 22:11:24 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "CommonBugs, Reopened",
+				"priority": "unspecified",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "1396702",
+						"alias": "F27BetaBlocker",
+						"creation_ts": "2016-11-19 01:36:30 +0000",
+						"short_desc": "Fedora 27 Beta blocker bug tracker",
+						"delta_ts": "2017-11-25 01:15:17 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "CURRENTRELEASE",
+						"bug_file_loc": "https://fedoraproject.org/wiki/QA:SOP_blocker_bug_process",
+						"keywords": "Tracking",
+						"priority": "unspecified",
+						"bug_severity": "unspecified",
+						"depends_on": [
+							"1170803",
+							"1370222",
+							"1438495",
+							"1439411",
+							"1455561",
+							"1460825",
+							"1464556",
+							"1465390",
+							"1475570",
+							"1479825",
+							"1480929",
+							"1483159",
+							"1483170",
+							"1483278",
+							"1483331",
+							"1484155",
+							"1484566",
+							"1484569",
+							"1485831",
+							"1486378",
+							"1487305",
+							"1487856",
+							"1487867",
+							"1487956",
+							"1488043",
+							"1488295",
+							"1488404",
+							"1488640",
+							"1488707",
+							"1489144",
+							"1489164",
+							"1490072",
+							"1490287",
+							"1490762",
+							"1491056",
+							"1491119",
+							"1491333",
+							"1491459",
+							"1492981",
+							"1493090",
+							"1493902",
+							"1494138",
+							"1495204"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "9905028",
+								"comment_count": "0",
+								"who": {
+									"text": "awilliam",
+									"name": "Adam Williamson"
+								},
+								"bug_when": "2016-11-19 01:36:30 +0000",
+								"thetext": "Fedora 27 Beta blocker tracker bug: http://fedoraproject.org/wiki/BugZappers/HouseKeeping/Trackers\n\nTo propose a bug as blocking the Fedora 27 Beta release, mark it as blocking this bug, or use the webapp: https://qa.fedoraproject.org/blockerbugs/propose_bug . It will be reviewed according to https://fedoraproject.org/wiki/QA:SOP_blocker_bug_process . If you can, please specify the release criterion that the bug violates. See https://fedoraproject.org/wiki/Fedora_Release_Criteria for details on the release criteria.\n\nIf the bug is not serious enough to block release but you believe it merits being fixed during a milestone freeze (see https://fedoraproject.org/wiki/Milestone_freezes ), you can propose it as a 'freeze exception' instead. To do this, mark it as blocking the bug F27BetaFreezeException . See https://fedoraproject.org/wiki/QA:SOP_freeze_exception_bug_process for the freeze exception process."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10747130",
+								"comment_count": "1",
+								"who": {
+									"text": "kparal",
+									"name": "Kamil Páral"
+								},
+								"bug_when": "2017-08-29 07:46:46 +0000",
+								"thetext": "*** Bug 1396700 has been marked as a duplicate of this bug. ***"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11028730",
+								"comment_count": "2",
+								"who": {
+									"text": "awilliam",
+									"name": "Adam Williamson"
+								},
+								"bug_when": "2017-11-23 22:16:12 +0000",
+								"thetext": "Fedora 27 was released. Bug closed per https://fedoraproject.org/wiki/BugZappers/HouseKeeping/Trackers"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11028743",
+								"comment_count": "3",
+								"who": {
+									"text": "awilliam",
+									"name": "Adam Williamson"
+								},
+								"bug_when": "2017-11-23 22:28:08 +0000",
+								"thetext": "Fedora 27 was released. Bug closed per https://fedoraproject.org/wiki/BugZappers/HouseKeeping/Trackers"
+							}
+						]
+					}
+				],
+				"external_bugs": {
+					"text": "1162215",
+					"name": "Red Hat Bugzilla"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7734776",
+						"comment_count": "0",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2014-12-04 22:11:17 +0000",
+						"thetext": "Description of problem:\n\nANACONDA  \"SERVER NETWORK INSTALL ISO\" WRITTEN TO FLASH DRIVE.\n\nHad to poweroff to boot this sha256sum tested iso. Even so, it took three tries to get iso to boot.\n\nThen, I was unable to change time-zone (Winnepeg in place of Toronto) (1 timezone off.\n\nIn entering network (Wired connection) Anaconda locked up solidly. \nNot able to switch to command line.  I was changing hostname from localhost.localhost to fedora21.fedora21\n\n\n\n\nVersion-Release number of selected component (if applicable):\n\nhttps://dl.fedoraproject.org/pub/alt/stage/21_RC5/Server/x86_64/iso/Fedora-Server-netinst-x86_64-21.iso\n\nDated 4 December 2014\n\n\nHow reproducible:\n\n\nSteps to Reproduce:\n1.\n2.\n3.\n\nActual results:\n\n\nExpected results:\n\n\nAdditional info:\n\nI don't mind helping with the testing. I have two systems available on which I can test server net install and workstation versions."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7734834",
+						"comment_count": "1",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2014-12-04 22:28:26 +0000",
+						"thetext": "Same Lockup problem with Workspace Anaconda version (Probably the same version).\n\nCannot reset hostname."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7734865",
+						"comment_count": "2",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2014-12-04 22:45:16 +0000",
+						"thetext": "Cannot set timezone or select installation disk. With command line prompt, system was waiting for anaconda.\n\nWas able to kill anaconda and do one restart. -- 2nd attempt with anaconda locked up.\n\nQuite prepared to test again with newer RC6."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7739584",
+						"comment_count": "3",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2014-12-06 15:12:22 +0000",
+						"thetext": "Anaconda\n\nRC5 Locks up with attempt to change hostname (wired access).\n\nI hope this version is not the one for general release.\n\nShasum checking shows no download error. Self test indicates no error.\n\nWas hoping to test a fully non-lockup anywhere version of Anaconda.\n\nReminder   Same problem with workspace and net-install versions"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7739840",
+						"comment_count": "4",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2014-12-06 22:59:42 +0000",
+						"thetext": "I am reporting this problem because it occurs using a wired connection.\n\nWhen I retest using a computer with wi-fi, Anaconda does not lock up.\n\nWith wired connection, one cannot correct the timezone or exit from the network hub after setting a hostname.\n\nWith the wireless connection, the default hostname is random, with faulty characters, and requires a manual correction.\n\nPlease test with wired connection. Did not work for me\nPlease test with wireless connection yes, worked for me.\n\ntested with  network-server version and with live-Workspace version. \n\nTested with two versions of RC5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7739873",
+						"comment_count": "5",
+						"who": {
+							"text": "bugzilla",
+							"name": "Chris Murphy"
+						},
+						"bug_when": "2014-12-07 01:00:59 +0000",
+						"thetext": "I tested a wired connection and can't reproduce any of the things you've reported. Logs from /tmp would help, so would journalctl -b -l -o short-monotonic. If you can't get to a shell for these things, then there are problems deeper than just the installer that implicate kernel and/or hardware."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7739916",
+						"comment_count": "6",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2014-12-07 04:33:39 +0000",
+						"thetext": "Created attachment 965493\nRC5 /tmp  as tar file 1170803.tar\n\nThis tar file is created post anaconda lockup within the Wired spoke\nsome info.\nCPU = 100%.\nthe tarfile contains all the contents of the /tmp (all logs).\n\nI was able to return from the shell to gnome, and somehow was able to verify that I had copyied the files to a secondary flash drive.\n\nAnaconda appeared to have restarted.  I had changed the keyboard to ca (french canada) That was shown as the default , but on return it showed as US switched back).  Is Anaconda in there twice? \n\nOne feedback.  The help button on the wireless setup page eventually opened up, perhaps after 90 seconds.  (Note the 100% cpu)\n\nI will follow up with individual log files in case the tar file does not arrive cleanly"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7739922",
+						"comment_count": "7",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2014-12-07 04:35:08 +0000",
+						"thetext": "Created attachment 965494\nanconda.log\n\nanaconda.log"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7739929",
+						"comment_count": "8",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2014-12-07 04:36:17 +0000",
+						"thetext": "Created attachment 965495\nifcfg.log"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7739943",
+						"comment_count": "9",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2014-12-07 04:38:31 +0000",
+						"thetext": "Created attachment 965496\nprogram.log"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7739953",
+						"comment_count": "10",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2014-12-07 04:39:22 +0000",
+						"thetext": "Created attachment 965497\nsensitive-info.log"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7739961",
+						"comment_count": "11",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2014-12-07 04:40:19 +0000",
+						"thetext": "Created attachment 965498\nstorage.log\n\nother logs = 0 bytes"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7740384",
+						"comment_count": "12",
+						"who": {
+							"text": "bugzilla",
+							"name": "Chris Murphy"
+						},
+						"bug_when": "2014-12-07 19:42:46 +0000",
+						"thetext": "The last entry in program.log is e2fsck so it seems like anaconda is waiting for it to complete. \n1.Please reboot from install media.\n2.Use blkid to confirm the device for fs uuid 0594544c-dc98-4ab7-af14-0840131a2ca1, volume name SeagateExt3. Previously it was sdg2 but this isn't guaranteed between reboots.\n3. Run e2fsck -f -p -C 0 /dev/sdXY\n\nWhat results do you get? If this comes up clean and completes, then you'll need to reproduce the freeze, find the PID for anaconda, and run 'pstack PID' and attach the results as a file. I'm not sure if pstack comes on all install media, or if you'll need to use live media and yum install it."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7743294",
+						"comment_count": "13",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2014-12-08 16:42:10 +0000",
+						"thetext": "Hi Chris, Sorry for the delay in responding. I was looking to my emails for bugzilla email showing activity on this bug #.\n\nWhen you indicated SeagateEXT3, that was my 2 terrabyte USB external backup.\n\nI unplugged it, and retested. There is no problem any longer.  Since I will do the install without the external USB backup plugged in, I know it will succeed. \n\nSo, I apologize for causing concern at the last minute.\nBTW, while that e2fsck check was taking place cpu was 101% (on dual core).\nWhen I saw that, I assumed wrongly, a tight loop in code.\n\n\nFor my own curiosity, I will try the rc5 beta again with drive plugged in and give it a half hour to run through the check.\n\nI believe that the release notes should be updated to indicate potential delays as I experienced it with Anaconda.\n\nPlease redirect to release note person responsible (Pete Travis)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7743616",
+						"comment_count": "14",
+						"who": {
+							"text": "bugzilla",
+							"name": "Chris Murphy"
+						},
+						"bug_when": "2014-12-08 18:29:03 +0000",
+						"thetext": "Anaconda is running resize2fs -P and then e2fsck -f -p -C 0 on every ext volume, before I've even gotten passed the language selection screen. It's fine for it to collect minimum size info with resize2fs -P for all ext volumes, but I think it's inappropriate to run e2fsck on everything.\n\nMy case:\nINFO program: Running... e2fsck -f -p -C 0 /dev/sda1\nINFO program: Running... e2fsck -f -p -C 0 /dev/loop3\nINFO program: Running... e2fsck -f -p -C 0 /dev/mapper/live-base\nINFO program: Running... e2fsck -f -p -C 0 /dev/mapper/live-osimg-min\n\nThat's recorded while I'm still at the Welcome+Language menu, so sda isn't even a chosen target for installation yet fsck is running on it? And I have no opt out? And I get no status report if it hangs? The fsck on the other three volumes fails with exit code other than 0 because they're all busy at the time the e2fsck was issued. So that's also pointless.\n\nI think this needs to behave better."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7743843",
+						"comment_count": "15",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2014-12-08 20:04:51 +0000",
+						"thetext": "If there is a way to get the revised anaconda out before tomorrow, or if there is\ngoing to be an emergency patch and you would like me to test with my system, I would like to know by email. \n\nTo do so, update this bug report and as I am on the CC list, I will know to fetch the download to test. \n\nPlease put the retrieval url for wget download in this response.\nLeslie"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7743879",
+						"comment_count": "16",
+						"who": {
+							"text": "bugzilla",
+							"name": "Chris Murphy"
+						},
+						"bug_when": "2014-12-08 20:23:17 +0000",
+						"thetext": "This is a sufficiently pernicious bug, I'm proposing as an F22 alpha blocker. \n\n- It's completely reasonable for users to have many, or a large, ext volume(s). \n\n- It's unreasonable for the installer to issue e2fsck on all volumes when they aren't related to the installation at all. The whole point of journaled file systems is to avoid potentially hours or days long fsck. e2fsck -f -p should only be run on volumes that are explicitly chosen for resize, or reuse (like /home), and then there needs to be a status UI for that during the installation phase so we know what's going on.\n\n\"When using a dedicated installer image, the installer must be able to complete an installation using the text, graphical and VNC installation interfaces. This criterion covers showstopper bugs in the installer for which there isn't any other specific criterion: obviously, it can't 'complete an installation' if there's a showstopper.\""
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7743935",
+						"comment_count": "17",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2014-12-08 20:37:00 +0000",
+						"thetext": "I believe this comes from ce92b550a687547683bd36fe9419fb08894207fa , which was added to fix bug #1162215 . Note the explanation there:\n\n    Run fsck before obtaining minimum filesystem size. (#1162215)\n    \n    resize2fs -P now requires an e2fsck -f first. The lack of a real minimum\n    size left us with no useful minInstanceSize and allowed users to attempt\n    a shrink down to any size, which led to failures.\n    \n    If we have a currentSize, set filesystem."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7743943",
+						"comment_count": "18",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2014-12-08 20:39:30 +0000",
+						"thetext": "Leslie: there are not going to be any emergency fixes. When go/no-go finishes, that is it, the release is done. Nothing will change in the release images after the Go decision."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7744050",
+						"comment_count": "19",
+						"who": {
+							"text": "clumens",
+							"name": "Chris Lumens"
+						},
+						"bug_when": "2014-12-08 21:12:08 +0000",
+						"thetext": "*** Bug 1169542 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7744064",
+						"comment_count": "20",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2014-12-08 21:18:13 +0000",
+						"thetext": "Adam\nI thought so.  I sent a note to Pete Travis to update the F12 release note.\n\nI am not certain that the note too, is blocked from updates.  (Example, other distributions have corrected release notes after go-live).\n\nIf Pete is not the right person, please follow up.  It is important to update the wiki before tomorrow. I am not the only one to keep backup drives plugged in 24/7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7744085",
+						"comment_count": "21",
+						"who": {
+							"text": "bugzilla",
+							"name": "Chris Murphy"
+						},
+						"bug_when": "2014-12-08 21:23:30 +0000",
+						"thetext": "(In reply to Adam Williamson (Red Hat) from comment #17)\n> I believe this comes from ce92b550a687547683bd36fe9419fb08894207fa , which\n> was added to fix bug #1162215.\n\nYep, too bad as bcl predicted this bug in 1162215c21 if the check were applied to all volumes, not just user selected target devices.\n\nDraft commonbugs text: If the system has any combination of slow, many, or large, ext[234] volumes, the installer might hang. The hang could begin at any point from the Welcome & Language selection menu onward. This is due to the installer running e2fsck on all available ext volumes. Once the installer is launched, users are advised to wait for e2fsck instances to complete. As a work around prior to launching the installer, users can physically detach devices unrelated to the installation."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7744114",
+						"comment_count": "22",
+						"who": {
+							"text": "me",
+							"name": "Pete Travis"
+						},
+						"bug_when": "2014-12-08 21:39:41 +0000",
+						"thetext": "I think commonbugs is the best place for this info, thanks for the report and wiki entry."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7748356",
+						"comment_count": "23",
+						"who": {
+							"text": "dshea",
+							"name": "David Shea"
+						},
+						"bug_when": "2014-12-09 21:04:27 +0000",
+						"thetext": "*** Bug 1172324 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7749674",
+						"comment_count": "24",
+						"who": {
+							"text": "vpodzime",
+							"name": "Vratislav Podzimek"
+						},
+						"bug_when": "2014-12-10 08:02:55 +0000",
+						"thetext": "I think this actually is a bug e2fsprogs. blivet just tries to get information about existing storage devices and formats (disks, partitions, file systems,...) and anaconda needs this information before user does any disk/device selection. And with the follow-up patch for bug #1162215 (c0cccb8ee \"Try to get FS info first before doing an FS check\") no fsck should be run unless needed. \n\nThat means that:\n1) if you have damaged or cleanly unmounted file system on your machine before the installation, fsck is run, but it's probably not a good idea to run installation on such machine\n\n2) if your filesystems are clear and *everything works as expected*, there no fsck should be run\n\nAnd the thing that is not working as expected here is resize2fs requiring fsck to tell blivet the minimum size of the filesystem. Or does anybody disagree with this? Please let me know because I plan to reassign this bug to e2fsprogs."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7749811",
+						"comment_count": "25",
+						"who": {
+							"text": "bugzilla",
+							"name": "Chris Murphy"
+						},
+						"bug_when": "2014-12-10 08:47:26 +0000",
+						"thetext": "Well, in comment 14 I show log entries when UI is not further than the Welcome/Language menu, and it's running e2fsck -f -p on every ext volume available including the ext4 live system images. They can't all need fsck or we have other problems. When I do an e2fsck -f -p on an 8TB ext4 volume that's freshly created and has no files in it takes ~45 seconds. So 30-60 minutes for a large fs with a bunch of files in it, even if clean, doesn't seem outlandish. I'll add Eric Sandee to the bug, see what he thinks. Eric, maybe start at comment 21's draft text for a shorter summary of this bug rather than wading through the whole thing."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7750728",
+						"comment_count": "26",
+						"who": {
+							"text": "amulhern",
+							"name": "mulhern"
+						},
+						"bug_when": "2014-12-10 13:21:03 +0000",
+						"thetext": "<-- SNIP -->\n\n> And the thing that is not working as expected here is resize2fs requiring\n> fsck to tell blivet the minimum size of the filesystem. Or does anybody\n> disagree with this? Please let me know because I plan to reassign this bug\n> to e2fsprogs.\n\nI agree that this requirement seems wrong. Also, I know that it has not always been the case, or perhaps not for all situations. For resize2fs version 1.42.8 (the version on my desktop), on the tests that I run on filesystems on loop devices, e2fsck is not required to be run to get resize2fs -P to return an apparently meaningful value."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751166",
+						"comment_count": "27",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2014-12-10 14:41:39 +0000",
+						"thetext": "If you are unconditionally running \"e2fsck -f -p\" you are forcing a full check, and you get to wait for it.  If you're running it on every disk on every machine in the Fedora universe, you get to wait for every single possible attached drive.\n\nSo, not an e2fsprogs bug.\n\nresize2fs does now require a check prior to printing the minimum size, if the filesystem is in error or has a last-check-time set which has expired, because on corrupted filesystems the calculation could hang:\n\ncommit 7d7a8fe4ea4d9162977a1a6b32c4737d9ca9dd1f\nAuthor: Eric Sandeen <sandeen@redhat.com>\nDate:   Mon Jun 9 09:52:19 2014 -0400\n\n    resize2fs: don't attempt to calculate minimum size on fs with errors\n    \n...\n\n+       if (!(mount_flags & EXT2_MF_MOUNTED)) {\n+               if (!force && ((fs->super->s_lastcheck < fs->super->s_mtime) ||\n+                              (fs->super->s_state & EXT2_ERROR_FS) ||\n+                              ((fs->super->s_state & EXT2_VALID_FS) == 0))) {\n+                       fprintf(stderr,\n+                               _(\"Please run 'e2fsck -f %s' first.\\n\\n\"),\n+                               device_name);\n+                       exit(1);\n+               }\n+       }\n\nso there are filesystems out there which will require a check prior to resize2fs -P, but certainly not *all* of them.  You could attempt resize2fs -P, and if that fails w/ the above message, run e2fsck if you still really wanted to, alert the user, etc.\n\nAs always, if Anaconda or associated bits has filesystem questions, we're happy to help - wish I'd known about this earlier.\n\n-Eric"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751181",
+						"comment_count": "28",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2014-12-10 14:45:26 +0000",
+						"thetext": "Oh, damn.  Just reread the above check.\n\n(fs->super->s_lastcheck < fs->super->s_mtime)\n\ndoes indeed require fsck if it's mounted after the last check.\n\nhohum.\n\n-Eric"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751196",
+						"comment_count": "29",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2014-12-10 14:48:39 +0000",
+						"thetext": "Still, if we'd known about this requirement/problem in the installer, I think we probably could have relaxed that check.  :(\n\nWe didn't anticipate a workflow which ran resize2fs -P on many filesystems in a row, I guess.\n\n-Eric"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751663",
+						"comment_count": "30",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2014-12-10 15:20:22 +0000",
+						"thetext": "I've sent a patch upstream to drop the fsck requirement if we're only printing the minimum size."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7763959",
+						"comment_count": "31",
+						"who": {
+							"text": "vpodzime",
+							"name": "Vratislav Podzimek"
+						},
+						"bug_when": "2014-12-15 09:40:24 +0000",
+						"thetext": "(In reply to Eric Sandeen from comment #30)\n> I've sent a patch upstream to drop the fsck requirement if we're only\n> printing the minimum size.\nThanks! Are you okay with taking this bug? python-blivet (now) does exactly what you suggested in comment #27 -- attempt resize2fs -P, if that fails, e2fsck."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7766227",
+						"comment_count": "32",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2014-12-15 17:46:12 +0000",
+						"thetext": "Sure; the patch is merged upstream now, according to Ted (though not pushed yet, apparently).\n\nSadly my suggestion in #27 won't really work too well, it'll almost always fail.  So F20 is just kind of doomed for this, I guess.  Wish I'd known about the problem earlier, but oh well!\n\nPart of this bug seems to be that the user gets no feedback on a long fsck action; I don't know if it should be cloned to deal with that, if it' possible.\n\n-Eric"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7768508",
+						"comment_count": "33",
+						"who": {
+							"text": "vpodzime",
+							"name": "Vratislav Podzimek"
+						},
+						"bug_when": "2014-12-16 08:57:30 +0000",
+						"thetext": "(In reply to Eric Sandeen from comment #32)\n> Sure; the patch is merged upstream now, according to Ted (though not pushed\n> yet, apparently).\nThanks!\n\n> \n> Sadly my suggestion in #27 won't really work too well, it'll almost always\n> fail.  So F20 is just kind of doomed for this, I guess.  Wish I'd known\n> about the problem earlier, but oh well!\nYeah, what I meant by my comment is that blivet does what's right here.\n\n> \n> Part of this bug seems to be that the user gets no feedback on a long fsck\n> action; I don't know if it should be cloned to deal with that, if it'\n> possible.\nThat's a good point. I'm going to create a separate bug for it, though."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7815889",
+						"comment_count": "34",
+						"who": {
+							"text": "pschindl",
+							"name": "Petr Schindler"
+						},
+						"bug_when": "2015-01-07 17:01:35 +0000",
+						"thetext": "Discussed at today's blocker review meeting [1]. Rejected as a blocker. This bug doesn't clearly violate any criteria and looks to be getting worked on either way. Please repropose if it's found to violate another criterion.\n\n[1] http://meetbot.fedoraproject.org/fedora-blocker-review/2015-01-07/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7937418",
+						"comment_count": "35",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2015-02-13 22:30:10 +0000",
+						"thetext": "When can I test a F22 beta, so I can close this bug(let)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7972151",
+						"comment_count": "36",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-24 17:55:48 +0000",
+						"thetext": "e2fsprogs-1.42.12-3.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/e2fsprogs-1.42.12-3.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7972167",
+						"comment_count": "37",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-24 17:59:23 +0000",
+						"thetext": "e2fsprogs-1.42.12-3.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/e2fsprogs-1.42.12-3.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7975152",
+						"comment_count": "38",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-25 13:27:42 +0000",
+						"thetext": "Package e2fsprogs-1.42.12-3.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing e2fsprogs-1.42.12-3.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2511/e2fsprogs-1.42.12-3.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999901",
+						"comment_count": "39",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:22:57 +0000",
+						"thetext": "e2fsprogs-1.42.12-3.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8000022",
+						"comment_count": "40",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:34:28 +0000",
+						"thetext": "e2fsprogs-1.42.12-3.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8311463",
+						"comment_count": "41",
+						"who": {
+							"text": "bugzilla",
+							"name": "Andy Campbell"
+						},
+						"bug_when": "2015-06-06 11:14:38 +0000",
+						"thetext": "Still an issue installing F22.  Anaconda hangs while it is running e2fsck on each filesystem,  with no indication what its doing."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8312676",
+						"comment_count": "42",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-06-08 00:00:41 +0000",
+						"thetext": "With what version of e2fsprogs?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8315522",
+						"comment_count": "43",
+						"who": {
+							"text": "bcl",
+							"name": "Brian Lane"
+						},
+						"bug_when": "2015-06-08 16:26:41 +0000",
+						"thetext": "(In reply to Andy Campbell from comment #41)\n> Still an issue installing F22.  Anaconda hangs while it is running e2fsck on\n> each filesystem,  with no indication what its doing.\n\nPlease attach /tmp/program.log"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8319521",
+						"comment_count": "44",
+						"who": {
+							"text": "bugzilla",
+							"name": "Andy Campbell"
+						},
+						"bug_when": "2015-06-09 17:35:35 +0000",
+						"thetext": "e2fsprogs, as shipped with F22 ....\n\n[liveuser@localhost ~]$ rpm -qa | grep e2fsprogs\ne2fsprogs-1.42.12-4.fc22.x86_64\ne2fsprogs-libs-1.42.12-4.fc22.x86_64\n\n\nUploading requested logs.   \nAll I did was boot F22 Workstation live image from a USB stick and selected install. I waited for 30 mins or so for the fscks to complete,  PC was clean shutdown before booting off of the USB stick.\n\n[liveuser@localhost ~]$       grep e2fsck /tmp/program.log\n13:17:37,177 INFO program: Running... e2fsck -f -p -C 0 /dev/mapper/vg_neotrantor-entertainment\n13:17:41,118 INFO program: Running... e2fsck -f -p -C 0 /dev/mapper/vg_neotrantor-software\n13:17:44,939 INFO program: Running... e2fsck -f -p -C 0 /dev/mapper/vg_neotrantor-photos\n13:17:46,912 INFO program: Running... e2fsck -f -p -C 0 /dev/mapper/vg_neotrantor-stuff\n18:17:48,752 INFO program: Running... e2fsck -f -p -C 0 /dev/mapper/vg_neotrantor-VirtMch2\n18:23:50,320 INFO program: Running... e2fsck -f -p -C 0 /dev/sda1\n18:23:50,399 INFO program: Running... e2fsck -f -p -C 0 /dev/sda2\n18:23:50,746 INFO program: Running... e2fsck -f -p -C 0 /dev/mapper/fedora-mnt_VirtMch\n18:23:58,089 INFO program: Running... e2fsck -f -p -C 0 /dev/sdc5\n18:25:40,583 INFO program: Running... e2fsck -f -p -C 0 /dev/sdd1\n18:34:31,307 INFO program: Running... e2fsck -f -p -C 0 /dev/loop3\n18:34:31,313 INFO program: e2fsck: Cannot continue, aborting.\n18:34:31,379 INFO program: Running... e2fsck -f -p -C 0 /dev/mapper/live-rw\n18:34:31,387 INFO program: e2fsck: Cannot continue, aborting.\n18:34:31,435 INFO program: Running... e2fsck -f -p -C 0 /dev/mapper/live-base\n18:34:31,441 INFO program: e2fsck: Operation not permitted while trying to open /dev/mapper/live-base\n18:34:31,492 INFO program: Running... e2fsck -f -p -C 0 /dev/mapper/live-osimg-min\n18:34:31,497 INFO program: e2fsck: Operation not permitted while trying to open /dev/mapper/live-osimg-min"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8319523",
+						"comment_count": "45",
+						"who": {
+							"text": "bugzilla",
+							"name": "Andy Campbell"
+						},
+						"bug_when": "2015-06-09 17:36:32 +0000",
+						"thetext": "Created attachment 1036924\nRequest install log with e2fsck commands"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8319687",
+						"comment_count": "46",
+						"who": {
+							"text": "bcl",
+							"name": "Brian Lane"
+						},
+						"bug_when": "2015-06-09 18:45:06 +0000",
+						"thetext": "(In reply to Andy Campbell from comment #44)\n\n> 13:17:37,177 INFO program: Running... e2fsck -f -p -C 0\n> /dev/mapper/vg_neotrantor-entertainment\n\nThanks, this is a different problem. It looks like blivet is running e2fsck unconditionally. Please open a new bug against python-blivet with the logs from /tmp/*log attached to it as individual text/plain attachments."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9868136",
+						"comment_count": "47",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2016-11-07 18:46:10 +0000",
+						"thetext": "*** Bug 1390027 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9868146",
+						"comment_count": "48",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2016-11-07 18:53:48 +0000",
+						"thetext": "So this bug was never really fixed, and this is not really a 'different problem'.\n\nIn #1162215 we noticed that resize2fs was requiring us to run e2fsck before it would tell us a minimum size for the filesystem, so we started running it on all filesystems to make sure we could get the minimum size info.\n\nThis bug says 'wait a minute, instead of having anaconda fsck everything, we should just make resize2fs tell us the minimum size without requiring an fsck if the fs has been mounted since last check'.\n\nAnd so Eric changed resize2fs:\n\nhttps://git.kernel.org/cgit/fs/ext2/e2fsprogs.git/commit/?id=0462fd6db55de28d7e087d8d06ab20339acd8f67\n\nand then he submitted an update, and marked it as fixing this bug, and this bug got closed.\n\nBut that was wrong, because a crucial step was missed: we never actually changed anaconda/blivet back to not running fsck on everything again. It no longer *needed to*, but it still actually *was*.\n\nSo this bug has been the same bug all along, and never has been fixed. We actually need to change this code:\n\nhttps://github.com/rhinstaller/blivet/blob/2.1-devel/blivet/formats/fs.py#L122-L125\nhttps://github.com/rhinstaller/blivet/blob/2.1-devel/blivet/formats/fs.py#L277-L279\n\nbasically, `FS.__init__()` calls `self.update_size_info()` (which means that will run for *every* filesystem anaconda sees), and `update_size_info()` unconditionally runs `do_check()`, which if the filesystem in question is ext2/3/4, results in a run of `e2fsck -f -p -C 0` on that filesystem."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9868152",
+						"comment_count": "49",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2016-11-07 18:56:43 +0000",
+						"thetext": "For the record, cmurf correctly notes that this actually results in anaconda making changes to filesystems not involved in the install, because `e2fsck -p` means:\n\n-p    Automatically  repair  (\"preen\") the file system.  This option will cause e2fsck to automatically fix any filesystem problems that can be safely fixed without human intervention.\n\neven given that we trust it only makes 'safe' changes, that's pretty unexpected behaviour.\n\nAlso for the record, we re-considered the dupe (#1390027) as a blocker, but concluded that we'd stand by the original assessment of this bug as rejected blocker, even in light of the 'preen' thing."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9868290",
+						"comment_count": "50",
+						"who": {
+							"text": "cra",
+							"name": "Charles R. Anderson"
+						},
+						"bug_when": "2016-11-07 19:41:12 +0000",
+						"thetext": "(In reply to Adam Williamson from comment #49)\n> Also for the record, we re-considered the dupe (#1390027) as a blocker, but\n> concluded that we'd stand by the original assessment of this bug as rejected\n> blocker, even in light of the 'preen' thing.\n\nToo bad.  So now we have to wait for Fedora 26 to get this bug fixed?  What do those of us with large filesystems on the same disk that we want to install to do until then? (Other disks could be unplugged during install, but not the install destination disk.)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9868316",
+						"comment_count": "51",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2016-11-07 19:43:20 +0000",
+						"thetext": "\"Too bad.  So now we have to wait for Fedora 26 to get this bug fixed?\"\n\nI'm afraid so, yes.\n\n\"Too bad.  So now we have to wait for Fedora 26 to get this bug fixed?  What do those of us with large filesystems on the same disk that we want to install to do until then?\"\n\nI'll make an updates.img today and link it here and from common bugs. It's quite easy to hack out the fsck from the code in a slightly dirty way which isn't really appropriate to throw into the official release right now, but will work around the problem for those with giant filesystems."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9869444",
+						"comment_count": "52",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2016-11-08 00:27:57 +0000",
+						"thetext": "Will respins be able to have the corrected code?  In the past, Respins usually are generated a few days after the official Fedora Release.  Ditto for Remixes.\n\nThe latter two types of outputs (respin/remix) can prove the fix."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9869446",
+						"comment_count": "53",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2016-11-08 00:29:50 +0000",
+						"thetext": "Can't really say. Depends when we get around to fixing it and how complicated the fix is."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9869688",
+						"comment_count": "54",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2016-11-08 02:26:33 +0000",
+						"thetext": "https://www.happyassassin.net/updates/1170803.0.img should work around this for Fedora 25 users. Boot the installer with `inst.updates=https://www.happyassassin.net/updates/1170803.0.img` as a kernel parameter to use it.\n\n(for dlehman - I basically just ripped the `do_check()` out of `update_size_info() and put the finally: block back in line)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9894258",
+						"comment_count": "55",
+						"who": {
+							"text": "jeder",
+							"name": "Jeremy Eder"
+						},
+						"bug_when": "2016-11-15 20:42:31 +0000",
+						"thetext": "Thanks Adam, that worked for me.  And then after booting fedora I had to boot with fsck.mode=skip.\n\nThe reason is that the partition it wants to fsck is 1.5TB if git repos, and is only 7200rpm...probably would take days."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9903334",
+						"comment_count": "56",
+						"who": {
+							"text": "vpodzime",
+							"name": "Vratislav Podzimek"
+						},
+						"bug_when": "2016-11-18 13:08:40 +0000",
+						"thetext": "My take on this https://github.com/rhinstaller/blivet/pull/526"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9903520",
+						"comment_count": "57",
+						"who": {
+							"text": "cra",
+							"name": "Charles R. Anderson"
+						},
+						"bug_when": "2016-11-18 14:07:27 +0000",
+						"thetext": "(In reply to Vratislav Podzimek from comment #56)\n> My take on this https://github.com/rhinstaller/blivet/pull/526\n\nNo, I just tested this and -n still takes a very long time to run.  I had to wait 7.5 hours for the installer to get past this step, which is unacceptable.  The only solution is to remove the e2fsck call completely (or ask the user if they want to run it).  e2fsck is no longer required to solve the original reason that it was added since resize2fs was fixed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9907567",
+						"comment_count": "58",
+						"who": {
+							"text": "vpodzime",
+							"name": "Vratislav Podzimek"
+						},
+						"bug_when": "2016-11-21 09:09:16 +0000",
+						"thetext": "(In reply to Charles R. Anderson from comment #57)\n> (In reply to Vratislav Podzimek from comment #56)\n> > My take on this https://github.com/rhinstaller/blivet/pull/526\n> \n> No, I just tested this and -n still takes a very long time to run.  I had to\n> wait 7.5 hours for the installer to get past this step, which is\n> unacceptable.  The only solution is to remove the e2fsck call completely (or\n> ask the user if they want to run it).  e2fsck is no longer required to solve\n> the original reason that it was added since resize2fs was fixed.\n\nThe problem is that blivet/anaconda need to know if the file system is clean in order to decide whether it can be resized or not. The plan is to report that information from blivet to anaconda which could then ask user if they want to do a check or not. However, there's no fast, safe and noninvasive way to tell if an ext2/3/4 file system is clean or (probably) not. Maybe there should be some way to e.g. just check the journal? Without it, blivet/anaconda would consider all ext2/3/4 file systems unresizable and only after user explicitly runs checks on them they would be considered resizable (if the check succeeds, of course)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9908774",
+						"comment_count": "59",
+						"who": {
+							"text": "cra",
+							"name": "Charles R. Anderson"
+						},
+						"bug_when": "2016-11-21 15:07:42 +0000",
+						"thetext": "(In reply to Vratislav Podzimek from comment #58)\n> The problem is that blivet/anaconda need to know if the file system is clean\n> in order to decide whether it can be resized or not.\n\nPlease re-read Eric Sandeen's comment #27, especially this part:\n\n\"resize2fs: don't attempt to calculate minimum size on fs with errors\n    \n...\n\nso there are filesystems out there which will require a check prior to resize2fs -P, but certainly not *all* of them.  You could attempt resize2fs -P, and if that fails w/ the above message, run e2fsck if you still really wanted to, alert the user, etc.\"\n\n> However, there's no fast, safe and noninvasive\n> way to tell if an ext2/3/4 file system is clean or (probably) not. Maybe\n> there should be some way to e.g. just check the journal? Without it,\n> blivet/anaconda would consider all ext2/3/4 file systems unresizable and\n> only after user explicitly runs checks on them they would be considered\n> resizable (if the check succeeds, of course).\n\ntune2fs shows Filesystem features: needs_recovery if they filesystem is dirty.  You could replay the journal by mounting/unmounting the filesystem.  You could try resize2fs -P to get the minimum size without running e2fsck as Eric Sandeen suggests.  When it finally comes to doing the actual resize, you could try running the resize2fs and only run e2fsck if that fails.\n\nI believe the goals for any solution should be:\n\n1. e2fsck should only be run when necessary, and only on disks and filesystems that were specifically selected for resize or installation.  e.g. if you don't select a disk, don't check filesystems on that disk.  If you select a filesystem for reformat, it shouldn't be checked.  If you don't select a filesystem for any operations at all, it shouldn't be checked.\n\n[The current method of checking all disks, all filesystems fails to check encrypted partitions, so delaying checks until the last possible moment has the additional benefit that the checks could be applied to encrypted filesystems as well]\n\n2. On filesystems that have been selected for operations to be performed on them, avoid running e2fsck wherever possible.  Check for dirty flag with tune2fs, try mounting filesystem to cause the kernel to replay the journal if necessary, try resizing the filesystem without running e2fsck first.  Only if all those steps fail, then fall back to running e2fsck.\n\n3. As a last resort when e2fsck is determined to be necessary, ask the user to confirm this, warning them that it may take many hours or days to complete the check. (It might even be possible to estimate the time based on the speed of the disk and the \"used\" size of the filesystem.)\n\n4. When finally running e2fsck, provide visual feedback of the progress and allow the user to cancel the operation.\n\nThanks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9908798",
+						"comment_count": "60",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2016-11-21 15:13:54 +0000",
+						"thetext": "Perhaps one should select the drives to be part of the new installation before the integrity scan takes place. Post installation, one could start a background \"re-check\" on \"first boot\" or later. Implementing this change would be an anaconda design change F26/F27."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9909222",
+						"comment_count": "61",
+						"who": {
+							"text": "cra",
+							"name": "Charles R. Anderson"
+						},
+						"bug_when": "2016-11-21 17:04:45 +0000",
+						"thetext": "(In reply to Leslie Satenstein from comment #60)\n> Perhaps one should select the drives to be part of the new installation\n> before the integrity scan takes place. Post installation, one could start a\n> background \"re-check\" on \"first boot\" or later. Implementing this change\n> would be an anaconda design change F26/F27.\n\nYes, but partition (not just disk) selection also needs to take place, because large/full partitions on a single disk cause this issue also, and one cannot exactly remove a partition just to do the installation like one can for a separate disk.  I have a 2.4TB data partition which is 1.7T full which took 12 hours to fsck when I tested this again a couple days ago, even though the partition was 1) unmounted cleanly, 2) had no journal to replay, and 3) had no fsck auto-checking options set:\n\nMaximum mount count:      -1\nCheck interval:           0 (<none>)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9909787",
+						"comment_count": "62",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2016-11-21 19:30:24 +0000",
+						"thetext": "If Anaconda wants to present a minimum size for any particular extN partition, then as of recent e2fsprogs, that partition will simply need to be without errors for \"resize2fs -P\" to calculate a minimum size.\n\nBut being \"without errors\" does not mean that a full e2fsck must be run.  \"With errors\" is a flag which gets set on the superblock if the filesystem encountered a runtime error which has not yet been fixed.  That flag will not be present the vast majority of the time, and resize2fs -P will Just Work, and will present a minimum size without needing fsck on most filesystems.\n\n(Honestly, any filesystem which is presenting errors at install time should probably just be excluded (and noted) from the install targets - Anaconda should not be in the business of resolving such issues; if an existing filesystem requires repair that's something for the admin/owner to make a careful decision about before proceeding with a new install.)\n\nIf you actually want to shrink an extN filesystem, then it almost certainly will need an e2fsfsk first - it will only proceed if there have been no filesystem modifications since the last full fsck.  Shrinking is a very metadata intensive operation, and we don't want to run into inconsistencies and errors while performing that brain surgery, so a preceeding e2fsck is required - but only for filesystems which /will/ actually undergo shrink."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9909939",
+						"comment_count": "63",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2016-11-21 20:47:38 +0000",
+						"thetext": "The code is already written to check the filesystem prior to doing the actual shrink. The additional run of e2fck on all detected ext filesystems was very specifically added to deal with the 'resize2fs -P requires it' issue. I really think it would be pretty fine to just take it back out again.\n\nI might try and come up with a PR for this, but I'm not totally sure as I've got a lot of other stuff to do."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9910152",
+						"comment_count": "64",
+						"who": {
+							"text": "cristian.ciupitu",
+							"name": "Cristian Ciupitu"
+						},
+						"bug_when": "2016-11-21 22:16:12 +0000",
+						"thetext": "I'm not sure if this issue applies to me, but I shared a disk with a virtual machine and I tried to install Fedora 25 Beta on it. The disk had several partitions on it, and some were part of the BTRFS filesystem (volume). Since I wasn't planning to install Fedora on that filesystem, I didn't feel the need to unmount it, but somehow it got corrupted pretty badly about that time. Could the design of blivet have anything with it or was it just a coincidence?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9910276",
+						"comment_count": "65",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2016-11-21 23:53:05 +0000",
+						"thetext": "It seems very unlikely to have anything at all to do with this bug. For a start, this is specific to ext2/3/4."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9910439",
+						"comment_count": "66",
+						"who": {
+							"text": "cristian.ciupitu",
+							"name": "Cristian Ciupitu"
+						},
+						"bug_when": "2016-11-22 01:08:21 +0000",
+						"thetext": "I was under the impression that fsck is run for all possible filesystems, but it's more problematic for ext2/3/4 because it takes longer."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9910617",
+						"comment_count": "67",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2016-11-22 02:44:11 +0000",
+						"thetext": "No, that's not really the case. ext, FAT, NTFS and HFS+ partitions are checked. All others are not. I don't know how fast or slow FAT, NTFS and HFS+ partition checking is compared to ext checking, but in any case, btrfs partitions are not checked (because the BTRFS class does not override the FS class's definition of self._fsck_class as fsck.UnimplementedFSCK)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9911299",
+						"comment_count": "68",
+						"who": {
+							"text": "vpodzime",
+							"name": "Vratislav Podzimek"
+						},
+						"bug_when": "2016-11-22 09:41:11 +0000",
+						"thetext": "Updated https://github.com/rhinstaller/blivet/pull/526 to avoid the e2fsck call.\n\nHowever, I still don't think this is right. Blivet needs to know if the file system is in a good shape and can be resized. The \"if the tools tell us the minimum size, the file system is okay and resizable\" sounds twisted to me. Blivet should be able to get the information about the file system's shape in some quick way not based on any assumptions.\n\nEric, is there a way to run 'e2fsck' somehow for it to just check the 'clean' flag and return 0/1 based on the value of that flag? Would 'e2fsck -n' (without '-f') do that? If not, could such option be added?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9913032",
+						"comment_count": "69",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2016-11-22 16:45:18 +0000",
+						"thetext": "\"Blivet needs to know if the file system is in a good shape and can be resized.\"\n\nBut...at least AIUI, it really can't. Knowing whether the error flag has been set is not entirely the same thing. This is a 'the map is the territory' problem. As Eric said, if we're really going to *do* a resize, we have to do a full fsck before we do so. There is no way around that. And I believe there's no practical way to predict whether an fsck run will succeed any faster than simply *doing the fsck run*.\n\nTo put it another way:\n\n* We can quickly tell whether the error flag has been set.\n* If the error flag has been set, we know we must run an fsck before doing the resize.\n* If the error flag has not been set, we know we must run an fsck before doing the resize."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9913470",
+						"comment_count": "70",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2016-11-22 19:18:39 +0000",
+						"thetext": "As for the error flag, I'd say I think we all agree on this:\n\n* If the error flag is set, we should just consider the partition fundamentally non-resizable (and maybe provide sufficient info for a front-end like blivet or blivet-gui to display a warning/info box to the user telling them to check the filesystem).\n\nThe question, I guess, is whether it's OK to rely on resize2fs -M's implicit check of the error flag or not. So the question is really, does e2fsprogs upstream consider the error flag check an implementation detail of the -M feature, or a fundamental part of its job? i.e. if it somehow became the case that -M could be made to print a minimum size without checking the error flag, would they do that?\n\nIf so, then I agree with you that anaconda should ideally do an independent check of the error flag before bothering with the `resize2fs -M` call, and if the error flag is set, just mark the partition as not resizeable."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9913825",
+						"comment_count": "71",
+						"who": {
+							"text": "bugzilla",
+							"name": "Chris Murphy"
+						},
+						"bug_when": "2016-11-22 21:07:32 +0000",
+						"thetext": "This also seems unnecessary, it's run on the rootfs.img as part of the compose process, so there's no reason thousands of installations need to repeat that particular check.\n\nRunning... e2fsck -f -p -C 0 /dev/loop1\nRunning... e2fsck -f -p -C 0 /dev/mapper/live-rw\nRunning... e2fsck -f -p -C 0 /dev/mapper/live-base\n\nThe least amount of code change might be to just drop all of the flags being used, which should get a simple and fast pass/fail for whether e2fsck thinks the fs is clean.\n\nAnd then only run resize2fs to get a minimum size on ext234 file systems that are located on the user selected destination device. Once installation begins, either the real e2fsck prior to resize, or the resize operation could fail, so there needs to be error handing there anyway. I'm not really sure what's gained by checking everything in advance, whether the user has any intention to modify those file systems."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9913953",
+						"comment_count": "72",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2016-11-22 22:21:26 +0000",
+						"thetext": "(In reply to Vratislav Podzimek from comment #68)\n\n> Eric, is there a way to run 'e2fsck' somehow for it to just check the\n> 'clean' flag and return 0/1 based on the value of that flag? Would 'e2fsck\n> -n' (without '-f') do that? If not, could such option be added?\n\n\"clean\" simply means \"no log replay needed\" - I don't think there is any tool that allows you to query exactly that with a specific return value for the result.\n\nYou could also parse dumpe2fs -h output, it will contain one of the following:\n\nFilesystem state:         clean\nFilesystem state:         not clean\nFilesystem state:         clean, with errors\nFilesystem state:         not clean, with errors\n\nYou can quickly replay the log in userspace with e2fsck -E journal_only if \"not valid\" is the problem; if \"error\" is the problem, you must do a full e2fsck just to get the minimum size.  But again, if a filesystem is in this much distress I would /not/ try to have the installer deal with it.  Just ignore it and let the admin figure out what to do."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10190526",
+						"comment_count": "73",
+						"who": {
+							"text": "bcotton",
+							"name": "Fedora End Of Life"
+						},
+						"bug_when": "2017-02-28 09:39:02 +0000",
+						"thetext": "This bug appears to have been reported against 'rawhide' during the Fedora 26 development cycle.\nChanging version to '26'."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10437177",
+						"comment_count": "74",
+						"who": {
+							"text": "cra",
+							"name": "Charles R. Anderson"
+						},
+						"bug_when": "2017-05-22 21:34:38 +0000",
+						"thetext": "This bug still exists in the 20160521 nightly of Fedora 26.  Can it please be fixed before F26 release?  Thanks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10437179",
+						"comment_count": "75",
+						"who": {
+							"text": "cra",
+							"name": "Charles R. Anderson"
+						},
+						"bug_when": "2017-05-22 21:35:31 +0000",
+						"thetext": "Correction, 20170521 nightly of Fedora 26."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10437187",
+						"comment_count": "76",
+						"who": {
+							"text": "cra",
+							"name": "Charles R. Anderson"
+						},
+						"bug_when": "2017-05-22 21:37:36 +0000",
+						"thetext": "*** Bug 1189905 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10437189",
+						"comment_count": "77",
+						"who": {
+							"text": "cra",
+							"name": "Charles R. Anderson"
+						},
+						"bug_when": "2017-05-22 21:38:51 +0000",
+						"thetext": "*** Bug 1375894 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10437200",
+						"comment_count": "78",
+						"who": {
+							"text": "blockerbugs",
+							"name": "Fedora Blocker Bugs Application"
+						},
+						"bug_when": "2017-05-22 21:48:43 +0000",
+						"thetext": "Proposed as a Blocker for 26-beta by Fedora user cra using the blocker tracking app because:\n\n Violates:\n\nOther disks not touched [hide]\n\nDisks not selected as installation targets must not be affected by the installation process in any way."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10452603",
+						"comment_count": "79",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2017-05-26 21:10:52 +0000",
+						"thetext": "This bug has already been rejected as a blocker twice before. Do you have any particular rationale for re-considering it at this time?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10452625",
+						"comment_count": "80",
+						"who": {
+							"text": "cra",
+							"name": "Charles R. Anderson"
+						},
+						"bug_when": "2017-05-26 21:48:53 +0000",
+						"thetext": "(In reply to Adam Williamson from comment #79)\n> This bug has already been rejected as a blocker twice before. Do you have\n> any particular rationale for re-considering it at this time?\n\nBecause this violates the criterion given (don't touch disks/filesystems not selected for install).  Preen /may/ be safe, but are we sure it is safe and always will be and will never have a bug that might accidentally destroy data?  The whole point of disk selection is as an extra safeguard to avoid touching stuff you know will not be necessary for the install.\n\nBecause the purported reasons to keep doing e2fsck before disk/filesystem selection are bogus.  For example, there may be other filesystems that become available later that are never subjected to the early e2fsck (encrypted ones for example).\n\nBecause it is absurd to accept that installing Fedora takes 12+ hours where there are preexisting large filesystems unrelated to the installation due to the refusal to remove the broken workaround that was originally put in place as a /temporary/ way to solve another problem that has long since been fixed the correct way."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10452642",
+						"comment_count": "81",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2017-05-26 22:00:44 +0000",
+						"thetext": "So, nothing new, then?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10452646",
+						"comment_count": "82",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2017-05-26 22:03:06 +0000",
+						"thetext": "To be quite honest, I've lost the thread here.  Is there more work required in e2fsprogs to resolve this?  I /think/ I fixed the underlying problem in 2014, but if there's more to it, please remind me.\n\nThanks,\n-Eric"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10452648",
+						"comment_count": "83",
+						"who": {
+							"text": "bugzilla",
+							"name": "Chris Murphy"
+						},
+						"bug_when": "2017-05-26 22:11:51 +0000",
+						"thetext": "The relevant criterion is actually alpha:\nThe user must be able to select which of the disks connected to the system will be affected by the installation process. \nDisks not selected as installation targets must not be affected by the installation process in any way.\n\nIf the file system is clean, the disk is not affected, so the criterion is not violated. If the file system on the non-selected disk is fixed, then the criterion is violated. That's how the criterion reads. Since the installer still indiscriminately runs 'e2fsck -f -p -C 0' on all ext file systems, even on devices not selected as installation targets, it's very obviously a criterion violation.\n\nSo the rationale for reconsidering is, the previous explanations for rejecting it flat out ignore the criterion: non-selected disks must not be affected in any way; with just a handwave. So make it a blocker or revise the criterion.\n\nPer 62 and 72 I think anaconda needs to be out of the fsck business entirely. If dumpe2fs -h indicates the fs is clean, it can be included as an installation target. If it's anything other than clean, it's excluded."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10452652",
+						"comment_count": "84",
+						"who": {
+							"text": "bugzilla",
+							"name": "Chris Murphy"
+						},
+						"bug_when": "2017-05-26 22:22:12 +0000",
+						"thetext": "Since an fs volume other than \"clean\" is rare, it's arguably a local configuration issue that both the case where the file system is modified, and the file system is huge and fsck takes a long time. Since it doesn't always happen, it probably can be argued this is a conditional blocker.\n\nBut I still think the installer is being ornery, running e2fsck on everything in sight."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10452663",
+						"comment_count": "85",
+						"who": {
+							"text": "cra",
+							"name": "Charles R. Anderson"
+						},
+						"bug_when": "2017-05-26 22:47:35 +0000",
+						"thetext": "(In reply to Chris Murphy from comment #83)\n> So the rationale for reconsidering is, the previous explanations for\n> rejecting it flat out ignore the criterion: non-selected disks must not be\n> affected in any way; with just a handwave. So make it a blocker or revise\n> the criterion.\n\nI was just going to say the same thing.  I was busy looking into the history:\n\nThe original criterion for blocking Fedora 21 was:\n\n\"When using a dedicated installer image, the installer must be able to\ncomplete an installation using the text, graphical and VNC\ninstallation interfaces. This criterion covers showstopper bugs in the\ninstaller for which there isn't any other specific criterion:\nobviously, it can't 'complete an installation' if there's a\nshowstopper.\"\n\nThe decision was:\n\n\"1170803 - RejectedBlocker - This bug doesn't clearly violate any\ncriteria and looks to be getting worked on either way. Please\nrepropose if it's found to violate another criterion.\"\n\nThen the underlying issue with e2fsprogs was fixed and updated\npackages released.  Everyone had to wait until Fedora 22 for a\npossible installer fix, but blivet was never changed to remove the\nnow-no-longer-needed call to \"e2fsck -f -p\" on all EXT filesystems on\nall attached devices.\n\nI re-discovered this issue and filed a dupe (#1390027) which\nofficially asked for this to be blocked on the other critereon:\n\n\"Disk selection\n\nThe user must be able to select which of the disks connected to the\nsystem will be affected by the installation process.  Other disks not\ntouched [show] eferences [show]\"\n\nThe decision was:\n\n\"The decision to classify this bug as a RejectedBlocker and a\nRejectedFreezeException was made as this is an issue that has been\naround since Fedora 21 and has not blocked since. Though we note it\ncauses e2fsck to perform 'safe' fixes on non-selected filesystems, as\nwell as taking a long time if large ext2/3/4 filesystems are present,\nwe don't see sufficient reason to change that decision or change this\nas an FE at this time.\"\n\nLooking into the meetbot logs, some of the reasons given for the\nrejections are:\n\n- \"looks to be getting worked on either way\"\n- \"because this issue was been around since Fedora 21\"\n- \"because we are too close to the final release\"\n- \"so obviously there's no momentum to make it a blocker even though it meets the alteration requirement people were saying needed to be true to make it a blocker\"\n- \"it can survive one more release. But yes, let's ask for that to be prioritized\"\n\nHere we are 5 releases later.  I think these lines of reasoning\ndeserve to be reconsidered."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10452689",
+						"comment_count": "86",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2017-05-26 23:28:00 +0000",
+						"thetext": "So in future, if you're going to do this, could you please re-propose the bug as a blocker, say, *six weeks* before the relevant release? Rather than the day we do the go/no-go meeting?\n\nBecause now we've got another contentious issue thrown right back in at the death of a milestone that's already enough of a mess thanks to the libdb issue. It's a lot easier to make sensible decisions and ensure things are fixed properly when we're not all rushing around like a bunch of headless chickens trying to do things at the last minute."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10453544",
+						"comment_count": "87",
+						"who": {
+							"text": "cra",
+							"name": "Charles R. Anderson"
+						},
+						"bug_when": "2017-05-27 18:08:46 +0000",
+						"thetext": "(In reply to Adam Williamson from comment #86)\n> So in future, if you're going to do this, could you please re-propose the\n> bug as a blocker, say, *six weeks* before the relevant release? Rather than\n> the day we do the go/no-go meeting?\n\nSorry, I didn't re-discover this issue until this week when I tried an install on one of my systems that has large/filled filesystems.  I filed it on Monday, but it didn't go into the blocker tracker because of the RejectedBlocker keyword which I discovered/fixed on Friday.\n\n> Because now we've got another contentious issue thrown right back in at the\n> death of a milestone that's already enough of a mess thanks to the libdb\n> issue. It's a lot easier to make sensible decisions and ensure things are\n> fixed properly when we're not all rushing around like a bunch of headless\n> chickens trying to do things at the last minute.\n\nI'd be fine with moving this to a Final Blocker rather than Beta."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10454283",
+						"comment_count": "88",
+						"who": {
+							"text": "bugzilla",
+							"name": "Chris Murphy"
+						},
+						"bug_when": "2017-05-28 21:49:01 +0000",
+						"thetext": "(In reply to Adam Williamson from comment #86)\n> So in future, if you're going to do this, could you please re-propose the\n> bug as a blocker, say, *six weeks* before the relevant release? Rather than\n> the day we do the go/no-go meeting?\n\nThat's rather blame the messenger. We need a better procedure. I've long argued for a better kick the can down the road process.\n\nWhat we have now is kick the can down the road and hide it under the carpet. What I've suggested in the past, and ho hum rejected, is making certain bugs proposed as blockers as blocking the next release rather than the current release.\n\nA consistent procedure in writing sounds nice and ideal, but a subjective process where we just do that is already better than what we have right now. At least stop sweeping certain bugs under the carpet and hope they get fixed on their own (or that no one nominates it as a blocker again).\n\n\n> Because now we've got another contentious issue thrown right back in at the\n> death of a milestone that's already enough of a mess thanks to the libdb\n> issue. It's a lot easier to make sensible decisions and ensure things are\n> fixed properly when we're not all rushing around like a bunch of headless\n> chickens trying to do things at the last minute.\n\nThe procedure we have is what enables last minute running around.\n\nMaybe at freeze we have a hard cutoff for new blocker bugs that are not regressions? If it's a regression, then it's current release current milestone blocker worthy. And if not then it gets kicked down the road to one of the next two milestones: in this case that would be either Fedora 26 Final, or Fedora 27 Alpha.\n\nSo my proposal is to kick the can down the road, but do no sweep it under the carpet, make it a Fedora 26 Final blocker subject to the input from the team tasked with fixing it, and if they have a compelling argument for pushing it to Fedora 27 Alpha instead, then do that."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10459432",
+						"comment_count": "89",
+						"who": {
+							"text": "pschindl",
+							"name": "Petr Schindler"
+						},
+						"bug_when": "2017-05-30 16:37:56 +0000",
+						"thetext": "Discussed at 2017-05-30 blocker review meeting: [1]. \n\nThis bug was accepted as F27 Alpha blocker and rejected as F26 Beta blocker: This bug has been in existence for a while now, and it's too sweeping of a change to accept for F26 Beta. However, per the logic in Comment 88, we've accepted this as a violation of the Alpha \"No disks touched\" criterion for F27.\n\n[1] https://meetbot-raw.fedoraproject.org/fedora-blocker-review/2017-05-30/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10473429",
+						"comment_count": "90",
+						"who": {
+							"text": "marmarek",
+							"name": "Marek Marczykowski"
+						},
+						"bug_when": "2017-06-02 18:59:08 +0000",
+						"thetext": "Besides performance impact, this bug have also other aspects:\n - may cause data loss, if one use signed block device (dm-verity, like in Chromium OS), or have hibernated system on that disk\n - may lead to security issue - for example if you (re-)install system on previously compromised machine - then compromised system may try to leave specially crafted filesystem metadata to exploit fsck or other filesystem parsing code involved (see below) of the new system\n\nBoth applies also to mount and parsing selected files (/etc/fstab, /etc/os-release) from there. I hope this happens only to disks selected for installation - not all of them. Anyway it would be nice to have an option to opt-out from this feature - at the cost of not having detailed information in partitioning wizard.\n\nCross referencing downstream issue: https://github.com/QubesOS/qubes-issues/issues/2835"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10505565",
+						"comment_count": "91",
+						"who": {
+							"text": "mmuehlfe",
+							"name": "Marc Muehlfeld"
+						},
+						"bug_when": "2017-06-14 14:38:16 +0000",
+						"thetext": "I installed F26 beta yesterday. After I hit the \"next\" button on the first Anaconda screen, the installer freezed for about 5 minutes. In the \"ps\" output I saw that Anaconda run e2fsck processes on each partition of my 3 disks (2x 1 TB HDD, 1x 500 GB NVMe). The same freeze happened if I clicked the \"refresh\" button in the Anaconda partitioning tool to re-read the partition layout.\n\nIt would be nice if the installer could tell the user that it runs file system checks in the background and that it can take several minutes. A frozen installer without any information makes users nervous. :-)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10512374",
+						"comment_count": "92",
+						"who": {
+							"text": "vpodzime",
+							"name": "Vratislav Podzimek"
+						},
+						"bug_when": "2017-06-16 09:45:11 +0000",
+						"thetext": "An updates.img that should hopefully fix the issues:\nhttp://vpodzime.fedorapeople.org/1170803_updates.img\n\nPlease try!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10512701",
+						"comment_count": "93",
+						"who": {
+							"text": "kparal",
+							"name": "Kamil Páral"
+						},
+						"bug_when": "2017-06-16 11:52:33 +0000",
+						"thetext": "Hey Vratislav, can you please describe the changes you made? Thanks a lot."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10512891",
+						"comment_count": "94",
+						"who": {
+							"text": "vpodzime",
+							"name": "Vratislav Podzimek"
+						},
+						"bug_when": "2017-06-16 12:38:05 +0000",
+						"thetext": "It's this PR -- https://github.com/rhinstaller/blivet/pull/526 -- which basically does two things:\n\n1. changes how blivet runs e2fsck to not make any changes to the FS (because there's right now no way to ask user for confirmation)\n\n2. removes the FS checks when determining whether and FS instance is resizable and what its minimum size is because we no longer need to do it"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10524205",
+						"comment_count": "95",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2017-06-20 17:00:30 +0000",
+						"thetext": "Is the updates.img against current F26?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10526509",
+						"comment_count": "96",
+						"who": {
+							"text": "vpodzime",
+							"name": "Vratislav Podzimek"
+						},
+						"bug_when": "2017-06-21 09:09:29 +0000",
+						"thetext": "(In reply to Adam Williamson from comment #95)\n> Is the updates.img against current F26?\n\n\"current\" at the time it was created. Any problems with it?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10528907",
+						"comment_count": "97",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2017-06-21 18:19:19 +0000",
+						"thetext": "well, just trying to clarify what people should test with. I usually generate updates images against the tag matching the package build in current nightly composes, so people can properly test against a nightly compose..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10583894",
+						"comment_count": "98",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2017-07-11 18:28:21 +0000",
+						"thetext": "Seems like this has now been merged to blivet upstream, but not released yet. Vratislav, can we get it built for Rawhide and then we can finally close this one out? :)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10722098",
+						"comment_count": "99",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2017-08-20 16:33:54 +0000",
+						"thetext": "So this went into python-blivet-2.1.10-1, which is now built for Rawhide, F27 and F26. I'll mark it ON_QA for now, so we can verify the fix with recent Rawhide / F27 composes."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10722099",
+						"comment_count": "100",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2017-08-20 16:34:33 +0000",
+						"thetext": "Moving to Beta blocker, as we're not doing an Alpha for F27."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10733167",
+						"comment_count": "101",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2017-08-23 22:01:57 +0000",
+						"thetext": "Just as a note, the fix for this seems to have broken resizing - see https://bugzilla.redhat.com/show_bug.cgi?id=1484575 ."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10785759",
+						"comment_count": "102",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2017-09-12 01:55:57 +0000",
+						"thetext": "Can anyone who has a system where the impact of this is very obvious please test with any recent F27 compose and confirm whether it's fixed? Thanks. See https://www.happyassassin.net/nightlies.html for image download links (that's my personal domain, if you don't trust me, just verify the links are https links to Fedora domains before downloading)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10828417",
+						"comment_count": "103",
+						"who": {
+							"text": "kparal",
+							"name": "Kamil Páral"
+						},
+						"bug_when": "2017-09-25 16:45:28 +0000",
+						"thetext": "It seems no one with affected system is willing to test the fix. Closing the bug, hopefully everything works. It if doesn't, please reopen."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10829299",
+						"comment_count": "104",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2017-09-25 23:45:26 +0000",
+						"thetext": "Did not receive notice to do a test.  If it is part of kogj, I would have tested it.\nThe only request I received was today, Sept 25.\n\nMy email address has not changed.\n\nIt works better than before, I have been using \nFedora 27 pre-beta \nfor versions dated 02, 11, 18, 19, and 23 (on 5 disks with 6 systems).\n\nBefore the fix, the scan took 7 minutes elapsed to do the scan.\nI will post a response today (EST on improvements)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10829510",
+						"comment_count": "105",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2017-09-26 01:41:19 +0000",
+						"thetext": "I have tested the fixes using \n\nFedora-Workstation-netinst-x86_64-27-20170925.n.0.iso \n\n\nFrom the clicking of Continue (and responding yes to the beta \"risk message\",\n\nElapsed time dropped from seven minutes to about 2.¼ minutes.\n\nA substantial improvement. A posiitive change.\n\n\nThank you.\n\nLeslie\n\n\nPS. I never received any emails notifications about readiness, except for Comment 103.  I do check spam filters.\n\n7 minutes --> 2.25 minutes to scan 7 Fedora distributions file systems.\nlvm, btrfs, btrfs, ext4.  F25, F26 3x(F27 test) \n\nHere is what I have that I used  for timings\n\n4 disks are 1 terrabyte sata2 units.  1 is an SSD. \nI typically scratch the DISKC to test nightlies on true hardware.\n\nDISKA F27 lvm  GNOME         test\nDISKB F26 ext4 XFCE\nDISKC F27 btrfs Gnome        test    \nDISKC F27 lvmthin GNOME      test\nDISKD F25 ext4    GNOME      test\nDISKE F26 BTRFS W /Home on xfs GNOME   \n\nSystem Ram 8 gigs. CPU Q9650 (Dual core 64bit Intel, circa 2012)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10829580",
+						"comment_count": "106",
+						"who": {
+							"text": "lsatenstein",
+							"name": "Leslie Satenstein"
+						},
+						"bug_when": "2017-09-26 02:19:48 +0000",
+						"thetext": "Addendum\n\nAll spinning disks are 7200rpm, each with 64megs cache, and 2 have NCQ\n\nA second test ran in 2 minutes, about 15 seconds shorter time.\n\nSeven minutes to 2 minutes is great."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10835044",
+						"comment_count": "107",
+						"who": {
+							"text": "vpodzime",
+							"name": "Vratislav Podzimek"
+						},
+						"bug_when": "2017-09-27 11:44:27 +0000",
+						"thetext": "(In reply to Leslie Satenstein from comment #106)\n> Addendum\n> \n> All spinning disks are 7200rpm, each with 64megs cache, and 2 have NCQ\n> \n> A second test ran in 2 minutes, about 15 seconds shorter time.\n> \n> Seven minutes to 2 minutes is great.\n\nCool!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10836449",
+						"comment_count": "108",
+						"who": {
+							"text": "cra",
+							"name": "Charles R. Anderson"
+						},
+						"bug_when": "2017-09-27 16:20:37 +0000",
+						"thetext": "Also confirmed that this works for me now.  No e2fsck is being run before disk selection or custom partitioning.  No more 12+ hour wait at the Language Selection screen from trying to fsck 1.7TB of data.  Thanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10867184",
+						"comment_count": "109",
+						"who": {
+							"text": "jansen",
+							"name": "David Jansen"
+						},
+						"bug_when": "2017-10-09 08:19:00 +0000",
+						"thetext": "I ask here since the Fedora 25 common bugs has a link to this issue: the installer update fro F25 mentioned there and here, seems to be gone or off-line. Is this installer image mirrored somewhere? (I know I could switch to F26 but keeping all systems in a computer classroom at the same version would be preferable)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10867673",
+						"comment_count": "110",
+						"who": {
+							"text": "kparal",
+							"name": "Kamil Páral"
+						},
+						"bug_when": "2017-10-09 09:52:03 +0000",
+						"thetext": "David, we'll try to get the web server back up.\n\nAdam, happyassassin.net seems to be down and therefore https://www.happyassassin.net/updates/1170803.0.img can't be downloaded. Can you please fix?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10871190",
+						"comment_count": "111",
+						"who": {
+							"text": "jansen",
+							"name": "David Jansen"
+						},
+						"bug_when": "2017-10-10 07:22:53 +0000",
+						"thetext": "The site seems to be back, thanks for fixing!\nAs an additional note: wouldn't it be advisable if there are installer updates like this that are advertised in teh release notes/ common bugs, to host these at Fedora, preferrably on the mirrors like rpm updates?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10878372",
+						"comment_count": "112",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2017-10-11 22:11:24 +0000",
+						"thetext": "Frankly it's just rather *easier* for me to do it on my personal domain. These are not being provided as Official Fedora Updates, it's just something I'm doing as a courtesy. It wouldn't actually be appropriate to publish this as if it were an Official Fedora Update as no-one at all besides me has verified the contents :) (you can of course expand the image file to check what's in it).\n\nThe site usually stays up pretty well, but I went on vacation and my cable modem somehow lost its signal a week before I got back, so it was down till I could get back and power cycle it. Sorry about that."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1192861,
+			"title": "e2fsck seg faults on 6TB HDD",
+			"bugzilla": {
+				"bug_id": "1192861",
+				"creation_ts": "2015-02-16 00:00:57 +0000",
+				"short_desc": "e2fsck seg faults on 6TB HDD",
+				"delta_ts": "2015-03-04 10:23:03 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "urgent",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7939660",
+						"comment_count": "0",
+						"who": {
+							"text": "grgoffe",
+							"name": "George R. Goffe"
+						},
+						"bug_when": "2015-02-16 00:00:57 +0000",
+						"thetext": "Description of problem:\n\nRight after a reboot, I attempted to run e2fsck on a 6TB disk. e2fsck seg faulted. Additionally, it seems that devfs is not always picking up partitions on non-boot drives.\n\nVersion-Release number of selected component (if applicable):\n\n1.42.12\n\nHow reproducible:\n\nAlways\n\nSteps to Reproduce:\n1.e2fsck /dev/sdc1\n2.\n3.\n\nActual results:\n\nsegfault\n\nExpected results:\n\nproper execution\n\nAdditional info:\n\ne2fsck /dev/sdc1\ne2fsck 1.42.12 (29-Aug-2014)\n/dev/sdc1: clean, 41954804/183144448 files, 1388934908/1465130385 blocks\nSignal (11) SIGSEGV si_code=SI_KERNEL fault addr=(nil)\ne2fsck[0x427ed2]\n/usr/lib64/libc.so.6[0x3852c34950]\n/usr/lib64/libext2fs.so.2(ext2fs_free_dblist+0x1d)[0x3f9c01cbfd]\ne2fsck(e2fsck_reset_context+0x104)[0x40dd44]\ne2fsck(e2fsck_free_context+0x26)[0x40dfd6]\ne2fsck(main+0x237f)[0x40b9cf]\n/usr/lib64/libc.so.6(__libc_start_main+0xf0)[0x3852c1ffe0]\ne2fsck[0x40be8e]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7939699",
+						"comment_count": "1",
+						"who": {
+							"text": "grgoffe",
+							"name": "George R. Goffe"
+						},
+						"bug_when": "2015-02-16 00:05:29 +0000",
+						"thetext": "Additionally, \"yum downgrade e2fsprogs\" produces:\n\nyum downgrade e2fsprogs\nLoaded plugins: etckeeper, langpacks\nrpmfusion-free-updates                                                                                                      | 2.7 kB  00:00:00     \nrpmfusion-nonfree-updates                                                                                                   | 2.7 kB  00:00:00     \nupdates/21/x86_64/metalink                                                                                                  |  14 kB  00:00:00     \nupdates                                                                                                                     | 4.9 kB  00:00:00     \nupdates/21/x86_64/primary_db                                                                                                | 5.0 MB  00:00:14     \n(1/2): updates/21/x86_64/updateinfo                                                                                         | 597 kB  00:00:01     \n(2/2): updates/21/x86_64/pkgtags                                                                                            | 1.3 MB  00:00:01     \nResolving Dependencies\n--> Running transaction check\n---> Package e2fsprogs.x86_64 0:1.42.11-4.fc21 will be a downgrade\n--> Processing Dependency: libss = 1.42.11-4.fc21 for package: e2fsprogs-1.42.11-4.fc21.x86_64\n--> Processing Dependency: libcom_err(x86-64) = 1.42.11-4.fc21 for package: e2fsprogs-1.42.11-4.fc21.x86_64\n--> Processing Dependency: e2fsprogs-libs(x86-64) = 1.42.11-4.fc21 for package: e2fsprogs-1.42.11-4.fc21.x86_64\n---> Package e2fsprogs.x86_64 0:1.42.12-1.fc21 will be erased\n--> Running transaction check\n---> Package e2fsprogs.x86_64 0:1.42.11-4.fc21 will be a downgrade\n--> Processing Dependency: libcom_err(x86-64) = 1.42.11-4.fc21 for package: e2fsprogs-1.42.11-4.fc21.x86_64\n--> Processing Dependency: e2fsprogs-libs(x86-64) = 1.42.11-4.fc21 for package: e2fsprogs-1.42.11-4.fc21.x86_64\n---> Package libss.i686 0:1.42.11-4.fc21 will be installed\n--> Processing Dependency: libcom_err(x86-32) = 1.42.11-4.fc21 for package: libss-1.42.11-4.fc21.i686\n--> Finished Dependency Resolution\nError: Package: libss-1.42.11-4.fc21.i686 (fedora)\n           Requires: libcom_err(x86-32) = 1.42.11-4.fc21\n           Installed: libcom_err-1.42.12-1.fc21.i686 (@updates)\n               libcom_err(x86-32) = 1.42.12-1.fc21\n           Available: libcom_err-1.42.11-4.fc21.i686 (fedora)\n               libcom_err(x86-32) = 1.42.11-4.fc21\nError: Package: e2fsprogs-1.42.11-4.fc21.x86_64 (fedora)\n           Requires: libcom_err(x86-64) = 1.42.11-4.fc21\n           Installed: libcom_err-1.42.12-1.fc21.x86_64 (@updates)\n               libcom_err(x86-64) = 1.42.12-1.fc21\n           Available: libcom_err-1.42.11-4.fc21.x86_64 (fedora)\n               libcom_err(x86-64) = 1.42.11-4.fc21\nError: Package: e2fsprogs-1.42.11-4.fc21.x86_64 (fedora)\n           Requires: e2fsprogs-libs(x86-64) = 1.42.11-4.fc21\n           Installed: e2fsprogs-libs-1.42.12-1.fc21.x86_64 (@updates)\n               e2fsprogs-libs(x86-64) = 1.42.12-1.fc21\n           Available: e2fsprogs-libs-1.42.11-4.fc21.x86_64 (fedora)\n               e2fsprogs-libs(x86-64) = 1.42.11-4.fc21\n You could try using --skip-broken to work around the problem\n** Found 4 pre-existing rpmdb problem(s), 'yum check' output follows:\nbeefy-miracle-backgrounds-16.91.0-7.fc21.noarch has missing requires of beefy-miracle-backgrounds-gnome = ('0', '16.91.0', '7.fc21')\ndrupal6-features_extra-1.0-0.6.dev.fc21.noarch has missing requires of drupal6-ctools >= ('0', '1.8', None)\ndrupal6-feeds-1.0-0.13.beta13.fc21.noarch has missing requires of drupal6-ctools\ndrupal6-strongarm-2.2-3.fc21.noarch has missing requires of drupal6-ctools >= ('0', '1.8', None)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7942971",
+						"comment_count": "2",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-02-16 20:36:38 +0000",
+						"thetext": "Please keep separate issues in separate bugs; let's address the segfault issue here.  If you have problems with dependencies or devfs, please file separate bugs for those.\n\nCan you install the debuginfo rpm and gather a core file?\n\nOr gather an e2image -r of the filesystem, (or -q if it's big), and we'll see if we can reproduce using that.\n\nBut this is strange, it looks the same as https://bugzilla.redhat.com/show_bug.cgi?id=1164381 which was fixed a while ago; let me see if that's a regression...\n\nThanks,\n-Eric"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7943003",
+						"comment_count": "3",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-02-16 20:56:48 +0000",
+						"thetext": "Bah, never mind, I can reproduce it, sigh.\n\n==22407== Invalid read of size 8\n==22407==    at 0x411BB3: e2fsck_reset_context (e2fsck.c:87)\n==22407==    by 0x411E2D: e2fsck_free_context (e2fsck.c:177)\n==22407==    by 0x40E5F5: check_if_skip (unix.c:462)\n==22407==    by 0x41037D: main (unix.c:1591)\n==22407==  Address 0x4c2ca90 is 144 bytes inside a block of size 296 free'd\n==22407==    at 0x4A063F0: free (vg_replace_malloc.c:446)\n==22407==    by 0x436253: ext2fs_close2 (closefs.c:494)\n==22407==    by 0x4362FD: ext2fs_close_free (closefs.c:447)\n==22407==    by 0x40E5ED: check_if_skip (unix.c:461)\n==22407==    by 0x41037D: main (unix.c:1591)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7943043",
+						"comment_count": "4",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-02-16 21:15:12 +0000",
+						"thetext": "commit ebdf895b43a1ce499e4d2556a201e2a753fc422f\nAuthor: Theodore Ts'o <tytso@mit.edu>\nDate:   Wed Oct 8 11:18:41 2014 -0400\n\n    e2fsck: fix free pointer dereferences\n    \n    Commit 47fee2ef6a23a introduces some free pointer dereference bugs by\n    not clearing ctx->fs after calling ext2fs_close_free().\n    \n    Reported-by: Matthias Andree <mandree@FreeBSD.org>\n    Cc: Lukas Czerner <lczerner@redhat.com>\n    Signed-off-by: Theodore Ts'o <tytso@mit.edu>"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7943592",
+						"comment_count": "5",
+						"who": {
+							"text": "grgoffe",
+							"name": "George R. Goffe"
+						},
+						"bug_when": "2015-02-17 02:59:07 +0000",
+						"thetext": "Eric,\n\nI installed debuginfo for e2fsprogs and am still getting the segfault but no core file. Is there a way to force a core file? I have ulimit -c set to unlimited.\n\nGeorge..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7943750",
+						"comment_count": "6",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-02-17 05:36:49 +0000",
+						"thetext": "I'm not sure why ulimit -c unlimited wouldn't drop a core.\n\nBut I'm 98% sure the commit above fixes it, so no worries if you can't get one."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7952265",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-17 21:24:33 +0000",
+						"thetext": "e2fsprogs-1.42.12-2.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/e2fsprogs-1.42.12-2.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7952300",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-17 21:30:40 +0000",
+						"thetext": "e2fsprogs-1.42.12-2.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/e2fsprogs-1.42.12-2.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7952875",
+						"comment_count": "9",
+						"who": {
+							"text": "grgoffe",
+							"name": "George R. Goffe"
+						},
+						"bug_when": "2015-02-18 03:30:55 +0000",
+						"thetext": "Eric,\n\nI took the liberty of gathering up the rpms from the link for fc21 above and tried a test install. Here's what I got:\n\nGeorge...\n\nrpm --test -ivh *.rpm\nPreparing...                          ################################# [100%]\n        file /usr/lib64/libcom_err.so.2.1 from install of libcom_err-1.42.12-2.fc21.x86_64 conflicts with file from package libcom_err-1.42.12-1.fc21.x86_64\n        file /usr/lib64/libe2p.so.2.3 from install of e2fsprogs-libs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-libs-1.42.12-1.fc21.x86_64\n        file /usr/lib64/libext2fs.so.2.4 from install of e2fsprogs-libs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-libs-1.42.12-1.fc21.x86_64\n        file /usr/lib64/libss.so.2.0 from install of libss-1.42.12-2.fc21.x86_64 conflicts with file from package libss-1.42.12-1.fc21.x86_64\n        file /etc/e2fsck.conf from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/bin/chattr from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/bin/lsattr from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/badblocks from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/debugfs from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/dumpe2fs from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/e2freefrag from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/e2fsck from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/e2image from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/e2label from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/e2undo from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/e4defrag from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/filefrag from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/fsck.ext2 from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/fsck.ext3 from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/fsck.ext4 from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/fsck.ext4dev from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/logsave from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/mke2fs from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/mkfs.ext2 from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/mkfs.ext3 from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/mkfs.ext4 from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/mkfs.ext4dev from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/mklost+found from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/resize2fs from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/sbin/tune2fs from install of e2fsprogs-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-1.42.12-1.fc21.x86_64\n        file /usr/lib64/libcom_err.a from install of e2fsprogs-static-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-static-1.42.12-1.fc21.x86_64\n        file /usr/lib64/libe2p.a from install of e2fsprogs-static-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-static-1.42.12-1.fc21.x86_64\n        file /usr/lib64/libext2fs.a from install of e2fsprogs-static-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-static-1.42.12-1.fc21.x86_64\n        file /usr/lib64/libss.a from install of e2fsprogs-static-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-static-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/bin/chattr.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/bin/lsattr.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/lib64/libcom_err.so.2.1.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/lib64/libe2p.so.2.3.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/lib64/libext2fs.so.2.4.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/lib64/libss.so.2.0.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/badblocks.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/debugfs.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/dumpe2fs.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/e2freefrag.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/e2fsck.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/e2image.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/e2label.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/e2undo.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/e4defrag.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/filefrag.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/fsck.ext2.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/fsck.ext3.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/fsck.ext4.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/fsck.ext4dev.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/logsave.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/mke2fs.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/mkfs.ext2.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/mkfs.ext3.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/mkfs.ext4.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/mkfs.ext4dev.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/mklost+found.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/resize2fs.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/lib/debug/usr/sbin/tune2fs.debug from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64\n        file /usr/src/debug/e2fsprogs-1.42.12/e2fsck/unix.c from install of e2fsprogs-debuginfo-1.42.12-2.fc21.x86_64 conflicts with file from package e2fsprogs-debuginfo-1.42.12-1.fc21.x86_64"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7952919",
+						"comment_count": "10",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-02-18 04:34:01 +0000",
+						"thetext": "rpm -Uvh"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7957564",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-19 02:57:30 +0000",
+						"thetext": "Package e2fsprogs-1.42.12-2.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing e2fsprogs-1.42.12-2.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2241/e2fsprogs-1.42.12-2.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7964515",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-21 04:24:30 +0000",
+						"thetext": "e2fsprogs-1.42.12-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7964619",
+						"comment_count": "13",
+						"who": {
+							"text": "grgoffe",
+							"name": "George R. Goffe"
+						},
+						"bug_when": "2015-02-21 08:38:17 +0000",
+						"thetext": "Eric,\n\nI have updated my system and this bug appears to be gone now.\n\nI REALLY appreciate your help and time and patience in solving this but.\n\nRegards,\n\nGeorge..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7972153",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-24 17:55:53 +0000",
+						"thetext": "e2fsprogs-1.42.12-3.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/e2fsprogs-1.42.12-3.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999903",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:23:03 +0000",
+						"thetext": "e2fsprogs-1.42.12-3.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1193945,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-1572 e2fsprogs: potential buffer overflow in closefs() (incomplete CVE-2015-0247 fix)",
+			"bugzilla": {
+				"bug_id": "1193945",
+				"alias": "CVE-2015-1572",
+				"creation_ts": "2015-02-18 15:36:40 +0000",
+				"short_desc": "CVE-2015-1572 e2fsprogs: potential buffer overflow in closefs() (incomplete CVE-2015-0247 fix)",
+				"delta_ts": "2021-02-17 05:38:28 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "WONTFIX",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1193947"
+				],
+				"blocked": [
+					{
+						"bug_id": "1187035",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1193946",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7955936",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-18 15:36:40 +0000",
+						"thetext": "From the upstream commit [1]:\n\"\"\"\nThe bug fix in f66e6ce4446: \"libext2fs: avoid buffer overflow if s_first_meta_bg is too big\" had a typo in the fix for ext2fs_closefs(). In practice most of the security exposure was from the openfs path, since this meant if there was a carefully crafted file system, buffer overrun would be triggered when the file system was opened. However, if corrupted file system didn't trip over some corruption check, and then the file system was modified via tune2fs or debugfs, such that the superblock was marked dirty and then written out via the closefs() path, it's possible that the buffer overrun could be triggered when the file system is closed. \n\"\"\"\n\n[1]: https://git.kernel.org/cgit/fs/ext2/e2fsprogs.git/commit/?id=49d0fe2a14f2a23da2fe299643379b8c1d37df73"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7955941",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-18 15:37:39 +0000",
+						"thetext": "\nCreated e2fsprogs tracking bugs for this issue:\n\nAffects: fedora-all [bug 1193947]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7957915",
+						"comment_count": "2",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-02-19 07:56:32 +0000",
+						"thetext": "(In reply to Vasyl Kaigorodov from comment #0)\n> The bug fix in f66e6ce4446: \"libext2fs: avoid buffer overflow if\n> s_first_meta_bg is too big\" had a typo in the fix for ext2fs_closefs().\n\nThat commit is the fix for CVE-2015-0247 (see bug 1187032), so CVE-2015-1572 really is an incomplete / incorrect CVE-2015-0247 fix id.  The original issue has not yet been fixed in Red Hat Enterprise Linux.  Fixes for it are available in Fedora.\n\nCompared to the original issue, this flaw requires few additional conditions that must be met to be exploited - see upstream commit comment (quoted in comment 0 above) for details.\n\nThere is no new upstream release yet.  Version 1.42.13 is probably going to be next, which should include the fix for this issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999904",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:23:05 +0000",
+						"thetext": "e2fsprogs-1.42.12-3.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8000023",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:34:31 +0000",
+						"thetext": "e2fsprogs-1.42.12-3.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9405013",
+						"comment_count": "6",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2016-06-10 20:56:09 +0000",
+						"thetext": "Statement:\n\nThis issue affects e2fsprogs packages as shipped with Red Hat Enterprise Linux 6 and 7. This issue is not currently planned to be addressed in future updates. For additional information, refer to the Issue Severity Classification: https://access.redhat.com/security/updates/classification/.\n\nThis issue affects e4fsprogs packages as shipped with Red Hat Enterprise Linux 5. The issue is not planned to be addressed in Red Hat Enterprise Linux 5.\n\nThis issue did not affect e2fsprogs packages as shipped with Red Hat Enterprise Linux 5."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1193947,
+			"security": true,
+			"title": "CVE-2015-1572 e2fsprogs: potential buffer overflow in closefs() [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1193947",
+				"creation_ts": "2015-02-18 15:37:32 +0000",
+				"short_desc": "CVE-2015-1572 e2fsprogs: potential buffer overflow in closefs() [fedora-all]",
+				"delta_ts": "2015-03-04 10:34:25 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1193945",
+						"alias": "CVE-2015-1572",
+						"creation_ts": "2015-02-18 15:36:40 +0000",
+						"short_desc": "CVE-2015-1572 e2fsprogs: potential buffer overflow in closefs() (incomplete CVE-2015-0247 fix)",
+						"delta_ts": "2021-02-17 05:38:28 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "WONTFIX",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1193947"
+						],
+						"blocked": [
+							{
+								"bug_id": "1187035",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1193946",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7955936",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-02-18 15:36:40 +0000",
+								"thetext": "From the upstream commit [1]:\n\"\"\"\nThe bug fix in f66e6ce4446: \"libext2fs: avoid buffer overflow if s_first_meta_bg is too big\" had a typo in the fix for ext2fs_closefs(). In practice most of the security exposure was from the openfs path, since this meant if there was a carefully crafted file system, buffer overrun would be triggered when the file system was opened. However, if corrupted file system didn't trip over some corruption check, and then the file system was modified via tune2fs or debugfs, such that the superblock was marked dirty and then written out via the closefs() path, it's possible that the buffer overrun could be triggered when the file system is closed. \n\"\"\"\n\n[1]: https://git.kernel.org/cgit/fs/ext2/e2fsprogs.git/commit/?id=49d0fe2a14f2a23da2fe299643379b8c1d37df73"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7955941",
+								"comment_count": "1",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-02-18 15:37:39 +0000",
+								"thetext": "\nCreated e2fsprogs tracking bugs for this issue:\n\nAffects: fedora-all [bug 1193947]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7957915",
+								"comment_count": "2",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-02-19 07:56:32 +0000",
+								"thetext": "(In reply to Vasyl Kaigorodov from comment #0)\n> The bug fix in f66e6ce4446: \"libext2fs: avoid buffer overflow if\n> s_first_meta_bg is too big\" had a typo in the fix for ext2fs_closefs().\n\nThat commit is the fix for CVE-2015-0247 (see bug 1187032), so CVE-2015-1572 really is an incomplete / incorrect CVE-2015-0247 fix id.  The original issue has not yet been fixed in Red Hat Enterprise Linux.  Fixes for it are available in Fedora.\n\nCompared to the original issue, this flaw requires few additional conditions that must be met to be exploited - see upstream commit comment (quoted in comment 0 above) for details.\n\nThere is no new upstream release yet.  Version 1.42.13 is probably going to be next, which should include the fix for this issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7999904",
+								"comment_count": "3",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-04 10:23:05 +0000",
+								"thetext": "e2fsprogs-1.42.12-3.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8000023",
+								"comment_count": "4",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-04 10:34:31 +0000",
+								"thetext": "e2fsprogs-1.42.12-3.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9405013",
+								"comment_count": "6",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2016-06-10 20:56:09 +0000",
+								"thetext": "Statement:\n\nThis issue affects e2fsprogs packages as shipped with Red Hat Enterprise Linux 6 and 7. This issue is not currently planned to be addressed in future updates. For additional information, refer to the Issue Severity Classification: https://access.redhat.com/security/updates/classification/.\n\nThis issue affects e4fsprogs packages as shipped with Red Hat Enterprise Linux 5. The issue is not planned to be addressed in Red Hat Enterprise Linux 5.\n\nThis issue did not affect e2fsprogs packages as shipped with Red Hat Enterprise Linux 5."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7955939",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-18 15:37:32 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7955940",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-18 15:37:37 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1193945,1193947\n\n# Description of your update\nnotes=Security fix for CVE-2015-1572\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1193945,1193947"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7972149",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-24 17:55:45 +0000",
+						"thetext": "e2fsprogs-1.42.12-3.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/e2fsprogs-1.42.12-3.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7972165",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-24 17:59:20 +0000",
+						"thetext": "e2fsprogs-1.42.12-3.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/e2fsprogs-1.42.12-3.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7975149",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-25 13:27:39 +0000",
+						"thetext": "Package e2fsprogs-1.42.12-3.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing e2fsprogs-1.42.12-3.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2511/e2fsprogs-1.42.12-3.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999897",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:22:53 +0000",
+						"thetext": "e2fsprogs-1.42.12-3.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8000019",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:34:25 +0000",
+						"thetext": "e2fsprogs-1.42.12-3.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1194063,
+			"title": "[abrt] e2fsprogs: strlen(): dumpe2fs killed by SIGSEGV",
+			"bugzilla": {
+				"bug_id": "1194063",
+				"creation_ts": "2015-02-18 22:13:47 +0000",
+				"short_desc": "[abrt] e2fsprogs: strlen(): dumpe2fs killed by SIGSEGV",
+				"delta_ts": "2015-03-13 14:40:50 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"bug_file_loc": "https://retrace.fedoraproject.org/faf/reports/bthash/c1a4a622a4036ae3b2c0a7a44f1f032190f3bba5",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7957043",
+						"comment_count": "0",
+						"who": {
+							"text": "Wolfgang.Reh",
+							"name": "Wolfgang Reh"
+						},
+						"bug_when": "2015-02-18 22:13:47 +0000",
+						"thetext": "Version-Release number of selected component:\ne2fsprogs-1.42.12-1.fc21\n\nAdditional info:\nreporter:       libreport-2.3.0\nbacktrace_rating: 4\ncmdline:        dumpe2fs\ncrash_function: strlen\nexecutable:     /usr/sbin/dumpe2fs\nkernel:         3.18.7-200.fc21.x86_64\nrunlevel:       N 5\ntype:           CCpp\nuid:            0\n\nTruncated backtrace:\nThread no. 1 (3 frames)\n #0 strlen at ../sysdeps/x86_64/strlen.S:106\n #1 ext2fs_open2 at openfs.c:142\n #2 ext2fs_open at openfs.c:93"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7957044",
+						"comment_count": "1",
+						"who": {
+							"text": "Wolfgang.Reh",
+							"name": "Wolfgang Reh"
+						},
+						"bug_when": "2015-02-18 22:13:50 +0000",
+						"thetext": "Created attachment 993328\nFile: backtrace"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7957045",
+						"comment_count": "2",
+						"who": {
+							"text": "Wolfgang.Reh",
+							"name": "Wolfgang Reh"
+						},
+						"bug_when": "2015-02-18 22:13:51 +0000",
+						"thetext": "Created attachment 993329\nFile: cgroup"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7957046",
+						"comment_count": "3",
+						"who": {
+							"text": "Wolfgang.Reh",
+							"name": "Wolfgang Reh"
+						},
+						"bug_when": "2015-02-18 22:13:53 +0000",
+						"thetext": "Created attachment 993330\nFile: core_backtrace"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7957047",
+						"comment_count": "4",
+						"who": {
+							"text": "Wolfgang.Reh",
+							"name": "Wolfgang Reh"
+						},
+						"bug_when": "2015-02-18 22:13:54 +0000",
+						"thetext": "Created attachment 993331\nFile: dso_list"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7957048",
+						"comment_count": "5",
+						"who": {
+							"text": "Wolfgang.Reh",
+							"name": "Wolfgang Reh"
+						},
+						"bug_when": "2015-02-18 22:13:55 +0000",
+						"thetext": "Created attachment 993332\nFile: environ"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7957049",
+						"comment_count": "6",
+						"who": {
+							"text": "Wolfgang.Reh",
+							"name": "Wolfgang Reh"
+						},
+						"bug_when": "2015-02-18 22:13:56 +0000",
+						"thetext": "Created attachment 993333\nFile: exploitable"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7957050",
+						"comment_count": "7",
+						"who": {
+							"text": "Wolfgang.Reh",
+							"name": "Wolfgang Reh"
+						},
+						"bug_when": "2015-02-18 22:13:58 +0000",
+						"thetext": "Created attachment 993334\nFile: limits"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7957051",
+						"comment_count": "8",
+						"who": {
+							"text": "Wolfgang.Reh",
+							"name": "Wolfgang Reh"
+						},
+						"bug_when": "2015-02-18 22:13:59 +0000",
+						"thetext": "Created attachment 993335\nFile: maps"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7957052",
+						"comment_count": "9",
+						"who": {
+							"text": "Wolfgang.Reh",
+							"name": "Wolfgang Reh"
+						},
+						"bug_when": "2015-02-18 22:14:00 +0000",
+						"thetext": "Created attachment 993336\nFile: open_fds"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7957053",
+						"comment_count": "10",
+						"who": {
+							"text": "Wolfgang.Reh",
+							"name": "Wolfgang Reh"
+						},
+						"bug_when": "2015-02-18 22:14:01 +0000",
+						"thetext": "Created attachment 993337\nFile: proc_pid_status"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7957054",
+						"comment_count": "11",
+						"who": {
+							"text": "Wolfgang.Reh",
+							"name": "Wolfgang Reh"
+						},
+						"bug_when": "2015-02-18 22:14:03 +0000",
+						"thetext": "Created attachment 993338\nFile: var_log_messages"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7957181",
+						"comment_count": "12",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-02-18 23:46:24 +0000",
+						"thetext": "I assume you invoked dumpe2fs with no arguments?\n\n[root e2fsprogs]# misc/dumpe2fs \ndumpe2fs 1.42.12 (29-Aug-2014)\nSegmentation fault\n\n:/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7957196",
+						"comment_count": "13",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-02-18 23:54:36 +0000",
+						"thetext": "commit fecb231f6fc83cf4b4ddf7ec34ace3723803a499\nAuthor: Darrick J. Wong <darrick.wong@oracle.com>\nDate:   Fri Nov 7 21:26:14 2014 -0500\n\n    dumpe2fs: don't crash when the user provides no block device argument\n    \n    If the user doesn't provide any arguments, the guard fails to run and\n    the whole thing segfaults on ext2fs_open2().  Don't do that.\n    \n    Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>\n    Signed-off-by: Theodore Ts'o <tytso@mit.edu>"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7957288",
+						"comment_count": "14",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-02-19 00:36:43 +0000",
+						"thetext": "This commit from v1.42.12 regressed this behavior:\n\ncommit 20d6b381a1aacfdb553dcba95d96c5bf36ea7253\nAuthor: Theodore Ts'o <tytso@mit.edu>\nDate:   Sun Aug 24 22:31:03 2014 -0400\n\n    dumpe2fs: complain if extra arguments are given on the command line\n    \n    Addresses-Debian-Bug: #758074\n    \n    Signed-off-by: Theodore Ts'o <tytso@mit.edu>"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7960496",
+						"comment_count": "15",
+						"who": {
+							"text": "Wolfgang.Reh",
+							"name": "Wolfgang Reh"
+						},
+						"bug_when": "2015-02-19 18:28:23 +0000",
+						"thetext": "I didn't call dumpe2fs directly at all. I don't know what call caused the crash, I was trying 'Disks' (the Gnome disk manager) and 'Partition Manager' (the KDE disk manager) when the error happened. I just at some point recognized abrt telling me an error occurred and I then sent the report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7960755",
+						"comment_count": "16",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-02-19 20:24:23 +0000",
+						"thetext": "Ok, weird.  \n\n> cmdline:        dumpe2fs\n\nI guess that was the whole backtrace.  I wonder which tool called it like that."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7960779",
+						"comment_count": "17",
+						"who": {
+							"text": "Wolfgang.Reh",
+							"name": "Wolfgang Reh"
+						},
+						"bug_when": "2015-02-19 20:32:21 +0000",
+						"thetext": "It was all that abrt reported, I didn't remove anything."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7960828",
+						"comment_count": "18",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-02-19 20:55:29 +0000",
+						"thetext": "yes, I understand, I just wonder why some other utility called it w/ no args.\n\nanyway, I know the fix, it'll be in the (sigh) next update.\n\nThanks for the report.  :)\n\n-Eric"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7970593",
+						"comment_count": "19",
+						"who": {
+							"text": "bkircher",
+							"name": "Ben Kircher"
+						},
+						"bug_when": "2015-02-24 12:59:43 +0000",
+						"thetext": "Maybe I can give a hint... I installed kde-partitionmanager right before (according to logs 30 seconds) that crash was noticed by abrt.\n\n/var/log/yum.log:\n<snip>\nFeb 23 12:25:28 Installed: kde-partitionmanager-1.1.0-3.fc21.x86_64\n</snip>\n\nabrt-cli list\n<snip>\nreason:         dumpe2fs killed by SIGSEGV\ntime:           Mon 23 Feb 2015 12:25:57 PM CET\ncmdline:        dumpe2fs\n</snip>\n\nSo I might have started kde-partitionmanager right before dumpe2fs which could explain _who_ called it without arguments.\n\nAnyway, shouldn't crash anyhow IMHO."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7972150",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-24 17:55:47 +0000",
+						"thetext": "e2fsprogs-1.42.12-3.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/e2fsprogs-1.42.12-3.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7972166",
+						"comment_count": "21",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-24 17:59:22 +0000",
+						"thetext": "e2fsprogs-1.42.12-3.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/e2fsprogs-1.42.12-3.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7975151",
+						"comment_count": "22",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-25 13:27:41 +0000",
+						"thetext": "Package e2fsprogs-1.42.12-3.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing e2fsprogs-1.42.12-3.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2511/e2fsprogs-1.42.12-3.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999899",
+						"comment_count": "23",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:22:56 +0000",
+						"thetext": "e2fsprogs-1.42.12-3.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8000021",
+						"comment_count": "24",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:34:26 +0000",
+						"thetext": "e2fsprogs-1.42.12-3.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8040780",
+						"comment_count": "25",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-03-13 14:40:50 +0000",
+						"thetext": "*** Bug 1201554 has been marked as a duplicate of this bug. ***"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "e2fsprogs-1.42.12-3.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "libcom_err-devel",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libss-devel",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "e2fsprogs",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libss",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libcom_err",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "e2fsprogs-static",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "e2fsprogs-devel",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "e2fsprogs-debuginfo",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "e2fsprogs-libs",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "e2fsprogs-libs",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "libcom_err",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "libss-devel",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "e2fsprogs",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "libcom_err-devel",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "e2fsprogs-devel",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "e2fsprogs-debuginfo",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "libss",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "e2fsprogs-static",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "e2fsprogs",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "e2fsprogs-devel",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "e2fsprogs",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "e2fsprogs-static",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libcom_err-devel",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libss-devel",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "e2fsprogs-debuginfo",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libss",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "e2fsprogs-libs",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libcom_err",
+						"version": "1.42.12",
+						"release": "3.fc21",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 116831,
+			"text": "This update has been submitted for testing by sandeen. ",
+			"timestamp": "2015-02-24 17:55:55",
+			"update_id": 15848,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 116832,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/40635/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-02-24 18:10:37",
+			"update_id": 15848,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 116833,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/40635/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-02-24 18:12:14",
+			"update_id": 15848,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 116834,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2015-02-25 02:11:15",
+			"update_id": 15848,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 116835,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-02-25 13:27:45",
+			"update_id": 15848,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 116836,
+			"karma": 1,
+			"text": "no regressions noted",
+			"timestamp": "2015-02-27 20:51:43",
+			"update_id": 15848,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/d826994e83ce867281f73d85986dd475938841874b75a83a82cdb184f6af8749?s=24&d=retro",
+				"email": "rosset.filipe@gmail.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "l10n"
+					},
+					{
+						"name": "cvsl10n"
+					},
+					{
+						"name": "fedora-br"
+					}
+				],
+				"id": 124,
+				"name": "filiperosset",
+				"openid": "filiperosset.id.fedoraproject.org"
+			},
+			"user_id": 124
+		},
+		{
+			"id": 116837,
+			"text": "Critical path update approved",
+			"timestamp": "2015-02-27 20:51:44",
+			"update_id": 15848,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 116838,
+			"karma": 1,
+			"text": "works for me",
+			"timestamp": "2015-03-01 17:44:56",
+			"update_id": 15848,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/c82951c2d404ca0cfea20f51b040175ba4d1624f51e8ec366e75565b672e943d?s=24&d=retro",
+				"email": "h.reindl@thelounge.net",
+				"id": 182,
+				"name": "hreindl",
+				"openid": "hreindl.id.fedoraproject.org"
+			},
+			"user_id": 182
+		},
+		{
+			"id": 116839,
+			"karma": 1,
+			"text": "works for me",
+			"timestamp": "2015-03-02 01:08:27",
+			"update_id": 15848,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/2087ddb84fdf1774c00fc96323f629621c9046b99eee2aa497044f598f3979d4?s=24&d=retro",
+				"email": "yuwatana@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					}
+				],
+				"id": 125,
+				"name": "yuwata",
+				"openid": "yuwata.id.fedoraproject.org"
+			},
+			"user_id": 125
+		},
+		{
+			"id": 116840,
+			"text": "This update has reached the stable karma threshold and will be pushed to the stable updates repository",
+			"timestamp": "2015-03-02 01:08:31",
+			"update_id": 15848,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 116841,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/43348/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-03-02 01:19:21",
+			"update_id": 15848,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 116842,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2015-03-03 04:27:23",
+			"update_id": 15848,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 116843,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-03-04 10:23:07",
+			"update_id": 15848,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2015-03-04 10:23:07",
+	"date_stable": "2015-03-04 10:23:07",
+	"date_submitted": "2015-02-24 17:55:38",
+	"date_testing": "2015-02-25 13:27:45",
+	"karma": 3,
+	"meets_testing_requirements": true,
+	"notes": "- Fix potential buffer overflow in closefs (#1193947, CVE-2015-1572)\r\n- Fix dumpe2fs segfault with no arguments (#1194063)\r\n- Don't require fsck prior to resize2fs -P (#1170803)\nChanges e2fsck.conf so that for filesystems with time-based check intervals set in the superblock, these time-based checks will work again.  You may need to wait through an e2fsck on your next reboot in this case.",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "e2fsprogs-1.42.12-3.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-2511",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-2511",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/6cc627a53acdb5f9fea68b245f20c259cd54b99ac0a3dfc7619cf8299ac2cb88?s=24&d=retro",
+		"email": "esandeen@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "cla_redhat"
+			}
+		],
+		"id": 553,
+		"name": "sandeen",
+		"openid": "sandeen.id.fedoraproject.org"
+	},
+	"version_hash": "4f71bed1fd385f1a23376a2b125f8bcc42822c26"
+}

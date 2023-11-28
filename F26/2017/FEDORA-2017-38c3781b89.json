@@ -1,0 +1,949 @@
+{
+	"alias": "FEDORA-2017-38c3781b89",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1425097,
+			"title": "F26 wget does not honor .netrc",
+			"bugzilla": {
+				"bug_id": "1425097",
+				"creation_ts": "2017-02-20 14:48:19 +0000",
+				"short_desc": "F26 wget does not honor .netrc",
+				"delta_ts": "2017-06-09 19:22:27 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10167352",
+						"comment_count": "0",
+						"who": {
+							"text": "bmj001",
+							"name": "Bruce Jerrick"
+						},
+						"bug_when": "2017-02-20 14:48:19 +0000",
+						"thetext": "Created attachment 1255721\nFix dereferences, so .netrc is read.\n\nDescription of problem:\n'wget' does not actually honor ~/.netrc as advertised, due to a minor\n  coding error.\nAlso, it does not support '--netrc' or '--no-netrc' options (which may be\nintentional, but it seems that it should).\n\nVersion-Release number of selected component:\nwget-1.19-1.fc26.src.rpm\n\nHow reproducible:\n100%\n\nSteps to Reproduce:\n1. Run wget to get your favorite password-protected download, with the\n   site's username and passowrd included in ~/.netrc .\n2. ls -ltu ~/.netrc\n\nActual results:\nThe download will fail due with \"401 Unauthorized\", and\n  ~/.netrc will not have been accessed.\n\nExpected results:\nSuccessful download, and atime of ~/.netrc updated.\n\nAdditional info:\nPatches included as attachments -- one to fix reading .netrc, the\n  other to add the '--netrc/--no-netrc' option.  (Both are one-liners.)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10167362",
+						"comment_count": "1",
+						"who": {
+							"text": "bmj001",
+							"name": "Bruce Jerrick"
+						},
+						"bug_when": "2017-02-20 14:49:56 +0000",
+						"thetext": "Created attachment 1255722\nAdd --netrc/--no-netrc option."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10167427",
+						"comment_count": "2",
+						"who": {
+							"text": "bmj001",
+							"name": "Bruce Jerrick"
+						},
+						"bug_when": "2017-02-20 15:03:25 +0000",
+						"thetext": "Note that 'user' and 'password' are used slightly differenty in http.c vs.\nftp.c, hence the difference in dereferencing when determining whether they\nare set."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10167906",
+						"comment_count": "3",
+						"who": {
+							"text": "thozza",
+							"name": "Tomáš Hozza"
+						},
+						"bug_when": "2017-02-20 16:45:16 +0000",
+						"thetext": "Do you see the same issue with 1.19.1?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10168746",
+						"comment_count": "4",
+						"who": {
+							"text": "bmj001",
+							"name": "Bruce Jerrick"
+						},
+						"bug_when": "2017-02-20 21:54:35 +0000",
+						"thetext": "Give me a few minutes to get a spec file hacked up to build the source\ntarball from ftp://ftp.gnu.org/gnu/wget/ (I don't see 1.19.1 in the F26\nrepo yet).\nBut in any case, 1.19.1 still seems wrong -- in http.c, the 20 lines or so\npreceding the conditional call to search_netrc assumes that 'user' and\n'passwd' are both non-NULL, because no matter what the outcome of the two if/else chains, they're both dereferenced by *user and *passwd .\nSo !user and !passwd are always false (if either was true, i.e., if either pointer was NULL, there would have been a segfault in the previous lines,\nno?).\nSo the user/passwd test boils down to just !*passwd, if Mr. Boole has\nanything to say about it.\n(There may have been some confusion because similar code in ftp.c does\nallow them to be NULL .)\n\nFrom src/http.c:\n\n   1878   /* Find the username with priority */\n   1879   if (u->user)\n   1880     *user = u->user;\n   1881   else if (opt.user && (opt.use_askpass || opt.ask_passwd))\n   1882     *user = opt.user;\n   1883   else if (opt.http_user)\n   1884     *user = opt.http_user;\n   1885   else if (opt.user)\n   1886     *user = opt.user;\n   1887   else\n   1888     *user = NULL;\n   1889 \n   1890   /* Find the password with priority */\n   1891   if (u->passwd)\n   1892     *passwd = u->passwd;\n   1893   else if (opt.passwd && (opt.use_askpass || opt.ask_passwd))\n   1894     *passwd = opt.passwd;\n   1895   else if (opt.http_passwd)\n   1896     *passwd = opt.http_passwd;\n   1897   else if (opt.passwd)\n   1898     *passwd = opt.passwd;\n   1899   else\n   1900     *passwd = NULL;\n   1901 \n   1902   /* Check for ~/.netrc if none of the above match */\n   1903   if (opt.netrc && (!user || (!passwd || !*passwd)))\n   1904     search_netrc (u->host, (const char **) user, (const char **) passwd, 0);"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10168839",
+						"comment_count": "5",
+						"who": {
+							"text": "bmj001",
+							"name": "Bruce Jerrick"
+						},
+						"bug_when": "2017-02-20 22:51:39 +0000",
+						"thetext": "OK, here's the results:\n\nThe 1.19.1 code works in the usual case where it has to get both user and passwd\nfrom .netrc .\n\nBut unlike my patch, it does not work in the case where only \"login\" (user) is in\n.netrc, and only the password is given on the command-line (via the '--password' option; one can't give just a password with the '\"http://username:password@site/\"\nsyntax (\"Invalid user name\")).\n(Tested empirically; I trust Mr. Boole but not myself after 18 hours uptime.)\n\nAnd there really ought to be a '--no-netrc' option (my main.c patch)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10168854",
+						"comment_count": "6",
+						"who": {
+							"text": "bmj001",
+							"name": "Bruce Jerrick"
+						},
+						"bug_when": "2017-02-20 23:05:57 +0000",
+						"thetext": "I'm attaching a patch that adds traces and an early exit to http.c, to make testing easy.\n(BTW, this isn't an \"issue\", it's a \"problem\" or a \"bug\".  \"Issue\" is a\neuphemism dreamed up by Redmond marketeers.)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10168858",
+						"comment_count": "7",
+						"who": {
+							"text": "bmj001",
+							"name": "Bruce Jerrick"
+						},
+						"bug_when": "2017-02-20 23:09:07 +0000",
+						"thetext": "Created attachment 1255894\nPatch to 1.19.1 to add user/passwd and search_netrc traces, for testing.\n\nThis should tell everything one needs to know, without the need for\nan http server."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10170692",
+						"comment_count": "8",
+						"who": {
+							"text": "thozza",
+							"name": "Tomáš Hozza"
+						},
+						"bug_when": "2017-02-21 12:52:58 +0000",
+						"thetext": "For the record, the 1.19.1 is available since 17-Feb.\n\nhttps://koji.fedoraproject.org/koji/buildinfo?buildID=859637\nhttps://src.fedoraproject.org/cgit/rpms/wget.git/commit/?id=ea14f5739fbda9d257f9ffca11e028d18be66f26\n\nDid you propose your fix to the upstream? If not, I can review your changes and report it to the upstream."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10175296",
+						"comment_count": "9",
+						"who": {
+							"text": "bmj001",
+							"name": "Bruce Jerrick"
+						},
+						"bug_when": "2017-02-22 16:34:39 +0000",
+						"thetext": "(In reply to Tomas Hozza from comment #8)\n> ...\n> Did you propose your fix to the upstream? If not, I can review your changes\n> and report it to the upstream.\n\nNo, I haven't -- please do.\nThank you."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10193386",
+						"comment_count": "10",
+						"who": {
+							"text": "bcotton",
+							"name": "Fedora End Of Life"
+						},
+						"bug_when": "2017-02-28 12:23:38 +0000",
+						"thetext": "This bug appears to have been reported against 'rawhide' during the Fedora 26 development cycle.\nChanging version to '26'."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10408588",
+						"comment_count": "11",
+						"who": {
+							"text": "thozza",
+							"name": "Tomáš Hozza"
+						},
+						"bug_when": "2017-05-12 17:18:35 +0000",
+						"thetext": "I just sent changes to the upstream. Will wait for their response."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10415974",
+						"comment_count": "12",
+						"who": {
+							"text": "thozza",
+							"name": "Tomáš Hozza"
+						},
+						"bug_when": "2017-05-16 08:50:40 +0000",
+						"thetext": "Merged upstream:\nhttp://git.savannah.gnu.org/cgit/wget.git/commit/?id=17960b57d51ffb19b2b20df3e53da42c555f022c\nhttp://git.savannah.gnu.org/cgit/wget.git/commit/?id=f8c3df1f40f09dd61078436614d06e7ad818536e\nhttp://git.savannah.gnu.org/cgit/wget.git/commit/?id=876def8ebe56d483921cf645371d277b615373e5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10472081",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-02 11:27:30 +0000",
+						"thetext": "wget-1.19.1-3.fc26 has been submitted as an update to Fedora 26. https://bodhi.fedoraproject.org/updates/FEDORA-2017-38c3781b89"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10472086",
+						"comment_count": "14",
+						"who": {
+							"text": "thozza",
+							"name": "Tomáš Hozza"
+						},
+						"bug_when": "2017-06-02 11:28:03 +0000",
+						"thetext": "fixed in:\nwget-1.19.1-3.fc26\nwget-1.19.1-3.fc27"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10475061",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-04 19:40:33 +0000",
+						"thetext": "wget-1.19.1-3.fc26 has been pushed to the Fedora 26 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2017-38c3781b89"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10494347",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-09 19:22:27 +0000",
+						"thetext": "wget-1.19.1-3.fc26 has been pushed to the Fedora 26 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1429984,
+			"feedback": [
+				{
+					"bug_id": 1429984,
+					"comment": {
+						"id": 616118,
+						"karma": 1,
+						"text": "No regressions noted.",
+						"timestamp": "2017-06-01 22:06:30",
+						"update_id": 89056,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/e62cb974458dc33fcf2225462b8765e0aadcbbd698560c8f8dad6c3e23d5e47e?s=24&d=retro",
+							"email": "dhgutteridge@hotmail.com",
+							"groups": [
+								{}
+							],
+							"id": 194,
+							"name": "dhgutteridge",
+							"openid": "dhgutteridge.id.fedoraproject.org"
+						},
+						"user_id": 194
+					},
+					"comment_id": 616118
+				},
+				{
+					"bug_id": 1429984,
+					"comment": {
+						"id": 616122,
+						"karma": 1,
+						"text": "No regressions noticed on x86_64.",
+						"timestamp": "2017-06-01 22:50:27",
+						"update_id": 89056,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/1a8afd83231ef5ba905344806ba95b39f2abd77b399b0ee217ec3e6fa30a4825?s=24&d=retro",
+							"email": "bojan@rexursive.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								}
+							],
+							"id": 198,
+							"name": "bojan",
+							"openid": "bojan.id.fedoraproject.org"
+						},
+						"user_id": 198
+					},
+					"comment_id": 616122
+				},
+				{
+					"bug_id": 1429984,
+					"comment": {
+						"id": 616489,
+						"karma": 1,
+						"text": "works fine here",
+						"timestamp": "2017-06-02 21:25:40",
+						"update_id": 89057,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/636ff3eea65823b2c7349e36b691fd8c6d48f2a2158242b946762c0a14055425?s=24&d=retro",
+							"email": "samoht0-bugzilla@yahoo.com",
+							"groups": [
+								{
+									"name": "ipausers"
+								}
+							],
+							"id": 2998,
+							"name": "samoht0",
+							"openid": "samoht0.id.fedoraproject.org"
+						},
+						"user_id": 2998
+					},
+					"comment_id": 616489
+				}
+			],
+			"parent": true,
+			"security": true,
+			"title": "CVE-2017-6508 wget: CRLF injection in the url_parse function in url.c",
+			"bugzilla": {
+				"bug_id": "1429984",
+				"alias": "CVE-2017-6508",
+				"creation_ts": "2017-03-07 15:38:00 +0000",
+				"short_desc": "CVE-2017-6508 wget: CRLF injection in the url_parse function in url.c",
+				"delta_ts": "2019-09-29 14:08:14 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "WONTFIX",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1429986"
+				],
+				"blocked": [
+					{
+						"bug_id": "1429985",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10217193",
+						"comment_count": "0",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-03-07 15:38:00 +0000",
+						"thetext": "\nCRLF injection vulnerability in the url_parse function in url.c in Wget through allows remote attackers to inject arbitrary HTTP headers via CRLF sequences in the host subcomponent of a URL.\n\nReferences:\n\nhttp://lists.gnu.org/archive/html/bug-wget/2017-03/msg00018.html\n\nUpstream patch:\n\nhttp://git.savannah.gnu.org/cgit/wget.git/commit/?id=4d729e322fae359a1aefaafec1144764a54e8ad4"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10217199",
+						"comment_count": "1",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-03-07 15:39:18 +0000",
+						"thetext": "Created wget tracking bugs for this issue:\n\nAffects: fedora-all [bug 1429986]"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1429986,
+			"feedback": [
+				{
+					"bug_id": 1429986,
+					"comment": {
+						"id": 616118,
+						"karma": 1,
+						"text": "No regressions noted.",
+						"timestamp": "2017-06-01 22:06:30",
+						"update_id": 89056,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/e62cb974458dc33fcf2225462b8765e0aadcbbd698560c8f8dad6c3e23d5e47e?s=24&d=retro",
+							"email": "dhgutteridge@hotmail.com",
+							"groups": [
+								{}
+							],
+							"id": 194,
+							"name": "dhgutteridge",
+							"openid": "dhgutteridge.id.fedoraproject.org"
+						},
+						"user_id": 194
+					},
+					"comment_id": 616118
+				},
+				{
+					"bug_id": 1429986,
+					"comment": {
+						"id": 616122,
+						"karma": 1,
+						"text": "No regressions noticed on x86_64.",
+						"timestamp": "2017-06-01 22:50:27",
+						"update_id": 89056,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/1a8afd83231ef5ba905344806ba95b39f2abd77b399b0ee217ec3e6fa30a4825?s=24&d=retro",
+							"email": "bojan@rexursive.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								}
+							],
+							"id": 198,
+							"name": "bojan",
+							"openid": "bojan.id.fedoraproject.org"
+						},
+						"user_id": 198
+					},
+					"comment_id": 616122
+				},
+				{
+					"bug_id": 1429986,
+					"comment": {
+						"id": 616489,
+						"karma": 1,
+						"text": "works fine here",
+						"timestamp": "2017-06-02 21:25:40",
+						"update_id": 89057,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/636ff3eea65823b2c7349e36b691fd8c6d48f2a2158242b946762c0a14055425?s=24&d=retro",
+							"email": "samoht0-bugzilla@yahoo.com",
+							"groups": [
+								{
+									"name": "ipausers"
+								}
+							],
+							"id": 2998,
+							"name": "samoht0",
+							"openid": "samoht0.id.fedoraproject.org"
+						},
+						"user_id": 2998
+					},
+					"comment_id": 616489
+				}
+			],
+			"security": true,
+			"title": "CVE-2017-6508 wget: CRLF injection in the url_parse function in url.c [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1429986",
+				"creation_ts": "2017-03-07 15:39:11 +0000",
+				"short_desc": "CVE-2017-6508 wget: CRLF injection in the url_parse function in url.c [fedora-all]",
+				"delta_ts": "2017-06-10 10:23:23 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened, Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1429984",
+						"alias": "CVE-2017-6508",
+						"creation_ts": "2017-03-07 15:38:00 +0000",
+						"short_desc": "CVE-2017-6508 wget: CRLF injection in the url_parse function in url.c",
+						"delta_ts": "2019-09-29 14:08:14 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "WONTFIX",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1429986"
+						],
+						"blocked": [
+							{
+								"bug_id": "1429985",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "10217193",
+								"comment_count": "0",
+								"who": {
+									"text": "anemec",
+									"name": "Andrej Nemec"
+								},
+								"bug_when": "2017-03-07 15:38:00 +0000",
+								"thetext": "\nCRLF injection vulnerability in the url_parse function in url.c in Wget through allows remote attackers to inject arbitrary HTTP headers via CRLF sequences in the host subcomponent of a URL.\n\nReferences:\n\nhttp://lists.gnu.org/archive/html/bug-wget/2017-03/msg00018.html\n\nUpstream patch:\n\nhttp://git.savannah.gnu.org/cgit/wget.git/commit/?id=4d729e322fae359a1aefaafec1144764a54e8ad4"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10217199",
+								"comment_count": "1",
+								"who": {
+									"text": "anemec",
+									"name": "Andrej Nemec"
+								},
+								"bug_when": "2017-03-07 15:39:18 +0000",
+								"thetext": "Created wget tracking bugs for this issue:\n\nAffects: fedora-all [bug 1429986]"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10217197",
+						"comment_count": "0",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-03-07 15:39:11 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10217198",
+						"comment_count": "1",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-03-07 15:39:15 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1429984\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10467206",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-01 06:57:02 +0000",
+						"thetext": "wget-1.18-3.fc25 has been submitted as an update to Fedora 25. https://bodhi.fedoraproject.org/updates/FEDORA-2017-22f1a8404e"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10467208",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-01 06:57:12 +0000",
+						"thetext": "wget-1.18-2.fc24 has been submitted as an update to Fedora 24. https://bodhi.fedoraproject.org/updates/FEDORA-2017-ed1c665a3f"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10469840",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-01 18:02:17 +0000",
+						"thetext": "wget-1.18-2.fc24 has been pushed to the Fedora 24 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2017-ed1c665a3f"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10469864",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-01 18:05:36 +0000",
+						"thetext": "wget-1.18-3.fc25 has been pushed to the Fedora 25 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2017-22f1a8404e"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10472080",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-02 11:27:23 +0000",
+						"thetext": "wget-1.19.1-3.fc26 has been submitted as an update to Fedora 26. https://bodhi.fedoraproject.org/updates/FEDORA-2017-38c3781b89"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10473955",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-03 02:36:16 +0000",
+						"thetext": "wget-1.18-3.fc25 has been pushed to the Fedora 25 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10475060",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-04 19:40:24 +0000",
+						"thetext": "wget-1.19.1-3.fc26 has been pushed to the Fedora 26 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2017-38c3781b89"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10494345",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-09 19:22:19 +0000",
+						"thetext": "wget-1.19.1-3.fc26 has been pushed to the Fedora 26 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10495129",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-10 10:23:23 +0000",
+						"thetext": "wget-1.18-2.fc24 has been pushed to the Fedora 24 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "wget-1.19.1-3.fc26",
+			"release_id": 16,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "wget",
+						"version": "1.19.1",
+						"release": "3.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "wget-debuginfo",
+						"version": "1.19.1",
+						"release": "3.fc26",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "wget",
+						"version": "1.19.1",
+						"release": "3.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "wget-debuginfo",
+						"version": "1.19.1",
+						"release": "3.fc26",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "wget",
+						"version": "1.19.1",
+						"release": "3.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "wget-debuginfo",
+						"version": "1.19.1",
+						"release": "3.fc26",
+						"arch": "i686"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "wget",
+						"version": "1.19.1",
+						"release": "3.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "wget-debuginfo",
+						"version": "1.19.1",
+						"release": "3.fc26",
+						"arch": "ppc64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "wget",
+						"version": "1.19.1",
+						"release": "3.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "wget-debuginfo",
+						"version": "1.19.1",
+						"release": "3.fc26",
+						"arch": "ppc64le"
+					}
+				],
+				"src": [
+					{
+						"name": "wget",
+						"version": "1.19.1",
+						"release": "3.fc26",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "wget",
+						"version": "1.19.1",
+						"release": "3.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "wget-debuginfo",
+						"version": "1.19.1",
+						"release": "3.fc26",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 616330,
+			"text": "This update has been submitted for testing by thozza. ",
+			"timestamp": "2017-06-02 11:27:17",
+			"update_id": 89179,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 616946,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2017-06-04 19:43:38",
+			"update_id": 89179,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 617164,
+			"karma": 1,
+			"text": "Works great!  LGTM!  =)",
+			"timestamp": "2017-06-05 07:56:46",
+			"update_id": 89179,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/307632fc7188138f052f244345e779451863879298f2e6d73023011a05b1f1f6?s=24&d=retro",
+				"email": "besser82.fpo@gmail.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "designteam"
+					},
+					{
+						"name": "shogun-ca"
+					},
+					{
+						"name": "alt-gtk-de-sig"
+					}
+				],
+				"id": 206,
+				"name": "besser82",
+				"openid": "besser82.id.fedoraproject.org"
+			},
+			"user_id": 206
+		},
+		{
+			"id": 617231,
+			"karma": 1,
+			"text": "works for me",
+			"timestamp": "2017-06-05 10:58:02",
+			"update_id": 89179,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/054959f4db5d1ad8f22cae1ba73e26ebfd3edd6690c21cc7ee00608f294ff22a?s=24&d=retro",
+				"email": "cserpentis@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 739,
+				"name": "cserpentis",
+				"openid": "cserpentis.id.fedoraproject.org"
+			},
+			"user_id": 739
+		},
+		{
+			"id": 617259,
+			"karma": 1,
+			"text": "works for me",
+			"timestamp": "2017-06-05 11:55:51",
+			"update_id": 89179,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/2087ddb84fdf1774c00fc96323f629621c9046b99eee2aa497044f598f3979d4?s=24&d=retro",
+				"email": "yuwatana@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					}
+				],
+				"id": 125,
+				"name": "yuwata",
+				"openid": "yuwata.id.fedoraproject.org"
+			},
+			"user_id": 125
+		},
+		{
+			"id": 617260,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2017-06-05 11:55:53",
+			"update_id": 89179,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 619704,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2017-06-09 19:34:46",
+			"update_id": 89179,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2017-06-09 18:48:36",
+	"date_stable": "2017-06-09 18:48:36",
+	"date_submitted": "2017-06-02 11:27:17",
+	"date_testing": "2017-06-04 14:25:17",
+	"karma": 3,
+	"meets_testing_requirements": true,
+	"notes": "* fixed CVE-2017-6508 CRLF injection in the url_parse function in url.c\n* fixed use of .netrc",
+	"pushed": true,
+	"release": {
+		"branch": "f26",
+		"candidate_tag": "f26-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f26",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 26",
+		"mail_template": "fedora_errata_template",
+		"name": "F26",
+		"override_tag": "f26-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f26-signing-pending",
+		"pending_stable_tag": "f26-updates-pending",
+		"pending_testing_tag": "f26-updates-testing-pending",
+		"stable_tag": "f26-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f26-updates-testing",
+		"version": "26"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "medium",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "wget-1.19.1-3.fc26",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2017-38c3781b89",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2017-38c3781b89",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/db0239af3d95906a34ce85b4400d7844c32f36429c55c71ac55d32a9167d68cc?s=24&d=retro",
+		"email": "thozza@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "osbuild"
+			},
+			{
+				"name": "osbuild-sig"
+			},
+			{
+				"name": "sysadmin-osbuild"
+			}
+		],
+		"id": 503,
+		"name": "thozza",
+		"openid": "thozza.id.fedoraproject.org"
+	},
+	"version_hash": "a1ad9b2d60136727ef8037d49757a72c06e03951"
+}

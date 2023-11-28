@@ -1,0 +1,952 @@
+{
+	"alias": "FEDORA-EPEL-2012-6441",
+	"bugs": [
+		{
+			"bug_id": 532085,
+			"title": "puppet not compatible with network-manager",
+			"bugzilla": {
+				"bug_id": "532085",
+				"creation_ts": "2009-10-30 15:07:20 +0000",
+				"short_desc": "puppet not compatible with network-manager",
+				"delta_ts": "2012-08-05 06:38:29 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened",
+				"priority": "low",
+				"bug_severity": "medium",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "2430526",
+						"comment_count": "0",
+						"who": {
+							"text": "lud.janvier",
+							"name": "Ludwin Janvier"
+						},
+						"bug_when": "2009-10-30 15:07:20 +0000",
+						"thetext": "Description of problem:\nSince Network-Manager is the default network configuration demon, services should support the fact that there are no network at launch time (the network will be up seconds or minute). I'm on a big network, and DHCP requests are pretty slow (more than 1 second). That is more than the time for fedora to start Network-Manager and puppet (even if the first is S27 and the second is S98).\n\nWhen started with neither DNS server nor puppet-master reachable, puppetd won't be able to reach it later. Every 2 minutes, I get :\n\nOct 30 15:59:50 b01-10 puppetd[1708]: Reopening log files\nOct 30 15:59:50 b01-10 puppetd[1708]: Could not find server : getaddrinfo: Temporary failure in name resolution\nOct 30 15:59:50 b01-10 puppetd[1708]: Could not request certificate: Certificate retrieval failed: Could not find server puppet\n\nthis is ok since a few lines after :\n\nOct 30 15:59:53 b01-10 dhclient: DHCPREQUEST on eth0 to 255.255.255.255 port 67\nOct 30 15:59:53 b01-10 dhclient: DHCPNAK from 10.X.Y.1\nOct 30 15:59:53 b01-10 NetworkManager: <info>  DHCP: device eth0 state changed preinit -> expire\nOct 30 15:59:53 b01-10 NetworkManager: <info>  DHCP: device eth0 state changed expire -> preinit\nOct 30 15:59:53 b01-10 dhclient: DHCPDISCOVER on eth0 to 255.255.255.255 port 67 interval 4\nOct 30 15:59:53 b01-10 dhclient: DHCPOFFER from 10.X.Y.8\nOct 30 15:59:53 b01-10 dhclient: DHCPREQUEST on eth0 to 255.255.255.255 port 67\nOct 30 15:59:53 b01-10 dhclient: DHCPACK from 10.X.Y.8\n...\n\nHere's network is fully working\nBut 2 minutes later :\n\nOct 30 16:01:50 b01-10 puppetd[1708]: Could not find server : getaddrinfo: Temporary failure in name resolution\nOct 30 16:01:50 b01-10 puppetd[1708]: Could not request certificate: Certificate retrieval failed: Could not find server puppet\n\n(I checked: my DNS are ok, I can ping puppet, and other puppet clients can reach it)\n\nIf I restart puppetd AFTER getting an IP and DNS conf, puppet is working again :\n\nOct 30 15:11:21 b01-10 puppetd[3077]: Starting Puppet client version 0.24.8\n\nand no more error every 2 mins, polling master every 30 min\n\nVersion-Release number of selected component (if applicable):\nName       : puppet\nArch       : noarch\nVersion    : 0.24.8\nRelease    : 4.fc11\n\nName       : NetworkManager\nArch       : i586\nEpoch      : 1\nVersion    : 0.7.1\nRelease    : 8.git20090708.fc11\n\n\nHow reproducible:\nalways\n\nSteps to Reproduce:\n1. install puppet client on network-manager managed machines (for IP and DNS/resolv.conf writing)\n  \nActual results:\npuppet can't get their catalog\n\nExpected results:\npuppet client to reach puppet-master\n\nAdditional info:\nyou can start puppetd by hand, it will work : at reboot, you'll have to do it again"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2430599",
+						"comment_count": "1",
+						"who": {
+							"text": "tmz",
+							"name": "Todd Zullinger"
+						},
+						"bug_when": "2009-10-30 15:49:44 +0000",
+						"thetext": "This is something that would need to get fixed upstream.  It's not really tied to NetworkManager as much as it is puppet not recognizing when the network has changed state.\n\nLudwin, any chance you could file a bug in the upstream tracker?  (http://projects.reductivelabs.com/projects/puppet/)\n\nIf not, I'll try to do so."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2430604",
+						"comment_count": "2",
+						"who": {
+							"text": "tmz",
+							"name": "Todd Zullinger"
+						},
+						"bug_when": "2009-10-30 15:52:17 +0000",
+						"thetext": "Oh, and if you have boxes you can test on, perhaps check if this still occurs with 0.25.1.  We've not got that into the -testing repos just yet, but I have packages available at: http://tmz.fedorapeople.org/repo/puppet/\n\nIf 0.25.1 has fixed this, we don't need to bug upstream. :)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2430680",
+						"comment_count": "3",
+						"who": {
+							"text": "lud.janvier",
+							"name": "Ludwin Janvier"
+						},
+						"bug_when": "2009-10-30 16:28:02 +0000",
+						"thetext": "I tested the 0.25.1 packages. The error message changed to this :\nOct 30 17:19:17 b01-13 puppetd[1710]: Could not request certificate: getaddrinfo: Temporary failure in name resolution\n\nBut the problem is still there. I will report it at reductivelabs."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2430726",
+						"comment_count": "4",
+						"who": {
+							"text": "tmz",
+							"name": "Todd Zullinger"
+						},
+						"bug_when": "2009-10-30 16:48:28 +0000",
+						"thetext": "Excellent, thanks Ludwin!  Feel free to add me to the watch list upstream and/or add a link to the ticket here."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2435324",
+						"comment_count": "5",
+						"who": {
+							"text": "lud.janvier",
+							"name": "Ludwin Janvier"
+						},
+						"bug_when": "2009-11-03 12:33:41 +0000",
+						"thetext": "Reported upstream:\n\nhttp://projects.reductivelabs.com/issues/2776"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2445396",
+						"comment_count": "6",
+						"who": {
+							"text": "vanmeeuwen+fedora",
+							"name": "Jeroen van Meeuwen"
+						},
+						"bug_when": "2009-11-08 19:32:35 +0000",
+						"thetext": "This is where upstart is supposed to kick in, and the puppet init script should be made compatible with upstart.\n\nEither way, there's virtually no way the old SysVinit type scripts are going to be compatible with NetworkManager (yet NetworkManagerDispatcher can help working around the issue)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2810460",
+						"comment_count": "7",
+						"who": {
+							"text": "triage",
+							"name": "Bug Zapper"
+						},
+						"bug_when": "2010-04-28 11:01:37 +0000",
+						"thetext": "\nThis message is a reminder that Fedora 11 is nearing its end of life.\nApproximately 30 (thirty) days from now Fedora will stop maintaining\nand issuing updates for Fedora 11.  It is Fedora's policy to close all\nbug reports from releases that are no longer maintained.  At that time\nthis bug will be closed as WONTFIX if it remains open with a Fedora \n'version' of '11'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version prior to Fedora 11's end of life.\n\nBug Reporter: Thank you for reporting this issue and we are sorry that \nwe may not be able to fix it before Fedora 11 is end of life.  If you \nwould still like to see this bug fixed and are able to reproduce it \nagainst a later version of Fedora please change the 'version' of this \nbug to the applicable version.  If you are unable to change the version, \nplease add a comment here and someone will do it for you.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events.  Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete.\n\nThe process we are following is described here: \nhttp://fedoraproject.org/wiki/BugZappers/HouseKeeping"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3788314",
+						"comment_count": "8",
+						"who": {
+							"text": "triage",
+							"name": "Bug Zapper"
+						},
+						"bug_when": "2011-06-02 17:32:13 +0000",
+						"thetext": "\nThis message is a reminder that Fedora 13 is nearing its end of life.\nApproximately 30 (thirty) days from now Fedora will stop maintaining\nand issuing updates for Fedora 13.  It is Fedora's policy to close all\nbug reports from releases that are no longer maintained.  At that time\nthis bug will be closed as WONTFIX if it remains open with a Fedora \n'version' of '13'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version prior to Fedora 13's end of life.\n\nBug Reporter: Thank you for reporting this issue and we are sorry that \nwe may not be able to fix it before Fedora 13 is end of life.  If you \nwould still like to see this bug fixed and are able to reproduce it \nagainst a later version of Fedora please change the 'version' of this \nbug to the applicable version.  If you are unable to change the version, \nplease add a comment here and someone will do it for you.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events.  Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete.\n\nThe process we are following is described here: \nhttp://fedoraproject.org/wiki/BugZappers/HouseKeeping"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3844555",
+						"comment_count": "9",
+						"who": {
+							"text": "triage",
+							"name": "Bug Zapper"
+						},
+						"bug_when": "2011-06-27 14:29:16 +0000",
+						"thetext": "\nFedora 13 changed to end-of-life (EOL) status on 2011-06-25. Fedora 13 is \nno longer maintained, which means that it will not receive any further \nsecurity or bug fix updates. As a result we are closing this bug.\n\nIf you can reproduce this bug against a currently maintained version of \nFedora please feel free to reopen this bug against that version.\n\nThank you for reporting this bug and we are sorry it could not be fixed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3914368",
+						"comment_count": "10",
+						"who": {
+							"text": "orion",
+							"name": "Orion Poplawski"
+						},
+						"bug_when": "2011-07-25 17:23:57 +0000",
+						"thetext": "Until this is fixed upstream (which could be a while - it requires a fix to the ruby Resolv library), this is a workable fix:\n\n/etc/NetworkManager/dispatcher.d/98-puppet:\n#!/bin/bash\n# Restart puppet on network changes to pickup changes to /etc/resolv.conf\n# https://bugzilla.redhat.com/show_bug.cgi?id=532085\n\nif [ -x /usr/bin/logger ]; then\n  LOGGER=\"/usr/bin/logger -s -p user.notice -t NetworkManagerDispatcher\"\nelse\n  LOGGER=echo\nfi\n\nif [ \"$2\" = \"up\" ] || [ \"$2\" = \"down\" ]; then\n  $LOGGER \"performing puppet condrestart\"\n  /sbin/service puppet condrestart\nfi\n\n\nsystemd version would be:\n\n /bin/systemctl try-restart puppet.service"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4879733",
+						"comment_count": "11",
+						"who": {
+							"text": "orion",
+							"name": "Orion Poplawski"
+						},
+						"bug_when": "2012-07-06 15:26:55 +0000",
+						"thetext": "This seems even more of an issue in Fedora 17."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4910331",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-07-19 17:34:56 +0000",
+						"thetext": "puppet-2.7.18-1.fc17 has been submitted as an update for Fedora 17.\nhttps://admin.fedoraproject.org/updates/puppet-2.7.18-1.fc17"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4910468",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-07-19 18:58:21 +0000",
+						"thetext": "puppet-2.6.17-2.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/puppet-2.6.17-2.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4910469",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-07-19 18:58:43 +0000",
+						"thetext": "puppet-2.6.17-2.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/puppet-2.6.17-2.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4910470",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-07-19 18:59:05 +0000",
+						"thetext": "puppet-2.6.17-2.fc16 has been submitted as an update for Fedora 16.\nhttps://admin.fedoraproject.org/updates/puppet-2.6.17-2.fc16"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4910835",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-07-19 22:36:18 +0000",
+						"thetext": "Package puppet-2.6.17-2.el6:\n* should fix your issue,\n* was pushed to the Fedora EPEL 6 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=epel-testing puppet-2.6.17-2.el6'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2012-6432/puppet-2.6.17-2.el6\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4926552",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-07-28 01:17:00 +0000",
+						"thetext": "puppet-2.6.17-2.fc16 has been pushed to the Fedora 16 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4926568",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-07-28 01:19:45 +0000",
+						"thetext": "puppet-2.7.18-1.fc17 has been pushed to the Fedora 17 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4940508",
+						"comment_count": "19",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-08-05 06:36:24 +0000",
+						"thetext": "puppet-2.6.17-2.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4940514",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-08-05 06:38:29 +0000",
+						"thetext": "puppet-2.6.17-2.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 839130,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2012-3864 puppet: authenticated clients allowed to read arbitrary files from the puppet master",
+			"bugzilla": {
+				"bug_id": "839130",
+				"alias": "CVE-2012-3864",
+				"creation_ts": "2012-07-11 04:56:47 +0000",
+				"short_desc": "CVE-2012-3864 puppet: authenticated clients allowed to read arbitrary files from the puppet master",
+				"delta_ts": "2023-05-13 00:05:08 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"839168",
+					"839171",
+					"839176"
+				],
+				"blocked": [
+					{
+						"bug_id": "767033",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "836071",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "839173",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2012:1542",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "4891476",
+						"comment_count": "0",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2012-07-11 04:56:47 +0000",
+						"thetext": "\nFrom puppet labs: CVE-2012-3864 (Arbitrary File Read)\n\nA bug in Puppet 2.6.16 and 2.7.17 allows authenticated clients to read\narbitrary files from the puppet master.\n\nGiven a valid certificate and private key, it is possible to construct an\nHTTP GET request that will return the contents of an arbitrary file on the\nPuppet master. These requests can retrieve any file that the puppet master\nhas read-access to.\n\nResolved in Puppet 2.6.17, 2.7.18"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4891670",
+						"comment_count": "1",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2012-07-11 06:42:17 +0000",
+						"thetext": "Created puppet tracking bugs for this issue\n\nAffects: fedora-17 [bug 839168]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4891688",
+						"comment_count": "2",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2012-07-11 06:46:59 +0000",
+						"thetext": "Created puppet tracking bugs for this issue\n\nAffects: fedora-16 [bug 839171]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4891955",
+						"comment_count": "4",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2012-07-11 08:28:54 +0000",
+						"thetext": "External Reference:\n\nhttp://puppetlabs.com/security/cve/cve-2012-3864/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4894983",
+						"comment_count": "5",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2012-07-12 10:13:57 +0000",
+						"thetext": "Related upstream commits:\n\n2.6:\nhttps://github.com/puppetlabs/puppet/commit/8eb0cd8\nhttps://github.com/puppetlabs/puppet/commit/828c16a\nhttps://github.com/puppetlabs/puppet/commit/e7ef153\nhttps://github.com/puppetlabs/puppet/commit/29ae87d\nhttps://github.com/puppetlabs/puppet/commit/c872619\nhttps://github.com/puppetlabs/puppet/commit/c3c7462\n\n2.7:\nhttps://github.com/puppetlabs/puppet/commit/38c5a4e\nhttps://github.com/puppetlabs/puppet/commit/9e920a8\nhttps://github.com/puppetlabs/puppet/commit/2d01c2b\nhttps://github.com/puppetlabs/puppet/commit/40ee670\nhttps://github.com/puppetlabs/puppet/commit/d881b4b\nhttps://github.com/puppetlabs/puppet/commit/20ab0e9\nhttps://github.com/puppetlabs/puppet/commit/10f6cb8"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4910303",
+						"comment_count": "6",
+						"who": {
+							"text": "tmz",
+							"name": "Todd Zullinger"
+						},
+						"bug_when": "2012-07-19 17:21:34 +0000",
+						"thetext": "Are tracking bugs for epel-5 and epel-6 required as well?  They include 2.6.x so they are impacted by the same CVE's as fedora-16.\n\nI have builds in progress for f16 and el{5,6}."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4926553",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-07-28 01:17:15 +0000",
+						"thetext": "puppet-2.6.17-2.fc16 has been pushed to the Fedora 16 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4926569",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-07-28 01:19:53 +0000",
+						"thetext": "puppet-2.7.18-1.fc17 has been pushed to the Fedora 17 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4940509",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-08-05 06:37:44 +0000",
+						"thetext": "puppet-2.6.17-2.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4940515",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-08-05 06:38:37 +0000",
+						"thetext": "puppet-2.6.17-2.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5249585",
+						"comment_count": "11",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2012-12-03 06:05:47 +0000",
+						"thetext": "Acknowledgements:\n\nRed Hat would like to thank Puppet Labs for reporting this issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5257221",
+						"comment_count": "12",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2012-12-04 19:31:35 +0000",
+						"thetext": "This issue has been addressed in following products:\n\n  CloudForms for RHEL 6\n\nVia RHSA-2012:1542 https://rhn.redhat.com/errata/RHSA-2012-1542.html"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 839131,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2012-3865 puppet: authenticated clients allowed to delete arbitrary files on the puppet master",
+			"bugzilla": {
+				"bug_id": "839131",
+				"alias": "CVE-2012-3865",
+				"creation_ts": "2012-07-11 05:02:38 +0000",
+				"short_desc": "CVE-2012-3865 puppet: authenticated clients allowed to delete arbitrary files on the puppet master",
+				"delta_ts": "2023-05-12 23:43:14 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"839168",
+					"839171",
+					"839176"
+				],
+				"blocked": [
+					{
+						"bug_id": "767033",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "836071",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "839173",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2012:1542",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "4891487",
+						"comment_count": "0",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2012-07-11 05:02:38 +0000",
+						"thetext": "\nFrom puppet labs: CVE-2012-3865 (Arbitrary file delete/D.O.S on Puppet Master)\n\nA bug in Puppet 2.6.16 and 2.7.17 allows authenticated clients to delete \narbitrary files on the puppet master.\n\nGiven a Puppet master with the “Delete” method allowed in auth.conf for an \nauthenticated host, an attacker on that host can send a specially crafted \nDelete request that can cause an arbitrary file deletion on the Puppet master,\n potentially causing a denial of service attack. Note that this vulnerability \ndoes *not* exist in Puppet as configured by default; auth.conf must first be \nedited to enable deletion.\n\nResolved in Puppet 2.6.17, 2.7.18"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4891673",
+						"comment_count": "1",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2012-07-11 06:42:34 +0000",
+						"thetext": "Created puppet tracking bugs for this issue\n\nAffects: fedora-17 [bug 839168]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4891691",
+						"comment_count": "2",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2012-07-11 06:47:13 +0000",
+						"thetext": "Created puppet tracking bugs for this issue\n\nAffects: fedora-16 [bug 839171]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4894298",
+						"comment_count": "4",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2012-07-12 02:37:00 +0000",
+						"thetext": "External Reference:\n\nhttp://puppetlabs.com/security/cve/cve-2012-3865/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4894982",
+						"comment_count": "5",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2012-07-12 10:13:53 +0000",
+						"thetext": "Upstream commits:\n\n2.6:\nhttps://github.com/puppetlabs/puppet/commit/554eefc\n\n2.7:\nhttps://github.com/puppetlabs/puppet/commit/d804782"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4926554",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-07-28 01:17:22 +0000",
+						"thetext": "puppet-2.6.17-2.fc16 has been pushed to the Fedora 16 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4926570",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-07-28 01:20:03 +0000",
+						"thetext": "puppet-2.7.18-1.fc17 has been pushed to the Fedora 17 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4940510",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-08-05 06:37:52 +0000",
+						"thetext": "puppet-2.6.17-2.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4940516",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-08-05 06:38:44 +0000",
+						"thetext": "puppet-2.6.17-2.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5249586",
+						"comment_count": "10",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2012-12-03 06:07:42 +0000",
+						"thetext": "Acknowledgements:\n\nRed Hat would like to thank Puppet Labs for reporting this issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5257222",
+						"comment_count": "11",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2012-12-04 19:31:39 +0000",
+						"thetext": "This issue has been addressed in following products:\n\n  CloudForms for RHEL 6\n\nVia RHSA-2012:1542 https://rhn.redhat.com/errata/RHSA-2012-1542.html"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 839158,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2012-3867 puppet: insufficient validation of agent names in CN of SSL certificate requests",
+			"bugzilla": {
+				"bug_id": "839158",
+				"alias": "CVE-2012-3867",
+				"creation_ts": "2012-07-11 06:34:23 +0000",
+				"short_desc": "CVE-2012-3867 puppet: insufficient validation of agent names in CN of SSL certificate requests",
+				"delta_ts": "2023-05-12 23:44:17 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"839168",
+					"839171",
+					"839176"
+				],
+				"blocked": [
+					{
+						"bug_id": "767033",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "836071",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "839173",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2012:1542",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "4891641",
+						"comment_count": "0",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2012-07-11 06:34:23 +0000",
+						"thetext": "\nFrom puppet labs: CVE-2012-3867 (Insufficient input validation)\n\nA bug in Puppet 2.6.16 and 2.7.17 uses insufficient input validation for agent\ncertificate names.\n\nAn attacker can trick the administrator into signing an attacker’s certificate \nrather than the intended one by constructing specially crafted certificate \nrequests containing specific ANSI control sequences. It is possible to use the \nsequences to rewrite the order of text displayed to an administrator such that \ndisplay of an invalid certificate and valid certificate are transposed. If the \nadministrator signs the attacker’s certificate, the attacker can then \nman-in-the-middle the deployment’s agent nodes.\n\nResolved in Puppet 2.6.17, 2.7.18"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4891677",
+						"comment_count": "1",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2012-07-11 06:43:13 +0000",
+						"thetext": "Created puppet tracking bugs for this issue\n\nAffects: fedora-17 [bug 839168]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4891694",
+						"comment_count": "2",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2012-07-11 06:47:38 +0000",
+						"thetext": "Created puppet tracking bugs for this issue\n\nAffects: fedora-16 [bug 839171]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4894300",
+						"comment_count": "4",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2012-07-12 02:37:16 +0000",
+						"thetext": "External Reference:\n\nhttp://puppetlabs.com/security/cve/cve-2012-3867/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4894979",
+						"comment_count": "5",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2012-07-12 10:13:32 +0000",
+						"thetext": "Related upstream commits:\n\n2.6:\nhttps://github.com/puppetlabs/puppet/commit/dfedaa5\nhttps://github.com/puppetlabs/puppet/commit/9607bd7\nhttps://github.com/puppetlabs/puppet/commit/0144e68\n\n2.7:\nhttps://github.com/puppetlabs/puppet/commit/4d7c9fd\nhttps://github.com/puppetlabs/puppet/commit/bd2820e\nhttps://github.com/puppetlabs/puppet/commit/f341962"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4926555",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-07-28 01:17:29 +0000",
+						"thetext": "puppet-2.6.17-2.fc16 has been pushed to the Fedora 16 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4926572",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-07-28 01:20:18 +0000",
+						"thetext": "puppet-2.7.18-1.fc17 has been pushed to the Fedora 17 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4940511",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-08-05 06:37:58 +0000",
+						"thetext": "puppet-2.6.17-2.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4940517",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2012-08-05 06:38:54 +0000",
+						"thetext": "puppet-2.6.17-2.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5249588",
+						"comment_count": "10",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2012-12-03 06:09:55 +0000",
+						"thetext": "Acknowledgements:\n\nRed Hat would like to thank Puppet Labs for reporting this issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "5257223",
+						"comment_count": "11",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2012-12-04 19:31:43 +0000",
+						"thetext": "This issue has been addressed in following products:\n\n  CloudForms for RHEL 6\n\nVia RHSA-2012:1542 https://rhn.redhat.com/errata/RHSA-2012-1542.html"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "puppet-2.6.17-2.el5",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "puppet",
+						"version": "2.6.17",
+						"release": "2.el5",
+						"arch": "noarch"
+					},
+					{
+						"name": "puppet-server",
+						"version": "2.6.17",
+						"release": "2.el5",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "puppet",
+						"version": "2.6.17",
+						"release": "2.el5",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 21023,
+			"text": "This update has been submitted for testing by tmz. ",
+			"timestamp": "2012-07-19 18:58:35",
+			"update_id": 2975,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 21024,
+			"text": "This update is currently being pushed to the Fedora EPEL 5 testing updates repository.",
+			"timestamp": "2012-07-19 21:12:03",
+			"update_id": 2975,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 21025,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2012-07-19 22:37:42",
+			"update_id": 2975,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 21026,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2012-08-03 10:05:43",
+			"update_id": 2975,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 21027,
+			"text": "This update has been submitted for stable by tmz. ",
+			"timestamp": "2012-08-03 14:00:31",
+			"update_id": 2975,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 21028,
+			"text": "This update is currently being pushed to the Fedora EPEL 5 stable updates repository.",
+			"timestamp": "2012-08-05 04:36:54",
+			"update_id": 2975,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 21029,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2012-08-05 06:38:00",
+			"update_id": 2975,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2012-08-05 06:38:00",
+	"date_stable": "2012-08-05 06:38:00",
+	"date_submitted": "2012-07-19 18:58:13",
+	"date_testing": "2012-07-19 22:37:42",
+	"meets_testing_requirements": true,
+	"notes": "This is an upstream security release.  It addresses a number of issues found in puppet-2.6.x.  The Red Hat security team has rated this update as having low security impact.\r\n\r\nRefer to the upstream release notes and bugzilla entries for further details.\r\n\r\nhttp://projects.puppetlabs.com/projects/1/wiki/Release_Notes#2.6.17\r\n\r\nNetworkManager compatibility should be improved in this release, thanks to Orion Poplawski (any bugs in implementing Orion's suggested dispatcher script are my own).",
+	"pushed": true,
+	"release": {
+		"branch": "el5",
+		"candidate_tag": "dist-5E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "dist-5E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 5",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-5",
+		"override_tag": "dist-5E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-5E-epel",
+		"state": "archived",
+		"testing_tag": "dist-5E-epel-testing",
+		"version": "5"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "puppet-2.6.17-2.el5",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2012-6441",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2012-6441",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/a48a72e5754f0b2cf38fac2815d4e1ae1c5b60f10df13da0463714d020965e58?s=24&d=retro",
+		"email": "tmz@pobox.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "web"
+			},
+			{
+				"name": "gitfedora-web"
+			},
+			{
+				"name": "git-maint"
+			},
+			{
+				"name": "gitkeychecker"
+			}
+		],
+		"id": 136,
+		"name": "tmz",
+		"openid": "tmz.id.fedoraproject.org"
+	},
+	"version_hash": "3e73ad1bdcc01a093be01133e55520adfb422c4c"
+}

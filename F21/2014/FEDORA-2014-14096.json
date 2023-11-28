@@ -1,0 +1,1613 @@
+{
+	"alias": "FEDORA-2014-14096",
+	"bugs": [
+		{
+			"bug_id": 1114071,
+			"title": "ruby-libs conflicts with rubygem-pysch",
+			"bugzilla": {
+				"bug_id": "1114071",
+				"creation_ts": "2014-06-27 16:00:20 +0000",
+				"short_desc": "ruby-libs conflicts with rubygem-pysch",
+				"delta_ts": "2014-11-10 06:32:00 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "urgent",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7245304",
+						"comment_count": "0",
+						"who": {
+							"text": "orion",
+							"name": "Orion Poplawski"
+						},
+						"bug_when": "2014-06-27 16:00:20 +0000",
+						"thetext": "Description of problem:\n\nTransaction check error:\n  file /usr/lib64/ruby/vendor_ruby/psych.so from install of ruby-libs-2.1.2-23.fc21.x86_64 conflicts with file from package rubygem-psych-2.0.3-19.fc21.x86_64\n  file /usr/share/ruby/vendor_ruby/psych from install of ruby-libs-2.1.2-23.fc21.x86_64 conflicts with file from package rubygem-psych-2.0.3-19.fc21.x86_64\n  file /usr/share/ruby/vendor_ruby/psych.rb from install of ruby-libs-2.1.2-23.fc21.x86_64 conflicts with file from package rubygem-psych-2.0.3-19.fc21.x86_64"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7245443",
+						"comment_count": "1",
+						"who": {
+							"text": "vondruch",
+							"name": "Vít Ondruch"
+						},
+						"bug_when": "2014-06-27 17:00:33 +0000",
+						"thetext": "Interesting. This bug was probably introduced by \"fix\" for bug 988490. Until that fix, vendor_ruby folders were empty, but due the fix, they now contain the files which should not be owned by ruby-libs. So this is the change to narrow the bug:\n\n$ git diff\ndiff --git a/ruby.spec b/ruby.spec\nindex db7f6ff..72a5e84 100644\n--- a/ruby.spec\n+++ b/ruby.spec\n@@ -625,8 +625,8 @@ OPENSSL_ENABLE_MD5_VERIFY=1 make check TESTS=\"-v $DISABLE_TESTS\"\n # local system administrator.\n %exclude %{ruby_sitelibdir}\n %exclude %{ruby_sitearchdir}\n-%{ruby_vendorlibdir}\n-%{ruby_vendorarchdir}\n+%dir %{ruby_vendorlibdir}\n+%dir %{ruby_vendorarchdir}\n \n # List all these files explicitly to prevent surprises\n # Platform independent libraries.\n\nHowever, I am wondering:\n\n1) What was changed that nobody noticed such error earlier? Might it be YUM vs DNF issue?\n\n2) Does the patch actually allows you to install new version of Ruby? Here is the scratch build: http://koji.fedoraproject.org/koji/taskinfo?taskID=7084171"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7247532",
+						"comment_count": "2",
+						"who": {
+							"text": "mtasaka",
+							"name": "Mamoru TASAKA"
+						},
+						"bug_when": "2014-06-30 01:17:11 +0000",
+						"thetext": "(In reply to Vít Ondruch from comment #1)\n> Interesting. This bug was probably introduced by \"fix\" for bug 988490. Until\n> that fix, vendor_ruby folders were empty, but due the fix, they now contain\n> the files which should not be owned by ruby-libs. So this is the change to\n> narrow the bug:\n\n...\n\n> However, I am wondering:\n> \n> 1) What was changed that nobody noticed such error earlier? Might it be YUM\n> vs DNF issue?\n\n- Well, because simple \"yum upgrade\" succeeds (even after ruby-2.1.2-23.fc21\n  build) (at least for me), it is natural that no one \"notice\" this.\n  Note that I wrote \"yum upgrade\", not \"yum upgrade ruby <only>\", i.e\n  when trying to upgrade both ruby-libs and rubygem-pysch, upgrade succeeds\n  as expected (at least for me).\n\n  The problem here is perhaps when trying to upgrade ruby(-libs) \"only\".\n  New  ruby-2.1.2-23.fc21 builds pysch \"2.0.5\", while the old \n  ruby-2.1.1-19.fc21 builds pysch \"2.0.3, so the point where symlink in\n  ruby-libs points to differ between them, so conflict occurs.\n\n  So (as far as I am not wrong), upgrading related pkgs alltogether will\n  make it succeed.\n\n> 2) Does the patch actually allows you to install new version of Ruby? Here\n> is the scratch build:\n> http://koji.fedoraproject.org/koji/taskinfo?taskID=7084171"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7629408",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-31 09:13:08 +0000",
+						"thetext": "ruby-2.1.4-24.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/ruby-2.1.4-24.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7632122",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-01 16:36:51 +0000",
+						"thetext": "Package ruby-2.1.4-24.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing ruby-2.1.4-24.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-14096/ruby-2.1.4-24.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7655269",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-10 06:32:00 +0000",
+						"thetext": "ruby-2.1.4-24.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1118158,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-4975 ruby: off-by-one stack-based buffer overflow in the encodes() function",
+			"bugzilla": {
+				"bug_id": "1118158",
+				"alias": "CVE-2014-4975",
+				"creation_ts": "2014-07-10 06:13:53 +0000",
+				"short_desc": "CVE-2014-4975 ruby: off-by-one stack-based buffer overflow in the encodes() function",
+				"delta_ts": "2021-02-17 06:24:42 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened, Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1120856",
+					"1163998",
+					"1164000",
+					"1164004",
+					"1164005",
+					"1542178",
+					"1542179"
+				],
+				"blocked": [
+					{
+						"bug_id": "1118161",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1157711",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2014:1914",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7280077",
+						"comment_count": "0",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-07-10 06:13:53 +0000",
+						"thetext": "A possible stack-based buffer overflow flaw was reported in the Ruby encodes() function from pack.c. From the bug report, this function may be used on data received from a server, and could be triggered remotely.\n\nAs the affected stack buffer is a static size on the stack, FORTIFY_SOURCE may help mitigate this issue to only be a denial of service.\n\nThe original report suggests older versions (such as 1.9.3) are not affected.\n\nBug report: https://bugs.ruby-lang.org/issues/10019\n\nCVE request: http://www.openwall.com/lists/oss-security/2014/07/09/13"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7280910",
+						"comment_count": "1",
+						"who": {
+							"text": "jrusnack",
+							"name": "Ján Rusnačko"
+						},
+						"bug_when": "2014-07-10 10:45:07 +0000",
+						"thetext": "The proposed patch is not OK, since len can be up to ULONG_MAX big. \n\nThe best I could get is:\n\n2.1.2-p168 :015 > ['1'*(2**32)].pack 'm4566666666666666664'\nKilled\n[jrusnack@griffin ruby]$ irb\n2.1.2-p168 :001 > ['1'*(2**32)].pack 'm4566666666666666664'\nNoMemoryError: failed to allocate memory\n\tfrom (irb):1:in `pack'\n\tfrom (irb):1\n\tfrom /home/jrusnack/.rvm/rubies/ruby-2.1.2/bin/irb:11:in `<main>'\n\nwhich can be expected. From the report I don`t see how one can get SEGFAULT. I also compiled ruby with address sanitizer and found nothing."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7282609",
+						"comment_count": "2",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-07-10 19:01:35 +0000",
+						"thetext": "It is possible to trigger an off-by-one write, with '\\n' character written past the end of the input buffer.  That happens when the encodes() function is called with len of 3070 or 3071.  That can happen in the following cases:\n\n- the length of the input string is 3070 (or 3071) and count value for the m\n  format directive is 3072 or more\n- count value for the m format directive is exactly 3072 and the length of the\n  input string is n*3072 - 2 (or -1)\n\nI.e. crash can be possibly reproduced with:\n\n- [\"a\"*3070].pack(\"m4000\")\n- [\"a\"*(3072*3-2)].pack(\"m3072\")\n\nBoth cases require rather non-standard format specification that requests long output lines.  Hence this is unlikely to be triggered in applications that may encode untrusted input strings, but use trusted format specification.\n\nAlso considering the limited overflow (single byte that is not attacker controlled), this is unlikely to have code execution impact.  For ruby builds using stack protector (such as those in Red Hat Enterprise Linux or Fedora), the overflow is detected if it reaches canary value.\n\nIt is currently unclear if the issue described above is the problem reporter ran into."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7303009",
+						"comment_count": "4",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-07-17 21:23:25 +0000",
+						"thetext": "CVE-2014-4975 was assigned to the off-by-one overflow in encodes() as described in comment 2 above and upstream bug:\nhttps://bugs.ruby-lang.org/issues/10019#note-6\n\nFor CVE assignment, see:\nhttp://seclists.org/oss-sec/2014/q3/173\n\nThe issue was fixed upstream in the following commit:\nhttp://svn.ruby-lang.org/cgi-bin/viewvc.cgi?view=revision&revision=46778\n\nAs noted above, this overflow can only happen when using specific format specification for Ruby Array's pack() method:\nhttp://www.ruby-doc.org/core-1.9.3/Array.html#method-i-pack\n\nFormat \"m\" (base64 encoding) with length argument of at least 3072 is affected.  This is unlikely in cases when format string is from a trusted source, as the length value defines the maximum length of the output line.  After the specified number of characters, a line break is inserted.  Typical use case would limit line length to less than ~100 characters, the default is 60 characters if no length is specified.  The alternative is output with no line breaks at all, which can be requested using format \"m0\", and is unaffected by this issue.\n\nThis is not very likely to be exposed, and with limited impact on Ruby builds with stack protector.  Considering this a Low impact issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7303012",
+						"comment_count": "5",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-07-17 21:25:26 +0000",
+						"thetext": "Statement:\n\nThis issue did not affect the versions of ruby as shipped with Red Hat Enterprise Linux 5 and 6."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7303017",
+						"comment_count": "6",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-07-17 21:26:16 +0000",
+						"thetext": "\nCreated ruby tracking bugs for this issue:\n\nAffects: fedora-all [bug 1120856]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7655274",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-10 06:32:21 +0000",
+						"thetext": "ruby-2.1.4-24.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7711160",
+						"comment_count": "11",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2014-11-26 16:52:55 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 7\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.5 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.4 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.6 EUS\n\nVia RHSA-2014:1914 https://rhn.redhat.com/errata/RHSA-2014-1914.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7711166",
+						"comment_count": "12",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2014-11-26 16:53:24 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 7\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.5 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.4 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.6 EUS\n\nVia RHSA-2014:1913 https://rhn.redhat.com/errata/RHSA-2014-1913.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7711994",
+						"comment_count": "13",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2014-11-26 22:37:48 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:1912 https://rhn.redhat.com/errata/RHSA-2014-1912.html"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1120856,
+			"security": true,
+			"title": "CVE-2014-4975 ruby: off-by-one stack-based buffer overflow in the encodes() function [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1120856",
+				"creation_ts": "2014-07-17 21:26:08 +0000",
+				"short_desc": "CVE-2014-4975 ruby: off-by-one stack-based buffer overflow in the encodes() function [fedora-all]",
+				"delta_ts": "2015-06-30 01:05:30 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "EOL",
+				"keywords": "Reopened, Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1159326"
+				],
+				"blocked": [
+					{
+						"bug_id": "1118158",
+						"alias": "CVE-2014-4975",
+						"creation_ts": "2014-07-10 06:13:53 +0000",
+						"short_desc": "CVE-2014-4975 ruby: off-by-one stack-based buffer overflow in the encodes() function",
+						"delta_ts": "2021-02-17 06:24:42 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Reopened, Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1120856",
+							"1163998",
+							"1164000",
+							"1164004",
+							"1164005",
+							"1542178",
+							"1542179"
+						],
+						"blocked": [
+							{
+								"bug_id": "1118161",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1157711",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2014:1914",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7280077",
+								"comment_count": "0",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-07-10 06:13:53 +0000",
+								"thetext": "A possible stack-based buffer overflow flaw was reported in the Ruby encodes() function from pack.c. From the bug report, this function may be used on data received from a server, and could be triggered remotely.\n\nAs the affected stack buffer is a static size on the stack, FORTIFY_SOURCE may help mitigate this issue to only be a denial of service.\n\nThe original report suggests older versions (such as 1.9.3) are not affected.\n\nBug report: https://bugs.ruby-lang.org/issues/10019\n\nCVE request: http://www.openwall.com/lists/oss-security/2014/07/09/13"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7280910",
+								"comment_count": "1",
+								"who": {
+									"text": "jrusnack",
+									"name": "Ján Rusnačko"
+								},
+								"bug_when": "2014-07-10 10:45:07 +0000",
+								"thetext": "The proposed patch is not OK, since len can be up to ULONG_MAX big. \n\nThe best I could get is:\n\n2.1.2-p168 :015 > ['1'*(2**32)].pack 'm4566666666666666664'\nKilled\n[jrusnack@griffin ruby]$ irb\n2.1.2-p168 :001 > ['1'*(2**32)].pack 'm4566666666666666664'\nNoMemoryError: failed to allocate memory\n\tfrom (irb):1:in `pack'\n\tfrom (irb):1\n\tfrom /home/jrusnack/.rvm/rubies/ruby-2.1.2/bin/irb:11:in `<main>'\n\nwhich can be expected. From the report I don`t see how one can get SEGFAULT. I also compiled ruby with address sanitizer and found nothing."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7282609",
+								"comment_count": "2",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-07-10 19:01:35 +0000",
+								"thetext": "It is possible to trigger an off-by-one write, with '\\n' character written past the end of the input buffer.  That happens when the encodes() function is called with len of 3070 or 3071.  That can happen in the following cases:\n\n- the length of the input string is 3070 (or 3071) and count value for the m\n  format directive is 3072 or more\n- count value for the m format directive is exactly 3072 and the length of the\n  input string is n*3072 - 2 (or -1)\n\nI.e. crash can be possibly reproduced with:\n\n- [\"a\"*3070].pack(\"m4000\")\n- [\"a\"*(3072*3-2)].pack(\"m3072\")\n\nBoth cases require rather non-standard format specification that requests long output lines.  Hence this is unlikely to be triggered in applications that may encode untrusted input strings, but use trusted format specification.\n\nAlso considering the limited overflow (single byte that is not attacker controlled), this is unlikely to have code execution impact.  For ruby builds using stack protector (such as those in Red Hat Enterprise Linux or Fedora), the overflow is detected if it reaches canary value.\n\nIt is currently unclear if the issue described above is the problem reporter ran into."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7303009",
+								"comment_count": "4",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-07-17 21:23:25 +0000",
+								"thetext": "CVE-2014-4975 was assigned to the off-by-one overflow in encodes() as described in comment 2 above and upstream bug:\nhttps://bugs.ruby-lang.org/issues/10019#note-6\n\nFor CVE assignment, see:\nhttp://seclists.org/oss-sec/2014/q3/173\n\nThe issue was fixed upstream in the following commit:\nhttp://svn.ruby-lang.org/cgi-bin/viewvc.cgi?view=revision&revision=46778\n\nAs noted above, this overflow can only happen when using specific format specification for Ruby Array's pack() method:\nhttp://www.ruby-doc.org/core-1.9.3/Array.html#method-i-pack\n\nFormat \"m\" (base64 encoding) with length argument of at least 3072 is affected.  This is unlikely in cases when format string is from a trusted source, as the length value defines the maximum length of the output line.  After the specified number of characters, a line break is inserted.  Typical use case would limit line length to less than ~100 characters, the default is 60 characters if no length is specified.  The alternative is output with no line breaks at all, which can be requested using format \"m0\", and is unaffected by this issue.\n\nThis is not very likely to be exposed, and with limited impact on Ruby builds with stack protector.  Considering this a Low impact issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7303012",
+								"comment_count": "5",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-07-17 21:25:26 +0000",
+								"thetext": "Statement:\n\nThis issue did not affect the versions of ruby as shipped with Red Hat Enterprise Linux 5 and 6."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7303017",
+								"comment_count": "6",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-07-17 21:26:16 +0000",
+								"thetext": "\nCreated ruby tracking bugs for this issue:\n\nAffects: fedora-all [bug 1120856]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7655274",
+								"comment_count": "7",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-11-10 06:32:21 +0000",
+								"thetext": "ruby-2.1.4-24.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7711160",
+								"comment_count": "11",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-11-26 16:52:55 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 7\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.5 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.4 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.6 EUS\n\nVia RHSA-2014:1914 https://rhn.redhat.com/errata/RHSA-2014-1914.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7711166",
+								"comment_count": "12",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-11-26 16:53:24 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 7\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.5 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.4 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.6 EUS\n\nVia RHSA-2014:1913 https://rhn.redhat.com/errata/RHSA-2014-1913.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7711994",
+								"comment_count": "13",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-11-26 22:37:48 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:1912 https://rhn.redhat.com/errata/RHSA-2014-1912.html"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7303015",
+						"comment_count": "0",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-07-17 21:26:08 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7303016",
+						"comment_count": "1",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-07-17 21:26:14 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1118158,1120856\n\n# Description of your update\nnotes=Security fix for CVE-2014-4975\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1118158,1120856"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7626566",
+						"comment_count": "2",
+						"who": {
+							"text": "vondruch",
+							"name": "Vít Ondruch"
+						},
+						"bug_when": "2014-10-30 14:12:10 +0000",
+						"thetext": "Rawhide build: ruby-2.1.4-23.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7629410",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-31 09:13:11 +0000",
+						"thetext": "ruby-2.1.4-24.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/ruby-2.1.4-24.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7632124",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-01 16:36:55 +0000",
+						"thetext": "Package ruby-2.1.4-24.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing ruby-2.1.4-24.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-14096/ruby-2.1.4-24.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7655271",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-10 06:32:04 +0000",
+						"thetext": "ruby-2.1.4-24.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7655734",
+						"comment_count": "6",
+						"who": {
+							"text": "vondruch",
+							"name": "Vít Ondruch"
+						},
+						"bug_when": "2014-11-10 09:01:14 +0000",
+						"thetext": "Still issue for F20 and older due to ARM."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8128249",
+						"comment_count": "7",
+						"who": {
+							"text": "pj.pandit",
+							"name": "pjp"
+						},
+						"bug_when": "2015-04-09 17:33:09 +0000",
+						"thetext": "Hello vondruch@redhat.com,\n\nYou plan to fix this soon?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8131774",
+						"comment_count": "8",
+						"who": {
+							"text": "vondruch",
+							"name": "Vít Ondruch"
+						},
+						"bug_when": "2015-04-10 17:06:05 +0000",
+						"thetext": "Unfortunately this is still blocked by bug 1159326."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8284304",
+						"comment_count": "9",
+						"who": {
+							"text": "bcotton",
+							"name": "Fedora End Of Life"
+						},
+						"bug_when": "2015-05-29 12:23:45 +0000",
+						"thetext": "This message is a reminder that Fedora 20 is nearing its end of life.\nApproximately 4 (four) weeks from now Fedora will stop maintaining\nand issuing updates for Fedora 20. It is Fedora's policy to close all\nbug reports from releases that are no longer maintained. At that time\nthis bug will be closed as EOL if it remains open with a Fedora  'version'\nof '20'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora 20 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora, you are encouraged  change the 'version' to a later Fedora \nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8389676",
+						"comment_count": "10",
+						"who": {
+							"text": "bcotton",
+							"name": "Fedora End Of Life"
+						},
+						"bug_when": "2015-06-30 01:05:30 +0000",
+						"thetext": "Fedora 20 changed to end-of-life (EOL) status on 2015-06-23. Fedora 20 is\nno longer maintained, which means that it will not receive any further\nsecurity or bug fix updates. As a result we are closing this bug.\n\nIf you can reproduce this bug against a currently maintained version of\nFedora please feel free to reopen this bug against that version. If you\nare unable to reopen this bug, please file a new report against the\ncurrent release. If you experience problems, please add a comment to this\nbug.\n\nThank you for reporting this bug and we are sorry it could not be fixed."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1144367,
+			"title": "ruby-2.1.3 is available",
+			"bugzilla": {
+				"bug_id": "1144367",
+				"creation_ts": "2014-09-19 09:37:19 +0000",
+				"short_desc": "ruby-2.1.3 is available",
+				"delta_ts": "2014-11-10 06:32:02 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "FutureFeature, Triaged",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7498605",
+						"comment_count": "0",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2014-09-19 09:37:19 +0000",
+						"thetext": "Latest upstream release: 2.1.3\nCurrent version/release in Fedora Rawhide: 2.1.2-23.fc21\nURL: http://ftp.ruby-lang.org/pub/ruby/stable/\n\nPlease consult the package updates policy before you issue an update to a stable branch: https://fedoraproject.org/wiki/Updates_Policy\n\n\nMore information about the service that created this bug can be found at:\nhttps://fedoraproject.org/wiki/Upstream_release_monitoring Soon this service will be implemented by a new system: https://github.com/fedora-infra/anitya/\nIt will require to manage monitored projects via a new web interface. Please make yourself familiar with the new system to ease the transition."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7629409",
+						"comment_count": "1",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-31 09:13:09 +0000",
+						"thetext": "ruby-2.1.4-24.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/ruby-2.1.4-24.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7632123",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-01 16:36:53 +0000",
+						"thetext": "Package ruby-2.1.4-24.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing ruby-2.1.4-24.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-14096/ruby-2.1.4-24.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7655270",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-10 06:32:02 +0000",
+						"thetext": "ruby-2.1.4-24.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1157709,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-8080 ruby: REXML billion laughs attack via parameter entity expansion",
+			"bugzilla": {
+				"bug_id": "1157709",
+				"alias": "CVE-2014-8080",
+				"creation_ts": "2014-10-27 14:30:35 +0000",
+				"short_desc": "CVE-2014-8080 ruby: REXML billion laughs attack via parameter entity expansion",
+				"delta_ts": "2021-10-20 10:47:34 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1157936",
+					"1158215",
+					"1163993",
+					"1163994",
+					"1163998",
+					"1164000",
+					"1164004",
+					"1164005",
+					"1165380",
+					"1542172",
+					"1542173"
+				],
+				"blocked": [
+					{
+						"bug_id": "1157711",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2014:1914",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7615186",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2014-10-27 14:30:35 +0000",
+						"thetext": "Upstream released new version of Ruby [1] which fixes DoS during XML expansion.\nUpstream commit fixing this: http://svn.ruby-lang.org/cgi-bin/viewvc.cgi/?pathrev=48161\n\n[1]: https://www.ruby-lang.org/en/news/2014/10/27/rexml-dos-cve-2014-8080/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7617124",
+						"comment_count": "1",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-10-28 04:41:02 +0000",
+						"thetext": "\nCreated ruby tracking bugs for this issue:\n\nAffects: fedora-all [bug 1157936]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7619828",
+						"comment_count": "2",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-10-28 20:24:49 +0000",
+						"thetext": "(In reply to Vasyl Kaigorodov from comment #0)\n> Upstream commit fixing this:\n> http://svn.ruby-lang.org/cgi-bin/viewvc.cgi/?pathrev=48161\n\nThe actual commit is:\n\nhttp://svn.ruby-lang.org/cgi-bin/viewvc.cgi?view=revision&revision=48161\n\nIt also provides more details of the issue, which were excluded form the upstream advisory.  This issue is a \"billion laughs\" issue, using parameter entities to trigger high CPU / memory usage DoS.\n\nREXML was previously changed to implement protections against billion laughs attacks, e.g. via bug 460134 (CVE-2008-3790) or via bug 914716 (CVE-2013-1821)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7619839",
+						"comment_count": "3",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-10-28 20:31:13 +0000",
+						"thetext": "External References:\n\nhttps://www.ruby-lang.org/en/news/2014/10/27/rexml-dos-cve-2014-8080/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7619848",
+						"comment_count": "5",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-10-28 20:32:20 +0000",
+						"thetext": "\nCreated jruby tracking bugs for this issue:\n\nAffects: fedora-all [bug 1158215]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7619923",
+						"comment_count": "6",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-10-28 20:59:24 +0000",
+						"thetext": "JRuby was fixed upstream in version 1.7.16.1:\n\nhttp://jruby.org/2014/10/28/jruby-1-7-16-1.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7620468",
+						"comment_count": "7",
+						"who": {
+							"text": "pavelp",
+							"name": "Pavel Polischouk"
+						},
+						"bug_when": "2014-10-29 02:03:35 +0000",
+						"thetext": "Statement:\n\nRed Hat Enterprise Linux 5 is now in Production 3 Phase of the support and maintenance life cycle. This has been rated as having Moderate security impact and is not currently planned to be addressed in future updates. For additional information, refer to the Red Hat Enterprise Linux Life Cycle: https://access.redhat.com/support/policy/updates/errata/\n\nRed Hat JBoss SOA Platform 5 is now in Maintenance Support phase receiving only qualified Important and Critical impact security fixes; and Red Hat JBoss SOA Platform 4.3 is now in Extended Life Support phase receiving only Critical impact security fixes. This issue has been rated as having Moderate security impact and is not currently planned to be addressed in future updates. For additional information, refer to the Red Hat JBoss Middleware Product Life Cycle: https://access.redhat.com/support/policy/updates/jboss_notes/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7621470",
+						"comment_count": "8",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-10-29 09:59:50 +0000",
+						"thetext": "In the past updates, billion laughs attack issues in REXML were addressed by introduction of the REXML::Document.entity_expansion_limit and REXML.entity_expansion_text_limit.  These define limits on the number of entity expansions, or the size of expansion.  These limits were not properly applied when expanding parameter entities, leading to this issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7655273",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-10 06:32:16 +0000",
+						"thetext": "ruby-2.1.4-24.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7711025",
+						"comment_count": "17",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2014-11-26 16:09:29 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2014:1911 https://rhn.redhat.com/errata/RHSA-2014-1911.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7711161",
+						"comment_count": "18",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2014-11-26 16:53:01 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 7\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.5 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.4 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.6 EUS\n\nVia RHSA-2014:1914 https://rhn.redhat.com/errata/RHSA-2014-1914.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7711168",
+						"comment_count": "19",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2014-11-26 16:53:29 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 7\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.5 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.4 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.6 EUS\n\nVia RHSA-2014:1913 https://rhn.redhat.com/errata/RHSA-2014-1913.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7711995",
+						"comment_count": "20",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2014-11-26 22:37:54 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:1912 https://rhn.redhat.com/errata/RHSA-2014-1912.html"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1157936,
+			"security": true,
+			"title": "CVE-2014-8080 ruby: Denial Of Service XML Expansion [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1157936",
+				"creation_ts": "2014-10-28 04:40:52 +0000",
+				"short_desc": "CVE-2014-8080 ruby: Denial Of Service XML Expansion [fedora-all]",
+				"delta_ts": "2015-06-30 01:11:16 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "EOL",
+				"keywords": "Reopened, Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1159326"
+				],
+				"blocked": [
+					{
+						"bug_id": "1157709",
+						"alias": "CVE-2014-8080",
+						"creation_ts": "2014-10-27 14:30:35 +0000",
+						"short_desc": "CVE-2014-8080 ruby: REXML billion laughs attack via parameter entity expansion",
+						"delta_ts": "2021-10-20 10:47:34 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1157936",
+							"1158215",
+							"1163993",
+							"1163994",
+							"1163998",
+							"1164000",
+							"1164004",
+							"1164005",
+							"1165380",
+							"1542172",
+							"1542173"
+						],
+						"blocked": [
+							{
+								"bug_id": "1157711",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2014:1914",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7615186",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2014-10-27 14:30:35 +0000",
+								"thetext": "Upstream released new version of Ruby [1] which fixes DoS during XML expansion.\nUpstream commit fixing this: http://svn.ruby-lang.org/cgi-bin/viewvc.cgi/?pathrev=48161\n\n[1]: https://www.ruby-lang.org/en/news/2014/10/27/rexml-dos-cve-2014-8080/"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7617124",
+								"comment_count": "1",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-10-28 04:41:02 +0000",
+								"thetext": "\nCreated ruby tracking bugs for this issue:\n\nAffects: fedora-all [bug 1157936]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7619828",
+								"comment_count": "2",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-10-28 20:24:49 +0000",
+								"thetext": "(In reply to Vasyl Kaigorodov from comment #0)\n> Upstream commit fixing this:\n> http://svn.ruby-lang.org/cgi-bin/viewvc.cgi/?pathrev=48161\n\nThe actual commit is:\n\nhttp://svn.ruby-lang.org/cgi-bin/viewvc.cgi?view=revision&revision=48161\n\nIt also provides more details of the issue, which were excluded form the upstream advisory.  This issue is a \"billion laughs\" issue, using parameter entities to trigger high CPU / memory usage DoS.\n\nREXML was previously changed to implement protections against billion laughs attacks, e.g. via bug 460134 (CVE-2008-3790) or via bug 914716 (CVE-2013-1821)."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7619839",
+								"comment_count": "3",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-10-28 20:31:13 +0000",
+								"thetext": "External References:\n\nhttps://www.ruby-lang.org/en/news/2014/10/27/rexml-dos-cve-2014-8080/"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7619848",
+								"comment_count": "5",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-10-28 20:32:20 +0000",
+								"thetext": "\nCreated jruby tracking bugs for this issue:\n\nAffects: fedora-all [bug 1158215]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7619923",
+								"comment_count": "6",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-10-28 20:59:24 +0000",
+								"thetext": "JRuby was fixed upstream in version 1.7.16.1:\n\nhttp://jruby.org/2014/10/28/jruby-1-7-16-1.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7620468",
+								"comment_count": "7",
+								"who": {
+									"text": "pavelp",
+									"name": "Pavel Polischouk"
+								},
+								"bug_when": "2014-10-29 02:03:35 +0000",
+								"thetext": "Statement:\n\nRed Hat Enterprise Linux 5 is now in Production 3 Phase of the support and maintenance life cycle. This has been rated as having Moderate security impact and is not currently planned to be addressed in future updates. For additional information, refer to the Red Hat Enterprise Linux Life Cycle: https://access.redhat.com/support/policy/updates/errata/\n\nRed Hat JBoss SOA Platform 5 is now in Maintenance Support phase receiving only qualified Important and Critical impact security fixes; and Red Hat JBoss SOA Platform 4.3 is now in Extended Life Support phase receiving only Critical impact security fixes. This issue has been rated as having Moderate security impact and is not currently planned to be addressed in future updates. For additional information, refer to the Red Hat JBoss Middleware Product Life Cycle: https://access.redhat.com/support/policy/updates/jboss_notes/"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7621470",
+								"comment_count": "8",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-10-29 09:59:50 +0000",
+								"thetext": "In the past updates, billion laughs attack issues in REXML were addressed by introduction of the REXML::Document.entity_expansion_limit and REXML.entity_expansion_text_limit.  These define limits on the number of entity expansions, or the size of expansion.  These limits were not properly applied when expanding parameter entities, leading to this issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7655273",
+								"comment_count": "11",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-11-10 06:32:16 +0000",
+								"thetext": "ruby-2.1.4-24.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7711025",
+								"comment_count": "17",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-11-26 16:09:29 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2014:1911 https://rhn.redhat.com/errata/RHSA-2014-1911.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7711161",
+								"comment_count": "18",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-11-26 16:53:01 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 7\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.5 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.4 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.6 EUS\n\nVia RHSA-2014:1914 https://rhn.redhat.com/errata/RHSA-2014-1914.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7711168",
+								"comment_count": "19",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-11-26 16:53:29 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 7\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.5 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.4 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.6 EUS\n\nVia RHSA-2014:1913 https://rhn.redhat.com/errata/RHSA-2014-1913.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7711995",
+								"comment_count": "20",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-11-26 22:37:54 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:1912 https://rhn.redhat.com/errata/RHSA-2014-1912.html"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7617122",
+						"comment_count": "0",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-10-28 04:40:52 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7617123",
+						"comment_count": "1",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-10-28 04:41:00 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1157709,1157936\n\n# Description of your update\nnotes=Security fix for CVE-2014-8080\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1157709,1157936"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7626562",
+						"comment_count": "2",
+						"who": {
+							"text": "vondruch",
+							"name": "Vít Ondruch"
+						},
+						"bug_when": "2014-10-30 14:11:32 +0000",
+						"thetext": "Rawhide build: ruby-2.1.4-23.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7629413",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-31 09:14:32 +0000",
+						"thetext": "ruby-2.1.4-24.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/ruby-2.1.4-24.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7632125",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-01 16:36:58 +0000",
+						"thetext": "Package ruby-2.1.4-24.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing ruby-2.1.4-24.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-14096/ruby-2.1.4-24.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7655272",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-10 06:32:10 +0000",
+						"thetext": "ruby-2.1.4-24.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7655737",
+						"comment_count": "6",
+						"who": {
+							"text": "vondruch",
+							"name": "Vít Ondruch"
+						},
+						"bug_when": "2014-11-10 09:01:39 +0000",
+						"thetext": "Still issue for F20 and older due to ARM."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8128280",
+						"comment_count": "8",
+						"who": {
+							"text": "pj.pandit",
+							"name": "pjp"
+						},
+						"bug_when": "2015-04-09 17:34:23 +0000",
+						"thetext": "Hello vondruch@redhat.com,\n\nYou plan to fix this soon?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8131776",
+						"comment_count": "9",
+						"who": {
+							"text": "vondruch",
+							"name": "Vít Ondruch"
+						},
+						"bug_when": "2015-04-10 17:06:19 +0000",
+						"thetext": "Unfortunately this is still blocked by bug 1159326."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8285864",
+						"comment_count": "10",
+						"who": {
+							"text": "bcotton",
+							"name": "Fedora End Of Life"
+						},
+						"bug_when": "2015-05-29 13:10:26 +0000",
+						"thetext": "This message is a reminder that Fedora 20 is nearing its end of life.\nApproximately 4 (four) weeks from now Fedora will stop maintaining\nand issuing updates for Fedora 20. It is Fedora's policy to close all\nbug reports from releases that are no longer maintained. At that time\nthis bug will be closed as EOL if it remains open with a Fedora  'version'\nof '20'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora 20 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora, you are encouraged  change the 'version' to a later Fedora \nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8389757",
+						"comment_count": "11",
+						"who": {
+							"text": "bcotton",
+							"name": "Fedora End Of Life"
+						},
+						"bug_when": "2015-06-30 01:11:16 +0000",
+						"thetext": "Fedora 20 changed to end-of-life (EOL) status on 2015-06-23. Fedora 20 is\nno longer maintained, which means that it will not receive any further\nsecurity or bug fix updates. As a result we are closing this bug.\n\nIf you can reproduce this bug against a currently maintained version of\nFedora please feel free to reopen this bug against that version. If you\nare unable to reopen this bug, please file a new report against the\ncurrent release. If you experience problems, please add a comment to this\nbug.\n\nThank you for reporting this bug and we are sorry it could not be fixed."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "ruby-2.1.4-24.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "ruby-devel",
+						"version": "2.1.4",
+						"release": "24.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "ruby-tcltk",
+						"version": "2.1.4",
+						"release": "24.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "rubygem-json",
+						"version": "1.8.1",
+						"release": "24.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "rubygem-bigdecimal",
+						"version": "1.2.4",
+						"release": "24.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "ruby-debuginfo",
+						"version": "2.1.4",
+						"release": "24.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "ruby-libs",
+						"version": "2.1.4",
+						"release": "24.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "ruby",
+						"version": "2.1.4",
+						"release": "24.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "rubygem-psych",
+						"version": "2.0.5",
+						"release": "24.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "rubygem-io-console",
+						"version": "0.4.2",
+						"release": "24.fc21",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "ruby-libs",
+						"version": "2.1.4",
+						"release": "24.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "ruby-debuginfo",
+						"version": "2.1.4",
+						"release": "24.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "rubygem-json",
+						"version": "1.8.1",
+						"release": "24.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "ruby-devel",
+						"version": "2.1.4",
+						"release": "24.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "ruby",
+						"version": "2.1.4",
+						"release": "24.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "rubygem-psych",
+						"version": "2.0.5",
+						"release": "24.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "rubygem-io-console",
+						"version": "0.4.2",
+						"release": "24.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "rubygem-bigdecimal",
+						"version": "1.2.4",
+						"release": "24.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "ruby-tcltk",
+						"version": "2.1.4",
+						"release": "24.fc21",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "rubygems-devel",
+						"version": "2.2.2",
+						"release": "24.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "ruby-irb",
+						"version": "2.1.4",
+						"release": "24.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "rubygem-rake",
+						"version": "10.1.0",
+						"release": "24.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "rubygems",
+						"version": "2.2.2",
+						"release": "24.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "ruby-doc",
+						"version": "2.1.4",
+						"release": "24.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "rubygem-rdoc",
+						"version": "4.1.0",
+						"release": "24.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "rubygem-minitest",
+						"version": "4.7.5",
+						"release": "24.fc21",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "ruby",
+						"version": "2.1.4",
+						"release": "24.fc21",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "rubygem-psych",
+						"version": "2.0.5",
+						"release": "24.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "ruby",
+						"version": "2.1.4",
+						"release": "24.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "rubygem-io-console",
+						"version": "0.4.2",
+						"release": "24.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "ruby-libs",
+						"version": "2.1.4",
+						"release": "24.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "rubygem-bigdecimal",
+						"version": "1.2.4",
+						"release": "24.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "ruby-debuginfo",
+						"version": "2.1.4",
+						"release": "24.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "ruby-tcltk",
+						"version": "2.1.4",
+						"release": "24.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "rubygem-json",
+						"version": "1.8.1",
+						"release": "24.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "ruby-devel",
+						"version": "2.1.4",
+						"release": "24.fc21",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 246634,
+			"text": "This update has been submitted for testing by vondruch. ",
+			"timestamp": "2014-10-31 09:13:29",
+			"update_id": 30455,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 246635,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/7311/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-10-31 09:26:24",
+			"update_id": 30455,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 246636,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/7311/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-10-31 09:26:35",
+			"update_id": 30455,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 246637,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/7315/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-10-31 09:57:25",
+			"update_id": 30455,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 246638,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/7315/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-10-31 09:59:30",
+			"update_id": 30455,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 246639,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2014-11-01 03:47:30",
+			"update_id": 30455,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 246640,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2014-11-01 04:01:52",
+			"update_id": 30455,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 246641,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-11-01 16:36:58",
+			"update_id": 30455,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 246642,
+			"text": "This update has reached 3 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2014-11-04 21:07:30",
+			"update_id": 30455,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 246643,
+			"text": "This update has been submitted for stable by vondruch. ",
+			"timestamp": "2014-11-05 08:51:04",
+			"update_id": 30455,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 246644,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/8898/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-11-05 09:00:11",
+			"update_id": 30455,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 246645,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2014-11-09 17:42:31",
+			"update_id": 30455,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 246646,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2014-11-09 17:56:51",
+			"update_id": 30455,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 246647,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2014-11-10 06:32:24",
+			"update_id": 30455,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2014-10-31 09:27:45",
+	"date_pushed": "2014-11-10 06:32:24",
+	"date_stable": "2014-11-10 06:32:24",
+	"date_submitted": "2014-10-31 09:13:15",
+	"date_testing": "2014-11-01 16:36:58",
+	"meets_testing_requirements": true,
+	"notes": "Update to Ruby 2.1.4.\r\nInclude only vendor directories, not their content (rhbz#1114071).\r\nFix \"invalid regex\" warning for non-rubygem packages (rhbz#1154067).\r\nUse load macro introduced in RPM 4.12.",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "ruby-2.1.4-24.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2014-14096",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2014-14096",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/18381818f23e9eba9b69d26321df755c42794053eee46cc578f0a12bac653309?s=24&d=retro",
+		"email": "vondruch@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "cla_redhat"
+			},
+			{
+				"name": "ruby-sig"
+			},
+			{
+				"name": "rubygems-build"
+			},
+			{
+				"name": "ruby-packagers-sig"
+			}
+		],
+		"id": 347,
+		"name": "vondruch",
+		"openid": "vondruch.id.fedoraproject.org"
+	},
+	"version_hash": "b462fb93e7305b08bf50bb523af01c39aa495647"
+}

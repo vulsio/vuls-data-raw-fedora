@@ -1,0 +1,1916 @@
+{
+	"alias": "FEDORA-2019-2baa1f7b19",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 1654366,
+			"title": "lxc-execute fails with \"Unable to open lxc.init.static\"",
+			"bugzilla": {
+				"bug_id": "1654366",
+				"creation_ts": "2018-11-28 15:37:11 +0000",
+				"short_desc": "lxc-execute fails with \"Unable to open lxc.init.static\"",
+				"delta_ts": "2019-09-06 12:58:44 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "12251933",
+						"comment_count": "0",
+						"who": {
+							"text": "eschreiber",
+							"name": "Eric Schreiber"
+						},
+						"bug_when": "2018-11-28 15:37:11 +0000",
+						"thetext": "Description of problem:\n\nOn Fedora 29, lxc-execute fails to run because it does not find init.lxc.static. init.lxc.static is not installed and is not available in any lxc package.\n\n\nVersion-Release number of selected component (if applicable):\n\nlxc-3.0.2-1.fc29\n\n\nHow reproducible:\n\nHappens every time for directions below.\n\n\nSteps to Reproduce:\n1. Create a simple configuration file:\n\n$ cat /tmp/lxc.conf \nlxc.uts.name=lxc-1\nlxc.tty.max=12\nlxc.pty.max=12\n\n# loopback interface\nlxc.net.0.type=empty\nlxc.net.0.flags=up\n\n\n2. Run lxc-execute\n\n$ sudo lxc-execute -f /tmp/lxc.conf -n lxc-1 -o /tmp/lxc.log -- /usr/bin/ls\nlxc-execute: lxc-1: conf.c: lxc_setup: 3574 No such file or directory - Unable to open lxc.init.static\nlxc-execute: lxc-1: start.c: do_start: 1234 Failed to setup container \"lxc-1\"\nlxc-execute: lxc-1: sync.c: __sync_wait: 59 An error occurred in another process (expected sequence number 5)  \nlxc-execute: lxc-1: start.c: __lxc_start: 1910 Failed to spawn container \"lxc-1\"\nlxc-execute: lxc-1: tools/lxc_execute.c: main: 240 Failed run an application inside container\n\nNote, the log printout is somewhat confusing. The code is looking for \"init.lxc.static\", not \"lxc.init.static\" as printed:\n\nconf.c excerpt\n---\n        if (lxc_conf->is_execute) {\n                if (execveat_supported()) {\n\t\t\tint fd;\n                        char path[PATH_MAX];\n\n\t\t\tret = snprintf(path, PATH_MAX, SBINDIR \"/init.lxc.static\");\n                        if (ret < 0 || ret >= PATH_MAX) {\n                                ERROR(\"Path to init.lxc.static too long\");\n                                return -1;\n                        }\n\n                        fd = open(path, O_PATH | O_CLOEXEC);\n                        if (fd < 0) {\n                                SYSERROR(\"Unable to open lxc.init.static\");\n                                return -1;\n                        }\n\n                        ((struct execute_args *)handler->data)->init_fd = fd;\n                        ((struct execute_args *)handler->data)->init_path = NULL;\n                } else {\n                        ret = lxc_execute_bind_init(handler);\n                        if (ret < 0) {\n                                ERROR(\"Failed to bind-mount the lxc init system\");\n                                return -1;\n                        }\n                }\n        }\n\n\n3.init.lxc.static is not installed and not available to install.\n\n$ dnf provides /usr/sbin/init.lxc\nLast metadata expiration check: 0:04:29 ago on Mon 19 Nov 2018 03:18:03 PM EST.\nlxc-libs-3.0.2-1.fc29.x86_64 : Runtime library files for lxc\nRepo        : @System\nMatched from:\nFilename    : /usr/sbin/init.lxc\n\n$ dnf provides /usr/sbin/init.lxc.static\nLast metadata expiration check: 0:04:43 ago on Mon 19 Nov 2018 03:18:03 PM EST.\nError: No Matches found\n\n$ dnf info lxc-libs\nLast metadata expiration check: 0:04:52 ago on Mon 19 Nov 2018 03:18:03 PM EST.\nInstalled Packages\nName         : lxc-libs\nVersion      : 3.0.2\nRelease      : 1.fc29\nArch         : x86_64\nSize         : 1.1 M\nSource       : lxc-3.0.2-1.fc29.src.rpm\nRepo         : @System\nFrom repo    : fedora\nSummary      : Runtime library files for lxc\nURL          : http://linuxcontainers.org/lxc\nLicense      : LGPLv2+ and GPLv2\nDescription  : Linux Resource Containers provide process and resource isolation without the\n             : overhead of full virtualization.\n             : \n             : The lxc-libs package contains libraries for running lxc applications.\n\n$ which init.lxc\n/usr/sbin/init.lxc\n\n$ which init.lxc.static\n/usr/bin/which: no init.lxc.static in (/usr/lib64/qt-3.3/bin:/usr/share/Modules/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/usr/sbin)\n\n\nExpected results:\n\nExpect lxc-execute to run.\n\n\nAdditional info:\n\nI have rebuilt lxc 2.0.9 RPMS and am running that successfully on Fedora 29 for the time being. This report is also posted to lxc issues (https://github.com/lxc/lxc/issues/2729). Also noting that lxc 3.0.x is available in Ubuntu 18.04 where init.lxc.static is included in the package (https://packages.ubuntu.com/bionic/amd64/liblxc-common/filelist)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12272474",
+						"comment_count": "1",
+						"who": {
+							"text": "eschreiber",
+							"name": "Eric Schreiber"
+						},
+						"bug_when": "2018-12-04 11:13:01 +0000",
+						"thetext": "lxc-3.0.3-1.fc29 exhibits the same behavior."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12306797",
+						"comment_count": "2",
+						"who": {
+							"text": "sgalgano",
+							"name": "Steven Galgano"
+						},
+						"bug_when": "2018-12-16 03:21:11 +0000",
+						"thetext": "The missing init.lxc.static binary is caused by two missing BuildRequires packages in lxc.spec:\n\n BuildRequires:  libcap-static\n BuildRequires:  glibc-static\n\nThese packages must be installed in order for configure to set HAVE_STATIC_LIBCAP to yes resulting in make building init.lxc.static. \n\nThe following patch is for the spec used to build lxc-3.0.3-1.fc29:\n\n--- lxc.spec.orig\t2018-11-23 04:15:08.000000000 -0500\n+++ lxc.spec.new\t2018-12-15 22:04:43.523635267 -0500\n@@ -28,6 +28,8 @@\n BuildRequires:  libtool\n BuildRequires:  systemd\n BuildRequires:  pkgconfig(bash-completion)\n+BuildRequires:  libcap-static\n+BuildRequires:  glibc-static\n # lxc-extra subpackage not needed anymore, lxc-ls has been rewriten in\n # C and does not depend on the Python3 binding anymore\n Provides:       lxc-extra = %{version}-%{release}\n@@ -197,6 +199,7 @@\n %{_libexecdir}/%{name}\n # fixme: should be in libexecdir?\n %{_sbindir}/init.%{name}\n+%{_sbindir}/init.%{name}.static\n %{_bindir}/%{name}-autostart\n %{_sharedstatedir}/%{name}\n %dir %{_sysconfdir}/%{name}"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12400606",
+						"comment_count": "3",
+						"who": {
+							"text": "sgalgano",
+							"name": "Steven Galgano"
+						},
+						"bug_when": "2019-01-28 13:06:39 +0000",
+						"thetext": "Created attachment 1524201\nAdds BuildRequires  libcap-static and glibc-static, and file init.lxc.static."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13112089",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-08-27 21:06:29 +0000",
+						"thetext": "FEDORA-2019-c1dac1b3b8 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2019-c1dac1b3b8"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13112093",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-08-27 21:09:06 +0000",
+						"thetext": "FEDORA-2019-2baa1f7b19 has been submitted as an update to Fedora 30. https://bodhi.fedoraproject.org/updates/FEDORA-2019-2baa1f7b19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13121876",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-08-30 00:04:30 +0000",
+						"thetext": "lxc-3.0.4-1.fc30, lxcfs-3.0.4-1.fc30, python3-lxc-3.0.4-1.fc30 has been pushed to the Fedora 30 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2019-2baa1f7b19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13121981",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-08-30 00:25:29 +0000",
+						"thetext": "lxc-3.0.4-1.fc29, lxcfs-3.0.4-1.fc29, python3-lxc-3.0.4-1.fc29 has been pushed to the Fedora 29 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2019-c1dac1b3b8"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13145143",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-09-06 12:33:06 +0000",
+						"thetext": "lxc-3.0.4-1.fc30, lxcfs-3.0.4-1.fc30, python3-lxc-3.0.4-1.fc30 has been pushed to the Fedora 30 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13145294",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-09-06 12:58:44 +0000",
+						"thetext": "lxc-3.0.4-1.fc29, lxcfs-3.0.4-1.fc29, python3-lxc-3.0.4-1.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1664908,
+			"feedback": [
+				{
+					"bug_id": 1664908,
+					"comment": {
+						"id": 894480,
+						"karma": 1,
+						"text": "Works for me.",
+						"timestamp": "2019-02-13 01:02:46",
+						"update_id": 131458,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/c8e7b5522a048d5bb61eb30147a63e9efe8be881b2a10703cd842367d1bfbb87?s=24&d=retro",
+							"email": "ngompa13@gmail.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "python-sig"
+								},
+								{
+									"name": "provenpackager"
+								},
+								{
+									"name": "kde-sig"
+								},
+								{
+									"name": "communishift"
+								},
+								{
+									"name": "kaizen"
+								},
+								{
+									"name": "respins-sig"
+								},
+								{
+									"name": "fedorabugs"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "sig-hyperscale"
+								},
+								{
+									"name": "epel-packagers-sig"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "python-packagers-sig"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "centosproject-email-aliases"
+								},
+								{
+									"name": "caddy"
+								},
+								{
+									"name": "fesco"
+								},
+								{
+									"name": "sig-extras"
+								},
+								{
+									"name": "go-sig"
+								},
+								{
+									"name": "rust-sig"
+								},
+								{
+									"name": "gitlab-centos-sig-hyperscale"
+								},
+								{
+									"name": "sig-altimages"
+								},
+								{
+									"name": "ocp-cico-hyperscale"
+								},
+								{
+									"name": "asahi-sig"
+								}
+							],
+							"id": 534,
+							"name": "ngompa",
+							"openid": "ngompa.id.fedoraproject.org"
+						},
+						"user_id": 534
+					},
+					"comment_id": 894480,
+					"karma": 1
+				},
+				{
+					"bug_id": 1664908,
+					"comment": {
+						"id": 894481,
+						"karma": 1,
+						"text": "Works for me.",
+						"timestamp": "2019-02-13 01:03:09",
+						"update_id": 131466,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/c8e7b5522a048d5bb61eb30147a63e9efe8be881b2a10703cd842367d1bfbb87?s=24&d=retro",
+							"email": "ngompa13@gmail.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "python-sig"
+								},
+								{
+									"name": "provenpackager"
+								},
+								{
+									"name": "kde-sig"
+								},
+								{
+									"name": "communishift"
+								},
+								{
+									"name": "kaizen"
+								},
+								{
+									"name": "respins-sig"
+								},
+								{
+									"name": "fedorabugs"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "sig-hyperscale"
+								},
+								{
+									"name": "epel-packagers-sig"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "python-packagers-sig"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "centosproject-email-aliases"
+								},
+								{
+									"name": "caddy"
+								},
+								{
+									"name": "fesco"
+								},
+								{
+									"name": "sig-extras"
+								},
+								{
+									"name": "go-sig"
+								},
+								{
+									"name": "rust-sig"
+								},
+								{
+									"name": "gitlab-centos-sig-hyperscale"
+								},
+								{
+									"name": "sig-altimages"
+								},
+								{
+									"name": "ocp-cico-hyperscale"
+								},
+								{
+									"name": "asahi-sig"
+								}
+							],
+							"id": 534,
+							"name": "ngompa",
+							"openid": "ngompa.id.fedoraproject.org"
+						},
+						"user_id": 534
+					},
+					"comment_id": 894481,
+					"karma": 1
+				},
+				{
+					"bug_id": 1664908,
+					"comment": {
+						"id": 894780,
+						"karma": 1,
+						"text": "worked in atomic host automated tests. ",
+						"timestamp": "2019-02-13 14:43:07",
+						"update_id": 131466,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/c8c3a591771374e8be1c37c31e605fec6c2cf7b13a172af803f39091170dfdb3?s=24&d=retro",
+							"email": "dusty@dustymabe.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "sysadmin-badges"
+								},
+								{
+									"name": "aws"
+								},
+								{
+									"name": "qa-beaker-user"
+								},
+								{
+									"name": "gitfedora-web"
+								},
+								{
+									"name": "centosproject-email-aliases"
+								},
+								{
+									"name": "fi-apprentice"
+								},
+								{
+									"name": "rust-sig"
+								},
+								{
+									"name": "sysadmin-veteran"
+								},
+								{
+									"name": "web"
+								},
+								{
+									"name": "sig-paas"
+								},
+								{
+									"name": "atomic-wg"
+								},
+								{
+									"name": "qa"
+								},
+								{
+									"name": "fedorabugs"
+								},
+								{
+									"name": "msftazure"
+								},
+								{
+									"name": "pungi-devel"
+								},
+								{
+									"name": "qa-automation-shell"
+								},
+								{
+									"name": "sysadmin-fedimg"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "coreos"
+								},
+								{
+									"name": "sysadmin"
+								},
+								{
+									"name": "communishift"
+								},
+								{
+									"name": "aws-fcos-mgmt"
+								},
+								{
+									"name": "sysadmin-bodhi"
+								},
+								{
+									"name": "sysadmin-releng"
+								},
+								{
+									"name": "sysadmin-coreos"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "ibmcloud"
+								},
+								{
+									"name": "discussion-mods-project"
+								},
+								{
+									"name": "discussion-mods-ask"
+								},
+								{
+									"name": "hetznercloud"
+								}
+							],
+							"id": 659,
+							"name": "dustymabe",
+							"openid": "dustymabe.id.fedoraproject.org"
+						},
+						"user_id": 659
+					},
+					"comment_id": 894780
+				},
+				{
+					"bug_id": 1664908,
+					"comment": {
+						"id": 894993,
+						"karma": 1,
+						"text": "works fine to me, tested with setting-up 3 nodes openshift openshift cluster on F29 Atomic Host",
+						"timestamp": "2019-02-14 07:03:06",
+						"update_id": 131466,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/3885bba08f8139e7d897b6dc3b7088f1b2d43d986992eb1d37e120c78aea8233?s=24&d=retro",
+							"email": "ksinny@gmail.com",
+							"groups": [
+								{
+									"name": "packager"
+								}
+							],
+							"id": 467,
+							"name": "sinnykumari",
+							"openid": "sinnykumari.id.fedoraproject.org"
+						},
+						"user_id": 467
+					},
+					"comment_id": 894993
+				},
+				{
+					"bug_id": 1664908,
+					"comment": {
+						"id": 895082,
+						"karma": 1,
+						"text": "LGTM",
+						"timestamp": "2019-02-14 16:41:46",
+						"update_id": 131458,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/6b9a38f8968f12d23f51f7508461a0815d3c12024c14e4aec844159fbbc86710?s=24&d=retro",
+							"email": "joe@solidadmin.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								},
+								{
+									"name": "sysadmin"
+								},
+								{
+									"name": "wikiedit"
+								},
+								{
+									"name": "sysadmin-fedimg"
+								}
+							],
+							"id": 1915,
+							"name": "jdoss",
+							"openid": "jdoss.id.fedoraproject.org"
+						},
+						"user_id": 1915
+					},
+					"comment_id": 895082,
+					"karma": 1
+				},
+				{
+					"bug_id": 1664908,
+					"comment": {
+						"id": 895087,
+						"karma": 1,
+						"text": "Works pulling and running containers with podman and this version of runc installed.",
+						"timestamp": "2019-02-14 17:05:33",
+						"update_id": 131458,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/8df828a57ebb273a037ba5094a832c1d58614bacd031e19dda16bdbbcceafac8?s=24&d=retro",
+							"email": "robertthomasfairley@gmail.com",
+							"groups": [
+								{
+									"name": "packager"
+								}
+							],
+							"id": 4695,
+							"name": "rfairley",
+							"openid": "rfairley.id.fedoraproject.org"
+						},
+						"user_id": 4695
+					},
+					"comment_id": 895087
+				}
+			],
+			"parent": true,
+			"security": true,
+			"title": "CVE-2019-5736 runc: Execution of malicious containers allows for container escape and access to host filesystem",
+			"bugzilla": {
+				"bug_id": "1664908",
+				"alias": "CVE-2019-5736",
+				"creation_ts": "2019-01-10 02:11:10 +0000",
+				"short_desc": "CVE-2019-5736 runc: Execution of malicious containers allows for container escape and access to host filesystem",
+				"delta_ts": "2022-03-13 16:42:54 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened, Security",
+				"priority": "high",
+				"bug_severity": "high",
+				"depends_on": [
+					"1674493",
+					"1664954",
+					"1664955",
+					"1664956",
+					"1665326",
+					"1665327",
+					"1667290",
+					"1674488",
+					"1674489",
+					"1674490",
+					"1674491",
+					"1674492",
+					"1676714",
+					"1676734",
+					"1676798",
+					"1677075",
+					"1677076",
+					"1677077",
+					"1677078",
+					"1701273"
+				],
+				"blocked": [
+					{
+						"bug_id": "1664909",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1673431",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1673432",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1673433",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1673434",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1673435",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2019:0975",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "12353229",
+						"comment_count": "0",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2019-01-10 02:11:10 +0000",
+						"thetext": "runc has a vulnerability in the usage of system file descriptors that allows for container escape and access to the host filesystem. An attacker can exploit this by convincing users to run malicious or modified containers on their systems."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12354879",
+						"comment_count": "4",
+						"who": {
+							"text": "dwalsh",
+							"name": "Daniel Walsh"
+						},
+						"bug_when": "2019-01-10 13:15:06 +0000",
+						"thetext": "Will write a nice blog on this when it goes public."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12358817",
+						"comment_count": "13",
+						"who": {
+							"text": "vbatts",
+							"name": "Vincent Batts"
+						},
+						"bug_when": "2019-01-11 13:56:32 +0000",
+						"thetext": "Created attachment 1520029\nupdates the vendored library needed for runc to access memfd_create"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12358820",
+						"comment_count": "14",
+						"who": {
+							"text": "vbatts",
+							"name": "Vincent Batts"
+						},
+						"bug_when": "2019-01-11 13:57:06 +0000",
+						"thetext": "Created attachment 1520030\nrunc to use memfd_create"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12368002",
+						"comment_count": "27",
+						"who": {
+							"text": "jshepherd",
+							"name": "Jason Shepherd"
+						},
+						"bug_when": "2019-01-15 23:02:44 +0000",
+						"thetext": "Acknowledgments:\n\nName: the Open Containers Security Team\nUpstream: Adam Iwaniuk, Borys Popławski"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12437184",
+						"comment_count": "57",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2019-02-11 13:22:47 +0000",
+						"thetext": "Created container-tools:2017.0/runc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1674489]\n\n\nCreated container-tools:2018.0/runc tracking bugs for this issue:\n\nAffects: fedora-29 [bug 1674490]\n\n\nCreated docker tracking bugs for this issue:\n\nAffects: fedora-all [bug 1674491]\n\n\nCreated lxc tracking bugs for this issue:\n\nAffects: epel-all [bug 1674493]\nAffects: fedora-all [bug 1674492]\n\n\nCreated runc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1674488]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12437199",
+						"comment_count": "59",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2019-02-11 13:25:08 +0000",
+						"thetext": "Upstream Patches:\n\nrunc:\nhttps://github.com/opencontainers/runc/commit/0a8e4117e7f715d5fbeef398405813ce8e88558b\n\nlxc:\nhttps://github.com/lxc/lxc/commit/6400238d08cdf1ca20d49bafb85f4e224348bf9d"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12437434",
+						"comment_count": "61",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2019-02-11 14:39:24 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7 Extras\n\nVia RHSA-2019:0303 https://access.redhat.com/errata/RHSA-2019:0303"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12437464",
+						"comment_count": "62",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2019-02-11 14:44:44 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7 Extras\n\nVia RHSA-2019:0304 https://access.redhat.com/errata/RHSA-2019:0304"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12446442",
+						"comment_count": "65",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2019-02-12 01:40:58 +0000",
+						"thetext": "Mitigation:\n\nThis vulnerability is mitigated on Red Hat Enterprise Linux 7 if SELinux is in enforcing mode. SELinux in enforcing mode is a pre-requisite for OpenShift Container Platform 3.x."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12452276",
+						"comment_count": "70",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2019-02-13 09:33:17 +0000",
+						"thetext": "Created docker-latest tracking bugs for this issue:\n\nAffects: fedora-all [bug 1676798]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12452588",
+						"comment_count": "71",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2019-02-13 11:26:08 +0000",
+						"thetext": "External References:\n\nhttps://access.redhat.com/security/vulnerabilities/runcescape\nhttps://seclists.org/oss-sec/2019/q1/119\nhttps://blog.dragonsector.pl/2019/02/cve-2019-5736-escape-from-docker-and.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12467815",
+						"comment_count": "75",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-02-19 05:53:46 +0000",
+						"thetext": "moby-engine-18.06.0-2.ce.git0ffa825.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12469508",
+						"comment_count": "76",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-02-19 14:02:28 +0000",
+						"thetext": "moby-engine-18.06.0-2.ce.git0ffa825.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12491363",
+						"comment_count": "77",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2019-02-25 22:46:18 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Container Development Kit 3.7\n\nVia RHSA-2019:0401 https://access.redhat.com/errata/RHSA-2019:0401"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12492627",
+						"comment_count": "78",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2019-02-26 09:42:52 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 3.4\n  Red Hat OpenShift Container Platform 3.5\n  Red Hat OpenShift Container Platform 3.6\n  Red Hat OpenShift Container Platform 3.7\n\nVia RHSA-2019:0408 https://access.redhat.com/errata/RHSA-2019:0408"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12495839",
+						"comment_count": "79",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2019-02-27 03:04:02 +0000",
+						"thetext": "Statement:\n\nThe 'docker' package shipped in Red Hat Enterprise Linux 7 Extras bundles 'runc' since 'docker' starting from version 1.12. Both the 'docker' and 'runc' packages are affected by this issue.\n\nThe 'docker-latest' package is deprecated as of Red Hat Enterprise Linux 7.5. Customers using this package should update to the latest 'docker' package shipped in Red Hat Enterprise Linux 7 Extras.\n\nOpenShift Container Platform (OCP) versions 3.9 and later use 'docker' version 1.13 in the default configuration but can be configured to use CRI-O as an alternative, which depends on the 'runc' package. OCP versions 3.9 and later should use the updated 'docker' and 'runc' packages shipped in Red Hat Enterprise Linux 7 Extras.\n\nOCP versions 3.4 through 3.7 originally used 'docker' version 1.12 from the Red Hat Enterprise Linux 7 Extras channel. An updated version of 'docker' 1.12 has been delivered to the RPM channels for OCP versions 3.4 through 3.7.\n\nOCP version 3.9 previously shipped a version of 'runc' in it's RPM repository. OCP 3.9 clusters using CRI-O should update 'runc' from the Red Hat Enterprise Linux 7 Extras channel.\n\nRed Hat Enterprise Linux Atomic Host 7 is not affected by this vulnerability as the target runc binaries are stored on a read-only filesystem and cannot be overwritten."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12707995",
+						"comment_count": "80",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2019-05-07 04:19:16 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2019:0975 https://access.redhat.com/errata/RHSA-2019:0975"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1674492,
+			"security": true,
+			"title": "CVE-2019-5736 lxc: runc: Execution of malicious containers allows for container escape and access to host filesystem [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1674492",
+				"creation_ts": "2019-02-11 13:22:41 +0000",
+				"short_desc": "CVE-2019-5736 lxc: runc: Execution of malicious containers allows for container escape and access to host filesystem [fedora-all]",
+				"delta_ts": "2019-09-06 12:58:43 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "urgent",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "1664908",
+						"alias": "CVE-2019-5736",
+						"creation_ts": "2019-01-10 02:11:10 +0000",
+						"short_desc": "CVE-2019-5736 runc: Execution of malicious containers allows for container escape and access to host filesystem",
+						"delta_ts": "2022-03-13 16:42:54 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Reopened, Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"1674493",
+							"1664954",
+							"1664955",
+							"1664956",
+							"1665326",
+							"1665327",
+							"1667290",
+							"1674488",
+							"1674489",
+							"1674490",
+							"1674491",
+							"1674492",
+							"1676714",
+							"1676734",
+							"1676798",
+							"1677075",
+							"1677076",
+							"1677077",
+							"1677078",
+							"1701273"
+						],
+						"blocked": [
+							{
+								"bug_id": "1664909",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1673431",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1673432",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1673433",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1673434",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1673435",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2019:0975",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "12353229",
+								"comment_count": "0",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2019-01-10 02:11:10 +0000",
+								"thetext": "runc has a vulnerability in the usage of system file descriptors that allows for container escape and access to the host filesystem. An attacker can exploit this by convincing users to run malicious or modified containers on their systems."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12354879",
+								"comment_count": "4",
+								"who": {
+									"text": "dwalsh",
+									"name": "Daniel Walsh"
+								},
+								"bug_when": "2019-01-10 13:15:06 +0000",
+								"thetext": "Will write a nice blog on this when it goes public."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12358817",
+								"comment_count": "13",
+								"who": {
+									"text": "vbatts",
+									"name": "Vincent Batts"
+								},
+								"bug_when": "2019-01-11 13:56:32 +0000",
+								"thetext": "Created attachment 1520029\nupdates the vendored library needed for runc to access memfd_create"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12358820",
+								"comment_count": "14",
+								"who": {
+									"text": "vbatts",
+									"name": "Vincent Batts"
+								},
+								"bug_when": "2019-01-11 13:57:06 +0000",
+								"thetext": "Created attachment 1520030\nrunc to use memfd_create"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12368002",
+								"comment_count": "27",
+								"who": {
+									"text": "jshepherd",
+									"name": "Jason Shepherd"
+								},
+								"bug_when": "2019-01-15 23:02:44 +0000",
+								"thetext": "Acknowledgments:\n\nName: the Open Containers Security Team\nUpstream: Adam Iwaniuk, Borys Popławski"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12437184",
+								"comment_count": "57",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2019-02-11 13:22:47 +0000",
+								"thetext": "Created container-tools:2017.0/runc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1674489]\n\n\nCreated container-tools:2018.0/runc tracking bugs for this issue:\n\nAffects: fedora-29 [bug 1674490]\n\n\nCreated docker tracking bugs for this issue:\n\nAffects: fedora-all [bug 1674491]\n\n\nCreated lxc tracking bugs for this issue:\n\nAffects: epel-all [bug 1674493]\nAffects: fedora-all [bug 1674492]\n\n\nCreated runc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1674488]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12437199",
+								"comment_count": "59",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2019-02-11 13:25:08 +0000",
+								"thetext": "Upstream Patches:\n\nrunc:\nhttps://github.com/opencontainers/runc/commit/0a8e4117e7f715d5fbeef398405813ce8e88558b\n\nlxc:\nhttps://github.com/lxc/lxc/commit/6400238d08cdf1ca20d49bafb85f4e224348bf9d"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12437434",
+								"comment_count": "61",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2019-02-11 14:39:24 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7 Extras\n\nVia RHSA-2019:0303 https://access.redhat.com/errata/RHSA-2019:0303"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12437464",
+								"comment_count": "62",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2019-02-11 14:44:44 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7 Extras\n\nVia RHSA-2019:0304 https://access.redhat.com/errata/RHSA-2019:0304"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12446442",
+								"comment_count": "65",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2019-02-12 01:40:58 +0000",
+								"thetext": "Mitigation:\n\nThis vulnerability is mitigated on Red Hat Enterprise Linux 7 if SELinux is in enforcing mode. SELinux in enforcing mode is a pre-requisite for OpenShift Container Platform 3.x."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12452276",
+								"comment_count": "70",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2019-02-13 09:33:17 +0000",
+								"thetext": "Created docker-latest tracking bugs for this issue:\n\nAffects: fedora-all [bug 1676798]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12452588",
+								"comment_count": "71",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2019-02-13 11:26:08 +0000",
+								"thetext": "External References:\n\nhttps://access.redhat.com/security/vulnerabilities/runcescape\nhttps://seclists.org/oss-sec/2019/q1/119\nhttps://blog.dragonsector.pl/2019/02/cve-2019-5736-escape-from-docker-and.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12467815",
+								"comment_count": "75",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2019-02-19 05:53:46 +0000",
+								"thetext": "moby-engine-18.06.0-2.ce.git0ffa825.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12469508",
+								"comment_count": "76",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2019-02-19 14:02:28 +0000",
+								"thetext": "moby-engine-18.06.0-2.ce.git0ffa825.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12491363",
+								"comment_count": "77",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2019-02-25 22:46:18 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Container Development Kit 3.7\n\nVia RHSA-2019:0401 https://access.redhat.com/errata/RHSA-2019:0401"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12492627",
+								"comment_count": "78",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2019-02-26 09:42:52 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 3.4\n  Red Hat OpenShift Container Platform 3.5\n  Red Hat OpenShift Container Platform 3.6\n  Red Hat OpenShift Container Platform 3.7\n\nVia RHSA-2019:0408 https://access.redhat.com/errata/RHSA-2019:0408"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12495839",
+								"comment_count": "79",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2019-02-27 03:04:02 +0000",
+								"thetext": "Statement:\n\nThe 'docker' package shipped in Red Hat Enterprise Linux 7 Extras bundles 'runc' since 'docker' starting from version 1.12. Both the 'docker' and 'runc' packages are affected by this issue.\n\nThe 'docker-latest' package is deprecated as of Red Hat Enterprise Linux 7.5. Customers using this package should update to the latest 'docker' package shipped in Red Hat Enterprise Linux 7 Extras.\n\nOpenShift Container Platform (OCP) versions 3.9 and later use 'docker' version 1.13 in the default configuration but can be configured to use CRI-O as an alternative, which depends on the 'runc' package. OCP versions 3.9 and later should use the updated 'docker' and 'runc' packages shipped in Red Hat Enterprise Linux 7 Extras.\n\nOCP versions 3.4 through 3.7 originally used 'docker' version 1.12 from the Red Hat Enterprise Linux 7 Extras channel. An updated version of 'docker' 1.12 has been delivered to the RPM channels for OCP versions 3.4 through 3.7.\n\nOCP version 3.9 previously shipped a version of 'runc' in it's RPM repository. OCP 3.9 clusters using CRI-O should update 'runc' from the Red Hat Enterprise Linux 7 Extras channel.\n\nRed Hat Enterprise Linux Atomic Host 7 is not affected by this vulnerability as the target runc binaries are stored on a read-only filesystem and cannot be overwritten."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12707995",
+								"comment_count": "80",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2019-05-07 04:19:16 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2019:0975 https://access.redhat.com/errata/RHSA-2019:0975"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "12437179",
+						"comment_count": "0",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2019-02-11 13:22:41 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12437180",
+						"comment_count": "1",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2019-02-11 13:22:43 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=high\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1664908,1674492\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13112088",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-08-27 21:06:28 +0000",
+						"thetext": "FEDORA-2019-c1dac1b3b8 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2019-c1dac1b3b8"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13112092",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-08-27 21:09:04 +0000",
+						"thetext": "FEDORA-2019-2baa1f7b19 has been submitted as an update to Fedora 30. https://bodhi.fedoraproject.org/updates/FEDORA-2019-2baa1f7b19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13121875",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-08-30 00:04:28 +0000",
+						"thetext": "lxc-3.0.4-1.fc30, lxcfs-3.0.4-1.fc30, python3-lxc-3.0.4-1.fc30 has been pushed to the Fedora 30 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2019-2baa1f7b19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13121980",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-08-30 00:25:27 +0000",
+						"thetext": "lxc-3.0.4-1.fc29, lxcfs-3.0.4-1.fc29, python3-lxc-3.0.4-1.fc29 has been pushed to the Fedora 29 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2019-c1dac1b3b8"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13145142",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-09-06 12:32:59 +0000",
+						"thetext": "lxc-3.0.4-1.fc30, lxcfs-3.0.4-1.fc30, python3-lxc-3.0.4-1.fc30 has been pushed to the Fedora 30 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13145293",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-09-06 12:58:43 +0000",
+						"thetext": "lxc-3.0.4-1.fc29, lxcfs-3.0.4-1.fc29, python3-lxc-3.0.4-1.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "lxc-3.0.4-1.fc30",
+			"release_id": 28,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "lxc-libs-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lxc-templates",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lxc-devel",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lxc",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lxc-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lxc-debugsource",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lxc-libs",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "lxc-debugsource",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lxc-libs",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lxc-devel",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lxc-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lxc-libs-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lxc-templates",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lxc",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "lxc-libs",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "i686"
+					},
+					{
+						"name": "lxc-devel",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "i686"
+					},
+					{
+						"name": "lxc",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "i686"
+					},
+					{
+						"name": "lxc-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "i686"
+					},
+					{
+						"name": "lxc-debugsource",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "i686"
+					},
+					{
+						"name": "lxc-templates",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "i686"
+					},
+					{
+						"name": "lxc-libs-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "lxc-doc",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "noarch"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "lxc-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lxc",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lxc-devel",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lxc-debugsource",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lxc-libs",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lxc-libs-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lxc-templates",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "lxc",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "s390x"
+					},
+					{
+						"name": "lxc-libs",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "s390x"
+					},
+					{
+						"name": "lxc-templates",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "s390x"
+					},
+					{
+						"name": "lxc-devel",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "s390x"
+					},
+					{
+						"name": "lxc-debugsource",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "s390x"
+					},
+					{
+						"name": "lxc-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "s390x"
+					},
+					{
+						"name": "lxc-libs-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "lxc",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "lxc-libs-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lxc-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lxc-templates",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lxc-devel",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lxc",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lxc-debugsource",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lxc-libs",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					}
+				]
+			}
+		},
+		{
+			"epoch": 0,
+			"nvr": "lxcfs-3.0.4-1.fc30",
+			"release_id": 28,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "lxcfs-debugsource",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lxcfs",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lxcfs-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "lxcfs-debugsource",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lxcfs-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lxcfs",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "lxcfs-debugsource",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "i686"
+					},
+					{
+						"name": "lxcfs-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "i686"
+					},
+					{
+						"name": "lxcfs",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "lxcfs-debugsource",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lxcfs",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lxcfs-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "lxcfs",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "s390x"
+					},
+					{
+						"name": "lxcfs-debugsource",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "s390x"
+					},
+					{
+						"name": "lxcfs-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "lxcfs",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "lxcfs",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lxcfs-debugsource",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lxcfs-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					}
+				]
+			}
+		},
+		{
+			"epoch": 0,
+			"nvr": "python3-lxc-3.0.4-1.fc30",
+			"release_id": 28,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "python3-lxc-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3-lxc-debugsource",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3-lxc",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "python3-lxc-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "python3-lxc-debugsource",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "python3-lxc",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "python3-lxc-debugsource",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "i686"
+					},
+					{
+						"name": "python3-lxc-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "i686"
+					},
+					{
+						"name": "python3-lxc",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "python3-lxc-debugsource",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3-lxc-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3-lxc",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "python3-lxc",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3-lxc-debugsource",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3-lxc-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "python3-lxc",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "python3-lxc-debugsource",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3-lxc",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3-lxc-debuginfo",
+						"version": "3.0.4",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 1016305,
+			"text": "This update has been submitted for testing by thm. ",
+			"timestamp": "2019-08-27 20:45:23",
+			"update_id": 149933,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1016306,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2019-08-27 20:45:24",
+			"update_id": 149933,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1016309,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2019-08-27 20:45:27",
+			"update_id": 149933,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1016337,
+			"text": "thm edited this update.",
+			"timestamp": "2019-08-27 21:09:01",
+			"update_id": 149933,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1019194,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2019-08-30 00:05:25",
+			"update_id": 149933,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1028021,
+			"text": "This update can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2019-09-06 00:06:32",
+			"update_id": 149933,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1028022,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2019-09-06 00:06:33",
+			"update_id": 149933,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1029190,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2019-09-06 12:34:16",
+			"update_id": 149933,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2019-08-27 21:09:01",
+	"date_pushed": "2019-09-06 12:30:29",
+	"date_stable": "2019-09-06 12:30:29",
+	"date_submitted": "2019-08-27 20:45:23",
+	"date_testing": "2019-08-30 00:03:12",
+	"meets_testing_requirements": true,
+	"notes": "Update LXC to version 3.0.4.\n\nThe release announcement can be found [here](https://discuss.linuxcontainers.org/t/lxc-3-0-4-has-been-released/5080).\n",
+	"pushed": true,
+	"release": {
+		"branch": "f30",
+		"candidate_tag": "f30-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f30",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 30",
+		"mail_template": "fedora_errata_template",
+		"name": "F30",
+		"override_tag": "f30-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f30-signing-pending",
+		"pending_stable_tag": "f30-updates-pending",
+		"pending_testing_tag": "f30-updates-testing-pending",
+		"stable_tag": "f30-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f30-updates-testing",
+		"version": "30"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "high",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "lxc-3.0.4-1.fc30 lxcfs-3.0.4-1.fc30 python3-lxc-3.0.4-1.fc30",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2019-2baa1f7b19",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2019-2baa1f7b19",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/9059004173d8a8bfddf2eb8c342af2c655aabe40786c6fffa5b0527680120734?s=24&d=retro",
+		"email": "thomas.moschny@gmx.de",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 101,
+		"name": "thm",
+		"openid": "thm.id.fedoraproject.org"
+	},
+	"version_hash": "4f9f1e3b1e56da77af4fe600cc03d8edf6b27da8"
+}

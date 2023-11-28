@@ -1,0 +1,666 @@
+{
+	"alias": "FEDORA-2015-12574",
+	"bugs": [
+		{
+			"bug_id": 1236116,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-3900 rubygems: DNS hijacking vulnerability in api_endpoint()",
+			"bugzilla": {
+				"bug_id": "1236116",
+				"alias": "CVE-2015-3900",
+				"creation_ts": "2015-06-26 15:03:50 +0000",
+				"short_desc": "CVE-2015-3900 rubygems: DNS hijacking vulnerability in api_endpoint()",
+				"delta_ts": "2021-02-17 05:10:57 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "high",
+				"bug_severity": "high",
+				"depends_on": [
+					"1236117",
+					"1251465",
+					"1251466"
+				],
+				"blocked": [
+					{
+						"bug_id": "1237100",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2015:1657",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8375376",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-06-26 15:03:50 +0000",
+						"thetext": "RubyGems before versions 2.0.16, 2.2.4 and 2.4.7 did not verify the API endpoint hostname retrieved through an SRV record.\nThis left clients open to a DNS hijack attack, whereby an attacker could return a SRV of their choosing and get the client to use it.\n\nUpstream patch: https://github.com/rubygems/rubygems/commit/6bbee35\n\nExternal References:\n\nhttp://blog.rubygems.org/2015/05/14/CVE-2015-3900.html\n\nStatement:\n\nThis issue did not affect the versions of rubygems as shipped with Red Hat Enterprise Linux 6, Red Hat Enterprise MRG 2.5, Red Hat Satellite 6, Red Hat Openstack 5, Red Hat Openshift Enterprise 2 as they did not include support for getting API endpoint using SRV DNS records.\n\nThis issue did not affect the versions of ruby as shipped with Red Hat Enterprise Linux 5 and 6 as they did not include support for getting API endpoint using SRV DNS records. The issue did not affect version of ruby as shipped with Red Hat Enterprise Linux 7, as the support for getting API endpoint using SRV DNS records is included, but inactive.\n\nThis issue did not affect the versions of ruby193-ruby as shipped with Red Hat Subscription Asset Manager and Red Hat Software Collections as they did not include support for getting API endpoint using SRV DNS records.\n\nThe issue did not affect version of ruby200-ruby as shipped with Red Hat Software Collections, as the support for getting API endpoint using SRV DNS records is included, but inactive."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8375382",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-06-26 15:05:16 +0000",
+						"thetext": "\nCreated rubygems tracking bugs for this issue:\n\nAffects: fedora-all [bug 1236117]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8375647",
+						"comment_count": "2",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-06-26 16:26:01 +0000",
+						"thetext": "(In reply to Vasyl Kaigorodov from comment #0)\n> Upstream patch: https://github.com/rubygems/rubygems/commit/6bbee35\n\nThat patch is incorrect / incomplete, as noted in comments for it.  This additional commit improves the original fix:\n\nhttps://github.com/rubygems/rubygems/commit/5c7bfb5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8393199",
+						"comment_count": "3",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-06-30 15:14:30 +0000",
+						"thetext": "So, for sake of sanity.\nOriginal upstream patch got CVE-2015-3900 assigned:\nhttps://github.com/rubygems/rubygems/commit/6bbee35\n\nLater it was found that the original patch introduces another vulnerability, which got CVE-2015-4020:\nhttps://github.com/rubygems/rubygems/commit/5c7bfb5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8509722",
+						"comment_count": "4",
+						"who": {
+							"text": "jrusnack",
+							"name": "Ján Rusnačko"
+						},
+						"bug_when": "2015-08-04 15:07:53 +0000",
+						"thetext": "Analysis (from http://blog.rubygems.org/2015/05/14/CVE-2015-3900.html):\n\n\"\"\"\nRubyGems provides the ability of a domain to direct clients to a separate host that is used to fetch gems and make API calls against. This mechanism is implemented via DNS, specificly a SRV record _rubygems._tcp under the original requested domain.\n\n  > dig _rubygems._tcp.rubygems.org SRV\n\n  ;; ANSWER SECTION:\n  _rubygems._tcp.rubygems.org. 600 IN\tSRV\t0 1 80 api.rubygems.org.\n\nRubyGems did not validate the hostname returned in the SRV record before sending requests to it.\n\nThis left clients open to a DNS hijack attack, whereby an attacker could return a SRV of their choosing and get the client to use it. For example:  \n\n  > dig _rubygems._tcp.rubygems.org SRV\n\n  ;; ANSWER SECTION:\n  _rubygems._tcp.rubygems.org. 600 IN\tSRV\t0 1 80 gems.nottobetrusted.wtf\n\"\"\"\n\nFix for this issue verifies that the returned host is on the same domain as the requested domain. This fix included:\n\n    if /#{host}\\z/ =~ target\n\nwhich is incomplete, because suffix match is sufficient, e.g. if the domain requested was rubygems.org, attacker served record of attackersrubygems.org would pass this check (CVE-2015-4020). The complete fix for both now includes:\n\n    if /\\.#{Regexp.quote(host)}\\z/ =~ target\n\n\nRubygems code is also bundled into ruby. The vulnerable code (function api_endpoint in lib/rubygems/remote_fetcher.rb) is present in ruby-2.0 and above.\n\nThis code is invoked like this:\n\nlib/rubygems/resolver/best_set.rb BestSet#pick_sets() cals\nlib/rubygems/source.rb Source#dependency_resolver_set() calls \nlib/rubygems/source.rb Source#api_uri() calls \nlib/rubygems/remote_fetcher.rb RemoteFetcher#api_endpoint()\n\nHowever, code that invokes vulnerable function was not added to ruby before 2.1.0, hence versions of ruby below 2.1 are not affected by this vulnerability, as the vulnerable code is included but never called."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8515373",
+						"comment_count": "5",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-08-05 20:37:22 +0000",
+						"thetext": "The incomplete fix issue CVE-2015-4020 is tracked via bug 1250109.\n\nTrustwave SpiderLabs (original reporter) security advisory for this issue:\n\nhttps://www.trustwave.com/Resources/Security-Advisories/Advisories/TWSL2015-007/?fid=6356\n\nTrustwave SpiderLabs blog post for CVE-2015-3900 and CVE-2015-4020:\n\nhttps://www.trustwave.com/Resources/SpiderLabs-Blog/Attacking-Ruby-Gem-Security-with-CVE-2015-3900/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8525583",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-10 10:06:21 +0000",
+						"thetext": "rubygems-2.4.8-100.fc23 has been pushed to the Fedora 23 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8528136",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-11 02:06:51 +0000",
+						"thetext": "rubygems-2.4.8-100.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8554726",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-19 08:17:08 +0000",
+						"thetext": "rubygems-2.2.5-100.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8569255",
+						"comment_count": "10",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-08-24 14:16:51 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.5 EUS\n\nVia RHSA-2015:1657 https://rhn.redhat.com/errata/RHSA-2015-1657.html"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1236117,
+			"security": true,
+			"title": "CVE-2015-3900 rubygems: DNS hijacking vulnerability in api_endpoint() [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1236117",
+				"creation_ts": "2015-06-26 15:05:09 +0000",
+				"short_desc": "CVE-2015-3900 rubygems: DNS hijacking vulnerability in api_endpoint() [fedora-all]",
+				"delta_ts": "2015-08-19 08:17:01 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1236116",
+						"alias": "CVE-2015-3900",
+						"creation_ts": "2015-06-26 15:03:50 +0000",
+						"short_desc": "CVE-2015-3900 rubygems: DNS hijacking vulnerability in api_endpoint()",
+						"delta_ts": "2021-02-17 05:10:57 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"1236117",
+							"1251465",
+							"1251466"
+						],
+						"blocked": [
+							{
+								"bug_id": "1237100",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:1657",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "8375376",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-06-26 15:03:50 +0000",
+								"thetext": "RubyGems before versions 2.0.16, 2.2.4 and 2.4.7 did not verify the API endpoint hostname retrieved through an SRV record.\nThis left clients open to a DNS hijack attack, whereby an attacker could return a SRV of their choosing and get the client to use it.\n\nUpstream patch: https://github.com/rubygems/rubygems/commit/6bbee35\n\nExternal References:\n\nhttp://blog.rubygems.org/2015/05/14/CVE-2015-3900.html\n\nStatement:\n\nThis issue did not affect the versions of rubygems as shipped with Red Hat Enterprise Linux 6, Red Hat Enterprise MRG 2.5, Red Hat Satellite 6, Red Hat Openstack 5, Red Hat Openshift Enterprise 2 as they did not include support for getting API endpoint using SRV DNS records.\n\nThis issue did not affect the versions of ruby as shipped with Red Hat Enterprise Linux 5 and 6 as they did not include support for getting API endpoint using SRV DNS records. The issue did not affect version of ruby as shipped with Red Hat Enterprise Linux 7, as the support for getting API endpoint using SRV DNS records is included, but inactive.\n\nThis issue did not affect the versions of ruby193-ruby as shipped with Red Hat Subscription Asset Manager and Red Hat Software Collections as they did not include support for getting API endpoint using SRV DNS records.\n\nThe issue did not affect version of ruby200-ruby as shipped with Red Hat Software Collections, as the support for getting API endpoint using SRV DNS records is included, but inactive."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8375382",
+								"comment_count": "1",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-06-26 15:05:16 +0000",
+								"thetext": "\nCreated rubygems tracking bugs for this issue:\n\nAffects: fedora-all [bug 1236117]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8375647",
+								"comment_count": "2",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-06-26 16:26:01 +0000",
+								"thetext": "(In reply to Vasyl Kaigorodov from comment #0)\n> Upstream patch: https://github.com/rubygems/rubygems/commit/6bbee35\n\nThat patch is incorrect / incomplete, as noted in comments for it.  This additional commit improves the original fix:\n\nhttps://github.com/rubygems/rubygems/commit/5c7bfb5"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8393199",
+								"comment_count": "3",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-06-30 15:14:30 +0000",
+								"thetext": "So, for sake of sanity.\nOriginal upstream patch got CVE-2015-3900 assigned:\nhttps://github.com/rubygems/rubygems/commit/6bbee35\n\nLater it was found that the original patch introduces another vulnerability, which got CVE-2015-4020:\nhttps://github.com/rubygems/rubygems/commit/5c7bfb5"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8509722",
+								"comment_count": "4",
+								"who": {
+									"text": "jrusnack",
+									"name": "Ján Rusnačko"
+								},
+								"bug_when": "2015-08-04 15:07:53 +0000",
+								"thetext": "Analysis (from http://blog.rubygems.org/2015/05/14/CVE-2015-3900.html):\n\n\"\"\"\nRubyGems provides the ability of a domain to direct clients to a separate host that is used to fetch gems and make API calls against. This mechanism is implemented via DNS, specificly a SRV record _rubygems._tcp under the original requested domain.\n\n  > dig _rubygems._tcp.rubygems.org SRV\n\n  ;; ANSWER SECTION:\n  _rubygems._tcp.rubygems.org. 600 IN\tSRV\t0 1 80 api.rubygems.org.\n\nRubyGems did not validate the hostname returned in the SRV record before sending requests to it.\n\nThis left clients open to a DNS hijack attack, whereby an attacker could return a SRV of their choosing and get the client to use it. For example:  \n\n  > dig _rubygems._tcp.rubygems.org SRV\n\n  ;; ANSWER SECTION:\n  _rubygems._tcp.rubygems.org. 600 IN\tSRV\t0 1 80 gems.nottobetrusted.wtf\n\"\"\"\n\nFix for this issue verifies that the returned host is on the same domain as the requested domain. This fix included:\n\n    if /#{host}\\z/ =~ target\n\nwhich is incomplete, because suffix match is sufficient, e.g. if the domain requested was rubygems.org, attacker served record of attackersrubygems.org would pass this check (CVE-2015-4020). The complete fix for both now includes:\n\n    if /\\.#{Regexp.quote(host)}\\z/ =~ target\n\n\nRubygems code is also bundled into ruby. The vulnerable code (function api_endpoint in lib/rubygems/remote_fetcher.rb) is present in ruby-2.0 and above.\n\nThis code is invoked like this:\n\nlib/rubygems/resolver/best_set.rb BestSet#pick_sets() cals\nlib/rubygems/source.rb Source#dependency_resolver_set() calls \nlib/rubygems/source.rb Source#api_uri() calls \nlib/rubygems/remote_fetcher.rb RemoteFetcher#api_endpoint()\n\nHowever, code that invokes vulnerable function was not added to ruby before 2.1.0, hence versions of ruby below 2.1 are not affected by this vulnerability, as the vulnerable code is included but never called."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8515373",
+								"comment_count": "5",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-08-05 20:37:22 +0000",
+								"thetext": "The incomplete fix issue CVE-2015-4020 is tracked via bug 1250109.\n\nTrustwave SpiderLabs (original reporter) security advisory for this issue:\n\nhttps://www.trustwave.com/Resources/Security-Advisories/Advisories/TWSL2015-007/?fid=6356\n\nTrustwave SpiderLabs blog post for CVE-2015-3900 and CVE-2015-4020:\n\nhttps://www.trustwave.com/Resources/SpiderLabs-Blog/Attacking-Ruby-Gem-Security-with-CVE-2015-3900/"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8525583",
+								"comment_count": "7",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-08-10 10:06:21 +0000",
+								"thetext": "rubygems-2.4.8-100.fc23 has been pushed to the Fedora 23 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8528136",
+								"comment_count": "8",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-08-11 02:06:51 +0000",
+								"thetext": "rubygems-2.4.8-100.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8554726",
+								"comment_count": "9",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-08-19 08:17:08 +0000",
+								"thetext": "rubygems-2.2.5-100.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8569255",
+								"comment_count": "10",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-08-24 14:16:51 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.1 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.6 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.5 EUS\n\nVia RHSA-2015:1657 https://rhn.redhat.com/errata/RHSA-2015-1657.html"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8375379",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-06-26 15:05:09 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8375381",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-06-26 15:05:15 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1236116,1236117\n\n# Description of your update\nnotes=Security fix for CVE-2015-3900\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1236116,1236117"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8499259",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-31 08:26:48 +0000",
+						"thetext": "rubygems-2.4.8-100.fc23 has been submitted as an update for Fedora 23.\nhttps://admin.fedoraproject.org/updates/rubygems-2.4.8-100.fc23"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8500280",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-31 13:35:52 +0000",
+						"thetext": "rubygems-2.4.8-100.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/rubygems-2.4.8-100.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8500839",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-31 16:48:54 +0000",
+						"thetext": "Package rubygems-2.4.8-100.fc23:\n* should fix your issue,\n* was pushed to the Fedora 23 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing rubygems-2.4.8-100.fc23'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-12501/rubygems-2.4.8-100.fc23\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8525247",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-10 08:47:51 +0000",
+						"thetext": "rubygems-2.2.5-100.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/rubygems-2.2.5-100.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8525581",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-10 10:06:11 +0000",
+						"thetext": "rubygems-2.4.8-100.fc23 has been pushed to the Fedora 23 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8528135",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-11 02:06:49 +0000",
+						"thetext": "rubygems-2.4.8-100.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8554724",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-19 08:17:01 +0000",
+						"thetext": "rubygems-2.2.5-100.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "rubygems-2.4.8-100.fc22",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "rubygems-doc",
+						"version": "2.4.8",
+						"release": "100.fc22",
+						"arch": "noarch"
+					},
+					{
+						"name": "rubygems",
+						"version": "2.4.8",
+						"release": "100.fc22",
+						"arch": "noarch"
+					},
+					{
+						"name": "rubygems-devel",
+						"version": "2.4.8",
+						"release": "100.fc22",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "rubygems",
+						"version": "2.4.8",
+						"release": "100.fc22",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 36071,
+			"text": "This update has been submitted for testing by vondruch. ",
+			"timestamp": "2015-07-31 13:35:54",
+			"update_id": 5115,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 36072,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/112661/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-07-31 13:49:57",
+			"update_id": 5115,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 36073,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/112661/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-07-31 13:50:58",
+			"update_id": 5115,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 36074,
+			"text": "This update is currently being pushed to the Fedora 22 testing updates repository.",
+			"timestamp": "2015-07-31 17:14:40",
+			"update_id": 5115,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 36075,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-08-01 02:28:05",
+			"update_id": 5115,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 36076,
+			"text": "This update has reached 7 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2015-08-08 06:56:23",
+			"update_id": 5115,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 36077,
+			"text": "This update has been submitted for stable by vondruch. ",
+			"timestamp": "2015-08-10 10:19:14",
+			"update_id": 5115,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 36078,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/115080/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-08-10 10:30:43",
+			"update_id": 5115,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 36079,
+			"text": "This update is currently being pushed to the Fedora 22 stable updates repository.",
+			"timestamp": "2015-08-10 15:44:24",
+			"update_id": 5115,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 36080,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-08-11 02:06:55",
+			"update_id": 5115,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2015-08-11 02:06:55",
+	"date_stable": "2015-08-11 02:06:55",
+	"date_submitted": "2015-07-31 13:35:49",
+	"date_testing": "2015-08-01 02:28:05",
+	"meets_testing_requirements": true,
+	"notes": "Update to RubyGems 2.4.8.",
+	"pushed": true,
+	"release": {
+		"branch": "f22",
+		"candidate_tag": "f22-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f22",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 22",
+		"mail_template": "fedora_errata_template",
+		"name": "F22",
+		"override_tag": "f22-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f22-updates-pending",
+		"pending_testing_tag": "f22-updates-testing-pending",
+		"stable_tag": "f22-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f22-updates-testing",
+		"version": "22"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "rubygems-2.4.8-100.fc22",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-12574",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-12574",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/18381818f23e9eba9b69d26321df755c42794053eee46cc578f0a12bac653309?s=24&d=retro",
+		"email": "vondruch@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "cla_redhat"
+			},
+			{
+				"name": "ruby-sig"
+			},
+			{
+				"name": "rubygems-build"
+			},
+			{
+				"name": "ruby-packagers-sig"
+			}
+		],
+		"id": 347,
+		"name": "vondruch",
+		"openid": "vondruch.id.fedoraproject.org"
+	},
+	"version_hash": "99ed385a1ed2b41b1ec9c71fdb8822ec26e1fd49"
+}

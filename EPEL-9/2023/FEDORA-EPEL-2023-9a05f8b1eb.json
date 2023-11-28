@@ -1,0 +1,497 @@
+{
+	"alias": "FEDORA-EPEL-2023-9a05f8b1eb",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2223270,
+			"security": true,
+			"title": "CVE-2022-48521 opendkim: Authentication-Results fields are not removed correctly [epel-all]",
+			"bugzilla": {
+				"bug_id": "2223270",
+				"creation_ts": "2023-07-17 07:52:11 +0000",
+				"short_desc": "CVE-2022-48521 opendkim: Authentication-Results fields are not removed correctly [epel-all]",
+				"delta_ts": "2023-11-28 01:37:29 +0000",
+				"bug_status": "ON_QA",
+				"bug_file_loc": "https://nvd.nist.gov/vuln/detail/CVE-2022-48521",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "2223351",
+						"alias": "CVE-2022-48521",
+						"creation_ts": "2023-07-17 12:51:31 +0000",
+						"short_desc": "CVE-2022-48521 opendkim: Authentication-Results fields are not removed correctly",
+						"delta_ts": "2023-08-01 12:06:20 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "UPSTREAM",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"2223270",
+							"2223352"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "17461557",
+								"comment_count": "0",
+								"who": {
+									"text": "mcascell",
+									"name": "Mauro Matteo Cascella"
+								},
+								"bug_when": "2023-07-17 12:51:31 +0000",
+								"thetext": "An issue was discovered in OpenDKIM through 2.10.3, and 2.11.x through 2.11.0-Beta2. OpenDKIM fails to keep track of ordinal numbers when removing fake Authentication-Results header fields, which allows a remote attacker to craft an e-mail message with a fake sender address such that programs that rely on Authentication-Results from OpenDKIM will treat the message as having a valid DKIM signature when in fact it has none.\n\nUpstream issue:\nhttps://github.com/trusteddomainproject/OpenDKIM/issues/148"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17461559",
+								"comment_count": "1",
+								"who": {
+									"text": "mcascell",
+									"name": "Mauro Matteo Cascella"
+								},
+								"bug_when": "2023-07-17 12:52:42 +0000",
+								"thetext": "Created opendkim tracking bugs for this issue:\n\nAffects: epel-all [bug 2223270]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17461563",
+								"comment_count": "2",
+								"who": {
+									"text": "mcascell",
+									"name": "Mauro Matteo Cascella"
+								},
+								"bug_when": "2023-07-17 12:53:26 +0000",
+								"thetext": "Created opendkim tracking bugs for this issue:\n\nAffects: fedora-all [bug 2223352]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17500633",
+								"comment_count": "3",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2023-08-01 12:06:18 +0000",
+								"thetext": "This CVE Bugzilla entry is for community support informational purposes only as it does not affect a package in a commercially supported Red Hat product. Refer to the dependent bugs for status of those individual community products."
+							}
+						]
+					}
+				],
+				"external_bugs": {
+					"text": "trusteddomainproject/OpenDKIM/issues/185",
+					"name": "Github"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17460547",
+						"comment_count": "0",
+						"who": {
+							"text": "bjorn",
+							"name": "Björn Persson"
+						},
+						"bug_when": "2023-07-17 07:52:11 +0000",
+						"thetext": "Description of problem:\nWhen OpenDKIM removes fake Authentication-Results fields (as required in https://www.rfc-editor.org/rfc/rfc8601#section-5), it doesn't account for the fact that – at least in Postfix – this changes the ordinal numbers of the following header fields, so it passes the wrong number to the MTA for the second and following header fields it removes. If there are more than one fake Authentication-Results fields, then OpenDKIM leaves some of them in place. Thus a fake Authentication-Results field can bypass OpenDKIM, and be relied on by other programs as if it had been added by OpenDKIM. An email message may be accepted when by policy it should be rejected, and/or the recipient can be tricked into believing that the sender is someone they trust.\n\nIt seems unlikely that the vulnerability will be fixed upstream. Sysadmins should know that Authentication-Results from OpenDKIM can't be trusted unless some other program removes fake Authentication-Results fields from incoming messages before OpenDKIM processes them.\n\nVersion-Release number of selected component:\n2.11.0-0.34\n\nHow reproducible:\ndeterministic\n\nSteps to Reproduce:\n1. this line in /etc/opendkim.conf:\nRemoveARFrom 2.example,3.example,5.example\n\n2. an email with this set of header fields:\nAuthentication-Results: 1.example; dkim=pass\nAuthentication-Results: 2.example; dkim=pass\nAuthentication-Results: 3.example; dkim=pass\nAuthentication-Results: 4.example; dkim=pass\nAuthentication-Results: 5.example; dkim=pass\nAuthentication-Results: 6.example; dkim=pass\nAuthentication-Results: 7.example; dkim=pass\nAuthentication-Results: 8.example; dkim=pass\n\nActual results:\nThe above gets transformed into this:\nAuthentication-Results: 1.example; dkim=pass\nAuthentication-Results: 3.example; dkim=pass\nAuthentication-Results: 5.example; dkim=pass\nAuthentication-Results: 6.example; dkim=pass\nAuthentication-Results: 8.example; dkim=pass\n\nThat is, the first matching header field gets removed correctly, but for the second match the one below it gets removed, and for the third match the one two steps below gets removed.\n\nExpected results:\nAuthentication-Results: 1.example; dkim=pass\nAuthentication-Results: 4.example; dkim=pass\nAuthentication-Results: 6.example; dkim=pass\nAuthentication-Results: 7.example; dkim=pass\nAuthentication-Results: 8.example; dkim=pass\n\nA note for anyone who wants to develop a patch:\nThe Libmilter API documentation doesn't specify whether removing a header field renumbers the following header fields, so hypothetically different MTAs could do it differently without violating the API specification. The safe way to handle the ambiguity is to remove header fields in reverse order."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17727889",
+						"comment_count": "1",
+						"who": {
+							"text": "carl",
+							"name": "Carl George 🤠"
+						},
+						"bug_when": "2023-10-31 21:44:00 +0000",
+						"thetext": "Since NVD rated this as medium (5.3 CVSS), I'm going to drop the severity of this bug down to medium to match.\n\nhttps://nvd.nist.gov/vuln/detail/CVE-2022-48521"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17781902",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-11-27 21:11:55 +0000",
+						"thetext": "FEDORA-EPEL-2023-9a05f8b1eb has been submitted as an update to Fedora EPEL 9. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2023-9a05f8b1eb"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17782143",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-11-28 01:37:29 +0000",
+						"thetext": "FEDORA-EPEL-2023-9a05f8b1eb has been pushed to the Fedora EPEL 9 testing repository.\n\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2023-9a05f8b1eb\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "opendkim-2.11.0-0.36.el9",
+			"release_id": 61,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "opendkim-debugsource",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libopendkim-debuginfo",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "aarch64"
+					},
+					{
+						"name": "opendkim-tools-debuginfo",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "aarch64"
+					},
+					{
+						"name": "opendkim-debuginfo",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "aarch64"
+					},
+					{
+						"name": "opendkim-tools",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "aarch64"
+					},
+					{
+						"name": "opendkim",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libopendkim",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libopendkim-devel",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "aarch64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "opendkim-debugsource",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libopendkim-debuginfo",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "opendkim-tools",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libopendkim",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libopendkim-devel",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "opendkim-debuginfo",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "opendkim-tools-debuginfo",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "opendkim",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "opendkim-debugsource",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "s390x"
+					},
+					{
+						"name": "opendkim-debuginfo",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "s390x"
+					},
+					{
+						"name": "opendkim",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "s390x"
+					},
+					{
+						"name": "libopendkim-debuginfo",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "s390x"
+					},
+					{
+						"name": "libopendkim-devel",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "s390x"
+					},
+					{
+						"name": "opendkim-tools-debuginfo",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "s390x"
+					},
+					{
+						"name": "libopendkim",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "s390x"
+					},
+					{
+						"name": "opendkim-tools",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "opendkim",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "opendkim-debugsource",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "x86_64"
+					},
+					{
+						"name": "opendkim-tools-debuginfo",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libopendkim-debuginfo",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "x86_64"
+					},
+					{
+						"name": "opendkim-debuginfo",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "x86_64"
+					},
+					{
+						"name": "opendkim",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libopendkim-devel",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libopendkim",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "x86_64"
+					},
+					{
+						"name": "opendkim-tools",
+						"version": "2.11.0",
+						"release": "0.36.el9",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3294537,
+			"text": "This update has been submitted for testing by carlwgeorge. ",
+			"timestamp": "2023-11-27 21:11:51",
+			"update_id": 566869,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3294538,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2023-11-27 21:11:51",
+			"update_id": 566869,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3294837,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2023-11-28 01:37:30",
+			"update_id": 566869,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath_groups": "",
+	"date_pushed": "2023-11-28 01:37:17",
+	"date_submitted": "2023-11-27 21:11:51",
+	"date_testing": "2023-11-28 01:37:17",
+	"notes": "Add upstream PR that filters Authentication-Results headers correctly to fix CVE-2022-48521.",
+	"pushed": true,
+	"release": {
+		"branch": "epel9",
+		"candidate_tag": "epel9-testing-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "epel9",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 9",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EPEL-9",
+		"override_tag": "epel9-override",
+		"package_manager": "unspecified",
+		"pending_signing_tag": "epel9-signing-pending",
+		"pending_stable_tag": "epel9-pending",
+		"pending_testing_tag": "epel9-testing-pending",
+		"stable_tag": "epel9",
+		"state": "current",
+		"testing_tag": "epel9-testing",
+		"version": "9"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "medium",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "testing",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "opendkim-2.11.0-0.36.el9",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2023-9a05f8b1eb",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2023-9a05f8b1eb",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/5720922c291ad411a98ad2d5f469f29ee84710bd8ec9f91f7fd58411fec05056?s=24&d=retro",
+		"email": "carl@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "python-sig"
+			},
+			{
+				"name": "infra-sig"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "sysadmin-web"
+			},
+			{
+				"name": "epel-packagers-sig"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "centosproject-email-aliases"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "caddy"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "sig-extras"
+			},
+			{
+				"name": "centos-rcm"
+			},
+			{
+				"name": "qa_users"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "python-packagers-sig"
+			}
+		],
+		"id": 3717,
+		"name": "carlwgeorge",
+		"openid": "carlwgeorge.id.fedoraproject.org"
+	},
+	"version_hash": "4ad40e1c0580c1624e6987026a5204204260fa06"
+}

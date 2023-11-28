@@ -1,0 +1,2389 @@
+{
+	"alias": "FEDORA-2018-b73bfea3af",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1530828,
+			"title": "Cuda 9 fails to compile when using boost",
+			"bugzilla": {
+				"bug_id": "1530828",
+				"creation_ts": "2018-01-03 23:06:41 +0000",
+				"short_desc": "Cuda 9 fails to compile when using boost",
+				"delta_ts": "2018-04-29 21:22:38 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11153118",
+						"comment_count": "0",
+						"who": {
+							"text": "sean.happel",
+							"name": "Sean Happel"
+						},
+						"bug_when": "2018-01-03 23:06:41 +0000",
+						"thetext": "Created attachment 1376623\nRecommended Patch\n\nDescription of problem:\n\nCuda 9.0 removed a macro (__CUDACC_VER__) without first deprecating it in the newly released Cuda 9.0.  This macro is used by boost, and causes compilations to fail.  This bug has been noted by boost, caffe, tensorflow, and other cuda libraries.\nSee:  <https://svn.boost.org/trac10/ticket/13152#no2>, <https://github.com/BVLC/caffe/issues/5994>, <https://github.com/tensorflow/tensorflow/issues/12489>\n\nA quick patch could fix the issue until boost hotfixes the release themselves (if they do).  An example patch is attached.\n\nVersion-Release number of selected component (if applicable):  Boost 1.64\nHow reproducible: always\n\nSteps to Reproduce:\n1.  Install NVidia Cuda 9.0\n2.  Create main.cu:\n---\n#include <boost/shared_ptr.hpp>\nint main(){ return 0; }\n---\n3.  Try to compile:  /usr/local/cuda/bin/nvcc main.cu\n\nActual results:  Compilation fails.\n\n[happest1@happest1-ll1 System]$ /usr/local/cuda/bin/nvcc -ccbin /usr/local/cuda-gcc-6/bin/compat-gcc65a-g++ main.cu\nIn file included from /usr/local/cuda/bin/..//include/common_functions.h:50:0,\n                 from /usr/local/cuda/bin/..//include/cuda_runtime.h:115,\n                 from <command-line>:0:\n/usr/local/cuda/bin/..//include/crt/common_functions.h:64:24: error: token \"\"__CUDACC_VER__ is no longer supported.  Use __CUDACC_VER_MAJOR__, __CUDACC_VER_MINOR__, and __CUDACC_VER_BUILD__ instead.\"\" is not valid in preprocessor expressions\n #define __CUDACC_VER__ \"__CUDACC_VER__ is no longer supported.  Use __CUDACC_VER_MAJOR__, __CUDACC_VER_MINOR__, and __CUDACC_VER_BUILD__ instead.\"\n                        ^\n/usr/local/cuda/bin/..//include/crt/common_functions.h:64:24: error: token \"\"__CUDACC_VER__ is no longer supported.  Use __CUDACC_VER_MAJOR__, __CUDACC_VER_MINOR__, and __CUDACC_VER_BUILD__ instead.\"\" is not valid in preprocessor expressions\n #define __CUDACC_VER__ \"__CUDACC_VER__ is no longer supported.  Use __CUDACC_VER_MAJOR__, __CUDACC_VER_MINOR__, and __CUDACC_VER_BUILD__ instead.\"\n\n\nExpected results:  No warnings\n[happest1@happest1-ll1 System]$ sudo patch /usr/include/boost/config/compiler/nvcc.hpp -i boost.patch \n[sudo] password for happest1: \npatching file /usr/include/boost/config/compiler/nvcc.hpp\n[happest1@happest1-ll1 System]$ /usr/local/cuda/bin/nvcc -ccbin /usr/local/cuda-gcc-6/bin/compat-gcc65a-g++ main.cu\n[happest1@happest1-ll1 System]$\n\nAdditional info:"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11153121",
+						"comment_count": "1",
+						"who": {
+							"text": "sean.happel",
+							"name": "Sean Happel"
+						},
+						"bug_when": "2018-01-03 23:07:47 +0000",
+						"thetext": "Created attachment 1376625\nExample test code (fails to compile without patch)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11328337",
+						"comment_count": "2",
+						"who": {
+							"text": "jwakely",
+							"name": "Jonathan Wakely"
+						},
+						"bug_when": "2018-02-27 18:40:19 +0000",
+						"thetext": "I can't use Cuda 9.0 on F27 anyway, as it doesn't work with GCC 7. Where does the /usr/local/cuda-gcc-6/bin/compat-gcc65a-g++ compiler come from?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11361177",
+						"comment_count": "3",
+						"who": {
+							"text": "sean.happel",
+							"name": "Sean Happel"
+						},
+						"bug_when": "2018-03-08 16:10:59 +0000",
+						"thetext": "There are various places you can download or compile GCC 6 to get it working with Cuda 9.0.  Below are the instructions I used to build it.\n\n# Installing GCC 6.x\n\nGcc 6.4 has a bug that prevents it from compiling with glibc-2.26.  A patch has been applied to the upstream gcc-6 branch, but has not made its way into an official release yet (next release will be 6.5).  So for now, we need to download the \"trunk\" for gcc 6, and compile that.\n\n* sudo dnf install flex texinfo gmp-devel mpfr-devel libmpc-devel #Needed to compile GCC.  Flex is only needed when downloading from svn/git instead of an official source\n* git clone https://github.com/gcc-mirror/gcc.git\n* cd gcc\n* git checkout gcc-6-branch\n* ./configure --prefix=/usr/local/cuda-gcc-6 --program-prefix=compat-gcc65a- --disable-multilib\n* make -j 8\n* sudo make install\n* sudo dnf remove flex texinfo gmp-devel mpfr-devel libmpc-devel #Remove compile-time dependencies\n* cd ..\n* rm -r gcc #Cleanup our build!\n\nNote that the new GCC version (including libraries, includes, etc) will be installed in /usr/local/cuda-gcc, where it shouldn't interfere with any other toolchains you might have, and will be easy to cleanup once NVidia releases a compatible version of CUDA."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11361377",
+						"comment_count": "4",
+						"who": {
+							"text": "jwakely",
+							"name": "Jonathan Wakely"
+						},
+						"bug_when": "2018-03-08 16:35:16 +0000",
+						"thetext": "Oh I see, so I can just point it at my existing gcc-6 builds, I assumed it was part of your Cuda installation. Let me try to reproduce this again then ..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11504837",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-18 23:26:56 +0000",
+						"thetext": "boost-1.64.0-6.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-97c275d576"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11504839",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-18 23:27:11 +0000",
+						"thetext": "boost-1.63.0-12.fc26 has been submitted as an update to Fedora 26. https://bodhi.fedoraproject.org/updates/FEDORA-2018-b73bfea3af"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11508063",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-19 17:12:03 +0000",
+						"thetext": "boost-1.63.0-12.fc26 has been pushed to the Fedora 26 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-b73bfea3af"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11508153",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-19 17:38:22 +0000",
+						"thetext": "boost-1.64.0-6.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-97c275d576"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11533736",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-27 01:19:44 +0000",
+						"thetext": "boost-1.64.0-6.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11539423",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-29 21:22:38 +0000",
+						"thetext": "boost-1.63.0-12.fc26 has been pushed to the Fedora 26 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1564253,
+			"security": true,
+			"title": "boost: Integer overflow during calculation of max_state_count in regex library [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1564253",
+				"creation_ts": "2018-04-05 19:25:00 +0000",
+				"short_desc": "boost: Integer overflow during calculation of max_state_count in regex library [fedora-all]",
+				"delta_ts": "2018-04-29 21:22:41 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1564252",
+						"creation_ts": "2018-04-05 19:24:35 +0000",
+						"short_desc": "boost: Integer overflow during calculation of max_state_count in regex library",
+						"delta_ts": "2021-09-09 13:37:28 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "NOTABUG",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1564254",
+							"1564253",
+							"1564554",
+							"1564555",
+							"1564556",
+							"1592918",
+							"1592919",
+							"1592920",
+							"1592921",
+							"1592922",
+							"1592923",
+							"1592924",
+							"1592925"
+						],
+						"blocked": [
+							{
+								"bug_id": "1564258",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "11452531",
+								"comment_count": "0",
+								"who": {
+									"text": "lpardo",
+									"name": "Laura Pardo"
+								},
+								"bug_when": "2018-04-05 19:24:35 +0000",
+								"thetext": "A flaw was found in Boost Regex library versions before 1.66.0. An integer overflow during calculation of max_state_count in regex library. This could result into a denial of service attack or possibly have unspecified other impact \n\n\nReferences:\nhttps://svn.boost.org/trac10/ticket/13036\n\nPatch:\nhttps://github.com/boostorg/regex/commit/bc9b25b5d3c3784543158510c6087d41739ab64a"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11452537",
+								"comment_count": "1",
+								"who": {
+									"text": "lpardo",
+									"name": "Laura Pardo"
+								},
+								"bug_when": "2018-04-05 19:25:09 +0000",
+								"thetext": "Created boost tracking bugs for this issue:\n\nAffects: fedora-all [bug 1564253]\n\n\nCreated boost148 tracking bugs for this issue:\n\nAffects: epel-all [bug 1564254]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11455097",
+								"comment_count": "2",
+								"who": {
+									"text": "lpardo",
+									"name": "Laura Pardo"
+								},
+								"bug_when": "2018-04-06 15:27:45 +0000",
+								"thetext": "Created mingw-boost tracking bugs for this issue:\n\nAffects: fedora-all [bug 1564556]\nAffects: epel-7 [bug 1564554]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11732453",
+								"comment_count": "13",
+								"who": {
+									"text": "sgayou",
+									"name": "Scott Gayou"
+								},
+								"bug_when": "2018-06-22 17:17:47 +0000",
+								"thetext": "This flaw does not seem to result in a denial of service based on initial analysis. The integer overflow does occur, but the result of the overflow is later bounded by checks.\n\nThe PoC provided is interesting as it does appear to be a \"denial of service\" if you run it on a 64bit machine. However, the code in question inside of estimate_max_state_count does not actually run in this case. The high usage of memory and eventual abort when a memory allocation later fails is present before and after the patch in 1.66.0. Triggering a denial of service with an arbitrarily long regular expression does not seem novel unless Boost makes guaranties or promises about this that I am unaware of. If that is an issue, it is separate to this and is still reproducible upstream.\n\nOn a 32-bit system, the aforementioned denial of service does not appear to occur and we can more easily trigger the actual overflow.\n\nIf we dump out the states/max_state_count variables in estimate_max_state_count in versions of the boost regular expression engine before and after the patch on a 32-bit system, we see the following:\n\nUnfixed Version:\n================\nStarting states: 47000\nStates after multiplication: -2085967296\nRet6 max_state_count: 100225\n\n\nFixed Version:\n==============\nStarting states: 47000\nRet1 max_state_count: 100000000\n\nThus, in unfixed, we see the overflow. Later on in the function it fails a check and ends up bounded at 100225 instead of the true max state size, which should be dramatically larger.\n\nIn the fixed version, it bounds the max_state_count to 100000000 before the overflow occurs.\n\nIt is unclear what a lower max_state_count would result in -- my guess is a failure to match against the regular expression. It does not appear to result in any form of memory corruption based on a few simple checks.\n\nSo, this may be an issue if you allow users to inject arbitrary regular expressions and are expecting correct output, but you almost certainly have other problems if that is the case.\n\nI'd be interested if anyone else (perhaps with more boost development or regular expression knowledge) has a different opinion on the outcome of this or had success replicating this on a 64-bit system."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11732775",
+								"comment_count": "14",
+								"who": {
+									"text": "jwakely",
+									"name": "Jonathan Wakely"
+								},
+								"bug_when": "2018-06-22 19:15:49 +0000",
+								"thetext": "(In reply to Scott Gayou from comment #13)\n> So, this may be an issue if you allow users to inject arbitrary regular\n> expressions and are expecting correct output, but you almost certainly have\n> other problems if that is the case.\n\nCompletely agreed."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11452532",
+						"comment_count": "0",
+						"who": {
+							"text": "lpardo",
+							"name": "Laura Pardo"
+						},
+						"bug_when": "2018-04-05 19:25:00 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11452535",
+						"comment_count": "1",
+						"who": {
+							"text": "lpardo",
+							"name": "Laura Pardo"
+						},
+						"bug_when": "2018-04-05 19:25:06 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1564252,1564253\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11504838",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-18 23:27:03 +0000",
+						"thetext": "boost-1.64.0-6.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-97c275d576"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11504840",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-18 23:27:15 +0000",
+						"thetext": "boost-1.63.0-12.fc26 has been submitted as an update to Fedora 26. https://bodhi.fedoraproject.org/updates/FEDORA-2018-b73bfea3af"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11508064",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-19 17:12:08 +0000",
+						"thetext": "boost-1.63.0-12.fc26 has been pushed to the Fedora 26 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-b73bfea3af"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11508154",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-19 17:38:25 +0000",
+						"thetext": "boost-1.64.0-6.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-97c275d576"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11533737",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-27 01:19:49 +0000",
+						"thetext": "boost-1.64.0-6.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11539424",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-29 21:22:41 +0000",
+						"thetext": "boost-1.63.0-12.fc26 has been pushed to the Fedora 26 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "boost-1.63.0-12.fc26",
+			"release_id": 16,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "boost-openmpi-python3-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-container",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-graph-openmpi",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-numpy",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-thread",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-timer",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-numpy3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-random",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-python3-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-doc",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-serialization",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-openmpi",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-mpich-python3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-openmpi-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-mpich-python",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-doctools",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-fiber",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-mpich-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-math",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-mpich",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-test",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-wave",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-regex",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-chrono",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-system",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-static",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-examples",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-jam",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-graph",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-openmpi-python",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-iostreams",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-graph-mpich",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-date-time",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-context",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-mpich-python3-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-log",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-openmpi-python3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-type_erasure",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-program-options",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-debuginfo",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-python",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-locale",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-coroutine",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-python3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-signals",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-atomic",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "boost-filesystem",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "boost-openmpi-python3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-random",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-debuginfo",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-numpy3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-openmpi-python",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-type_erasure",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-mpich-python3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-test",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-date-time",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-numpy",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-mpich-python3-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-python",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-atomic",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-mpich",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-static",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-graph-openmpi",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-doc",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-examples",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-graph",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-python3-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-timer",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-iostreams",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-wave",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-openmpi",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-chrono",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-graph-mpich",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-filesystem",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-log",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-openmpi-python3-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-program-options",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-thread",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-python3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-math",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-context",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-jam",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-serialization",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-locale",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-openmpi-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-fiber",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-container",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-system",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-signals",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-regex",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-doctools",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-coroutine",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-mpich-python",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "boost-mpich-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "boost-signals",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-program-options",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-mpich",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-context",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-system",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-python3-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-container",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-static",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-wave",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-serialization",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-examples",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-openmpi-python3-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-date-time",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-random",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-filesystem",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-fiber",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-locale",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-mpich-python3-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-python3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-atomic",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-openmpi-python3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-jam",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-timer",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-python",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-mpich-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-chrono",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-test",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-numpy3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-mpich-python3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-numpy",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-doctools",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-graph-openmpi",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-log",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-regex",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-coroutine",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-openmpi-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-math",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-doc",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-iostreams",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-openmpi-python",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-thread",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-openmpi",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-debuginfo",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-graph",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-mpich-python",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-type_erasure",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "boost-graph-mpich",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "boost-build",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "noarch"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "boost-timer",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-mpich-python",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-coroutine",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-iostreams",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-python3-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-serialization",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-random",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-debuginfo",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-examples",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-context",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-locale",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-fiber",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-type_erasure",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-signals",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-test",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-jam",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-regex",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-openmpi-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-atomic",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-openmpi",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-numpy",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-program-options",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-mpich-python3-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-wave",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-doc",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-system",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-python3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-static",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-filesystem",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-openmpi-python3-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-mpich",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-mpich-python3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-thread",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-openmpi-python",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-math",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-log",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-date-time",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-numpy3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-chrono",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-openmpi-python3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-mpich-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-container",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-graph-mpich",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-graph-openmpi",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-doctools",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-python",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					},
+					{
+						"name": "boost-graph",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "boost-iostreams",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-chrono",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-examples",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-static",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-atomic",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-mpich-python3-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-numpy",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-test",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-debuginfo",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-python3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-mpich-python",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-graph",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-thread",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-python3-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-type_erasure",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-math",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-coroutine",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-container",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-system",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-wave",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-python",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-openmpi-python3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-context",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-program-options",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-doctools",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-mpich",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-graph-openmpi",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-graph-mpich",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-openmpi",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-filesystem",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-locale",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-signals",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-mpich-python3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-serialization",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-openmpi-python",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-doc",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-date-time",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-timer",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-mpich-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-numpy3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-random",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-log",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-openmpi-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-openmpi-python3-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-fiber",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-jam",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "boost-regex",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "ppc64le"
+					}
+				],
+				"src": [
+					{
+						"name": "boost",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "boost-static",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-filesystem",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-graph-mpich",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-openmpi-python",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-mpich-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-openmpi-python3-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-iostreams",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-python3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-examples",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-random",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-container",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-type_erasure",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-numpy3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-fiber",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-graph",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-thread",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-debuginfo",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-atomic",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-python3-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-program-options",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-regex",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-signals",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-mpich",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-timer",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-context",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-openmpi-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-doctools",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-wave",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-mpich-python3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-python",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-jam",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-openmpi",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-openmpi-python3",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-math",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-locale",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-chrono",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-doc",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-graph-openmpi",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-coroutine",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-date-time",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-serialization",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-numpy",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-mpich-python3-devel",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-mpich-python",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-log",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-test",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "boost-system",
+						"version": "1.63.0",
+						"release": "12.fc26",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 769368,
+			"text": "This update has been submitted for testing by jwakely. ",
+			"timestamp": "2018-04-18 23:26:52",
+			"update_id": 113155,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 769916,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2018-04-19 17:12:35",
+			"update_id": 113155,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 771004,
+			"karma": 1,
+			"text": "no regressions noted",
+			"timestamp": "2018-04-21 16:26:56",
+			"update_id": 113155,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/d826994e83ce867281f73d85986dd475938841874b75a83a82cdb184f6af8749?s=24&d=retro",
+				"email": "rosset.filipe@gmail.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "l10n"
+					},
+					{
+						"name": "cvsl10n"
+					},
+					{
+						"name": "fedora-br"
+					}
+				],
+				"id": 124,
+				"name": "filiperosset",
+				"openid": "filiperosset.id.fedoraproject.org"
+			},
+			"user_id": 124
+		},
+		{
+			"id": 774410,
+			"karma": 1,
+			"text": "no regressions noted",
+			"timestamp": "2018-04-27 15:19:00",
+			"update_id": 113155,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/636ff3eea65823b2c7349e36b691fd8c6d48f2a2158242b946762c0a14055425?s=24&d=retro",
+				"email": "samoht0-bugzilla@yahoo.com",
+				"groups": [
+					{
+						"name": "ipausers"
+					}
+				],
+				"id": 2998,
+				"name": "samoht0",
+				"openid": "samoht0.id.fedoraproject.org"
+			},
+			"user_id": 2998
+		},
+		{
+			"id": 774830,
+			"karma": 1,
+			"text": "Works",
+			"timestamp": "2018-04-28 16:30:12",
+			"update_id": 113155,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/cd6029d8d81108a2a69c38a2373d2a185c0e86224b8ee4971cd77bb6cdad7a20?s=24&d=retro",
+				"email": "walter.pete@yandex.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 491,
+				"name": "pwalter",
+				"openid": "pwalter.id.fedoraproject.org"
+			},
+			"user_id": 491
+		},
+		{
+			"id": 774831,
+			"text": "This update has been submitted for batched by bodhi. ",
+			"timestamp": "2018-04-28 16:30:12",
+			"update_id": 113155,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 774944,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2018-04-29 03:00:19",
+			"update_id": 113155,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 775329,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2018-04-29 21:23:10",
+			"update_id": 113155,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2018-04-29 21:22:26",
+	"date_stable": "2018-04-29 21:22:26",
+	"date_submitted": "2018-04-18 23:26:52",
+	"date_testing": "2018-04-19 17:11:58",
+	"karma": 3,
+	"notes": "Updated Boost libraries are available that fix compatibility with CUDA 9.x compilers and fix a possible integer overflow in Boost.Regex.",
+	"pushed": true,
+	"release": {
+		"branch": "f26",
+		"candidate_tag": "f26-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f26",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 26",
+		"mail_template": "fedora_errata_template",
+		"name": "F26",
+		"override_tag": "f26-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f26-signing-pending",
+		"pending_stable_tag": "f26-updates-pending",
+		"pending_testing_tag": "f26-updates-testing-pending",
+		"stable_tag": "f26-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f26-updates-testing",
+		"version": "26"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "medium",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "failed",
+	"title": "boost-1.63.0-12.fc26",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2018-b73bfea3af",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2018-b73bfea3af",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/892db0a5381aa379ff56d366c5b3147009b652fccc4e5cce9df0032484c234c2?s=24&d=retro",
+		"email": "jwakely@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "packaging-committee"
+			}
+		],
+		"id": 1725,
+		"name": "jwakely",
+		"openid": "jwakely.id.fedoraproject.org"
+	},
+	"version_hash": "961c85ff0f0a4fe1fa537bbf0c0cb014da57671e"
+}

@@ -1,0 +1,3237 @@
+{
+	"alias": "FEDORA-2014-12955",
+	"bugs": [
+		{
+			"bug_id": 1045821,
+			"title": "ACER Chromebook C720P: touchpad and touchscreen do not work",
+			"bugzilla": {
+				"bug_id": "1045821",
+				"creation_ts": "2013-12-22 10:05:35 +0000",
+				"short_desc": "ACER Chromebook C720P: touchpad and touchscreen do not work",
+				"delta_ts": "2015-09-18 13:33:53 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6652239",
+						"comment_count": "0",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2013-12-22 10:05:35 +0000",
+						"thetext": "Description of problem:\nIn a full F20 installation, touchpad does not work.\n\nPatches has been provided upstream that solves the issue:\nhttps://plus.google.com/+BensonLeung/posts/EJUSUudzHb3\n\nI made a script to patch/compile the patched modules for the kernel/install them (it includes ZRAM as well...). See the attachment.\n\nVersion-Release number of selected component (if applicable):\n$ uname -r\n3.12.5-302.fc20.x86_64\n\nHow reproducible:\nAlways\n\nSteps to Reproduce:\n1.Just start the laptop and try the touchpad.\n2.\n3.\n\nActual results:\nnothing\n\nExpected results:\nShould work\n\nAdditional info:\nPlease backport the patches to the official kernel in F20.\n\nBest regards,\nYannick"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6652241",
+						"comment_count": "1",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2013-12-22 10:06:47 +0000",
+						"thetext": "Created attachment 840306\npatch the kernel to get the touchpad working (and provide zram as well)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6652272",
+						"comment_count": "2",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2013-12-22 10:47:30 +0000",
+						"thetext": "Once you have the patched modules, make them load at startup:\n\nCreate the file \"touchpad-acer-c720.modules\" in /etc/sysconfig/modules/\n\n#!/bin/sh\n\nexec /sbin/modprobe chromeos_laptop >/dev/null 2>&1\nexec /sbin/modprobe i2c-designware-core >/dev/null 2>&1\nexec /sbin/modprobe i2c-designware-pci >/dev/null 2>&1\nexec /sbin/modprobe i2c-designware-platform >/dev/null 2>&1\n\nMake it executable:\n\n$ su -c 'chmod +x /etc/sysconfig/modules/touchpad-acer-c720.modules'"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6657548",
+						"comment_count": "3",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2013-12-25 22:14:48 +0000",
+						"thetext": "Default configuration raise a usability issue: it can be pretty hard to move the pointer. This additional xorg configuration seems to fix this issue.\n\n/etc/X11/xorg.conf.d/50-cros-touchpad.conf\n\nSection \"InputClass\" \n    Identifier      \"touchpad peppy cyapa\" \n    MatchIsTouchpad \"on\" \n    MatchDevicePath \"/dev/input/event*\" \n    MatchProduct    \"cyapa\" \n    Option          \"FingerLow\" \"10\" \n    Option          \"FingerHigh\" \"10\" \nEndSection"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6657593",
+						"comment_count": "4",
+						"who": {
+							"text": "michele",
+							"name": "Michele Baldessari"
+						},
+						"bug_when": "2013-12-25 23:19:41 +0000",
+						"thetext": "Note that the patches are actually:\nhttps://patchwork.kernel.org/patch/3078491/\nhttps://patchwork.kernel.org/patch/3078481/\n\nhttps://patchwork.kernel.org/patch/3074391/\nhttps://patchwork.kernel.org/patch/3074441/\nhttps://patchwork.kernel.org/patch/3074421/\nhttps://patchwork.kernel.org/patch/3074401/\nhttps://patchwork.kernel.org/patch/3074431/\nhttps://patchwork.kernel.org/patch/3074411/\n\nThe first ones I've checked are not upstream yet"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6662836",
+						"comment_count": "5",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2013-12-30 10:55:02 +0000",
+						"thetext": "Using this page https://plus.google.com/114358706658341629084/posts/Q9B4DiqWZ5E\nI've modified my script to include a working driver for the touchscreen.\n\nIt modifies in the kernel tree :\ndrivers/input/touchscreen/atmel_mxt_ts.ko\ndrivers/platform/x86/chromeos_laptop.ko\n\nusing those patched versions:\n# fetch the chromeos_laptop and atmel maxtouch source code\n# Copy made from chromium.googlesource.com chromeos-3.8 branch\n# https://chromium.googlesource.com/chromiumos/third_party/kernel-next/+/refs/heads/chromeos-3.8\nwget https://googledrive.com/host/0BxMvXgjEztvAbEdYM1o0ck5rOVE --output-document=patch_atmel_mxt_ts.c\nwget https://googledrive.com/host/0BxMvXgjEztvAdVBjQUljYWtiR2c --output-document=patch_chromeos_laptop.c\n\n# copy source files into kernel tree replacing existing Ubuntu source\ncp ./patch_atmel_mxt_ts.c drivers/input/touchscreen/atmel_mxt_ts.c\ncp ./patch_chromeos_laptop.c drivers/platform/x86/chromeos_laptop.c\n\nI'll attach the new script version.\n\nNow the touchscreen works too."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6662839",
+						"comment_count": "6",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2013-12-30 10:58:59 +0000",
+						"thetext": "Created attachment 843339\npatch the actual kernel to add support for touchpad and touchscreen (add ZRAM too)\n\nAfter the script, create \"touchpad-acer-c720.modules\" in /etc/sysconfig/modules/\n\n#!/bin/sh\n\nexec /sbin/modprobe chromeos_laptop >/dev/null 2>&1\nexec /sbin/modprobe i2c-designware-core >/dev/null 2>&1\nexec /sbin/modprobe i2c-designware-pci >/dev/null 2>&1\nexec /sbin/modprobe i2c-designware-platform >/dev/null 2>&1\nexec /sbin/modprobe i2c-designware-platform >/dev/null 2>&1\nexec /sbin/modprobe atmel_mxt_ts >/dev/null 2>&1\n\nMake it runable :\n$ su -c 'chmod +x /etc/sysconfig/modules/touchpad-acer-c720.modules'\n\nAdditional config for the touchpad (unless there is a usability issue):\n/etc/X11/xorg.conf.d/50-cros-touchpad.conf\n\nSection \"InputClass\" \n    Identifier      \"touchpad peppy cyapa\" \n    MatchIsTouchpad \"on\" \n    MatchDevicePath \"/dev/input/event*\" \n    MatchProduct    \"cyapa\" \n    Option          \"FingerLow\" \"10\" \n    Option          \"FingerHigh\" \"10\" \nEndSection"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6673580",
+						"comment_count": "7",
+						"who": {
+							"text": "green",
+							"name": "Oleg Drokin"
+						},
+						"bug_when": "2014-01-04 22:30:00 +0000",
+						"thetext": "Yannick: note that in your modules loading script the first exec modprobe will preempt the script and all other modprobe commands would not be attempted.\n\nAdditionally the kernel update script is a bit contradictory.\nFirst it downloads a bunch of patches and applies them (the for loop) and then you download 3.8 versions of files from chromeos kernel (According to the kernel) and overwrite the patched files back to the state where c720 is not known to the kernel.\n\nOverall result is such that by following your steps touchpad still does not work at least on my acer c720."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6673651",
+						"comment_count": "8",
+						"who": {
+							"text": "green",
+							"name": "Oleg Drokin"
+						},
+						"bug_when": "2014-01-04 23:31:20 +0000",
+						"thetext": "After removing the spurious copy of 3.8 source it seems my touchpad does work, btw."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6673949",
+						"comment_count": "9",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-01-05 09:09:23 +0000",
+						"thetext": "Oleg,\n\nAbout the modprobe script, I do not know what's wrong with it, it's beyond my skills... AFAIK I've all the needed modules loaded:\n$ lsmod | grep i2c\ni2c_i801               18135  0 \ni2c_designware_pci     13135  0 \ni2c_designware_core    14275  1 i2c_designware_pci\ni2c_algo_bit           13257  1 i915\ni2c_core               38302  10 drm,i2c_designware_pci,i915,i2c_i801,cyapa,drm_kms_helper,atmel_mxt_ts,i2c_algo_bit,chromeos_laptop,videodev\n$ lsmod | grep atmel\natmel_mxt_ts           36926  0 \ni2c_core               38302  10 drm,i2c_designware_pci,i915,i2c_i801,cyapa,drm_kms_helper,atmel_mxt_ts,i2c_algo_bit,chromeos_laptop,videodev\n$ lsmod | grep chromeos\nchromeos_laptop        14835  0 \ni2c_core               38302  10 drm,i2c_designware_pci,i915,i2c_i801,cyapa,drm_kms_helper,atmel_mxt_ts,i2c_algo_bit,chromeos_laptop,videodev\n\nIf you have the C720 (no touchscreen), the script in the comment 1 should be enough ; it does not replace the chromeos file and do not add the atmel module (for the touchscreen). This additional step was necessary to get the touchscreen work on the C720P (which has a touchscreen).\n\nIt's weird to my you have a 3.8 kernel version, on F20 i've 3.12 atm...\n\nThank you a lot for trying and report here !"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6673950",
+						"comment_count": "10",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-01-05 09:13:53 +0000",
+						"thetext": "Oops, my bad, I now understand the 3.8 stuff : you were refering to the patch for the chromeos module. Well, it works here...\n\nMy hope is the relevant part of this file will be pushed upstream/or backported by fedora and we will avoid messing with the source like that."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6673987",
+						"comment_count": "11",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-01-05 10:06:24 +0000",
+						"thetext": "Just a link for the bug report, and a FIX, I made about suspend to disk when closing the lid or pressing the power button on the keyboard for the Acer C720P:\nhttps://bugzilla.redhat.com/show_bug.cgi?id=1048569"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6674218",
+						"comment_count": "12",
+						"who": {
+							"text": "green",
+							"name": "Oleg Drokin"
+						},
+						"bug_when": "2014-01-05 16:17:07 +0000",
+						"thetext": "The modules are still loaded because the first chrome_laptop load does a request module and the rest are obtained via dependencies.\n(btw need to run depmod after modules install).\n\nBut overall all of the underlying code changes in 3.13 kernel based on my cursory look, they split chromebook from x86 platform in there and did some various other reorganizations.\n\nAdditionally I think what really needs to be done here is not a script that replaces modules like this, but just an updated fedora kernel spec file with a few extra patches so that entire kernel could be built and installed properly."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6829744",
+						"comment_count": "13",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-02-18 11:09:17 +0000",
+						"thetext": "With the latest kernel on Fedora 20, the module for touchscreen I take from google fails at compiling with error.\n$ uname -r\n3.13.3-201.fc20.x86_64\n\nWith the previous kernels (3.12 serie) this patching method worked.\n\nThis is how I patch the kernel tree in a bash script:\nwget https://googledrive.com/host/0BxMvXgjEztvAbEdYM1o0ck5rOVE --output-document=patch_atmel_mxt_ts.c\ncp ./patch_atmel_mxt_ts.c drivers/input/touchscreen/atmel_mxt_ts.c\ncd drivers/input/touchscreen/\nmv Makefile Makefile.orig\necho 'KERNELVERSION = '$archkernver'\nobj-m := atmel_mxt_ts.o\n\nKDIR  := /lib/modules/$(shell uname -r)/build\nPWD   := $(shell pwd)\n\ndefault:\n\t$(MAKE) -C $(KDIR) M=$(PWD) modules' > Makefile\nmake -C /lib/modules/$archkernver/build M=$PWD modules\n\nResult with 3.13.3-201.fc20.x86_64:\n  CC [M]  /home/yannick/rpmbuild/BUILD/kernel-3.13.fc20/linux-3.13.3-201.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.o\n/home/yannick/rpmbuild/BUILD/kernel-3.13.fc20/linux-3.13.3-201.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.c: In function ‘mxt_enter_bl’:\n/home/yannick/rpmbuild/BUILD/kernel-3.13.fc20/linux-3.13.3-201.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.c:1114:2: erreur: implicit declaration of function ‘INIT_COMPLETION’ [-Werror=implicit-function-declaration]\n  INIT_COMPLETION(data->bl_completion);\n  ^\ncc1: some warnings being treated as errors\nmake[1]: *** [/home/yannick/rpmbuild/BUILD/kernel-3.13.fc20/linux-3.13.3-201.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.o] Erreur 1\nmake: *** [_module_/home/yannick/rpmbuild/BUILD/kernel-3.13.fc20/linux-3.13.3-201.fc20.x86_64/drivers/input/touchscreen] Erreur 2\nmake: on quitte le répertoire « /usr/src/kernels/3.13.3-201.fc20.x86_64 »\n\nI'm unable to fix this... Please help."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6831526",
+						"comment_count": "14",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-02-18 17:28:00 +0000",
+						"thetext": "Using the magic of \"STFW\" I blindly applied what I saw other have done:\nwget https://googledrive.com/host/0BxMvXgjEztvAbEdYM1o0ck5rOVE --output-document=patch_atmel_mxt_ts.c\n# Fix for kernel >=3.13\nsed -i -e \"s/INIT_COMPLETION(/reinit_completion(\\&/g\" patch_atmel_mxt_ts.c\n\nThis fix the compilation and I now have the touchscreen working on kernel 3.13.x"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6831542",
+						"comment_count": "15",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-02-18 17:33:36 +0000",
+						"thetext": "Created attachment 864654\nMy script to install all kernel modules for kernels >=3.13 on Fedora 20\n\nupdated script for kernels >= 3.13.x"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6891810",
+						"comment_count": "16",
+						"who": {
+							"text": "dgallowa",
+							"name": "David Galloway"
+						},
+						"bug_when": "2014-03-07 11:40:39 +0000",
+						"thetext": "(In reply to Yannick Defais from comment #15)\n> Created attachment 864654 [details]\n> My script to install all kernel modules for kernels >=3.13 on Fedora 20\n> \n> updated script for kernels >= 3.13.x\n\nJust wanted to say \"thank you\" and confirm the script does enable touchpad and touchscreen after compiling the modules and rebooting on my C720p."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6934168",
+						"comment_count": "17",
+						"who": {
+							"text": "a.j.delaney",
+							"name": "Aidan Delaney"
+						},
+						"bug_when": "2014-03-20 10:18:00 +0000",
+						"thetext": "Would it be possible to get these patches into the stock Fedora kernel?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6935345",
+						"comment_count": "18",
+						"who": {
+							"text": "xavier",
+							"name": "Xavier Bachelot"
+						},
+						"bug_when": "2014-03-20 15:13:25 +0000",
+						"thetext": "(In reply to Aidan Delaney from comment #17)\n> Would it be possible to get these patches into the stock Fedora kernel?\n\nWhile I'd welcome to have a patched kernel for the C720 as it would ease usage of the one I own, I don't believe this will happen until the patches are in upstream kernel, as that would be a burden for the Fedora kernel's maintainers. \n\nAs noted in comment 4, the patches are in patchwork, but I don't know what is needed to get them from there to mainline kernel. Probably asking nicely the maintainers of these parts of the kernel, but I'm not sure who they are. I would have expected the people from chromium.org to be more proactive in pushing their patches upstream."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7018128",
+						"comment_count": "19",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-04-17 10:28:43 +0000",
+						"thetext": "Hi,\n\nI saw an increasing amount of blogs trying to install fedora 20 on the acer c720(p).\n\nI made a thread including a lot of configuration to have almost everything covered, unfortunately in french. Here is an automatic translation:\nhttp://translate.google.com/translate?sl=fr&tl=en&js=y&prev=_t&hl=fr&ie=UTF-8&u=http%3A%2F%2Fforums.fedora-fr.org%2Fviewtopic.php%3Fid%3D61252&edit-text=\n\nThe translation tool breaks the included scripts, thus make sure to copy those from the original thread here (in french):\nhttp://forums.fedora-fr.org/viewtopic.php?id=61252\n\nYou'll certainly find those additional stuff useful."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7059001",
+						"comment_count": "20",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-05-03 13:56:06 +0000",
+						"thetext": "Created attachment 892143\nUpdated script for kernel 3.14.x - Version 8"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7059002",
+						"comment_count": "21",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-05-03 13:58:13 +0000",
+						"thetext": "I added a new version of the install script for kernel 3.14.x\nSo far I've just tested touchscreen and touchpad. There has been some change in zram as it is not in staging anymore..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7060254",
+						"comment_count": "22",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-05-04 23:18:02 +0000",
+						"thetext": "Suspend is broken with 3.14.x\n\nI'll work on it when I'll find time.\nIt seems there is a workaround here:\nhttps://bbs.archlinux.org/viewtopic.php?pid=1411695#p1411695"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7078380",
+						"comment_count": "23",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-05-11 12:40:43 +0000",
+						"thetext": "Created attachment 894420\nUpdated script to fix suspend for kernel 3.14.x - Version 9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7078382",
+						"comment_count": "24",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-05-11 12:43:06 +0000",
+						"thetext": "The above script fix suspend which is broken for kernel 3.14.x (tested on .2 and .3)\n\nI opened a new bug report for this particular issue:\nhttps://bugzilla.redhat.com/show_bug.cgi?id=1096511\n\nYou should also add some options to grub:\nin /etc/default/grub, add:\n\nGRUB_CMDLINE_LINUX_DEFAULT=\"quiet splash tpm_tis.force=1 tpm_tis.interrupts=0\"\n\nUpdate grub:\n\n# grub2-mkconfig -o /boot/grub2/grub.cfg\n\n\"tpm_tis.interrupts=0\" is the necessary part. As my spare time is rare, I've not tested removing the other options."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7108137",
+						"comment_count": "25",
+						"who": {
+							"text": "jforbes",
+							"name": "Justin M. Forbes"
+						},
+						"bug_when": "2014-05-21 19:39:21 +0000",
+						"thetext": "*********** MASS BUG UPDATE **************\n\nWe apologize for the inconvenience.  There is a large number of bugs to go through and several of them have gone stale.  Due to this, we are doing a mass bug update across all of the Fedora 20 kernel bugs.\n\nFedora 20 has now been rebased to 3.14.4-200.fc20.  Please test this kernel update (or newer) and let us know if you issue has been resolved or if it is still present with the newer kernel.\n\nIf you experience different issues, please open a new bug report for those."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7108400",
+						"comment_count": "26",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-05-21 20:28:54 +0000",
+						"thetext": "This issue has not been resolved and is still present with kernel 3.14.4-200.fc20.x86_64"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7179783",
+						"comment_count": "27",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-06-12 18:59:46 +0000",
+						"thetext": "Created attachment 908261\nUpdated script for kernel 3.14.6: removed the patch for the suspend issue.\n\nUpstream kernel 3.14.6 has a fix for the suspend issue, thus I removed this particular patch from the script. At least a good news!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7285588",
+						"comment_count": "28",
+						"who": {
+							"text": "dkline",
+							"name": "Dave Kline"
+						},
+						"bug_when": "2014-07-11 18:01:53 +0000",
+						"thetext": "Since Fedora released kernel 3.15.x the script no longer works for me:\n\nExcerpt attempting to patch 3.15.4-200:\n....\npatching file drivers/i2c/busses/i2c-designware-pcidrv.c\nHunk #1 FAILED at 54.\nHunk #2 succeeded at 168 with fuzz 2 (offset 36 lines).\nHunk #3 FAILED at 335.\n2 out of 3 hunks FAILED -- saving rejects to file drivers/i2c/busses/i2c-designware-pcidrv.c.rej"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7286098",
+						"comment_count": "29",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-07-11 22:55:59 +0000",
+						"thetext": "Created attachment 917452\nupdated script for kernel 3.15.4"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7286099",
+						"comment_count": "30",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-07-11 22:57:05 +0000",
+						"thetext": "(In reply to Dave Kline from comment #28)\n> Since Fedora released kernel 3.15.x the script no longer works for me:\n> \n> Excerpt attempting to patch 3.15.4-200:\n> ....\n> patching file drivers/i2c/busses/i2c-designware-pcidrv.c\n> Hunk #1 FAILED at 54.\n> Hunk #2 succeeded at 168 with fuzz 2 (offset 36 lines).\n> Hunk #3 FAILED at 335.\n> 2 out of 3 hunks FAILED -- saving rejects to file\n> drivers/i2c/busses/i2c-designware-pcidrv.c.rej\n\nThank you Dave!\nThe above script should work for kernel 3.15.4.\n\nBest regards."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7286373",
+						"comment_count": "31",
+						"who": {
+							"text": "dkline",
+							"name": "Dave Kline"
+						},
+						"bug_when": "2014-07-12 12:48:45 +0000",
+						"thetext": "Yannick: v11 works well.  Thank you!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7287627",
+						"comment_count": "32",
+						"who": {
+							"text": "binarybana",
+							"name": "Jason Knight"
+						},
+						"bug_when": "2014-07-14 04:24:58 +0000",
+						"thetext": "Created attachment 917673\nUpdate's Yannick's v11 script for ZRAM changes in 3.15\n\nI've modified Yannick's v11 script (Thanks again Yannick!) to get ZRAM working in 3.15 and building the optional lz4 compression backend."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7300071",
+						"comment_count": "33",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-07-17 07:35:46 +0000",
+						"thetext": "Created attachment 918624\nVersion 13, install kernel-modules-extra as this is necessary for suspend, and at least the KDE spin does not provide it by default"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7300080",
+						"comment_count": "34",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-07-17 07:37:16 +0000",
+						"thetext": "(In reply to Jason Knight from comment #32)\n> Created attachment 917673 [details]\n> Update's Yannick's v11 script for ZRAM changes in 3.15\n> \n> I've modified Yannick's v11 script (Thanks again Yannick!) to get ZRAM\n> working in 3.15 and building the optional lz4 compression backend.\n\nThank you! Included in the scripts I will propose."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7337473",
+						"comment_count": "35",
+						"who": {
+							"text": "jcatfour"
+						},
+						"bug_when": "2014-07-29 15:58:53 +0000",
+						"thetext": "(In reply to Yannick Defais from comment #0)\n\nFor the Transaction summary, I keep getting this error:\n\nTransaction check error:\n  file /usr/share/man/man1/vim.1.gz from install of vim-common-2:7.4.179-1.fc20.x86_64 conflicts with file from package vim-minimal-2:7.4.027-2.fc20.x86_64\n\nWhat can I do? I'm still somewhat new to fedora, and am by no means a linux guru, so I don't quite know how to handle this problem. I think I understand what it's saying, I just don't know how to resolve it..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7337674",
+						"comment_count": "36",
+						"who": {
+							"text": "binarybana",
+							"name": "Jason Knight"
+						},
+						"bug_when": "2014-07-29 16:52:50 +0000",
+						"thetext": "(In reply to jcatfour from comment #35)\n\nThis is really unrelated to the script. Typically this is due to a yum package inconsistency. I've had luck resolving these with either a 'sudo yum update' or changing all instances of yum to dnf which seems to handle these conflicts more gracefully."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7337975",
+						"comment_count": "37",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-07-29 18:32:53 +0000",
+						"thetext": "(In reply to jcatfour from comment #35)\n> (In reply to Yannick Defais from comment #0)\n> \n> For the Transaction summary, I keep getting this error:\n> \n> Transaction check error:\n>   file /usr/share/man/man1/vim.1.gz from install of\n> vim-common-2:7.4.179-1.fc20.x86_64 conflicts with file from package\n> vim-minimal-2:7.4.027-2.fc20.x86_64\n> \n> What can I do? I'm still somewhat new to fedora, and am by no means a linux\n> guru, so I don't quite know how to handle this problem. I think I understand\n> what it's saying, I just don't know how to resolve it...\n\nSeems you steped into this:\nhttp://unix.stackexchange.com/questions/119310/transaction-check-error-in-installing-vim\n\nTry this:\n$ su -c 'yum remove vim-minimal'\n$ su -c 'yum install vim'\n\nThen you should good to go for the script."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7338212",
+						"comment_count": "38",
+						"who": {
+							"text": "jcatfour"
+						},
+						"bug_when": "2014-07-29 19:28:25 +0000",
+						"thetext": "(In reply to Jason Knight from comment #36)\n> (In reply to jcatfour from comment #35)\n> \n> This is really unrelated to the script. Typically this is due to a yum\n> package inconsistency. I've had luck resolving these with either a 'sudo yum\n> update' or changing all instances of yum to dnf which seems to handle these\n> conflicts more gracefully.\n\nsudo yum update fixed the error, and the touchpad now MOSTLY works, however interestingly enough, clicking doesn't work; I can only move my cursor around and nothing more. \n\nwut"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7338719",
+						"comment_count": "39",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-07-29 22:57:21 +0000",
+						"thetext": "(In reply to jcatfour from comment #38)\n> (In reply to Jason Knight from comment #36)\n> > (In reply to jcatfour from comment #35)\n> > \n> > This is really unrelated to the script. Typically this is due to a yum\n> > package inconsistency. I've had luck resolving these with either a 'sudo yum\n> > update' or changing all instances of yum to dnf which seems to handle these\n> > conflicts more gracefully.\n> \n> sudo yum update fixed the error, and the touchpad now MOSTLY works, however\n> interestingly enough, clicking doesn't work; I can only move my cursor\n> around and nothing more. \n> \n> wut\n\nIf the script went to its end (until the \"$ reboot\" message), and you created the 2 files in comments #2 and #3, it should be ok. Be sure to use the script corresponding to your actual kernel:\n$ uname -r\n3.15.6-200.fc20.x86_64\nI'm using kernel 3.15.6, thus I'll use version 13 of the script.\n\nAfter that it depends on the configuration of the desktop you're using. e.g. I'm using Gnome and have tap-to-click activated, meaning I don't use the physical buttons. But physical buttons do work here."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7341673",
+						"comment_count": "40",
+						"who": {
+							"text": "jcatfour"
+						},
+						"bug_when": "2014-07-30 16:54:11 +0000",
+						"thetext": "(In reply to Yannick Defais from comment #39)\n> (In reply to jcatfour from comment #38)\n> > (In reply to Jason Knight from comment #36)\n> > > (In reply to jcatfour from comment #35)\n> > > \n> > > This is really unrelated to the script. Typically this is due to a yum\n> > > package inconsistency. I've had luck resolving these with either a 'sudo yum\n> > > update' or changing all instances of yum to dnf which seems to handle these\n> > > conflicts more gracefully.\n> > \n> > sudo yum update fixed the error, and the touchpad now MOSTLY works, however\n> > interestingly enough, clicking doesn't work; I can only move my cursor\n> > around and nothing more. \n> > \n> > wut\n> \n> If the script went to its end (until the \"$ reboot\" message), and you\n> created the 2 files in comments #2 and #3, it should be ok. Be sure to use\n> the script corresponding to your actual kernel:\n> $ uname -r\n> 3.15.6-200.fc20.x86_64\n> I'm using kernel 3.15.6, thus I'll use version 13 of the script.\n> \n> After that it depends on the configuration of the desktop you're using. e.g.\n> I'm using Gnome and have tap-to-click activated, meaning I don't use the\n> physical buttons. But physical buttons do work here.\n\nNevermind, the problem is fixed, however, using the touchpad is a little screwy... I think it's the multitouch features that keep acting out. The only \"multitouch\" feature, if you could call it that, that I want is the ability to click and drag. I find myself constantly switching workspaces and scrolling when I don't intend to! I'm using xfce, by the way."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7341677",
+						"comment_count": "41",
+						"who": {
+							"text": "jcatfour"
+						},
+						"bug_when": "2014-07-30 16:57:53 +0000",
+						"thetext": "\n> Nevermind, the problem is fixed, however, using the touchpad is a little\n> screwy... I think it's the multitouch features that keep acting out. The\n> only \"multitouch\" feature, if you could call it that, that I want is the\n> ability to click and drag. I find myself constantly switching workspaces and\n> scrolling when I don't intend to! I'm using xfce, by the way.\n \n*Sigh* Nevermind AGAIN, I think I just resolved my issue. Anyway, great job on the drivers, dude!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7373591",
+						"comment_count": "42",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-08-11 12:00:48 +0000",
+						"thetext": "Good news:\ntouchpad and touchscreen driver made it in Linux yesterday:\nhttps://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=58d08e3b2c2033354b91467da33deffa06360c28\n\nIt will be released in Linux 3.17"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7373613",
+						"comment_count": "43",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-08-11 12:08:45 +0000",
+						"thetext": "And even the light sensor made it in the same commit! Sweet."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7378075",
+						"comment_count": "44",
+						"who": {
+							"text": "guillaumepoiriermorency",
+							"name": "Guillaume Poirier-Morency"
+						},
+						"bug_when": "2014-08-12 13:36:42 +0000",
+						"thetext": "There are still issues with the built-in microphone and the suspend function. I think we should open a new bug for each of these missing features."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7399539",
+						"comment_count": "45",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-08-19 22:20:53 +0000",
+						"thetext": "Created attachment 928540\nVersion 14 for kernels 3.15.x (fix a mistaken URL: master2fixed_revision)\n\nI made a mistake in version 13 of the script: it pulls the master branch from a git repository which has since moved to kernel 3.16. With version 14 of the script, the URL is now fixed. This script apply to kernel 3.15.x"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7404302",
+						"comment_count": "46",
+						"who": {
+							"text": "guillaumepoiriermorency",
+							"name": "Guillaume Poirier-Morency"
+						},
+						"bug_when": "2014-08-21 03:26:34 +0000",
+						"thetext": "3.17 in the rawhide repo still does not fix the touchpad issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7410408",
+						"comment_count": "47",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-08-22 13:42:01 +0000",
+						"thetext": "(In reply to Guillaume Poirier-Morency from comment #46)\n> 3.17 in the rawhide repo still does not fix the touchpad issue.\n\nWeird, did you check if the patch in comment 42 is in?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7410954",
+						"comment_count": "48",
+						"who": {
+							"text": "guillaumepoiriermorency",
+							"name": "Guillaume Poirier-Morency"
+						},
+						"bug_when": "2014-08-22 16:50:04 +0000",
+						"thetext": "I just cloned the kernel git repository and the commit is found in 3.17\n\ngit tag --contains 58d08e3b2c2033354b91467da33deffa06360c28\n\nv3.17-rc1\n\nI even removed the touchpad-acer-c720.modules as it should not be necessary anymore and it is still not working.\n\nWe should get this noticed by the kernel people before it get stable."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7411039",
+						"comment_count": "49",
+						"who": {
+							"text": "binarybana",
+							"name": "Jason Knight"
+						},
+						"bug_when": "2014-08-22 17:54:08 +0000",
+						"thetext": "$ scripts/get_maintainer.pl -f drivers/platform/chrome/chromeos_laptop.c\nOlof Johansson <olof@lixom.net> (maintainer:CHROME HARDWARE P...)\n\nI pinged him through email (I hope I didn't break linux kernel protocol or anything). Let's see if he responds."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7412926",
+						"comment_count": "50",
+						"who": {
+							"text": "olof",
+							"name": "Olof Johansson"
+						},
+						"bug_when": "2014-08-24 18:16:00 +0000",
+						"thetext": "This bug is long and vague in what it refers back for.\n\nAs far as I understand, it now probes the track pad and screen probes properly. Can someone give a fresh description of what the remaining issues are?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7432556",
+						"comment_count": "51",
+						"who": {
+							"text": "binarybana",
+							"name": "Jason Knight"
+						},
+						"bug_when": "2014-08-30 03:51:01 +0000",
+						"thetext": "Sorry for the delay. I finally got around to testing 3.17 (from rawhide) on my own ACER C720 and I found that the touchpad was not working upon boot.\n\nI'll attach the results of lsmod, and the version of the kernel was:\n3.17.0-0.rc1.git3.2.fc22.1.x86_64 from the Fedora rawhide repository."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7432613",
+						"comment_count": "52",
+						"who": {
+							"text": "binarybana",
+							"name": "Jason Knight"
+						},
+						"bug_when": "2014-08-30 04:04:22 +0000",
+						"thetext": "Created attachment 932840\nlsmod from rawhide 3.17 w/ non-working touchpad"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7432615",
+						"comment_count": "53",
+						"who": {
+							"text": "binarybana",
+							"name": "Jason Knight"
+						},
+						"bug_when": "2014-08-30 04:06:38 +0000",
+						"thetext": "Created attachment 932841\ndiff between lsmod in 3.15 (working touchpad) and 3.17 (no touchpad)\n\nGenerated with diff  <(awk '{print $1}' GSP/misc/317kernelmodules_real.txt | sort) <(awk '{print $1}' GSP/misc/315kernelmodules.txt|sort) > GSP/misc/315_317_diff.txt\n\n3.15 had modules added according to Yannick's patch script, and has working touchpad support."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7433648",
+						"comment_count": "54",
+						"who": {
+							"text": "dmitry.torokhov",
+							"name": "Dmitry Torokhov"
+						},
+						"bug_when": "2014-08-31 19:04:42 +0000",
+						"thetext": "(In reply to Olof Johansson from comment #50)\n> This bug is long and vague in what it refers back for.\n> \n> As far as I understand, it now probes the track pad and screen probes\n> properly. Can someone give a fresh description of what the remaining issues\n> are?\n\nThere are still bits in chromeos_laptop kernel module that are not in Fedora (need to check upstream), which means that there is no touchpad/touchscreen on Fedora by default:\n\ninsmod: ERROR: could not insert module /lib/modules/3.15.10-201.fc20.x86_64/kernel/drivers/platform/chrome/chromeos_laptop.ko: No such device"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7465479",
+						"comment_count": "55",
+						"who": {
+							"text": "work.eric",
+							"name": "Eric Work"
+						},
+						"bug_when": "2014-09-10 08:50:11 +0000",
+						"thetext": "Doesn't work with kernel-3.17.0-0.rc4.git0.1.fc22.x86_64.  I see the following errors in dmesg which may be related?\n\n[  598.418550] find_i2c_adapter_num: i2c adapter i2c-designware-pci not found on system.\n[  598.418556] find_i2c_adapter_num: i2c adapter i2c-designware-pci not found on system.\n[  598.418559] find_i2c_adapter_num: i2c adapter i2c-designware-pci not found on system.\n[  598.418566] platform chromeos_laptop: Driver chromeos_laptop requests probe deferral"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7477712",
+						"comment_count": "56",
+						"who": {
+							"text": "work.eric",
+							"name": "Eric Work"
+						},
+						"bug_when": "2014-09-13 16:09:23 +0000",
+						"thetext": "Some more changes will be needed for 3.16.2-200.fc20.x86_64.  See errors below while compiling the atmel_mxt_ts module.  Since I don't have a c720p I simply commented out line 92 so it doesn't replace the module source file and that worked for my needs.\n\n  CC [M]  /home/ework/rpmbuild/BUILD/kernel-3.16.fc20/linux-3.16.2-200.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.o\n/home/ework/rpmbuild/BUILD/kernel-3.16.fc20/linux-3.16.2-200.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.c: In function ‘mxt_handle_pdata’:\n/home/ework/rpmbuild/BUILD/kernel-3.16.fc20/linux-3.16.2-200.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.c:1247:9: error: ‘const struct mxt_platform_data’ has no member named ‘x_line’\n    pdata->x_line);\n         ^\n/home/ework/rpmbuild/BUILD/kernel-3.16.fc20/linux-3.16.2-200.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.c:1249:9: error: ‘const struct mxt_platform_data’ has no member named ‘y_line’\n    pdata->y_line);\n         ^\n/home/ework/rpmbuild/BUILD/kernel-3.16.fc20/linux-3.16.2-200.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.c:1253:9: error: ‘const struct mxt_platform_data’ has no member named ‘orient’\n    pdata->orient);\n         ^\n/home/ework/rpmbuild/BUILD/kernel-3.16.fc20/linux-3.16.2-200.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.c:1257:25: error: ‘const struct mxt_platform_data’ has no member named ‘blen’\n    MXT_TOUCH_BLEN, pdata->blen);\n                         ^\n/home/ework/rpmbuild/BUILD/kernel-3.16.fc20/linux-3.16.2-200.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.c:1261:27: error: ‘const struct mxt_platform_data’ has no member named ‘threshold’\n    MXT_TOUCH_TCHTHR, pdata->threshold);\n                           ^\n/home/ework/rpmbuild/BUILD/kernel-3.16.fc20/linux-3.16.2-200.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.c:1265:32: error: ‘const struct mxt_platform_data’ has no member named ‘x_size’\n    MXT_TOUCH_XRANGE_LSB, (pdata->x_size - 1) & 0xff);\n                                ^\n/home/ework/rpmbuild/BUILD/kernel-3.16.fc20/linux-3.16.2-200.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.c:1267:32: error: ‘const struct mxt_platform_data’ has no member named ‘x_size’\n    MXT_TOUCH_XRANGE_MSB, (pdata->x_size - 1) >> 8);\n                                ^\n/home/ework/rpmbuild/BUILD/kernel-3.16.fc20/linux-3.16.2-200.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.c:1269:32: error: ‘const struct mxt_platform_data’ has no member named ‘y_size’\n    MXT_TOUCH_YRANGE_LSB, (pdata->y_size - 1) & 0xff);\n                                ^\n/home/ework/rpmbuild/BUILD/kernel-3.16.fc20/linux-3.16.2-200.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.c:1271:32: error: ‘const struct mxt_platform_data’ has no member named ‘y_size’\n    MXT_TOUCH_YRANGE_MSB, (pdata->y_size - 1) >> 8);\n                                ^\n/home/ework/rpmbuild/BUILD/kernel-3.16.fc20/linux-3.16.2-200.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.c:1274:11: error: ‘const struct mxt_platform_data’ has no member named ‘voltage’\n  if (pdata->voltage) {\n           ^\n/home/ework/rpmbuild/BUILD/kernel-3.16.fc20/linux-3.16.2-200.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.c:1275:12: error: ‘const struct mxt_platform_data’ has no member named ‘voltage’\n   if (pdata->voltage < MXT_VOLTAGE_DEFAULT) {\n            ^\n/home/ework/rpmbuild/BUILD/kernel-3.16.fc20/linux-3.16.2-200.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.c:1276:42: error: ‘const struct mxt_platform_data’ has no member named ‘voltage’\n    voltage = (MXT_VOLTAGE_DEFAULT - pdata->voltage) /\n                                          ^\n/home/ework/rpmbuild/BUILD/kernel-3.16.fc20/linux-3.16.2-200.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.c:1280:20: error: ‘const struct mxt_platform_data’ has no member named ‘voltage’\n    voltage = (pdata->voltage - MXT_VOLTAGE_DEFAULT) /\n                    ^\nmake[1]: *** [/home/ework/rpmbuild/BUILD/kernel-3.16.fc20/linux-3.16.2-200.fc20.x86_64/drivers/input/touchscreen/atmel_mxt_ts.o] Error 1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7477850",
+						"comment_count": "57",
+						"who": {
+							"text": "work.eric",
+							"name": "Eric Work"
+						},
+						"bug_when": "2014-09-14 02:33:26 +0000",
+						"thetext": "Created attachment 937274\nModified v14 for kernel 3.16.x.  Can't test touchscreen only have touchpad.\n\nIt turns out that the two downloaded files that are saved as patch_* in the root of the kernel source tree are not needed anymore for the touchpad at least.  I only have a c720 not a c720p so I have no idea if the touchscreen also works.  Without these files the installed modules still work as well as suspend (with the previous fixes for that).  I wonder if this means we are closer to getting the patches needed into the offical fedora kernel."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7501186",
+						"comment_count": "58",
+						"who": {
+							"text": "gregjo"
+						},
+						"bug_when": "2014-09-19 22:03:29 +0000",
+						"thetext": "Thanks Eric. I want to add something that may help others.\nI updated to the 3.16.x kernel, and ran the V14 script, which failed, of course. Then I found your V14a script. It ran, but the touchpad still wouldn't work after a reboot. So I completely removed /root/rpmbuild, then reran the V14a script. After a reboot, I was in working order again. So somehow the failure of the V14 script messed things up for me. I hope that's useful to anyone else struggling with it."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7506246",
+						"comment_count": "59",
+						"who": {
+							"text": "sergiodj",
+							"name": "Sergio Durigan Junior"
+						},
+						"bug_when": "2014-09-22 16:12:38 +0000",
+						"thetext": "Thanks for the incredible effort so far, guys :-).\n\nI have followed the instructions on how to install Fedora on Acer C720P, and most things worked.  However, even after installing the necessary modules to make the touchpad work (I don't really want the touchscreen, so I left it off), I see some annoying behavior.  For example, sometimes (I still couldn't figure out *what* triggers that) the touchpad becomes very non-sensive, which makes it extremely hard to move and point to where you want.  As I said, I am not sure what causes it.  Have you experienced this as well?\n\nI also could not get suspend to work yet, though that's a different issue..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7506260",
+						"comment_count": "60",
+						"who": {
+							"text": "binarybana",
+							"name": "Jason Knight"
+						},
+						"bug_when": "2014-09-22 16:17:26 +0000",
+						"thetext": "Once in a blue moon I've had touchpad problems, but my suspicion is that it is a hardware problem with the edges of the plastic impinging on the sensor. Usually taking my fingers completely off the touchpad, flexing the case and trying again resolves any problems I've seen.\n\nI also had some problems with suspend until I made sure that my kernel versions were all the same in the kernel-core kernel-modules-extra kernel-tools and kernel-devel packages. (See the output of rpm ql | grep kernel to check). I had tried installing 3.17 from rawhide which confused yum/dnf. \n\nHTH."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7506536",
+						"comment_count": "61",
+						"who": {
+							"text": "sergiodj",
+							"name": "Sergio Durigan Junior"
+						},
+						"bug_when": "2014-09-22 17:54:25 +0000",
+						"thetext": "Thanks, Jason.  What actually helped (so far) is the advice given in Comment 2.  But I've noticed that the plastic case is a bit problematic, so I will keep your advice in mind as well.\n\nAs for suspend, I will take a look at the versions I have installed.  Cheers."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7512012",
+						"comment_count": "62",
+						"who": {
+							"text": "guillaumepoiriermorency",
+							"name": "Guillaume Poirier-Morency"
+						},
+						"bug_when": "2014-09-23 19:54:59 +0000",
+						"thetext": "Created attachment 940593\ndmesg log output\n\nTo complete Eric Work comment 55, I attach the my complete dmesg output. I run the 3.17.0-0.rc6.git0.1.fc22.x86_64 kernel."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7512249",
+						"comment_count": "63",
+						"who": {
+							"text": "sergiodj",
+							"name": "Sergio Durigan Junior"
+						},
+						"bug_when": "2014-09-23 21:19:08 +0000",
+						"thetext": "> I also had some problems with suspend until I made sure that my kernel\n> versions were all the same in the kernel-core kernel-modules-extra\n> kernel-tools and kernel-devel packages. (See the output of rpm ql | grep\n> kernel to check). I had tried installing 3.17 from rawhide which confused\n> yum/dnf. \n\nOK, I need to ask this :-).  I confirmed that everything is running on the same version here, as you suggested.  However, I cannot get suspend to work.  Do you have it working?  Are you providing a different Linux flag on the boot?  If it is needed, I will open a new bug for it (I don't want to hijack this one)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7512264",
+						"comment_count": "64",
+						"who": {
+							"text": "binarybana",
+							"name": "Jason Knight"
+						},
+						"bug_when": "2014-09-23 21:24:03 +0000",
+						"thetext": "Yes, suspend is fully working for me. Unfortunately I should have taken better notes over all the little things I've done. One of them (following notes from [1]) is in my /etc/default/grub I have the last line as:\n\nGRUB_CMDLINE_LINUX_DEFAULT=\"quiet splash tpm_tis.force=1 tpm.tis.interrupts=0\"\n\nI don't remember doing it myself, but maybe that could help?\n\n[1] - https://wiki.archlinux.org/index.php/Chromebook#Fixing_suspend"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7512353",
+						"comment_count": "65",
+						"who": {
+							"text": "sergiodj",
+							"name": "Sergio Durigan Junior"
+						},
+						"bug_when": "2014-09-23 22:08:43 +0000",
+						"thetext": "Thanks, Jason.  I can suspend it now, though it doesn't stay suspended for more than 2 seconds...  But I am trying to fix this other issue now.  Thanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7524495",
+						"comment_count": "66",
+						"who": {
+							"text": "sergiodj",
+							"name": "Sergio Durigan Junior"
+						},
+						"bug_when": "2014-09-28 00:39:45 +0000",
+						"thetext": "After some more time struggling with this, I managed to solve the suspend issue I had.  I also made a blog post about my experience configuring this machine: <http://blog.sergiodj.net/post/2014-09-26-fedora-on-acer-c720p/>.  I hope it can be useful for anyone trying to do the same."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7537549",
+						"comment_count": "67",
+						"who": {
+							"text": "wierdlmate",
+							"name": "Máté Wierdl"
+						},
+						"bug_when": "2014-10-01 18:28:19 +0000",
+						"thetext": "The latest script (I followed Sergio\"s blog) doesn't work on my system, which is a c720 without p.  What I mean is that neither the trackpad nor the suspend function works. \n\nAs for the touchpad, nothing happens, though the script https://bugzilla.redhat.com/attachment.cgi?id=937274 linked to from sergio's blog exited without error.  I also have \n\n$ lsmod|grep i2c\ni2c_i801               18146  0 \ni2c_designware_pci     13100  0 \ni2c_designware_platform    12979  0 \ni2c_designware_core    14275  2 i2c_designware_pci,i2c_designware_platform\ni2c_algo_bit           13257  1 i915\ni2c_core               55486  9 drm,i2c_designware_pci,i915,i2c_i801,i2c_designware_platform,drm_kms_helper,i2c_algo_bit,v4l2_common,videodev\n\nAs for the suspend issue (sorry for posting here, but the bug was closed due to inactivity), right now I have (you can see the kernel version there)\n\n$ dmesg |grep ehci\n[    0.000000] Command line: BOOT_IMAGE=/vmlinuz-3.16.3-200.fc20.x86_64 root=/dev/mapper/fedora-root ro rd.lvm.lv=fedora/swap vconsole.font=latarcyrheb-sun16 rd.lvm.lv=fedora/root rhgb quiet tpm_tis.interrupts=0 modprobe.blacklist=ehci_hcd,ehci_pci nmi_watchdog=0 quiet splash\n[    0.000000] Kernel command line: BOOT_IMAGE=/vmlinuz-3.16.3-200.fc20.x86_64 root=/dev/mapper/fedora-root ro rd.lvm.lv=fedora/swap vconsole.font=latarcyrheb-sun16 rd.lvm.lv=fedora/root rhgb quiet tpm_tis.interrupts=0 modprobe.blacklist=ehci_hcd,ehci_pci nmi_watchdog=0 quiet splash\n[    0.528819] ehci_hcd: USB 2.0 'Enhanced' Host Controller (EHCI) Driver\n[    0.528826] ehci-pci: EHCI PCI platform driver\n[    0.528981] ehci-pci 0000:00:1d.0: EHCI Host Controller\n[    0.529030] ehci-pci 0000:00:1d.0: new USB bus registered, assigned bus number 1\n[    0.529044] ehci-pci 0000:00:1d.0: debug port 2\n[    0.532946] ehci-pci 0000:00:1d.0: cache line size of 64 is not supported\n[    0.532965] ehci-pci 0000:00:1d.0: irq 19, io mem 0xe051f800\n[    0.538935] ehci-pci 0000:00:1d.0: USB 2.0 started, EHCI 1.00\n[    0.539000] usb usb1: Manufacturer: Linux 3.16.3-200.fc20.x86_64 ehci_hcd\n[    0.840919] usb 1-1: new high-speed USB device number 2 using ehci-pci\n\n\nbut after closing the lid and opening it, I get \n\n$ dmesg |tail\n[  703.841548] ehci-pci 0000:00:1d.0: port 2 resume error -19\n[  703.867540] ehci-pci 0000:00:1d.0: port 2 resume error -19\n[  703.893537] ehci-pci 0000:00:1d.0: port 2 resume error -19\n[  703.919506] ehci-pci 0000:00:1d.0: port 2 resume error -19\n[  703.945529] ehci-pci 0000:00:1d.0: port 2 resume error -19\n[  703.971525] ehci-pci 0000:00:1d.0: port 2 resume error -19\n[  703.997521] ehci-pci 0000:00:1d.0: port 2 resume error -19\n[  704.023514] ehci-pci 0000:00:1d.0: port 2 resume error -19\n[  704.049514] ehci-pci 0000:00:1d.0: port 2 resume error -19\n[  704.075430] ehci-pci 0000:00:1d.0: port 2 resume error -19\n\nand the system will eventually hang.   I also have\n\n$ cat /proc/acpi/wakeup \nDevice\tS-state\t  Status   Sysfs node\nTPAD\t  S3\t*disabled  platform:PNP0C0E:00\nTSCR\t  S3\t*disabled  platform:PNP0C0E:01\nHDEF\t  S3\t*disabled  pci:0000:00:1b.0\nEHCI\t  S3\t*disabled  pci:0000:00:1d.0\nXHCI\t  S3\t*enabled   pci:0000:00:14.0\n\nI finally remark that when I close the lid for the second time, suspend doesn't work. \n\nLet me know what other data I should give."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7537687",
+						"comment_count": "68",
+						"who": {
+							"text": "sergiodj",
+							"name": "Sergio Durigan Junior"
+						},
+						"bug_when": "2014-10-01 19:28:32 +0000",
+						"thetext": "(In reply to Máté Wierdl from comment #67)\n> The latest script (I followed Sergio\"s blog) doesn't work on my system,\n> which is a c720 without p.  What I mean is that neither the trackpad nor the\n> suspend function works. \n\nHi Máté,\n\nNot sure if the procedure is the same for the model without \"P\".  Having said that...\n \n> As for the touchpad, nothing happens, though the script\n> https://bugzilla.redhat.com/attachment.cgi?id=937274 linked to from sergio's\n> blog exited without error.  I also have \n> \n> $ lsmod|grep i2c\n> i2c_i801               18146  0 \n> i2c_designware_pci     13100  0 \n> i2c_designware_platform    12979  0 \n> i2c_designware_core    14275  2 i2c_designware_pci,i2c_designware_platform\n> i2c_algo_bit           13257  1 i915\n> i2c_core               55486  9\n> drm,i2c_designware_pci,i915,i2c_i801,i2c_designware_platform,drm_kms_helper,\n> i2c_algo_bit,v4l2_common,videodev\n\nAre you running the same Linux as I am?  I mentioned the version in the blog post.\n\nAlso, I am not seeing the \"cyapa\" driver loaded.  I know this driver is necessary for the \"P\" model, and I suspect it is also necessary for the model without \"P\".\n\n> As for the suspend issue (sorry for posting here, but the bug was closed due\n> to inactivity), right now I have (you can see the kernel version there)\n> \n> $ dmesg |grep ehci\n> [    0.000000] Command line: BOOT_IMAGE=/vmlinuz-3.16.3-200.fc20.x86_64\n> root=/dev/mapper/fedora-root ro rd.lvm.lv=fedora/swap\n> vconsole.font=latarcyrheb-sun16 rd.lvm.lv=fedora/root rhgb quiet\n> tpm_tis.interrupts=0 modprobe.blacklist=ehci_hcd,ehci_pci nmi_watchdog=0\n> quiet splash\n> [    0.000000] Kernel command line:\n> BOOT_IMAGE=/vmlinuz-3.16.3-200.fc20.x86_64 root=/dev/mapper/fedora-root ro\n> rd.lvm.lv=fedora/swap vconsole.font=latarcyrheb-sun16 rd.lvm.lv=fedora/root\n> rhgb quiet tpm_tis.interrupts=0 modprobe.blacklist=ehci_hcd,ehci_pci\n> nmi_watchdog=0 quiet splash\n> [    0.528819] ehci_hcd: USB 2.0 'Enhanced' Host Controller (EHCI) Driver\n> [    0.528826] ehci-pci: EHCI PCI platform driver\n> [    0.528981] ehci-pci 0000:00:1d.0: EHCI Host Controller\n> [    0.529030] ehci-pci 0000:00:1d.0: new USB bus registered, assigned bus\n> number 1\n> [    0.529044] ehci-pci 0000:00:1d.0: debug port 2\n> [    0.532946] ehci-pci 0000:00:1d.0: cache line size of 64 is not supported\n> [    0.532965] ehci-pci 0000:00:1d.0: irq 19, io mem 0xe051f800\n> [    0.538935] ehci-pci 0000:00:1d.0: USB 2.0 started, EHCI 1.00\n> [    0.539000] usb usb1: Manufacturer: Linux 3.16.3-200.fc20.x86_64 ehci_hcd\n> [    0.840919] usb 1-1: new high-speed USB device number 2 using ehci-pci\n> \n> \n> but after closing the lid and opening it, I get \n> \n> $ dmesg |tail\n> [  703.841548] ehci-pci 0000:00:1d.0: port 2 resume error -19\n> [  703.867540] ehci-pci 0000:00:1d.0: port 2 resume error -19\n> [  703.893537] ehci-pci 0000:00:1d.0: port 2 resume error -19\n> [  703.919506] ehci-pci 0000:00:1d.0: port 2 resume error -19\n> [  703.945529] ehci-pci 0000:00:1d.0: port 2 resume error -19\n> [  703.971525] ehci-pci 0000:00:1d.0: port 2 resume error -19\n> [  703.997521] ehci-pci 0000:00:1d.0: port 2 resume error -19\n> [  704.023514] ehci-pci 0000:00:1d.0: port 2 resume error -19\n> [  704.049514] ehci-pci 0000:00:1d.0: port 2 resume error -19\n> [  704.075430] ehci-pci 0000:00:1d.0: port 2 resume error -19\n\nHave you created the necessary scripts to unbind the EHCI bus?  I linked the Arch[GNU/]Linux post on my blog, but just in case: <https://bbs.archlinux.org/viewtopic.php?pid=1364521#p1364521>.  Those errors indicate that your EHCI is still bound when the system is resumed, and this is a known source of failures.\n\n> and the system will eventually hang.   I also have\n> \n> $ cat /proc/acpi/wakeup \n> Device\tS-state\t  Status   Sysfs node\n> TPAD\t  S3\t*disabled  platform:PNP0C0E:00\n> TSCR\t  S3\t*disabled  platform:PNP0C0E:01\n> HDEF\t  S3\t*disabled  pci:0000:00:1b.0\n> EHCI\t  S3\t*disabled  pci:0000:00:1d.0\n> XHCI\t  S3\t*enabled   pci:0000:00:14.0\n\nStrange, I also have \"LID0\" here, and it is enabled.  Anyway, I suspect that, for suspend/resume, the problem may be that you don't have the necessary scripts to unbind/bind EHCI."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7537732",
+						"comment_count": "69",
+						"who": {
+							"text": "dkline",
+							"name": "Dave Kline"
+						},
+						"bug_when": "2014-10-01 19:44:32 +0000",
+						"thetext": "I have a c720 and use the \"14a\" version of the script alone, with no other modifications. I cannot suspend properly, but the touchpad works just fine."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7538491",
+						"comment_count": "70",
+						"who": {
+							"text": "wierdlmate",
+							"name": "Máté Wierdl"
+						},
+						"bug_when": "2014-10-02 05:14:18 +0000",
+						"thetext": "Hm, correct, I didn't have /usr/lib/systemd/system-sleep/cros-sound-suspend.sh, but now I do\n\n# cat /usr/lib/systemd/system-sleep/cros-sound-suspend.sh\n#!/bin/bash\n\ncase $1/$2 in\n  pre/*)\n    # Unbind ehci for preventing error \n    echo -n \"0000:00:1d.0\" | tee /sys/bus/pci/drivers/ehci-pci/unbind\n    # Unbind snd_hda_intel for sound\n    echo -n \"0000:00:1b.0\" | tee /sys/bus/pci/drivers/snd_hda_intel/unbind\n    echo -n \"0000:00:03.0\" | tee /sys/bus/pci/drivers/snd_hda_intel/unbind\n    ;;\n  post/*)\n    # Bind ehci for preventing error \n    echo -n \"0000:00:1d.0\" | tee /sys/bus/pci/drivers/ehci-pci/bind\n    # bind snd_hda_intel for sound\n    echo -n \"0000:00:1b.0\" | tee /sys/bus/pci/drivers/snd_hda_intel/bind\n    echo -n \"0000:00:03.0\" | tee /sys/bus/pci/drivers/snd_hda_intel/bind\n    ;;\nesac\n\nI also now load cyapa \"by hand\" \n\n# cat /etc/sysconfig/modules/touchpad-acer-c720.modules\n#!/bin/sh\n\nexec /sbin/modprobe cyapa >/dev/null 2>&1\nexec /sbin/modprobe chromeos_laptop >/dev/null 2>&1\nexec /sbin/modprobe i2c-designware-core >/dev/null 2>&1\nexec /sbin/modprobe i2c-designware-pci >/dev/null 2>&1\nexec /sbin/modprobe i2c-designware-platform >/dev/null 2>&1\n\nso \n\n# lsmod|grep i2c\ni2c_i801               18146  0 \ni2c_designware_pci     13100  0 \ni2c_designware_platform    12979  0 \ni2c_designware_core    14275  2 i2c_designware_pci,i2c_designware_platform\ni2c_algo_bit           13257  1 i915\ni2c_core               55486  10 drm,i2c_designware_pci,i915,i2c_i801,cyapa,i2c_designware_platform,drm_kms_helper,i2c_algo_bit,v4l2_common,videodev\n\n\nInterestingly, suspend now works (even multiple times, so not just once).  On the other hand, touchpad doen't.  I have \n\n# uname -r\n3.16.3-200.fc20.x86_64\n\nwhile you had 3.16.3-201.  Could this be the problem?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7539379",
+						"comment_count": "71",
+						"who": {
+							"text": "wierdlmate",
+							"name": "Máté Wierdl"
+						},
+						"bug_when": "2014-10-02 11:25:26 +0000",
+						"thetext": "Though in \n\n# cat /etc/sysconfig/modules/touchpad-acer-c720.modules\n#!/bin/sh\n\nexec /sbin/modprobe cyapa >/dev/null 2>&1\nexec /sbin/modprobe chromeos_laptop >/dev/null 2>&1\nexec /sbin/modprobe i2c-designware-core >/dev/null 2>&1\nexec /sbin/modprobe i2c-designware-pci >/dev/null 2>&1\nexec /sbin/modprobe i2c-designware-platform >/dev/null 2>&1\n\nonly the first line gets executed"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7544733",
+						"comment_count": "72",
+						"who": {
+							"text": "wierdlmate",
+							"name": "Máté Wierdl"
+						},
+						"bug_when": "2014-10-04 00:42:12 +0000",
+						"thetext": "Has anybody tried the latest 3.17 rc7 kernel to  see if it really supports the C720\"s touchpad?  (Thanks for all your efforts!)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7544742",
+						"comment_count": "73",
+						"who": {
+							"text": "sergiodj",
+							"name": "Sergio Durigan Junior"
+						},
+						"bug_when": "2014-10-04 01:26:34 +0000",
+						"thetext": "(In reply to Máté Wierdl from comment #70)\n\n> I also now load cyapa \"by hand\" \n> \n> # cat /etc/sysconfig/modules/touchpad-acer-c720.modules\n> #!/bin/sh\n> \n> exec /sbin/modprobe cyapa >/dev/null 2>&1\n> exec /sbin/modprobe chromeos_laptop >/dev/null 2>&1\n> exec /sbin/modprobe i2c-designware-core >/dev/null 2>&1\n> exec /sbin/modprobe i2c-designware-pci >/dev/null 2>&1\n> exec /sbin/modprobe i2c-designware-platform >/dev/null 2>&1\n\nFWIW, I don't need to load any module by hand.  They all get loaded when I start the system.\n\n> so \n> \n> # lsmod|grep i2c\n> i2c_i801               18146  0 \n> i2c_designware_pci     13100  0 \n> i2c_designware_platform    12979  0 \n> i2c_designware_core    14275  2 i2c_designware_pci,i2c_designware_platform\n> i2c_algo_bit           13257  1 i915\n> i2c_core               55486  10\n> drm,i2c_designware_pci,i915,i2c_i801,cyapa,i2c_designware_platform,\n> drm_kms_helper,i2c_algo_bit,v4l2_common,videodev\n> \n> \n> Interestingly, suspend now works (even multiple times, so not just once). \n\nNice!  One less problem :-).\n\n> On the other hand, touchpad doen't.  I have \n> \n> # uname -r\n> 3.16.3-200.fc20.x86_64\n> \n> while you had 3.16.3-201.  Could this be the problem?\n\nI actually have 3.16.2-201.\n\nI don't know if it could be the cause, but it's possible.  By looking at the Fedora package, I see that only a few patches have been added/removed from 3.16.2-201 to 3.16.3-200, but I'm not sure about the Linux tar.xz itself (haven't investigated).\n\nOTOH, since you haven't seen any problem when running the script, maybe that's not the issue.  What you can is to try to replicate the steps of the script by hand (shouldn't be hard) and see if you can get a more useful message or something like that..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7544743",
+						"comment_count": "74",
+						"who": {
+							"text": "sergiodj",
+							"name": "Sergio Durigan Junior"
+						},
+						"bug_when": "2014-10-04 01:28:39 +0000",
+						"thetext": "(In reply to Sergio Durigan Junior from comment #73)\n> OTOH, since you haven't seen any problem when running the script, maybe\n> that's not the issue.  What you can is to try to replicate the steps of the\n> script by hand (shouldn't be hard) and see if you can get a more useful\n> message or something like that...\n\nOr, you could also downgrade your Linux package to 3.16.2-201, which is the same I'm using, and see if it works.  Just don't forget to comment here when you find something!  :-)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7544849",
+						"comment_count": "75",
+						"who": {
+							"text": "wierdlmate",
+							"name": "Máté Wierdl"
+						},
+						"bug_when": "2014-10-04 03:34:31 +0000",
+						"thetext": "I can add this: I made a fresh install of Fedora 20, I then installed the latest kernel without any modification, and I have \n\n$ uname -r\n3.17.0-0.rc7.git0.1.playground.fc22.x86_64\n$ lsmod |grep -e i2c -e chr -e cyapa\ncyapa                  13148  0 \nchromeos_laptop        14304  0 \ni2c_i801               18146  0 \ni2c_designware_platform    12979  0 \ni2c_designware_core    14275  1 i2c_designware_platform\ni2c_algo_bit           13250  1 i915\n\n\nbut touchpad doesn't work.  The modules loaded automatically except I had to add cyapa manually (I have no idea what it does).\n\nI\"ll try now what you suggest."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7545631",
+						"comment_count": "76",
+						"who": {
+							"text": "wierdlmate",
+							"name": "Máté Wierdl"
+						},
+						"bug_when": "2014-10-05 14:28:16 +0000",
+						"thetext": "No dice.  Could it because I'm using John Lewis custom coreboot?\n\nhttps://johnlewis.ie/custom-chromebook-firmware/rom-download/\n\nI remark that I was able to make the touchpad work perfectly by compiling the touchpad support into the kernel."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7545676",
+						"comment_count": "77",
+						"who": {
+							"text": "sergiodj",
+							"name": "Sergio Durigan Junior"
+						},
+						"bug_when": "2014-10-05 15:57:48 +0000",
+						"thetext": "(In reply to Máté Wierdl from comment #76)\n> No dice.  Could it because I'm using John Lewis custom coreboot?\n> \n> https://johnlewis.ie/custom-chromebook-firmware/rom-download/\n\nNot sure.  As I wrote in my blog, I'm still using the default SeaBIOS.\n\n> I remark that I was able to make the touchpad work perfectly by compiling\n> the touchpad support into the kernel.\n\nOK, so the problem was solved?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7560369",
+						"comment_count": "78",
+						"who": {
+							"text": "wierdlmate",
+							"name": "Máté Wierdl"
+						},
+						"bug_when": "2014-10-10 02:58:36 +0000",
+						"thetext": "No. I made the touchpad work on ubuntu by compiling the support into the kernel (so not via i2c modules).  But on ubuntu couldn't make the suspend work at all.  So what I have is fedora with a 3.17 kernel, bbut touchpad isn't working.  John Lewis told me that the reason the 3.17 kernel still doesn't work is because it is compiled with the line \n\n# CONFIG_I2C_DESIGNWARE_PCI is not set\n\nin the config file.  So this needs to be changed to \n\nCONFIG_I2C_DESIGNWARE_PCI=m\n\nand build the kernel.  But perhaps I can get by with just building this module... Advice?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7560391",
+						"comment_count": "79",
+						"who": {
+							"text": "wierdlmate",
+							"name": "Máté Wierdl"
+						},
+						"bug_when": "2014-10-10 03:12:07 +0000",
+						"thetext": "How does one reopen the bug \n\nhttps://bugzilla.redhat.com/show_bug.cgi?id=1048569\n\n(Sry for asking here)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7561627",
+						"comment_count": "80",
+						"who": {
+							"text": "wierdlmate",
+							"name": "Máté Wierdl"
+						},
+						"bug_when": "2014-10-10 12:07:01 +0000",
+						"thetext": "OK, so the script in the attachment https://bugzilla.redhat.com/attachment.cgi?id=937274 worked for the stock 3.16.3-200 kernel: touchpad works on c720 (no P, so no touch screen).  \n\nFor kernel guys: it applies patches 3074401 3074431 3074411, and the one at \n\nhttps://raw.githubusercontent.com/masmullin2000/arch-c720p/240e660602df3ea8de90fdfb4fe5a6d8cf953e92/i2c-designware-pcidrv.patch\n\nI now have\n\n# lsmod | grep -e i2c -e cyapa\ncyapa                  13148  0 \nregmap_i2c             13150  1 isl29018\ni2c_i801               18146  0 \ni2c_designware_pci     13100  0 \ni2c_designware_platform    12979  0 \ni2c_designware_core    14275  2 i2c_designware_pci,i2c_designware_platform\ni2c_algo_bit           13257  1 i915\ni2c_core               55486  13 drm,i2c_designware_pci,i915,i2c_i801,cyapa,i2c_designware_platform,regmap_i2c,drm_kms_helper,i2c_algo_bit,isl29018,v4l2_common,chromeos_laptop,videodev"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7564616",
+						"comment_count": "81",
+						"who": {
+							"text": "bugzilla",
+							"name": "George Sapkin"
+						},
+						"bug_when": "2014-10-11 21:52:30 +0000",
+						"thetext": "I've compiled kernel 3.17.0 for F20 x86-64 with CONFIG_I2C_DESIGNWARE_PCI=m and can confirm it is working on C720P with both touchpad and touchscreen.\n\nIf anybody is interested it's available here: https://copr.fedoraproject.org/coprs/georgespk/kernel-c720/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7564620",
+						"comment_count": "82",
+						"who": {
+							"text": "work.eric",
+							"name": "Eric Work"
+						},
+						"bug_when": "2014-10-11 22:03:47 +0000",
+						"thetext": "@George, Did you base your package off the rawhide 3.17 kernel package and just change CONFIG_I2C_DESIGNWARE_PCI=m?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7564629",
+						"comment_count": "83",
+						"who": {
+							"text": "bugzilla",
+							"name": "George Sapkin"
+						},
+						"bug_when": "2014-10-11 22:15:50 +0000",
+						"thetext": "@Erik, the SRPM is from fc21 and CONFIG_I2C_DESIGNWARE_PCI=m and the version/build number (added c720) are the only changes."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7564634",
+						"comment_count": "84",
+						"who": {
+							"text": "work.eric",
+							"name": "Eric Work"
+						},
+						"bug_when": "2014-10-11 22:19:12 +0000",
+						"thetext": "That's great news!  Can we get the Fedora kernel maintainers to enable this in the official 3.17 kernel package maybe?  I noticed ARCH already has this config option set to 'm' in their release kernel package.  I read somewhere that 3.17 might also fix suspend issues."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7564671",
+						"comment_count": "85",
+						"who": {
+							"text": "work.eric",
+							"name": "Eric Work"
+						},
+						"bug_when": "2014-10-11 23:34:26 +0000",
+						"thetext": "Confirmed that the touchpad is working using the kernel package from George's copr repo.  Suspend still does not work.  You need to follow the \"systemd\" section on the ARCH Chromebook wiki to fix suspend.  The kernel command line parameters are not enough."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7564994",
+						"comment_count": "86",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2014-10-12 13:52:10 +0000",
+						"thetext": "I've enabled CONFIG_I2C_DESIGNWARE_PCI in f21 and rawhide.  It will be turned on in the next builds of each."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7565125",
+						"comment_count": "87",
+						"who": {
+							"text": "bugzilla",
+							"name": "George Sapkin"
+						},
+						"bug_when": "2014-10-12 16:28:17 +0000",
+						"thetext": "@Josh, so 3.17 is not coming to FC20?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7566241",
+						"comment_count": "88",
+						"who": {
+							"text": "pbrobinson",
+							"name": "Peter Robinson"
+						},
+						"bug_when": "2014-10-13 09:05:20 +0000",
+						"thetext": "(In reply to George Sapkin from comment #87)\n> @Josh, so 3.17 is not coming to FC20?\n\nIt'll come to F-20 later, likely in the 3.17.2 timeframe like all new kernels coming to stable releases."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7582529",
+						"comment_count": "89",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-16 11:40:32 +0000",
+						"thetext": "kernel-3.17.1-300.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.17.1-300.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7583675",
+						"comment_count": "90",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-16 17:19:25 +0000",
+						"thetext": "Package kernel-3.17.1-300.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-3.17.1-300.fc21'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-12955/kernel-3.17.1-300.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7587929",
+						"comment_count": "91",
+						"who": {
+							"text": "dkline",
+							"name": "Dave Kline"
+						},
+						"bug_when": "2014-10-17 20:13:11 +0000",
+						"thetext": "(In reply to Fedora Update System from comment #90)\n> Package kernel-3.17.1-300.fc21:\n> * should fix your issue,\n> * was pushed to the Fedora 21 testing repository,\n> * should be available at your local mirror within two days.\n> Update it with:\n> # su -c 'yum update --enablerepo=updates-testing kernel-3.17.1-300.fc21'\n> as soon as you are able to, then reboot.\n> Please go to the following url:\n> https://admin.fedoraproject.org/updates/FEDORA-2014-12955/kernel-3.17.1-300.\n> fc21\n> then log in and leave karma (feedback).\n\nOnce I'm back at my Chromebook, I will try the following:\n\nsudo yum update --releasever=21 --enablerepo=updates-testing kernel-3.17.1-300.fc21\n\nI'm running Fedora 20, hence the need for releasever. I'll report my findings."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7588135",
+						"comment_count": "92",
+						"who": {
+							"text": "dkline",
+							"name": "Dave Kline"
+						},
+						"bug_when": "2014-10-17 22:30:16 +0000",
+						"thetext": "After running the above command, I can confirm the touchpad works. Thanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7632101",
+						"comment_count": "93",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-01 16:33:04 +0000",
+						"thetext": "kernel-3.17.1-300.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7652838",
+						"comment_count": "94",
+						"who": {
+							"text": "stuohey",
+							"name": "Simon Tuohey"
+						},
+						"bug_when": "2014-11-07 22:14:47 +0000",
+						"thetext": "I have a Toshiba CB30 ChromeBook and can confirm that  kernel-3.17.1-300.fc21 works fixed the issue, working in fed20 release.\n\nSteps:\n\n1. Stock Fedora 20 install\n2. yum update all, restart\n3. install 3.17.1 from fc21 as per above:\n\nyum install --releasever=21 --enablerepo=updates-testing kernel-3.17.1-300.fc21\n\nWorked perfectly on reboot, thank you very much."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7675553",
+						"comment_count": "95",
+						"who": {
+							"text": "mwp.junk"
+						},
+						"bug_when": "2014-11-14 19:58:31 +0000",
+						"thetext": "- Fedora 20\n- 3.17.2-200\n\n- Touchpad will lose sync mid movement causing the pointer to just just stop.\n- Mouse clicks will not register every time.\n\nTouchpad Works beautifully on Ubuntu though; therefore, I recommend that this issue be re-opened or another be created."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7675568",
+						"comment_count": "96",
+						"who": {
+							"text": "sergiodj",
+							"name": "Sergio Durigan Junior"
+						},
+						"bug_when": "2014-11-14 20:07:05 +0000",
+						"thetext": "(In reply to mwp.junk from comment #95)\n> - Fedora 20\n> - 3.17.2-200\n> \n> - Touchpad will lose sync mid movement causing the pointer to just just stop.\n> - Mouse clicks will not register every time.\n> \n> Touchpad Works beautifully on Ubuntu though; therefore, I recommend that\n> this issue be re-opened or another be created.\n\nHave you tried following the instructions on Comment 3?  I'm not saying we shouldn't open another bug report, but it would be nice if we knew whether these instructions work for your case."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7676393",
+						"comment_count": "97",
+						"who": {
+							"text": "mwp.junk"
+						},
+						"bug_when": "2014-11-15 17:32:42 +0000",
+						"thetext": "(In reply to Sergio Durigan Junior from comment #96) \n> Have you tried following the instructions on Comment 3?  I'm not saying we\n> shouldn't open another bug report, but it would be nice if we knew whether\n> these instructions work for your case.\n\nYes, it would seem that comment 3 does resolve my issue. Will this be implemented by default in a later revision or is this something I will need to maintain?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7676437",
+						"comment_count": "98",
+						"who": {
+							"text": "bjoern",
+							"name": "Björn Ruberg"
+						},
+						"bug_when": "2014-11-15 18:50:14 +0000",
+						"thetext": "I've applied the Xorg configuration from comment 3. The touchpad was working accetable after booting into kernel 3.17.2. It's still no great touchpad, but compiling modules is not necessary anymore."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7676452",
+						"comment_count": "99",
+						"who": {
+							"text": "sergiodj",
+							"name": "Sergio Durigan Junior"
+						},
+						"bug_when": "2014-11-15 19:06:58 +0000",
+						"thetext": "(In reply to mwp.junk from comment #97)\n> Yes, it would seem that comment 3 does resolve my issue. Will this be\n> implemented by default in a later revision or is this something I will need\n> to maintain?\n\nI don't know.  In fact, I had the same problems with the touchpad, and solved them using Comment 3 as well.  Maybe a bug could be filed against xorg asking what is the best approach in this case."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7676565",
+						"comment_count": "100",
+						"who": {
+							"text": "sevmek",
+							"name": "Yannick Defais"
+						},
+						"bug_when": "2014-11-16 00:51:38 +0000",
+						"thetext": "I confirm as well with kernel 3.17.2 touchpad, touchscreen and sleep mode are working fine without the need for a script patching some kernel's modules. I do have the configuration files for touchpad and sleep mode. This is a huge progress! Thanks to all people involved.\n\nWe should indeed now work on some bug reports to get automated configuration. AFAIK there is a need for some configuration for:\n-touchpad\n-sleep/hibernate\n-microphone\n-multimedia keys (the one replacing F1, F2 etc.)\n-hdmi screen output\n-battery life\n\nI do not have much spare time atm, and I've not tested if there is some improvement with kernel 3.17 with those issues..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7686203",
+						"comment_count": "101",
+						"who": {
+							"text": "mspadaru",
+							"name": "Mike Spadaru"
+						},
+						"bug_when": "2014-11-19 06:58:36 +0000",
+						"thetext": "(In reply to Yannick Defais from comment #100)\n> I confirm as well with kernel 3.17.2 touchpad, touchscreen and sleep mode\n> are working fine without the need for a script patching some kernel's\n> modules. I do have the configuration files for touchpad and sleep mode. \n\nWhat configuration files did you use?\nI can't get suspend to work. Whenever I wake the computer from suspend it restarts.\nI have an Acer c720 with an Intel Celeron CPU.\nI tried the fixes here: https://wiki.archlinux.org/index.php/Chromebook#Fixing_suspend at the \"With systemd\" section, but no result.\n\nOn Ubuntu I used this fix (source: http://www.reddit.com/r/chrubuntu/comments/1rsxkd/list_of_fixes_for_xubuntu_1310_on_the_acer_c720/ch8eq2o ):\n  1. Create file /etc/initramfs-tools/scripts/init-top/unbind_ehci with following content http://pastebin.com/yk52qfKz \n  2. Change mode sudo chmod a+x /etc/initramfs-tools/scripts/init-top/unbind_ehci\n  3. Update initramfs sudo update-initramfs -k all -u\n  4. Add  \"tpm_tis.interrupts=0\" to /etc/default/grub and rebuild the grub configuration.\nBut this doesn't work on Fedora."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7686823",
+						"comment_count": "102",
+						"who": {
+							"text": "mspadaru",
+							"name": "Mike Spadaru"
+						},
+						"bug_when": "2014-11-19 10:41:05 +0000",
+						"thetext": "This is my list of fixes for Acer c720 on Fedora 20 32bit:\n\nFixes for c720 on Fedora 20:\n1. Update: sudo yum -y update\n2. Restart\n3. Log in as root: sudo -i \n\n4. gedit /usr/lib/systemd/system-sleep/cros-sound-suspend.sh\nAdd:\n#!/bin/bash\n\ncase $1/$2 in\n  pre/*)\n    # Unbind ehci for preventing error \n    echo -n \"0000:00:1d.0\" | tee /sys/bus/pci/drivers/ehci-pci/unbind\n    # Unbind snd_hda_intel for sound\n    echo -n \"0000:00:1b.0\" | tee /sys/bus/pci/drivers/snd_hda_intel/unbind\n    echo -n \"0000:00:03.0\" | tee /sys/bus/pci/drivers/snd_hda_intel/unbind\n    ;;\n  post/*)\n    # Bind ehci for preventing error \n    echo -n \"0000:00:1d.0\" | tee /sys/bus/pci/drivers/ehci-pci/bind\n    # bind snd_hda_intel for sound\n    echo -n \"0000:00:1b.0\" | tee /sys/bus/pci/drivers/snd_hda_intel/bind\n    echo -n \"0000:00:03.0\" | tee /sys/bus/pci/drivers/snd_hda_intel/bind\n    ;;\nesac\n\n5. chmod +x /usr/lib/systemd/system-sleep/cros-sound-suspend.sh\n\n6. gedit /etc/default/grub\nAdd:\nGRUB_CMDLINE_LINUX_DEFAULT=\"quiet tpm_tis.interrupts=0\"\n\n7.Rebuild GRUB configuration: grub2-mkconfig -o /boot/grub2/grub.cfg\n\nTo fix touchpad sensitivity:\n8. gedit /usr/share/X11/xorg.conf.d/50-synaptics.conf\nReplace the first section with:\nSection \"InputClass\"\n        Identifier \"touchpad catchall\"\n        Driver \"synaptics\"\n        MatchIsTouchpad \"on\"\n        Option \"TapButton1\" \"1\"\n        Option \"TapButton2\" \"3\"\n        Option \"TapButton3\" \"2\"\n        Option \"MaxTapMove\" \"20\"\n        Option \"MaxTapTime\" \"140\"\n        Option \"ClickTime\" \"5\"\n        Option \"FingerHigh\" \"12\"\n        Option \"FingerLow\" \"10\"\n        Option \"LockedDrags\" \"true\"\n        Option \"LockedDragTimeout\" \"100\"\n        Option \"ClickFinger1\" \"1\"\n        Option \"ClickFinger2\" \"3\"\n        Option \"ClickFinger3\" \"2\"\n        Option \"SingleTapTimeout\" \"140\"\nEndSection\n\n\nThise fixes don't work on Fedora 21!!! Can someone please help with getting Fedora 21 to work on Acer c720?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8648879",
+						"comment_count": "103",
+						"who": {
+							"text": "wierdlmate",
+							"name": "Máté Wierdl"
+						},
+						"bug_when": "2015-09-18 13:33:53 +0000",
+						"thetext": "(In reply to Mike Spadaru from comment #102)\n> This is my list of fixes for Acer c720 on Fedora 20 32bit:\n> \n> Fixes for c720 on Fedora 20:\n> 1. Update: sudo yum -y update\n> 2. Restart\n> 3. Log in as root: sudo -i \n> \n> 4. gedit /usr/lib/systemd/system-sleep/cros-sound-suspend.sh\n> Add:\n> #!/bin/bash\n> \n> case $1/$2 in\n>   pre/*)\n>     # Unbind ehci for preventing error \n>     echo -n \"0000:00:1d.0\" | tee /sys/bus/pci/drivers/ehci-pci/unbind\n>     # Unbind snd_hda_intel for sound\n>     echo -n \"0000:00:1b.0\" | tee /sys/bus/pci/drivers/snd_hda_intel/unbind\n>     echo -n \"0000:00:03.0\" | tee /sys/bus/pci/drivers/snd_hda_intel/unbind\n>     ;;\n>   post/*)\n>     # Bind ehci for preventing error \n>     echo -n \"0000:00:1d.0\" | tee /sys/bus/pci/drivers/ehci-pci/bind\n>     # bind snd_hda_intel for sound\n>     echo -n \"0000:00:1b.0\" | tee /sys/bus/pci/drivers/snd_hda_intel/bind\n>     echo -n \"0000:00:03.0\" | tee /sys/bus/pci/drivers/snd_hda_intel/bind\n>     ;;\n> esac\n> \n> 5. chmod +x /usr/lib/systemd/system-sleep/cros-sound-suspend.sh\n> \n> 6. gedit /etc/default/grub\n> Add:\n> GRUB_CMDLINE_LINUX_DEFAULT=\"quiet tpm_tis.interrupts=0\"\n> \n> 7.Rebuild GRUB configuration: grub2-mkconfig -o /boot/grub2/grub.cfg\n> \n> To fix touchpad sensitivity:\n> 8. gedit /usr/share/X11/xorg.conf.d/50-synaptics.conf\n> Replace the first section with:\n> Section \"InputClass\"\n>         Identifier \"touchpad catchall\"\n>         Driver \"synaptics\"\n>         MatchIsTouchpad \"on\"\n>         Option \"TapButton1\" \"1\"\n>         Option \"TapButton2\" \"3\"\n>         Option \"TapButton3\" \"2\"\n>         Option \"MaxTapMove\" \"20\"\n>         Option \"MaxTapTime\" \"140\"\n>         Option \"ClickTime\" \"5\"\n>         Option \"FingerHigh\" \"12\"\n>         Option \"FingerLow\" \"10\"\n>         Option \"LockedDrags\" \"true\"\n>         Option \"LockedDragTimeout\" \"100\"\n>         Option \"ClickFinger1\" \"1\"\n>         Option \"ClickFinger2\" \"3\"\n>         Option \"ClickFinger3\" \"2\"\n>         Option \"SingleTapTimeout\" \"140\"\n> EndSection\n> \n> \n> Thise fixes don't work on Fedora 21!!! Can someone please help with getting\n> Fedora 21 to work on Acer c720\n\nWhat part doesn't work?  Suspend?  If that's the case, what's the output of \n\nsudo cat /proc/acpi/wakeup"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1149509,
+			"title": "[PATCH] Apply quirk for elan touchscreens",
+			"bugzilla": {
+				"bug_id": "1149509",
+				"creation_ts": "2014-10-05 16:42:40 +0000",
+				"short_desc": "[PATCH] Apply quirk for elan touchscreens",
+				"delta_ts": "2014-11-01 16:33:01 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7545701",
+						"comment_count": "0",
+						"who": {
+							"text": "adel.gadllah",
+							"name": "Adel Gadllah"
+						},
+						"bug_when": "2014-10-05 16:42:40 +0000",
+						"thetext": "Created attachment 944048\nFirst patch\n\nDescription of problem:\n\nI get tons of:\n\n[    3.306309] usb 1-4: new full-speed USB device number 3 using xhci_hcd\n[    5.502178] usb 1-4: unable to read config index 0 descriptor/start: -71\n[    5.502190] usb 1-4: can't read configurations, error -71\n[    5.655591] usb 1-4: new full-speed USB device number 4 using xhci_hcd\n[    7.699049] usb 1-4: unable to read config index 0 descriptor/start: -71\n[    7.699060] usb 1-4: can't read configurations, error -71\n[    7.851791] usb 1-4: new full-speed USB device number 5 using xhci_hcd\n[    9.895842] usb 1-4: unable to read config index 0 descriptor/start: -71\n[    9.895854] usb 1-4: can't read configurations, error -71\n\nmessages during bootup which slows down boot up on my laptop. The device causing that is the ELAN touchscreen on my Fujitsu u904 laptop.\n\nApparently other people have similar issues which can be even worse (up to one minute delays). This is fixed in linux-next by introduction of a new quirk [1] and enabling it for the elan touchscreen [2]. Unfortunately the quirk only applies to a specific device so I sent a patch upstream to enable it for mine as well [3]. I have tested and confirmed that it works.\n\n1: http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=2a159389bf5d962359349a76827b2f683276a1c7\n2: http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=c68929f75dfcb6354918862b91b5778585de1fa5\n3: http://article.gmane.org/gmane.linux.usb.general/115688\n\nI am attaching them here for convenience (I rebased the first one to apply cleanly on 3.16).\n\nCan you please apply them for F20 and F21 ?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7545702",
+						"comment_count": "1",
+						"who": {
+							"text": "adel.gadllah",
+							"name": "Adel Gadllah"
+						},
+						"bug_when": "2014-10-05 16:43:15 +0000",
+						"thetext": "Created attachment 944049\nSecond patch"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7545703",
+						"comment_count": "2",
+						"who": {
+							"text": "adel.gadllah",
+							"name": "Adel Gadllah"
+						},
+						"bug_when": "2014-10-05 16:44:00 +0000",
+						"thetext": "Created attachment 944050\nThird patch"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7547507",
+						"comment_count": "3",
+						"who": {
+							"text": "adel.gadllah",
+							"name": "Adel Gadllah"
+						},
+						"bug_when": "2014-10-06 14:02:16 +0000",
+						"thetext": "Those patches are not enough. I am attaching another set that needs to be applied in addition to the above. (They are on linux-usb)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7547516",
+						"comment_count": "4",
+						"who": {
+							"text": "adel.gadllah",
+							"name": "Adel Gadllah"
+						},
+						"bug_when": "2014-10-06 14:05:54 +0000",
+						"thetext": "Created attachment 944268\nHID-usbhid-add-always-poll-quirk"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7547518",
+						"comment_count": "5",
+						"who": {
+							"text": "adel.gadllah",
+							"name": "Adel Gadllah"
+						},
+						"bug_when": "2014-10-06 14:06:29 +0000",
+						"thetext": "Created attachment 944269\nHID-usbhid-enable-always-poll-quirk-for-Elan-Touchsc.patch"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7547522",
+						"comment_count": "6",
+						"who": {
+							"text": "adel.gadllah",
+							"name": "Adel Gadllah"
+						},
+						"bug_when": "2014-10-06 14:07:11 +0000",
+						"thetext": "Created attachment 944270\nHID-usbhid-enable-always-poll-quirk-for-Elan-Touchsc[9b].patch"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7551449",
+						"comment_count": "7",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2014-10-07 16:21:53 +0000",
+						"thetext": "To be clear, you have this issue with both the 3.16.y and 3.17 kernels?\n\nBenjamin, do you have any issues with Fedora carrying these patches?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7551455",
+						"comment_count": "8",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2014-10-07 16:25:26 +0000",
+						"thetext": "Adel, you have 6 attachments here.  They are 2 identical sets of 3 patches.  I'm confused on your comment #3.  There's nothing additional, they're just duplicate sets."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7551475",
+						"comment_count": "9",
+						"who": {
+							"text": "adel.gadllah",
+							"name": "Adel Gadllah"
+						},
+						"bug_when": "2014-10-07 16:33:33 +0000",
+						"thetext": "Created attachment 944663\nHID-usbhid-add-always-poll-quirk\n\nAttaching the correct patch."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7551476",
+						"comment_count": "10",
+						"who": {
+							"text": "adel.gadllah",
+							"name": "Adel Gadllah"
+						},
+						"bug_when": "2014-10-07 16:34:20 +0000",
+						"thetext": "Created attachment 944664\nHID-usbhid-enable-always-poll-quirk-for-Elan-Touchsc.patch\n\nAttaching the correct patch."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7551477",
+						"comment_count": "11",
+						"who": {
+							"text": "adel.gadllah",
+							"name": "Adel Gadllah"
+						},
+						"bug_when": "2014-10-07 16:35:13 +0000",
+						"thetext": "Created attachment 944665\nHID-usbhid-enable-always-poll-quirk-for-Elan-Touchsc[9b].patch"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7551479",
+						"comment_count": "12",
+						"who": {
+							"text": "adel.gadllah",
+							"name": "Adel Gadllah"
+						},
+						"bug_when": "2014-10-07 16:36:18 +0000",
+						"thetext": "(In reply to Josh Boyer from comment #8)\n> Adel, you have 6 attachments here.  They are 2 identical sets of 3 patches. \n> I'm confused on your comment #3.  There's nothing additional, they're just\n> duplicate sets.\n\nSorry I messed that up while attaching, just attached the correct ones."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7551485",
+						"comment_count": "13",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2014-10-07 16:38:07 +0000",
+						"thetext": "I also have a similar screen with the same issue: \n\nBus 002 Device 013: ID 04f3:016f Elan Microelectronics Corp. \n\nhttp://paste.fedoraproject.org/139971/41269922/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7551487",
+						"comment_count": "14",
+						"who": {
+							"text": "adel.gadllah",
+							"name": "Adel Gadllah"
+						},
+						"bug_when": "2014-10-07 16:38:33 +0000",
+						"thetext": "(In reply to Josh Boyer from comment #7)\n> To be clear, you have this issue with both the 3.16.y and 3.17 kernels?\n\nI didn't test 3.17 because nothing there would fix it. The first patches showed up in linux-next and are queued for 3.18. I could still test it but I'd be very surprised if it magically fixes thing.s"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7551501",
+						"comment_count": "15",
+						"who": {
+							"text": "adel.gadllah",
+							"name": "Adel Gadllah"
+						},
+						"bug_when": "2014-10-07 16:46:49 +0000",
+						"thetext": "Created attachment 944666\n0001-USB-quirks-enable-device-qualifier-quirk-for-another[016f].patch"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7551509",
+						"comment_count": "16",
+						"who": {
+							"text": "adel.gadllah",
+							"name": "Adel Gadllah"
+						},
+						"bug_when": "2014-10-07 16:47:29 +0000",
+						"thetext": "Created attachment 944669\n0002-HID-usbhid-enable-always-poll-quirk-for-Elan-Touchsc[016f].patch"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7551517",
+						"comment_count": "17",
+						"who": {
+							"text": "adel.gadllah",
+							"name": "Adel Gadllah"
+						},
+						"bug_when": "2014-10-07 16:48:43 +0000",
+						"thetext": "(In reply to Kevin Fenzi from comment #13)\n> I also have a similar screen with the same issue: \n> \n> Bus 002 Device 013: ID 04f3:016f Elan Microelectronics Corp. \n> \n> http://paste.fedoraproject.org/139971/41269922/\n\nOK, the last two patches adds your device to the quirk list as well. Assuming it is indeed the same issue it should fix it. Testing appreciated (just apply all of the patches in the order they are attached)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7554341",
+						"comment_count": "18",
+						"who": {
+							"text": "btissoir",
+							"name": "Benjamin Tissoires"
+						},
+						"bug_when": "2014-10-08 11:56:32 +0000",
+						"thetext": "(In reply to Josh Boyer from comment #7)\n> Benjamin, do you have any issues with Fedora carrying these patches?\n\nJosh, I think we can quarry a backport of the patches in Fedora. It looks like the problem is persistent accross kernel releases, so 3.16 could quarry a fix.\n\nI just do not have the time to review the patch posted here (attending a conference right now)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7555245",
+						"comment_count": "19",
+						"who": {
+							"text": "adel.gadllah",
+							"name": "Adel Gadllah"
+						},
+						"bug_when": "2014-10-08 15:37:21 +0000",
+						"thetext": "(In reply to Benjamin Tissoires from comment #18)\n> (In reply to Josh Boyer from comment #7)\n> > Benjamin, do you have any issues with Fedora carrying these patches?\n> \n> Josh, I think we can quarry a backport of the patches in Fedora. It looks\n> like the problem is persistent accross kernel releases, so 3.16 could quarry\n> a fix.\n> \n> I just do not have the time to review the patch posted here (attending a\n> conference right now).\n\nFor the record the \"always-poll\" quirk (i.e the second set of patches) is in the HID queue for 3.18: https://git.kernel.org/cgit/linux/kernel/git/jikos/hid.git/log/?h=for-linus ... just not the addition of my device (didn't get any response on linux-usb yet)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7555946",
+						"comment_count": "20",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2014-10-08 19:02:03 +0000",
+						"thetext": "I can confirm the patches work for me here... boot is much faster."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7564355",
+						"comment_count": "21",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2014-10-11 13:57:31 +0000",
+						"thetext": "OK, I've added these for F20 and F21.  Will be in the next respective builds."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7581483",
+						"comment_count": "22",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-16 05:14:52 +0000",
+						"thetext": "kernel-3.16.6-200.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/kernel-3.16.6-200.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7582528",
+						"comment_count": "23",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-16 11:40:29 +0000",
+						"thetext": "kernel-3.17.1-300.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.17.1-300.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7583674",
+						"comment_count": "24",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-16 17:19:22 +0000",
+						"thetext": "Package kernel-3.17.1-300.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-3.17.1-300.fc21'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-12955/kernel-3.17.1-300.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7585347",
+						"comment_count": "25",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-17 08:39:50 +0000",
+						"thetext": "kernel-3.16.6-200.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7632100",
+						"comment_count": "26",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-01 16:33:01 +0000",
+						"thetext": "kernel-3.17.1-300.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1151095,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-7970 Kernel: fs: VFS denial of service",
+			"bugzilla": {
+				"bug_id": "1151095",
+				"alias": "CVE-2014-7970",
+				"creation_ts": "2014-10-09 15:02:04 +0000",
+				"short_desc": "CVE-2014-7970 Kernel: fs: VFS denial of service",
+				"delta_ts": "2021-02-17 06:08:09 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "CURRENTRELEASE",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1151483",
+					"1151484"
+				],
+				"blocked": [
+					{
+						"bug_id": "1150901",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2017:2077",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7558796",
+						"comment_count": "0",
+						"who": {
+							"text": "ppandit",
+							"name": "Prasad Pandit"
+						},
+						"bug_when": "2014-10-09 15:02:04 +0000",
+						"thetext": "Linux kernel built with the VFS and user name-space support(CONFIG_USER_NS) is vulnerable to a potential DoS flaw. It could occur while doing pivot_root(2) call to change root file system.\n\nA privileged user/process could use this flaw to potentially render a system unusable leading to DoS.\n\nUpstream fix: \n-------------\n  -> http://thread.gmane.org/gmane.linux.file-systems/89076\n\nReference:\n----------\n  -> http://seclists.org/oss-sec/2014/q4/228"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7562062",
+						"comment_count": "1",
+						"who": {
+							"text": "ppandit",
+							"name": "Prasad Pandit"
+						},
+						"bug_when": "2014-10-10 14:27:25 +0000",
+						"thetext": "Statement:\n\nThis issue does not affect the versions of the kernel package as shipped with\nRed Hat Enterprise Linux 5, 6, 7 and Red Hat Enterprise MRG 2."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7562078",
+						"comment_count": "3",
+						"who": {
+							"text": "ppandit",
+							"name": "Prasad Pandit"
+						},
+						"bug_when": "2014-10-10 14:30:16 +0000",
+						"thetext": "\nCreated kernel tracking bugs for this issue:\n\nAffects: fedora-all [bug 1151484]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7579289",
+						"comment_count": "4",
+						"who": {
+							"text": "pmatouse",
+							"name": "Petr Matousek"
+						},
+						"bug_when": "2014-10-15 13:06:16 +0000",
+						"thetext": "Upstream commit:\n\nhttps://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=0d0826019e529f21c84687521d03f60cd241ca7d"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7585349",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-17 08:39:58 +0000",
+						"thetext": "kernel-3.16.6-200.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7589192",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-19 13:21:35 +0000",
+						"thetext": "kernel-3.14.22-100.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7632103",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-01 16:33:12 +0000",
+						"thetext": "kernel-3.17.1-300.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10657922",
+						"comment_count": "8",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2017-08-01 19:07:59 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2017:2077 https://access.redhat.com/errata/RHSA-2017:2077"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10664418",
+						"comment_count": "9",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2017-08-02 07:46:45 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2017:1842 https://access.redhat.com/errata/RHSA-2017:1842"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1151108,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-7975 Kernel: fs: umount denial of service",
+			"bugzilla": {
+				"bug_id": "1151108",
+				"alias": "CVE-2014-7975",
+				"creation_ts": "2014-10-09 15:24:28 +0000",
+				"short_desc": "CVE-2014-7975 Kernel: fs: umount denial of service",
+				"delta_ts": "2021-02-17 06:08:11 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "CURRENTRELEASE",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1152024",
+					"1152025"
+				],
+				"blocked": [
+					{
+						"bug_id": "1150901",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2017:2077",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7558917",
+						"comment_count": "0",
+						"who": {
+							"text": "ppandit",
+							"name": "Prasad Pandit"
+						},
+						"bug_when": "2014-10-09 15:24:28 +0000",
+						"thetext": "Linux kernel file system implementation is vulnerable to a DoS flaw. It could occur by doing umount(2) call from within user name spaces.\n\nAn unprivileged user/process could use this flaw to render the system unusable by making file system inaccessible.\n\nUpstream fix:\n-------------\n  -> http://thread.gmane.org/gmane.linux.kernel.stable/109312\n\nReference:\n-----------\n  -> http://seclists.org/oss-sec/2014/q4/229"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7566594",
+						"comment_count": "1",
+						"who": {
+							"text": "ppandit",
+							"name": "Prasad Pandit"
+						},
+						"bug_when": "2014-10-13 10:48:28 +0000",
+						"thetext": "Statement:\n\nThis issue does not affect the versions of the kernel package as shipped with\nRed Hat Enterprise Linux 5, 6, 7 and Red Hat Enterprise MRG 2."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7566693",
+						"comment_count": "3",
+						"who": {
+							"text": "ppandit",
+							"name": "Prasad Pandit"
+						},
+						"bug_when": "2014-10-13 11:10:08 +0000",
+						"thetext": "\nCreated kernel tracking bugs for this issue:\n\nAffects: fedora-all [bug 1152025]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7579324",
+						"comment_count": "4",
+						"who": {
+							"text": "pmatouse",
+							"name": "Petr Matousek"
+						},
+						"bug_when": "2014-10-15 13:10:13 +0000",
+						"thetext": "Upstream commit:\n\nhttp://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=0ef3a56b1c466629cd0bf482b09c7b0e5a085bb5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7585348",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-17 08:39:53 +0000",
+						"thetext": "kernel-3.16.6-200.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7589191",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-19 13:21:31 +0000",
+						"thetext": "kernel-3.14.22-100.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7632102",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-01 16:33:07 +0000",
+						"thetext": "kernel-3.17.1-300.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10657923",
+						"comment_count": "8",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2017-08-01 19:08:13 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2017:2077 https://access.redhat.com/errata/RHSA-2017:2077"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10664423",
+						"comment_count": "9",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2017-08-02 07:47:06 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2017:1842 https://access.redhat.com/errata/RHSA-2017:1842"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1151484,
+			"security": true,
+			"title": "CVE-2014-7970 Kernel: fs: VFS denial of service [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1151484",
+				"creation_ts": "2014-10-10 14:30:01 +0000",
+				"short_desc": "CVE-2014-7970 Kernel: fs: VFS denial of service [fedora-all]",
+				"delta_ts": "2014-11-01 16:32:59 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1151095",
+						"alias": "CVE-2014-7970",
+						"creation_ts": "2014-10-09 15:02:04 +0000",
+						"short_desc": "CVE-2014-7970 Kernel: fs: VFS denial of service",
+						"delta_ts": "2021-02-17 06:08:09 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "CURRENTRELEASE",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1151483",
+							"1151484"
+						],
+						"blocked": [
+							{
+								"bug_id": "1150901",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2017:2077",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7558796",
+								"comment_count": "0",
+								"who": {
+									"text": "ppandit",
+									"name": "Prasad Pandit"
+								},
+								"bug_when": "2014-10-09 15:02:04 +0000",
+								"thetext": "Linux kernel built with the VFS and user name-space support(CONFIG_USER_NS) is vulnerable to a potential DoS flaw. It could occur while doing pivot_root(2) call to change root file system.\n\nA privileged user/process could use this flaw to potentially render a system unusable leading to DoS.\n\nUpstream fix: \n-------------\n  -> http://thread.gmane.org/gmane.linux.file-systems/89076\n\nReference:\n----------\n  -> http://seclists.org/oss-sec/2014/q4/228"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7562062",
+								"comment_count": "1",
+								"who": {
+									"text": "ppandit",
+									"name": "Prasad Pandit"
+								},
+								"bug_when": "2014-10-10 14:27:25 +0000",
+								"thetext": "Statement:\n\nThis issue does not affect the versions of the kernel package as shipped with\nRed Hat Enterprise Linux 5, 6, 7 and Red Hat Enterprise MRG 2."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7562078",
+								"comment_count": "3",
+								"who": {
+									"text": "ppandit",
+									"name": "Prasad Pandit"
+								},
+								"bug_when": "2014-10-10 14:30:16 +0000",
+								"thetext": "\nCreated kernel tracking bugs for this issue:\n\nAffects: fedora-all [bug 1151484]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7579289",
+								"comment_count": "4",
+								"who": {
+									"text": "pmatouse",
+									"name": "Petr Matousek"
+								},
+								"bug_when": "2014-10-15 13:06:16 +0000",
+								"thetext": "Upstream commit:\n\nhttps://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=0d0826019e529f21c84687521d03f60cd241ca7d"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7585349",
+								"comment_count": "5",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-10-17 08:39:58 +0000",
+								"thetext": "kernel-3.16.6-200.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7589192",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-10-19 13:21:35 +0000",
+								"thetext": "kernel-3.14.22-100.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7632103",
+								"comment_count": "7",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-11-01 16:33:12 +0000",
+								"thetext": "kernel-3.17.1-300.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10657922",
+								"comment_count": "8",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2017-08-01 19:07:59 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2017:2077 https://access.redhat.com/errata/RHSA-2017:2077"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10664418",
+								"comment_count": "9",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2017-08-02 07:46:45 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2017:1842 https://access.redhat.com/errata/RHSA-2017:1842"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7562075",
+						"comment_count": "0",
+						"who": {
+							"text": "ppandit",
+							"name": "Prasad Pandit"
+						},
+						"bug_when": "2014-10-10 14:30:01 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\nReproducers, if any, will remain confidential and never be made public, unless done so by the security team.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7562076",
+						"comment_count": "1",
+						"who": {
+							"text": "ppandit",
+							"name": "Prasad Pandit"
+						},
+						"bug_when": "2014-10-10 14:30:09 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1151095,1151484\n\n# Description of your update\nnotes=Security fix for CVE-2014-7970\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1151095,1151484"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7562394",
+						"comment_count": "2",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2014-10-10 15:26:19 +0000",
+						"thetext": "Patch added to all Fedora branches."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7581481",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-16 05:14:48 +0000",
+						"thetext": "kernel-3.16.6-200.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/kernel-3.16.6-200.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7581490",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-16 05:16:46 +0000",
+						"thetext": "kernel-3.14.22-100.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/kernel-3.14.22-100.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7582527",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-16 11:40:26 +0000",
+						"thetext": "kernel-3.17.1-300.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.17.1-300.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7583673",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-16 17:19:20 +0000",
+						"thetext": "Package kernel-3.17.1-300.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-3.17.1-300.fc21'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-12955/kernel-3.17.1-300.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7585345",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-17 08:39:42 +0000",
+						"thetext": "kernel-3.16.6-200.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7589190",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-19 13:21:28 +0000",
+						"thetext": "kernel-3.14.22-100.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7632099",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-01 16:32:59 +0000",
+						"thetext": "kernel-3.17.1-300.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1152025,
+			"security": true,
+			"title": "CVE-2014-7975 Kernel: fs: umount denial of service [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1152025",
+				"creation_ts": "2014-10-13 11:09:51 +0000",
+				"short_desc": "CVE-2014-7975 Kernel: fs: umount denial of service [fedora-all]",
+				"delta_ts": "2014-11-01 16:32:57 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1151108",
+						"alias": "CVE-2014-7975",
+						"creation_ts": "2014-10-09 15:24:28 +0000",
+						"short_desc": "CVE-2014-7975 Kernel: fs: umount denial of service",
+						"delta_ts": "2021-02-17 06:08:11 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "CURRENTRELEASE",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1152024",
+							"1152025"
+						],
+						"blocked": [
+							{
+								"bug_id": "1150901",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2017:2077",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7558917",
+								"comment_count": "0",
+								"who": {
+									"text": "ppandit",
+									"name": "Prasad Pandit"
+								},
+								"bug_when": "2014-10-09 15:24:28 +0000",
+								"thetext": "Linux kernel file system implementation is vulnerable to a DoS flaw. It could occur by doing umount(2) call from within user name spaces.\n\nAn unprivileged user/process could use this flaw to render the system unusable by making file system inaccessible.\n\nUpstream fix:\n-------------\n  -> http://thread.gmane.org/gmane.linux.kernel.stable/109312\n\nReference:\n-----------\n  -> http://seclists.org/oss-sec/2014/q4/229"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7566594",
+								"comment_count": "1",
+								"who": {
+									"text": "ppandit",
+									"name": "Prasad Pandit"
+								},
+								"bug_when": "2014-10-13 10:48:28 +0000",
+								"thetext": "Statement:\n\nThis issue does not affect the versions of the kernel package as shipped with\nRed Hat Enterprise Linux 5, 6, 7 and Red Hat Enterprise MRG 2."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7566693",
+								"comment_count": "3",
+								"who": {
+									"text": "ppandit",
+									"name": "Prasad Pandit"
+								},
+								"bug_when": "2014-10-13 11:10:08 +0000",
+								"thetext": "\nCreated kernel tracking bugs for this issue:\n\nAffects: fedora-all [bug 1152025]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7579324",
+								"comment_count": "4",
+								"who": {
+									"text": "pmatouse",
+									"name": "Petr Matousek"
+								},
+								"bug_when": "2014-10-15 13:10:13 +0000",
+								"thetext": "Upstream commit:\n\nhttp://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=0ef3a56b1c466629cd0bf482b09c7b0e5a085bb5"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7585348",
+								"comment_count": "5",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-10-17 08:39:53 +0000",
+								"thetext": "kernel-3.16.6-200.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7589191",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-10-19 13:21:31 +0000",
+								"thetext": "kernel-3.14.22-100.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7632102",
+								"comment_count": "7",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-11-01 16:33:07 +0000",
+								"thetext": "kernel-3.17.1-300.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10657923",
+								"comment_count": "8",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2017-08-01 19:08:13 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2017:2077 https://access.redhat.com/errata/RHSA-2017:2077"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10664423",
+								"comment_count": "9",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2017-08-02 07:47:06 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2017:1842 https://access.redhat.com/errata/RHSA-2017:1842"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7566690",
+						"comment_count": "0",
+						"who": {
+							"text": "ppandit",
+							"name": "Prasad Pandit"
+						},
+						"bug_when": "2014-10-13 11:09:51 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\nReproducers, if any, will remain confidential and never be made public, unless done so by the security team.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7566691",
+						"comment_count": "1",
+						"who": {
+							"text": "ppandit",
+							"name": "Prasad Pandit"
+						},
+						"bug_when": "2014-10-13 11:10:00 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1151108,1152025\n\n# Description of your update\nnotes=Security fix for CVE-2014-7975\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1151108,1152025"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7568633",
+						"comment_count": "2",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2014-10-13 18:52:10 +0000",
+						"thetext": "Fixed on all branches in Fedora git."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7581480",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-16 05:14:44 +0000",
+						"thetext": "kernel-3.16.6-200.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/kernel-3.16.6-200.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7581489",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-16 05:16:43 +0000",
+						"thetext": "kernel-3.14.22-100.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/kernel-3.14.22-100.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7582526",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-16 11:40:24 +0000",
+						"thetext": "kernel-3.17.1-300.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.17.1-300.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7583672",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-16 17:19:17 +0000",
+						"thetext": "Package kernel-3.17.1-300.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-3.17.1-300.fc21'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-12955/kernel-3.17.1-300.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7585344",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-17 08:39:37 +0000",
+						"thetext": "kernel-3.16.6-200.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7589189",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-19 13:21:26 +0000",
+						"thetext": "kernel-3.14.22-100.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7632098",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-01 16:32:57 +0000",
+						"thetext": "kernel-3.17.1-300.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "kernel-3.17.1-300.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "kernel-modules-extra",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "perf",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-tools-libs",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-tools-debuginfo",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-core",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "perf-debuginfo",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "python-perf",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-core",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-debuginfo-common-armv7hl",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "python-perf-debuginfo",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-modules-extra",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-modules",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-debuginfo",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-tools-libs-devel",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-tools",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-devel",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "kernel-debug-modules",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-core",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-devel",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "perf",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-core",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-modules",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "python-perf",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-tools-debuginfo",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-debuginfo",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debuginfo-common-i686",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-tools",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-core",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "perf-debuginfo",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-debuginfo",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-devel",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-modules-extra",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-modules-extra",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-modules-extra",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-devel",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-modules-extra",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-modules",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-debuginfo",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "python-perf-debuginfo",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-tools-libs",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-tools-libs-devel",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-core",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "kernel",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "perf-debuginfo",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-modules",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-modules-extra",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-modules-extra",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-tools",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-debuginfo",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "perf",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-tools-libs-devel",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python-perf",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-devel",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-tools-debuginfo",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-tools-libs",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debuginfo-common-x86_64",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python-perf-debuginfo",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-core",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-core",
+						"version": "3.17.1",
+						"release": "300.fc21",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 231607,
+			"text": "This update has been submitted for testing by jwboyer. ",
+			"timestamp": "2014-10-16 11:40:40",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 231608,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/2538/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-10-16 12:18:07",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 231609,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/2538/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-10-16 12:19:36",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 231610,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2014-10-16 15:16:04",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 231611,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-10-16 17:19:23",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 231612,
+			"karma": 1,
+			"text": "work fine for me c:",
+			"timestamp": "2014-10-17 04:05:36",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/c187e07bb22f9319891275e38ab8f01b4a990977724b63f5aada4a0b173b4cf4?s=24&d=retro",
+				"id": 321,
+				"name": "n0oir",
+				"openid": "n0oir.id.fedoraproject.org"
+			},
+			"user_id": 321
+		},
+		{
+			"id": 231613,
+			"text": "Critical path update approved",
+			"timestamp": "2014-10-17 04:05:39",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 231614,
+			"karma": 1,
+			"timestamp": "2014-10-17 08:35:18",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/2f9ad56e7e272dbbddf56ed9468fbc78b4206032270f8c7950c6c2d12468516a?s=24&d=retro",
+				"email": "bitlord0xff@gmail.com",
+				"groups": [
+					{
+						"name": "qa"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 947,
+				"name": "bitlord",
+				"openid": "bitlord.id.fedoraproject.org"
+			},
+			"user_id": 947
+		},
+		{
+			"id": 231615,
+			"karma": 1,
+			"text": "Works fine.",
+			"timestamp": "2014-10-17 11:52:07",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/4a3ad173dea02104038e99ea8b65402abf1e2f9d538bb348ae7cac2c5e8e5482?s=24&d=retro",
+				"email": "pdrag@aviary.pl",
+				"groups": [
+					{}
+				],
+				"id": 675,
+				"name": "raven",
+				"openid": "raven.id.fedoraproject.org"
+			},
+			"user_id": 675
+		},
+		{
+			"id": 231616,
+			"text": "This update has reached the stable karma threshold and will be pushed to the stable updates repository",
+			"timestamp": "2014-10-17 11:52:13",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 231617,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/2946/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-10-17 11:56:18",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 231618,
+			"karma": 1,
+			"timestamp": "2014-10-17 18:15:02",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/8565c2dfa53d10789f72ad8acb147dcde3c431f668cde1916a812d1d8f945875?s=24&d=retro",
+				"email": "pnemade@redhat.com",
+				"groups": [
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "giti18n"
+					},
+					{
+						"name": "gitinscript2"
+					},
+					{
+						"name": "gitwordxtr"
+					},
+					{
+						"name": "gityum-langpacks"
+					},
+					{
+						"name": "svnsystem-config-language"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "gitutrrs-web"
+					},
+					{
+						"name": "svnlohit"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "svniok"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "gitiok2"
+					},
+					{
+						"name": "gitfontpackages"
+					},
+					{
+						"name": "gitredhatlsb"
+					},
+					{
+						"name": "cla_redhat"
+					},
+					{
+						"name": "cvslohit-fonts"
+					}
+				],
+				"id": 262,
+				"name": "pnemade",
+				"openid": "pnemade.id.fedoraproject.org"
+			},
+			"user_id": 262
+		},
+		{
+			"id": 231619,
+			"text": "Taskotron: upgradepath test FAILED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/4382/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-10-21 20:29:32",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 231620,
+			"text": "Automatic push to stable based on karma has been disabled for this update due to failure of an AutoQA test. Update submitter, please check the AutoQA test result and see if there is a valid problem to be fixed here, and fix it if so. If the failure is a mistake on AutoQA's part, you can re-enable the automatic push feature for this update if you like, or push it stable manually once it reaches the requirements under the Updates Policy.",
+			"timestamp": "2014-10-21 20:29:34",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 231621,
+			"text": "Taskotron: upgradepath test FAILED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/5346/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-10-24 22:04:26",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 231622,
+			"text": "Taskotron: upgradepath test FAILED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/6335/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-10-28 10:38:01",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 231623,
+			"text": "Taskotron: upgradepath test FAILED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/7328/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-10-31 11:25:51",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 231624,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2014-11-01 03:47:07",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 231625,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2014-11-01 04:01:23",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 231626,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2014-11-01 16:33:13",
+			"update_id": 28976,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2014-11-01 16:33:13",
+	"date_stable": "2014-11-01 16:33:13",
+	"date_submitted": "2014-10-16 11:40:20",
+	"date_testing": "2014-10-16 17:19:23",
+	"karma": 4,
+	"meets_testing_requirements": true,
+	"notes": "Update to latest upstream stable release, Linux v3.17.1.  Also fixes a btrfs corruption error when read-only snapshots are used.",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_cases": [
+		{
+			"id": 372,
+			"name": "QA:Testcase kernel regression"
+		}
+	],
+	"title": "kernel-3.17.1-300.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2014-12955",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2014-12955",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/53aa0a6d4d5e388d3bb56c93e6510dc1e1526c0773eb7646ceb67b8756b8a0c9?s=24&d=retro",
+		"email": "jwboyer@redhat.com",
+		"groups": [
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "bodhiadmin"
+			},
+			{
+				"name": "gitworkstation"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "gitspin-kickstarts"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "eln-sig"
+			},
+			{
+				"name": "torrentadmin"
+			},
+			{
+				"name": "cvsadmin"
+			},
+			{
+				"name": "sysadmin"
+			},
+			{
+				"name": "sig-altarch"
+			},
+			{
+				"name": "centos-board"
+			},
+			{
+				"name": "gitbodhi"
+			},
+			{
+				"name": "disabled_torrent"
+			},
+			{
+				"name": "sysadmin-kernel"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "gitkernel-tests"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "sysadmin-cvs"
+			},
+			{
+				"name": "centosproject-email-aliases"
+			},
+			{
+				"name": "modularity-wg"
+			}
+		],
+		"id": 834,
+		"name": "jwboyer",
+		"openid": "jwboyer.id.fedoraproject.org"
+	},
+	"version_hash": "b268f8cda998153a2d7cc1920a0fdeb9d0ca51a9"
+}

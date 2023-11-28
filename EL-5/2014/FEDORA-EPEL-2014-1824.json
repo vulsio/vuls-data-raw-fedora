@@ -1,0 +1,450 @@
+{
+	"alias": "FEDORA-EPEL-2014-1824",
+	"bugs": [
+		{
+			"bug_id": 1113430,
+			"title": "Packaging issues",
+			"bugzilla": {
+				"bug_id": "1113430",
+				"creation_ts": "2014-06-26 07:52:29 +0000",
+				"short_desc": "Packaging issues",
+				"delta_ts": "2014-07-21 15:33:47 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7239481",
+						"comment_count": "0",
+						"who": {
+							"text": "bugs.michael",
+							"name": "Michael Schwendt"
+						},
+						"bug_when": "2014-06-26 07:52:29 +0000",
+						"thetext": "# rpm -q lz4 lz4-devel\nlz4-r117-3.fc20.x86_64\nlz4-devel-r117-3.fc20.x86_64\n\n# rpmls lz4\n-rwxr-xr-x  /usr/bin/lz4\n-rwxr-xr-x  /usr/bin/lz4c\nlrwxrwxrwx  /usr/bin/lz4cat\nlrwxrwxrwx  /usr/lib/liblz4.so.1\n-rwxr-xr-x  /usr/lib/liblz4.so.1.0.0\ndrwxr-xr-x  /usr/share/doc/lz4\n-rw-r--r--  /usr/share/doc/lz4/COPYING\n-rw-r--r--  /usr/share/doc/lz4/NEWS\n-rw-r--r--  /usr/share/man/man1/lz4.1.gz\n-rw-r--r--  /usr/share/man/man1/lz4c.1.gz\n-rw-r--r--  /usr/share/man/man1/lz4cat.1.gz\n\n# rpmls lz4-devel\n-rw-r--r--  /usr/include/lz4.h\n-rw-r--r--  /usr/include/lz4hc.h\nlrwxrwxrwx  /usr/lib/liblz4.so\ndrwxr-xr-x  /usr/share/doc/lz4-devel\n-rw-r--r--  /usr/share/doc/lz4-devel/LICENSE\n-rw-r--r--  /usr/share/doc/lz4-devel/NEWS\n\nThe shared library belongs into %{_libdir} not /usr/lib on x86_64 and other 64-bit multilib platforms. Hardcoding it as /usr/lib in the spec file is a mistake.\n\nFurther issues:\n\n> License:        GPLv2\n\n> %package        devel\n> License:        BSD\n\nApparently, the programs are GPLv2+ and not GPLv2, see\n\n  https://fedoraproject.org/wiki/Packaging:LicensingGuidelines#.22or_later_version.22_licenses\n\nand the library is BSD 2-clause, but if the base package includes the library, you need to also mention the BSD licensing if you do the same for the -devel subpackage.\n\n  https://fedoraproject.org/wiki/Packaging:LicensingGuidelines#License_Clarification\n\n\n> BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-buildroot\n\nhttps://fedoraproject.org/wiki/Packaging:Guidelines#BuildRoot_tag\n\n\n> %package        devel\n> Requires:       %{name} = %{version}-%{release}\n\nhttps://fedoraproject.org/wiki/Packaging:Guidelines#Requiring_Base_Package\n\n\n> https://kojipkgs.fedoraproject.org//packages/lz4/r117/3.fc21/data/logs/x86_64/build.log\n> [...] I. -std=c99 -O3 -Wall -W -Wundef  [...]\n\nhttps://fedoraproject.org/wiki/Packaging:Guidelines#Compiler_flags\n\n\n> %post devel -p /sbin/ldconfig\n> %postun devel -p /sbin/ldconfig\n\nNot needed for -devel packages and their .so symlinks. Drop these.\n\n\n> %files devel\n> %defattr (-, root, root, -)\n\nhttps://fedoraproject.org/wiki/Packaging:Guidelines#File_Permissions\n\n\n> %files devel\n> %doc LICENSE NEWS\n\nThe same NEWS files is also included in the base package, and this -devel package requires the base package. Unnecessary duplication of files. If the base package also included the LICENSE file for its library licensing, the -devel package would not need to include these extra %doc files."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7246276",
+						"comment_count": "1",
+						"who": {
+							"text": "pj.pandit",
+							"name": "pjp"
+						},
+						"bug_when": "2014-06-28 06:31:04 +0000",
+						"thetext": "I've fixed most of the issues raised above, except the compiler flags and BuildRoot ones. Compiler flags are defined in the upstream Makefile. And Buildroot would be required for EPEL builds, no?\n\nSee scratch build\n -> http://koji.fedoraproject.org/koji/taskinfo?taskID=7086005\n\n===\n$ rpmlint SRPMS/lz4-r118-1.fc19.src.rpm\nlz4.src: W: spelling-error %description -l en_US scalable -> salable, callable, calculable\nlz4.src: W: spelling-error %description -l en_US multi -> mulch, mufti\n1 packages and 0 specfiles checked; 0 errors, 2 warnings.\n$\n$\n$ rpmlint RPMS/x86_64/lz4-r118-1.fc19.x86_64.rpm\nlz4.x86_64: W: spelling-error %description -l en_US scalable -> salable, callable, calculable\nlz4.x86_64: W: spelling-error %description -l en_US multi -> mulch, mufti\n1 packages and 0 specfiles checked; 0 errors, 2 warnings.\n$\n$\n$ rpmlint RPMS/x86_64/lz4-devel-r118-1.fc19.x86_64.rpm\n1 packages and 0 specfiles checked; 0 errors, 0 warnings.\n===\n\nPlease let me know if this looks good to go into the repositories.\n\nThank you."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7246305",
+						"comment_count": "2",
+						"who": {
+							"text": "bugs.michael",
+							"name": "Michael Schwendt"
+						},
+						"bug_when": "2014-06-28 08:59:13 +0000",
+						"thetext": "> And Buildroot would be required for EPEL builds, no?\n\nThat's what the linked guidelines say.\n\nIf you really want to use exactly the same spec file for EPEL (with the caveat that it would also include irrelevant entries about Rawhide and Fedora), it's good practise to either be explicit in the spec file (e.g. with a comment above the BuildRoot tag) or use dist conditionals:\n  https://fedoraproject.org/wiki/Packaging:DistTag#Conditionals\n\n\n> Compiler flags are defined in the upstream Makefile.\n\nFrom the guidelines:\n\n[...] Overriding these flags for performance optimizations (for instance, -O3 instead of -O2) is generally discouraged. If you can present benchmarks that show a significant speedup for this particular code, this could be revisited on a case-by-case basis. Adding to and overriding or filtering parts of these flags is permitted if there's a good reason to do so; the rationale for doing so must be documented in the specfile. [...]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7246337",
+						"comment_count": "3",
+						"who": {
+							"text": "pj.pandit",
+							"name": "pjp"
+						},
+						"bug_when": "2014-06-28 10:40:25 +0000",
+						"thetext": "(In reply to Michael Schwendt from comment #2)\n> with a comment above the BuildRoot tag) or use dist conditionals:\n>   https://fedoraproject.org/wiki/Packaging:DistTag#Conditionals\n\n  Done.\n\nPlease see:\n  -> http://koji.fedoraproject.org/koji/taskinfo?taskID=7086284\n\n> [...] Overriding these flags for performance optimizations (for instance,\n> -O3 instead of -O2) is generally discouraged. If you can present benchmarks\n> that show a significant speedup for this particular code, this could be\n> revisited on a case-by-case basis. Adding to and overriding or filtering\n> parts of these flags is permitted if there's a good reason to do so; the\n> rationale for doing so must be documented in the specfile. [...]\n\n  Yes, I read the guidelines and CFLAGS is set to $RPM_OPT_FLAGS in the %build section. But upstream Makefile merely adds its definition to the local one\n\n  see -> https://github.com/Cyan4973/lz4/blob/master/Makefile\n\nThank you."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7259004",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-02 17:58:06 +0000",
+						"thetext": "lz4-r118-1.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/lz4-r118-1.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7259005",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-02 17:58:17 +0000",
+						"thetext": "lz4-r118-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/lz4-r118-1.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7259006",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-02 17:58:26 +0000",
+						"thetext": "lz4-r118-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/lz4-r118-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7259007",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-02 17:58:39 +0000",
+						"thetext": "lz4-r118-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/lz4-r118-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7260058",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-03 04:08:09 +0000",
+						"thetext": "Package lz4-r118-1.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing lz4-r118-1.fc20'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-8022/lz4-r118-1.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7264476",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-04 08:31:03 +0000",
+						"thetext": "lz4-r119-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/lz4-r119-1.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7264477",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-04 08:31:12 +0000",
+						"thetext": "lz4-r119-1.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/lz4-r119-1.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7264481",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-04 08:31:20 +0000",
+						"thetext": "lz4-r119-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/lz4-r119-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7264482",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-04 08:31:28 +0000",
+						"thetext": "lz4-r119-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/lz4-r119-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7299573",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-17 04:33:02 +0000",
+						"thetext": "lz4-r119-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7299579",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-17 04:33:57 +0000",
+						"thetext": "lz4-r119-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7311123",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-21 15:33:28 +0000",
+						"thetext": "lz4-r119-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7311133",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-21 15:33:47 +0000",
+						"thetext": "lz4-r119-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "lz4-r119-1.el5",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"i386": [
+					{
+						"name": "lz4-debuginfo",
+						"version": "r119",
+						"release": "1.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "lz4",
+						"version": "r119",
+						"release": "1.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "lz4-devel",
+						"version": "r119",
+						"release": "1.el5",
+						"arch": "i386"
+					}
+				],
+				"ppc": [
+					{
+						"name": "lz4",
+						"version": "r119",
+						"release": "1.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "lz4-devel",
+						"version": "r119",
+						"release": "1.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "lz4-debuginfo",
+						"version": "r119",
+						"release": "1.el5",
+						"arch": "ppc"
+					}
+				],
+				"src": [
+					{
+						"name": "lz4",
+						"version": "r119",
+						"release": "1.el5",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "lz4-devel",
+						"version": "r119",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lz4-debuginfo",
+						"version": "r119",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lz4",
+						"version": "r119",
+						"release": "1.el5",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 183149,
+			"text": "This update has been submitted for testing by pjp. ",
+			"timestamp": "2014-07-04 08:31:40",
+			"update_id": 23883,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 183150,
+			"text": "This update is currently being pushed to the Fedora EPEL 5 testing updates repository.",
+			"timestamp": "2014-07-05 07:01:33",
+			"update_id": 23883,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 183151,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-07-05 09:33:16",
+			"update_id": 23883,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 183152,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2014-07-19 13:04:17",
+			"update_id": 23883,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 183153,
+			"text": "This update has been submitted for stable by pjp. ",
+			"timestamp": "2014-07-21 08:22:39",
+			"update_id": 23883,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 183154,
+			"text": "This update is currently being pushed to the Fedora EPEL 5 stable updates repository.",
+			"timestamp": "2014-07-21 13:40:58",
+			"update_id": 23883,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 183155,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2014-07-21 15:33:47",
+			"update_id": 23883,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2014-07-04 08:33:25",
+	"date_pushed": "2014-07-21 15:33:47",
+	"date_stable": "2014-07-21 15:33:47",
+	"date_submitted": "2014-07-04 08:31:33",
+	"date_testing": "2014-07-05 09:33:16",
+	"meets_testing_requirements": true,
+	"notes": "- New release\r\n- Fixed a high Address allocation issue in 32-bits mode.\r\n- New release r118\r\n- Fixed packaging issues.\r\n- install libraries under %{_libdir} directory.\r\n- New release r118\r\n- Fixed packaging issues.\r\n- install libraries under %{_libdir} directory.\r\n- New release r118\r\n- Fixed packaging issues.\r\n- install libraries under %{_libdir} directory.\r\n- New release r118\r\n- Fixed packaging issues.\r\n- install libraries under %{_libdir} directory.",
+	"pushed": true,
+	"release": {
+		"branch": "el5",
+		"candidate_tag": "dist-5E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "dist-5E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 5",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-5",
+		"override_tag": "dist-5E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-5E-epel",
+		"state": "archived",
+		"testing_tag": "dist-5E-epel-testing",
+		"version": "5"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "lz4-r119-1.el5",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2014-1824",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2014-1824",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/20602ed59dc5db693600a7b96080c9a78df3e101f36dba74a97dad851655cc40?s=24&d=retro",
+		"email": "pj.pandit@yahoo.co.in",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "gitdjbdns"
+			},
+			{
+				"name": "gitfedora-security-team"
+			},
+			{
+				"name": "security-team"
+			},
+			{
+				"name": "gitsecurity-spin"
+			}
+		],
+		"id": 103,
+		"name": "pjp",
+		"openid": "pjp.id.fedoraproject.org"
+	},
+	"version_hash": "1b0673ceee26b273f8b18c5364e37a805054789d"
+}

@@ -1,0 +1,1509 @@
+{
+	"alias": "FEDORA-2023-cb20f08a4e",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2175969,
+			"title": "gh codespace ssh fails to connect",
+			"bugzilla": {
+				"bug_id": "2175969",
+				"creation_ts": "2023-03-07 01:09:51 +0000",
+				"short_desc": "gh codespace ssh fails to connect",
+				"delta_ts": "2023-04-20 02:53:28 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"depends_on": [
+					"2183701"
+				],
+				"external_bugs": {
+					"text": "cli/cli/issues/4731",
+					"name": "Github"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17096430",
+						"comment_count": "0",
+						"who": {
+							"text": "trevor.benson",
+							"name": "Trevor Benson"
+						},
+						"bug_when": "2023-03-07 01:09:51 +0000",
+						"thetext": "Description of problem:\nWhen using `gh codespace ssh` the client fails to connect and receives the following error message:\n```\nfailed to connect to Live Share: error connecting to ssh session: error creating ssh client connection: ssh: handshake failed: ssh: unknown key algorithm: rsa-sha2-512\n```\n\nVersion-Release number of selected component (if applicable):\n\n2.23.0-1.fc37.x86_64\n\nHow reproducible:\nAlways\n\nSteps to Reproduce:\n1. Browse to a github.com repository\n2. Click the green Code button and select Codespaces tab, create a new codespace\n3. In codespaces create ~/.ssh/authorized_keys with correct permissions, insert an ed25519 public key.\n4. Open Fedora37 terminal from a user with the ed25519 keys.\n5. Execute `gh codespace ssh` and select the codespace.\n6. Observe the error\n\n\nActual results:\nRSA error is returned every time.\n\nExpected results:\nThe gh client requests the passphrase for the ed25519 private key. When the correct passphrase is entered the connection is established to the codespace.\n\nAdditional info:\nRemoving the Fedora gh RPM and installing the same version of the gh client from GitHub releases at https://github.com/cli/cli fixes the issue. Instead of an error the client requests the passphrase for the id_ed25519 private key and connects to the codespace.\n\nUpstream RPM that works:\n`gh-2.23.0-1.x86_64`"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17159687",
+						"comment_count": "1",
+						"who": {
+							"text": "trevor.benson",
+							"name": "Trevor Benson"
+						},
+						"bug_when": "2023-03-31 16:56:58 +0000",
+						"thetext": "@mikel@olasagasti.info any updates? Patching F37 leads to reinstallation of the F37 RPM breaking the `gh codespace ssh` functionality. Requiring removing and reinstalling the upstream RPM multiple times when the functionality is relied upon.\n\nThanks"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17159943",
+						"comment_count": "2",
+						"who": {
+							"text": "maxwell",
+							"name": "Maxwell G"
+						},
+						"bug_when": "2023-03-31 19:35:19 +0000",
+						"thetext": "I think we'll need to package gh's fork of golang/x/crypto [1] and manually handle the replace directives [2] (see [3] for how this is done in aerc) to use that instead.\n\n\n[1] https://github.com/cli/crypto\n[2] https://github.com/cli/cli/blob/1fc98f6808728cb72bffb6642c81e47632b7cb54/go.mod#L87\n[3] https://src.fedoraproject.org/rpms/aerc/blob/rawhide/f/aerc.spec#_58"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17160222",
+						"comment_count": "3",
+						"who": {
+							"text": "mikel",
+							"name": "Mikel Olasagasti Uranga"
+						},
+						"bug_when": "2023-03-31 21:32:46 +0000",
+						"thetext": "Thanks for checking this Maxwell, I've been quite busy lately.\n\nI'll work in a copr repo to generate the forked crypto library and test if gh works fine with it."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17162782",
+						"comment_count": "4",
+						"who": {
+							"text": "mikel",
+							"name": "Mikel Olasagasti Uranga"
+						},
+						"bug_when": "2023-04-01 09:28:09 +0000",
+						"thetext": "I've created a build for F37 in copr:\n\nhttps://copr.fedorainfracloud.org/coprs/mikelo2/gh/\n\nI'm able to connect to the codespace with this build:\n\n> gh codespace ssh \n> ? Choose codespace: foo/bar (main): glowing goldfish\n> Welcome to Ubuntu 20.04.5 LTS (GNU/Linux 5.4.0-1105-azure x86_64)\n> (...)\n\nTrevor, can you confirm?\n\nF38 is broken at the moment and packages can't be built.\n\nThe specs are available at:\n\nhttps://github.com/mikelolasagasti/github-cli\n\nThere are many old specs used in the initial work to bring gh to Fedora.\n\nNow, to have this in the official repos:\n\n- Requires new package golang-github-cli-crypto, the forked crypto repo that implements RFC8332 by GitHub. https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=2183701\n- https://src.fedoraproject.org/rpms/golang-github-cenkalti-backoff 4.2.0 in F37. I'll contact fab again about backporting this and about my related cleanup PR."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17166039",
+						"comment_count": "5",
+						"who": {
+							"text": "trevor.benson",
+							"name": "Trevor Benson"
+						},
+						"bug_when": "2023-04-03 14:28:28 +0000",
+						"thetext": "(In reply to Mikel Olasagasti Uranga from comment #4)\n> I've created a build for F37 in copr:\n> \n> https://copr.fedorainfracloud.org/coprs/mikelo2/gh/\n> \n> I'm able to connect to the codespace with this build:\n> \n> > gh codespace ssh \n> > ? Choose codespace: foo/bar (main): glowing goldfish\n> > Welcome to Ubuntu 20.04.5 LTS (GNU/Linux 5.4.0-1105-azure x86_64)\n> > (...)\n> \n> Trevor, can you confirm?\n> \n> F38 is broken at the moment and packages can't be built.\n> \n> The specs are available at:\n> \n> https://github.com/mikelolasagasti/github-cli\n> \n> There are many old specs used in the initial work to bring gh to Fedora.\n> \n> Now, to have this in the official repos:\n> \n> - Requires new package golang-github-cli-crypto, the forked crypto repo that\n> implements RFC8332 by GitHub.\n> https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=2183701\n> - https://src.fedoraproject.org/rpms/golang-github-cenkalti-backoff 4.2.0 in\n> F37. I'll contact fab again about backporting this and about my related\n> cleanup PR.\n\nMikel,\n\n  The copr repo RPM resolves the RSA error and establishes a connection to the codespace as expected.\n\nThanks"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17167112",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-04-03 21:31:28 +0000",
+						"thetext": "FEDORA-2023-a7423af03f has been submitted as an update to Fedora 39. https://bodhi.fedoraproject.org/updates/FEDORA-2023-a7423af03f"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17167128",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-04-03 21:34:24 +0000",
+						"thetext": "FEDORA-2023-a7423af03f has been pushed to the Fedora 39 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17167214",
+						"comment_count": "8",
+						"who": {
+							"text": "trevor.benson",
+							"name": "Trevor Benson"
+						},
+						"bug_when": "2023-04-03 22:58:55 +0000",
+						"thetext": "@mikel@olasagasti.info Did this issue get split into separate tickets? I noticed this one got closed with the mention of F39, but nothing about F37 or F38 (which I believe is only a couple of weeks out).\n\nThanks"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17168710",
+						"comment_count": "9",
+						"who": {
+							"text": "mikel",
+							"name": "Mikel Olasagasti Uranga"
+						},
+						"bug_when": "2023-04-04 08:54:05 +0000",
+						"thetext": "This case has been automatically closed as a build for rawhide that has the fix has been built. As I reference the BZ in the changelog it gets automatically closed.\n\nThe fix is not part of F38 or F37 yet. I'm waiting the ACK from fab on backporting `golang-github-cenkalti-backoff` 4.2.0 required by latest `gh` version. I try to keep the branches equal to rawhide so I can backport commits between branches, that's why I'm waiting the `golang-github-cenkalti-backoff` backport.\n\nI'll link the updates for F38 and F37 to this BZ and it should report updates about the status of those releases.\n\nI could clone the BZ for each release as Red Hat does for this kind of situations, but I rather not because of the extra work. Sorry for the confusion."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17170282",
+						"comment_count": "10",
+						"who": {
+							"text": "trevor.benson",
+							"name": "Trevor Benson"
+						},
+						"bug_when": "2023-04-04 17:46:13 +0000",
+						"thetext": "Great. Thank you for the quick response."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17183731",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-04-11 18:27:24 +0000",
+						"thetext": "FEDORA-2023-b3b4f45dcf has been submitted as an update to Fedora 38. https://bodhi.fedoraproject.org/updates/FEDORA-2023-b3b4f45dcf"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17183735",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-04-11 18:28:19 +0000",
+						"thetext": "FEDORA-2023-cb20f08a4e has been submitted as an update to Fedora 37. https://bodhi.fedoraproject.org/updates/FEDORA-2023-cb20f08a4e"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17184180",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-04-11 22:15:07 +0000",
+						"thetext": "FEDORA-2023-b3b4f45dcf has been pushed to the Fedora 38 testing repository.\n\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2023-b3b4f45dcf\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17184517",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-04-12 02:43:02 +0000",
+						"thetext": "FEDORA-2023-cb20f08a4e has been pushed to the Fedora 37 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --refresh --advisory=FEDORA-2023-cb20f08a4e`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2023-cb20f08a4e\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17199876",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-04-19 01:38:56 +0000",
+						"thetext": "FEDORA-2023-b3b4f45dcf has been pushed to the Fedora 38 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17203088",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-04-20 02:53:28 +0000",
+						"thetext": "FEDORA-2023-cb20f08a4e has been pushed to the Fedora 37 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2178433,
+			"security": true,
+			"title": "CVE-2022-41723 gh: golang.org/x/net/http2: avoid quadratic complexity in HPACK decoding [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2178433",
+				"creation_ts": "2023-03-15 04:28:20 +0000",
+				"short_desc": "CVE-2022-41723 gh: golang.org/x/net/http2: avoid quadratic complexity in HPACK decoding [fedora-all]",
+				"delta_ts": "2023-04-20 02:53:30 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "2178358",
+						"alias": "CVE-2022-41723",
+						"creation_ts": "2023-03-14 23:37:56 +0000",
+						"short_desc": "CVE-2022-41723 net/http, golang.org/x/net/http2: avoid quadratic complexity in HPACK decoding",
+						"delta_ts": "2023-11-15 13:44:30 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"2178396",
+							"2178397",
+							"2178398",
+							"2178399",
+							"2178400",
+							"2178401",
+							"2178402",
+							"2178403",
+							"2178404",
+							"2178405",
+							"2178406",
+							"2178407",
+							"2178409",
+							"2178413",
+							"2178415",
+							"2178416",
+							"2178417",
+							"2178418",
+							"2178419",
+							"2178420",
+							"2178421",
+							"2178422",
+							"2178423",
+							"2178424",
+							"2178425",
+							"2178426",
+							"2178427",
+							"2178428",
+							"2178429",
+							"2178432",
+							"2178435",
+							"2178436",
+							"2178437",
+							"2178439",
+							"2178440",
+							"2178441",
+							"2178442",
+							"2178443",
+							"2178444",
+							"2178445",
+							"2178446",
+							"2178447",
+							"2178448",
+							"2178449",
+							"2178450",
+							"2178451",
+							"2178452",
+							"2178453",
+							"2178454",
+							"2178455",
+							"2178456",
+							"2178457",
+							"2178459",
+							"2178461",
+							"2178462",
+							"2178464",
+							"2178475",
+							"2178476",
+							"2178477",
+							"2178481",
+							"2178483",
+							"2178489",
+							"2189144",
+							"2189145",
+							"2189164",
+							"2189165",
+							"2189223",
+							"2189224",
+							"2178395",
+							"2178408",
+							"2178410",
+							"2178411",
+							"2178412",
+							"2178414",
+							"2178430",
+							"2178431",
+							"2178433",
+							"2178434",
+							"2178438",
+							"2178463",
+							"2178465",
+							"2178467",
+							"2178469",
+							"2178471",
+							"2178473",
+							"2178474",
+							"2178478",
+							"2178479",
+							"2178480",
+							"2178482",
+							"2178484",
+							"2178485",
+							"2189138",
+							"2189139",
+							"2189140",
+							"2189141",
+							"2189142",
+							"2189143",
+							"2189146",
+							"2189147",
+							"2189148",
+							"2189149",
+							"2189150",
+							"2189151",
+							"2189152",
+							"2189153",
+							"2189154",
+							"2189155",
+							"2189156",
+							"2189157",
+							"2189158",
+							"2189159",
+							"2189160",
+							"2189161",
+							"2189162",
+							"2189163",
+							"2189166",
+							"2189167",
+							"2189168",
+							"2189169",
+							"2189170",
+							"2189171",
+							"2189172",
+							"2189173",
+							"2189174",
+							"2189175",
+							"2189176",
+							"2189213",
+							"2189214",
+							"2189215",
+							"2189216",
+							"2189217",
+							"2189218",
+							"2189219",
+							"2189220",
+							"2189221",
+							"2189222",
+							"2189225",
+							"2189226",
+							"2189227",
+							"2203674",
+							"2203675",
+							"2203676",
+							"2203677",
+							"2203678",
+							"2203679",
+							"2203680",
+							"2203681",
+							"2203682",
+							"2203683",
+							"2203684",
+							"2203685",
+							"2203686",
+							"2203687",
+							"2203688",
+							"2203689",
+							"2203690",
+							"2203691",
+							"2203692",
+							"2203693",
+							"2203694",
+							"2203695",
+							"2203696",
+							"2203697",
+							"2203698",
+							"2203699",
+							"2203700",
+							"2203701",
+							"2203702",
+							"2203703",
+							"2203704",
+							"2203705",
+							"2203706",
+							"2203707",
+							"2203708",
+							"2203710",
+							"2207481",
+							"2230177"
+						],
+						"blocked": [
+							{
+								"bug_id": "2169910",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2023:7058",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "17117444",
+								"comment_count": "0",
+								"who": {
+									"text": "askrabec",
+									"name": "Anten Skrabec"
+								},
+								"bug_when": "2023-03-14 23:37:56 +0000",
+								"thetext": "CVE-2022-41723 : net/http: avoid quadratic complexity in HPACK decoding\n\nA maliciously crafted HTTP/2 stream could cause excessive CPU consumption in the HPACK decoder, sufficient to cause a denial of service from a small number of small requests.\n\nThis issue is also fixed in golang.org/x/net/http2 v0.7.0, for users manually configuring HTTP/2.\n\nhttps://go.dev/issue/57855\nhttps://pkg.go.dev/vuln/GO-2023-1571\nhttps://groups.google.com/g/golang-announce/c/V0aBFqaFs_E"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17117930",
+								"comment_count": "1",
+								"who": {
+									"text": "ahanwate",
+									"name": "Avinash Hanwate"
+								},
+								"bug_when": "2023-03-15 04:24:13 +0000",
+								"thetext": "Created apptainer tracking bugs for this issue:\n\nAffects: epel-all [bug 2178395]\n\n\nCreated cri-o:1.21/cri-o tracking bugs for this issue:\n\nAffects: epel-all [bug 2178396]\n\n\nCreated dnscrypt-proxy tracking bugs for this issue:\n\nAffects: epel-all [bug 2178397]\n\n\nCreated dnscrypt-proxy2 tracking bugs for this issue:\n\nAffects: epel-all [bug 2178398]\n\n\nCreated golang-github-prometheus tracking bugs for this issue:\n\nAffects: epel-all [bug 2178399]\n\n\nCreated golang-github-prometheus-alertmanager tracking bugs for this issue:\n\nAffects: epel-all [bug 2178400]\n\n\nCreated golang-github-prometheus-node-exporter tracking bugs for this issue:\n\nAffects: epel-all [bug 2178401]\n\n\nCreated golang-googlecode-net tracking bugs for this issue:\n\nAffects: epel-all [bug 2178402]\n\n\nCreated golang-x-net tracking bugs for this issue:\n\nAffects: epel-all [bug 2178403]\n\n\nCreated kompose tracking bugs for this issue:\n\nAffects: epel-all [bug 2178404]\n\n\nCreated rclone tracking bugs for this issue:\n\nAffects: epel-all [bug 2178405]\n\n\nCreated reg tracking bugs for this issue:\n\nAffects: epel-all [bug 2178406]\n\n\nCreated restic tracking bugs for this issue:\n\nAffects: epel-all [bug 2178407]\n\n\nCreated singularity-ce tracking bugs for this issue:\n\nAffects: epel-all [bug 2178408]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17118085",
+								"comment_count": "2",
+								"who": {
+									"text": "ahanwate",
+									"name": "Avinash Hanwate"
+								},
+								"bug_when": "2023-03-15 04:34:52 +0000",
+								"thetext": "Created OliveTin tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178409]\n\n\nCreated apptainer tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178410]\n\n\nCreated buildah tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178411]\n\n\nCreated caddy tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178412]\n\n\nCreated cadvisor tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178413]\n\n\nCreated conmon tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178414]\n\n\nCreated containerd tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178415]\n\n\nCreated cri-o tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178416]\n\n\nCreated cri-o:1.20/cri-o tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178417]\n\n\nCreated cri-o:1.20/cri-tools tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178418]\n\n\nCreated cri-o:1.21/cri-o tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178419]\n\n\nCreated cri-o:1.21/cri-tools tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178420]\n\n\nCreated cri-o:1.22/cri-o tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178421]\n\n\nCreated cri-o:1.22/cri-tools tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178422]\n\n\nCreated cri-o:1.23/cri-o tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178423]\n\n\nCreated cri-o:1.23/cri-tools tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178424]\n\n\nCreated cri-o:1.24/cri-o tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178425]\n\n\nCreated cri-o:1.24/cri-tools tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178426]\n\n\nCreated cri-o:1.25/cri-o tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178427]\n\n\nCreated cri-o:1.25/cri-tools tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178428]\n\n\nCreated cri-tools tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178429]\n\n\nCreated dnsx tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178430]\n\n\nCreated doctl tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178431]\n\n\nCreated etcd tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178432]\n\n\nCreated gh tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178433]\n\n\nCreated gmailctl tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178434]\n\n\nCreated golang-github-acme-lego tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178435]\n\n\nCreated golang-github-containerd-fuse-overlayfs-snapshotter tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178436]\n\n\nCreated golang-github-deepmap-oapi-codegen tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178437]\n\n\nCreated golang-github-googlecloudplatform-cloudsql-proxy tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178438]\n\n\nCreated golang-github-grpc-ecosystem-gateway tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178439]\n\n\nCreated golang-github-grpc-ecosystem-gateway-2 tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178440]\n\n\nCreated golang-github-in-toto tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178441]\n\n\nCreated golang-github-moby-buildkit tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178442]\n\n\nCreated golang-github-moby-swarmkit-2 tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178443]\n\n\nCreated golang-github-projectdiscovery-chaos-client tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178444]\n\n\nCreated golang-github-prometheus tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178445]\n\n\nCreated golang-github-prometheus-alertmanager tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178446]\n\n\nCreated golang-github-prometheus-node-exporter tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178447]\n\n\nCreated golang-github-skynetservices-skydns tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178448]\n\n\nCreated golang-github-theupdateframework-notary tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178449]\n\n\nCreated golang-gvisor tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178450]\n\n\nCreated golang-helm-3 tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178451]\n\n\nCreated golang-k8s-apiextensions-apiserver tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178452]\n\n\nCreated golang-k8s-kube-aggregator tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178453]\n\n\nCreated golang-k8s-pod-security-admission tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178454]\n\n\nCreated golang-k8s-sample-apiserver tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178455]\n\n\nCreated golang-k8s-sample-cli-plugin tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178456]\n\n\nCreated golang-k8s-sample-controller tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178457]\n\n\nCreated golang-sigs-k8s-application tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178459]\n\n\nCreated golang-sigs-k8s-aws-iam-authenticator tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178461]\n\n\nCreated golang-vitess tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178462]\n\n\nCreated golang-x-net tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178463]\n\n\nCreated golang-x-perf tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178464]\n\n\nCreated google-guest-agent tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178465]\n\n\nCreated grafana tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178467]\n\n\nCreated grafana-pcp tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178469]\n\n\nCreated grpcurl tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178471]\n\n\nCreated hugo tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178473]\n\n\nCreated ignition tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178474]\n\n\nCreated kompose tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178475]\n\n\nCreated origin tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178476]\n\n\nCreated osbuild-composer tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178477]\n\n\nCreated podman tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178478]\n\n\nCreated podman-tui tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178479]\n\n\nCreated rclone tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178480]\n\n\nCreated reg tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178481]\n\n\nCreated skopeo tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178482]\n\n\nCreated source-to-image tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178483]\n\n\nCreated stargz-snapshotter tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178484]\n\n\nCreated yggdrasil tracking bugs for this issue:\n\nAffects: fedora-all [bug 2178485]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17118099",
+								"comment_count": "3",
+								"who": {
+									"text": "ahanwate",
+									"name": "Avinash Hanwate"
+								},
+								"bug_when": "2023-03-15 04:56:19 +0000",
+								"thetext": "Created etcd tracking bugs for this issue:\n\nAffects: openstack-rdo [bug 2178489]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17295981",
+								"comment_count": "26",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-05-17 22:31:33 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.13\n\nVia RHSA-2023:1326 https://access.redhat.com/errata/RHSA-2023:1326"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17296072",
+								"comment_count": "27",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-05-17 22:53:50 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.13\n\nVia RHSA-2023:1325 https://access.redhat.com/errata/RHSA-2023:1325"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17297897",
+								"comment_count": "30",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-05-18 11:34:39 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Cryostat 2 on RHEL 8\n\nVia RHSA-2023:3167 https://access.redhat.com/errata/RHSA-2023:3167"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17334886",
+								"comment_count": "31",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-05-30 12:01:46 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.13\n\nVia RHSA-2023:3305 https://access.redhat.com/errata/RHSA-2023:3305"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17336305",
+								"comment_count": "32",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-05-30 20:13:57 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.13\n\nVia RHSA-2023:3304 https://access.redhat.com/errata/RHSA-2023:3304"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17360232",
+								"comment_count": "34",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-06-05 14:08:01 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenStack Platform 16.2\n\nVia RHSA-2023:3445 https://access.redhat.com/errata/RHSA-2023:3445"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17360521",
+								"comment_count": "35",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-06-05 14:46:11 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenStack Platform 16.1\n\nVia RHSA-2023:3447 https://access.redhat.com/errata/RHSA-2023:3447"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17360898",
+								"comment_count": "37",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-06-05 16:44:15 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Openshift Serverless 1 on RHEL 8\n\nVia RHSA-2023:3450 https://access.redhat.com/errata/RHSA-2023:3450"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17362524",
+								"comment_count": "38",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-06-05 23:42:45 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHOSS-1.29-RHEL-8\n\nVia RHSA-2023:3455 https://access.redhat.com/errata/RHSA-2023:3455"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17368324",
+								"comment_count": "39",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-06-07 01:50:41 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.13\n\nVia RHSA-2023:3367 https://access.redhat.com/errata/RHSA-2023:3367"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17383955",
+								"comment_count": "40",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-06-12 19:08:54 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHOL-5.7-RHEL-8\n\nVia RHSA-2023:3495 https://access.redhat.com/errata/RHSA-2023:3495"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17385998",
+								"comment_count": "41",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-06-13 13:10:30 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.13\n\nVia RHSA-2023:3537 https://access.redhat.com/errata/RHSA-2023:3537"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17390542",
+								"comment_count": "44",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-06-15 00:14:56 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  OpenShift Developer Tools and Services for OCP 4.12\n\nVia RHSA-2023:3610 https://access.redhat.com/errata/RHSA-2023:3610"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17407324",
+								"comment_count": "45",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-06-22 12:16:25 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.13\n\nVia RHSA-2023:3614 https://access.redhat.com/errata/RHSA-2023:3614"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17408311",
+								"comment_count": "46",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-06-22 19:52:22 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHODF-4.13-RHEL-9\n\nVia RHSA-2023:3742 https://access.redhat.com/errata/RHSA-2023:3742"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17420906",
+								"comment_count": "47",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-06-29 00:59:04 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  OADP-1.1-RHEL-8\n\nVia RHSA-2023:3918 https://access.redhat.com/errata/RHSA-2023:3918"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17422522",
+								"comment_count": "48",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-06-29 14:32:32 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHACS-4.1-RHEL-8\n\nVia RHSA-2023:3943 https://access.redhat.com/errata/RHSA-2023:3943"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17443816",
+								"comment_count": "51",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-07-10 08:51:14 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Service Interconnect 1 for RHEL 8\n  Service Interconnect 1 for RHEL 9\n\nVia RHSA-2023:4003 https://access.redhat.com/errata/RHSA-2023:4003"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17462312",
+								"comment_count": "53",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-07-17 16:29:44 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Service Mesh 2.2 for RHEL 8\n\nVia RHSA-2023:4112 https://access.redhat.com/errata/RHSA-2023:4112"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17462313",
+								"comment_count": "54",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-07-17 16:29:49 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Service Mesh 2.3 for RHEL 8\n\nVia RHSA-2023:4113 https://access.redhat.com/errata/RHSA-2023:4113"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17472312",
+								"comment_count": "56",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-07-20 16:20:25 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.13\n\nVia RHSA-2023:4090 https://access.redhat.com/errata/RHSA-2023:4090"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17472403",
+								"comment_count": "57",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-07-20 17:10:59 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.13\n\nVia RHSA-2023:4091 https://access.redhat.com/errata/RHSA-2023:4091"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17488835",
+								"comment_count": "59",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-07-27 00:28:37 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.13\n\nVia RHSA-2023:4225 https://access.redhat.com/errata/RHSA-2023:4225"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17488886",
+								"comment_count": "60",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-07-27 01:10:03 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.13\n\nVia RHSA-2023:4226 https://access.redhat.com/errata/RHSA-2023:4226"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17488888",
+								"comment_count": "61",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-07-27 01:13:59 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Migration Toolkit for Containers 1.7\n\nVia RHSA-2023:4293 https://access.redhat.com/errata/RHSA-2023:4293"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17518207",
+								"comment_count": "64",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-08-08 00:36:19 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  CERT-MANAGER-1.10-RHEL-9\n\nVia RHSA-2023:4335 https://access.redhat.com/errata/RHSA-2023:4335"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17519537",
+								"comment_count": "75",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-08-08 11:17:37 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.13\n\nVia RHSA-2023:4456 https://access.redhat.com/errata/RHSA-2023:4456"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17533886",
+								"comment_count": "77",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-08-14 01:02:34 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  MTA-6.2-RHEL-9\n  MTA-6.2-RHEL-8\n\nVia RHSA-2023:4627 https://access.redhat.com/errata/RHSA-2023:4627"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17539914",
+								"comment_count": "80",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-08-16 00:38:03 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.13\n\nVia RHSA-2023:4603 https://access.redhat.com/errata/RHSA-2023:4603"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17544013",
+								"comment_count": "81",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-08-16 14:09:29 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHEL-9-CNV-4.13\n\nVia RHSA-2023:4664 https://access.redhat.com/errata/RHSA-2023:4664"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17578288",
+								"comment_count": "84",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-08-30 19:21:00 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.13\n\nVia RHSA-2023:4731 https://access.redhat.com/errata/RHSA-2023:4731"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17646518",
+								"comment_count": "86",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-09-19 11:41:57 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHEL-9-CNV-4.13\n\nVia RHSA-2023:5233 https://access.redhat.com/errata/RHSA-2023:5233"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17650153",
+								"comment_count": "87",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-09-20 15:43:14 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  OADP-1.1-RHEL-8\n\nVia RHSA-2023:5314 https://access.redhat.com/errata/RHSA-2023:5314"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17705031",
+								"comment_count": "88",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-10-17 18:07:19 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.13\n\nVia RHSA-2023:5672 https://access.redhat.com/errata/RHSA-2023:5672"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17726981",
+								"comment_count": "90",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-10-31 12:54:33 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.14\n\nVia RHSA-2023:5006 https://access.redhat.com/errata/RHSA-2023:5006"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17727058",
+								"comment_count": "91",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-10-31 13:45:26 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat OpenShift Container Platform 4.14\n\nVia RHSA-2023:5007 https://access.redhat.com/errata/RHSA-2023:5007"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17728937",
+								"comment_count": "92",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-01 12:04:37 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHEL-9-CNV-4.13\n\nVia RHSA-2023:6235 https://access.redhat.com/errata/RHSA-2023:6235"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17729171",
+								"comment_count": "93",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-01 14:42:23 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHEL-8-CNV-4.12\n\nVia RHSA-2023:6248 https://access.redhat.com/errata/RHSA-2023:6248"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17729391",
+								"comment_count": "94",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-01 16:14:44 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHEL-8-CNV-4.11\n\nVia RHSA-2023:6251 https://access.redhat.com/errata/RHSA-2023:6251"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17740825",
+								"comment_count": "95",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-07 08:13:21 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 9\n\nVia RHSA-2023:6346 https://access.redhat.com/errata/RHSA-2023:6346"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17740834",
+								"comment_count": "96",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-07 08:13:43 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 9\n\nVia RHSA-2023:6363 https://access.redhat.com/errata/RHSA-2023:6363"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17740863",
+								"comment_count": "97",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-07 08:15:38 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 9\n\nVia RHSA-2023:6402 https://access.redhat.com/errata/RHSA-2023:6402"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17740897",
+								"comment_count": "98",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-07 08:16:56 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 9\n\nVia RHSA-2023:6473 https://access.redhat.com/errata/RHSA-2023:6473"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17740908",
+								"comment_count": "99",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-07 08:17:24 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 9\n\nVia RHSA-2023:6474 https://access.redhat.com/errata/RHSA-2023:6474"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17747637",
+								"comment_count": "100",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-08 18:49:20 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHODF-4.14-RHEL-9\n\nVia RHSA-2023:6832 https://access.redhat.com/errata/RHSA-2023:6832"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17757704",
+								"comment_count": "101",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-14 15:16:19 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2023:6938 https://access.redhat.com/errata/RHSA-2023:6938"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17757721",
+								"comment_count": "102",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-14 15:16:59 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2023:6939 https://access.redhat.com/errata/RHSA-2023:6939"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17757800",
+								"comment_count": "103",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-14 15:19:48 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2023:7058 https://access.redhat.com/errata/RHSA-2023:7058"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17117980",
+						"comment_count": "0",
+						"who": {
+							"text": "ahanwate",
+							"name": "Avinash Hanwate"
+						},
+						"bug_when": "2023-03-15 04:28:20 +0000",
+						"thetext": "\nMore information about this security flaw is available in the following bug:\n\nhttp://bugzilla.redhat.com/show_bug.cgi?id=2178358\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17117981",
+						"comment_count": "1",
+						"who": {
+							"text": "ahanwate",
+							"name": "Avinash Hanwate"
+						},
+						"bug_when": "2023-03-15 04:28:22 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2178358,2178433\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17183736",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-04-11 18:28:21 +0000",
+						"thetext": "FEDORA-2023-cb20f08a4e has been submitted as an update to Fedora 37. https://bodhi.fedoraproject.org/updates/FEDORA-2023-cb20f08a4e"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17184518",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-04-12 02:43:04 +0000",
+						"thetext": "FEDORA-2023-cb20f08a4e has been pushed to the Fedora 37 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --refresh --advisory=FEDORA-2023-cb20f08a4e`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2023-cb20f08a4e\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17203089",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-04-20 02:53:30 +0000",
+						"thetext": "FEDORA-2023-cb20f08a4e has been pushed to the Fedora 37 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "gh-2.27.0-1.fc37",
+			"release_id": 62,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "gh",
+						"version": "2.27.0",
+						"release": "1.fc37",
+						"arch": "aarch64"
+					},
+					{
+						"name": "gh-debuginfo",
+						"version": "2.27.0",
+						"release": "1.fc37",
+						"arch": "aarch64"
+					},
+					{
+						"name": "gh-debugsource",
+						"version": "2.27.0",
+						"release": "1.fc37",
+						"arch": "aarch64"
+					}
+				],
+				"noarch": [
+					{
+						"name": "golang-github-cli-2-devel",
+						"version": "2.27.0",
+						"release": "1.fc37",
+						"arch": "noarch"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "gh-debuginfo",
+						"version": "2.27.0",
+						"release": "1.fc37",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "gh-debugsource",
+						"version": "2.27.0",
+						"release": "1.fc37",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "gh",
+						"version": "2.27.0",
+						"release": "1.fc37",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "gh",
+						"version": "2.27.0",
+						"release": "1.fc37",
+						"arch": "s390x"
+					},
+					{
+						"name": "gh-debuginfo",
+						"version": "2.27.0",
+						"release": "1.fc37",
+						"arch": "s390x"
+					},
+					{
+						"name": "gh-debugsource",
+						"version": "2.27.0",
+						"release": "1.fc37",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "gh",
+						"version": "2.27.0",
+						"release": "1.fc37",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "gh-debuginfo",
+						"version": "2.27.0",
+						"release": "1.fc37",
+						"arch": "x86_64"
+					},
+					{
+						"name": "gh",
+						"version": "2.27.0",
+						"release": "1.fc37",
+						"arch": "x86_64"
+					},
+					{
+						"name": "gh-debugsource",
+						"version": "2.27.0",
+						"release": "1.fc37",
+						"arch": "x86_64"
+					}
+				]
+			}
+		},
+		{
+			"epoch": 0,
+			"nvr": "golang-github-cenkalti-backoff-4.2.0-2.fc37",
+			"release_id": 62,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "golang-github-cenkalti-backoff-devel",
+						"version": "4.2.0",
+						"release": "2.fc37",
+						"arch": "noarch"
+					},
+					{
+						"name": "compat-golang-github-cenkalti-backoff-4-devel",
+						"version": "4.2.0",
+						"release": "2.fc37",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "golang-github-cenkalti-backoff",
+						"version": "4.2.0",
+						"release": "2.fc37",
+						"arch": "src"
+					}
+				]
+			}
+		},
+		{
+			"epoch": 0,
+			"nvr": "golang-github-cli-crypto-0-0.2.20230331git6be313f.fc37",
+			"release_id": 62,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "golang-github-cli-crypto-devel",
+						"version": "0",
+						"release": "0.2.20230331git6be313f.fc37",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "golang-github-cli-crypto",
+						"version": "0",
+						"release": "0.2.20230331git6be313f.fc37",
+						"arch": "src"
+					}
+				]
+			}
+		},
+		{
+			"epoch": 0,
+			"nvr": "golang-github-cli-gh-1.2.1-2.fc37",
+			"release_id": 62,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "golang-github-cli-gh-devel",
+						"version": "1.2.1",
+						"release": "2.fc37",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "golang-github-cli-gh",
+						"version": "1.2.1",
+						"release": "2.fc37",
+						"arch": "src"
+					}
+				]
+			}
+		},
+		{
+			"epoch": 0,
+			"nvr": "golang-github-cli-oauth-1.0.1-2.fc37",
+			"release_id": 62,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "golang-github-cli-oauth-devel",
+						"version": "1.0.1",
+						"release": "2.fc37",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "golang-github-cli-oauth",
+						"version": "1.0.1",
+						"release": "2.fc37",
+						"arch": "src"
+					}
+				]
+			}
+		},
+		{
+			"epoch": 0,
+			"nvr": "golang-github-gabriel-vasile-mimetype-1.4.2-1.fc37",
+			"release_id": 62,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "golang-github-gabriel-vasile-mimetype-devel",
+						"version": "1.4.2",
+						"release": "1.fc37",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "golang-github-gabriel-vasile-mimetype",
+						"version": "1.4.2",
+						"release": "1.fc37",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 2982407,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2023-04-11 18:28:16",
+			"update_id": 501954,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2982408,
+			"text": "This update has been submitted for testing by bodhi. ",
+			"timestamp": "2023-04-11 18:29:06",
+			"update_id": 501954,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2982409,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2023-04-11 18:29:06",
+			"update_id": 501954,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2982963,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2023-04-12 02:43:29",
+			"update_id": 501954,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2990731,
+			"karma": 1,
+			"text": "Working fine!",
+			"timestamp": "2023-04-17 11:33:10",
+			"update_id": 501954,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/fbb28238d8e88f4a6ca70e8409ab425f0139e2596b4f9c411d1da55f4c4fe3c1?s=24&d=retro",
+				"email": "mhayden@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "fesco"
+					},
+					{
+						"name": "gitfedora-security-team"
+					},
+					{
+						"name": "aws-fedora-ci"
+					},
+					{
+						"name": "cloud-sig"
+					}
+				],
+				"id": 536,
+				"name": "mhayden",
+				"openid": "mhayden.id.fedoraproject.org"
+			},
+			"user_id": 536
+		},
+		{
+			"id": 2992616,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2023-04-19 02:43:07",
+			"update_id": 501954,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2993796,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2023-04-20 02:54:11",
+			"update_id": 501954,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath_groups": "",
+	"date_approved": "2023-04-19 02:43:05",
+	"date_pushed": "2023-04-20 02:53:04",
+	"date_stable": "2023-04-20 02:53:04",
+	"date_submitted": "2023-04-11 18:28:16",
+	"date_testing": "2023-04-12 02:42:25",
+	"from_tag": "f37-build-side-66230",
+	"karma": 1,
+	"meets_testing_requirements": true,
+	"notes": "Update `gh` to 2.27.0",
+	"pushed": true,
+	"release": {
+		"branch": "f37",
+		"candidate_tag": "f37-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f37",
+		"eol": "2023-12-05",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 37",
+		"mail_template": "fedora_errata_template",
+		"name": "F37",
+		"override_tag": "f37-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f37-signing-pending",
+		"pending_stable_tag": "f37-updates-pending",
+		"pending_testing_tag": "f37-updates-testing-pending",
+		"stable_tag": "f37-updates",
+		"state": "current",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f37-updates-testing",
+		"version": "37"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "high",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "gh-2.27.0-1.fc37 golang-github-cenkalti-backoff-4.2.0-2.fc37 golang-github-cli-crypto-0-0.2.20230331git6be313f.fc37 golang-github-cli-gh-1.2.1-2.fc37 golang-github-cli-oauth-1.0.1-2.fc37 golang-github-gabriel-vasile-mimetype-1.4.2-1.fc37",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2023-cb20f08a4e",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2023-cb20f08a4e",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/dd0c8d57c11abcb45b6aa01206fe9429ae22ca8ad99fbe46f31550f156be5e49?s=24&d=retro",
+		"email": "mikel@olasagasti.info",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "go-sig"
+			}
+		],
+		"id": 5300,
+		"name": "mikelo2",
+		"openid": "mikelo2.id.fedoraproject.org"
+	},
+	"version_hash": "a002895b6dc359fe06a91af42232ba33c7a75b13"
+}

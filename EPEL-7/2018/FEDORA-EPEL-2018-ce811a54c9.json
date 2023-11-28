@@ -1,0 +1,829 @@
+{
+	"alias": "FEDORA-EPEL-2018-ce811a54c9",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1449517,
+			"title": "README.rpm is bad name for readme file",
+			"bugzilla": {
+				"bug_id": "1449517",
+				"creation_ts": "2017-05-10 08:24:36 +0000",
+				"short_desc": "README.rpm is bad name for readme file",
+				"delta_ts": "2018-05-23 15:29:24 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1449790",
+						"creation_ts": "2017-05-10 16:59:19 +0000",
+						"short_desc": "README.rpm is bad name for readme file",
+						"delta_ts": "2017-06-09 18:59:36 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"priority": "unspecified",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1449517"
+						],
+						"blocked": [
+							{
+								"bug_id": "1450277",
+								"creation_ts": "2017-05-12 06:56:36 +0000",
+								"short_desc": "`rpm -qp  README.rpm` hangs  when the 'README.rpm' is text file",
+								"delta_ts": "2017-05-12 10:33:31 +0000",
+								"bug_status": "CLOSED",
+								"resolution": "UPSTREAM",
+								"priority": "unspecified",
+								"bug_severity": "medium",
+								"depends_on": [
+									"1449517",
+									"1449790"
+								],
+								"long_desc": [
+									{
+										"isprivate": "0",
+										"commentid": "10406589",
+										"comment_count": "0",
+										"who": {
+											"text": "praiskup",
+											"name": "Pavel Raiskup"
+										},
+										"bug_when": "2017-05-12 06:56:36 +0000",
+										"thetext": "Created attachment 1278076\nExample file\n\nThe /usr/share/doc/roundcubemail/README.rpm text file is attached.\n\nThis is what I get:\n\n    $ rpm -qp  /tmp/README.rpm \n    error: open of Additional failed: No such file or directory\n    error: open of installation failed: No such file or directory\n    error: open of and failed: No such file or directory\n    error: open of update failed: No such file or directory\n    error: open of information: failed: No such file or directory\n    error: open of Upstream failed: No such file or directory\n    error: open of documentation: failed: No such file or directory\n    ^Cerror: open of http://trac.roundcube.net/wiki failed: Interrupted\n    system call\n    error: open of Notice failed: No such file or directory\n    ^C^C^C^C^C^C^C^C^C^C^C^C^C^C^C^Z\n    [2]+  Stopped                 rpm -qp /tmp/README.rpm\n    $ killall -9 rpm\n    [2]+  Killed                  rpm -qp /tmp/README.rpm\n\nSeems like rpm is also trying to reach internet?\n\n\n+++ This bug was initially created as a clone of Bug #1449790 +++\n+++ This bug was initially created as a clone of Bug #1449517 +++"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "10406880",
+										"comment_count": "1",
+										"who": {
+											"text": "ffesti",
+											"name": "Florian Festi"
+										},
+										"bug_when": "2017-05-12 08:54:21 +0000",
+										"thetext": "Well, works as intended ... ehm ... may be ...\n\nRPM allows passing manifest files at the command line. These files are supposed to contain file names of packages or other manifest files.\n\nSo rpm tries to open all these \"file names\".\n\nAs far as I can see it does not try to access the internet but tries to open the URL as a file name (and fails).\n\nThere seems to be an issue with rpm treating the \"-\" from the file as stdin. This results in rpm waiting for the user to type in more package names. Removing all the standalone \"-\" signs makes rpm go through the file without stopping.\n\nUpstream has a few more checks in place now rejecting the file right away. There also is some code to not open stdin on encountering \"-\"."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "10407025",
+										"comment_count": "2",
+										"who": {
+											"text": "praiskup",
+											"name": "Pavel Raiskup"
+										},
+										"bug_when": "2017-05-12 09:48:52 +0000",
+										"thetext": "> As far as I can see it does not try to access the internet but tries to open\n> the URL as a file name (and fails).\n\n$ strace -e execve -f rpm -qp /tmp/README.rpm\n....\nstrace: Process 31757 attached\n[pid 31757] execve(\"/usr/bin/curl\", [\"/usr/bin/curl\", \"--silent\", \"--show-error\", \"--fail\", \"--globoff\", \"--location\", \"-o\", \"/var/tmp/rpm-tmp.lQSoq1\", \"http://trac.roundcube.net/wiki\"], [/* 90 vars */]) = 0\n....\nstrace: Process 31760 attached\n[pid 31760] execve(\"/usr/bin/curl\", [\"/usr/bin/curl\", \"--silent\", \"--show-error\", \"--fail\", \"--globoff\", \"--location\", \"-o\", \"/var/tmp/rpm-tmp.rhKYfQ\", \"http://trac.roundcube.net/wiki\"], [/* 90 vars */]) = 0\n....\n\n> Upstream has a few more checks in place now rejecting the file right\n> away. There also is some code to not open stdin on encountering \"-\".\n\nOk, good to know.  What is your suggestion for the 'less' (bug 1449790)\nissue?  Can I detect (without file) that \"README.rpm\" is manifest file,\nand open the file as text file (without using file)?  Thanks!"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "10407078",
+										"comment_count": "3",
+										"who": {
+											"text": "ffesti",
+											"name": "Florian Festi"
+										},
+										"bug_when": "2017-05-12 10:08:46 +0000",
+										"thetext": "I think this is the wrong question. The manifest files are not supposed to end with .rpm. So the issue here is not detecting manifest files names *.rpm but detecting any improper files named *.rpm. There has been a lot of work improving file checks upstream (by Panu mostly).\n\nProper manifest files can and should end with .txt or something like that. So they already should be listed correctly.\n\nSo the right answer here is rpm becoming more robust when being passed garbage. This is something happening right now.\n\nWrt less: Using file instead of the ending alone would make things more robust. There is no real way around that other that reimplementing the check used by file: looking for the magic bytes at the beginning of an rpm package."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "10407152",
+										"comment_count": "4",
+										"who": {
+											"text": "praiskup",
+											"name": "Pavel Raiskup"
+										},
+										"bug_when": "2017-05-12 10:32:11 +0000",
+										"thetext": "> Proper manifest files can and should end with .txt or something like that. So\n> they already should be listed correctly.\n\nAh, OK.  Then it should be safe to do 'rpm -qp --nomanifest', do I get it right?"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "10407159",
+										"comment_count": "5",
+										"who": {
+											"text": "ffesti",
+											"name": "Florian Festi"
+										},
+										"bug_when": "2017-05-12 10:33:31 +0000",
+										"thetext": "yes."
+									}
+								]
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "10401516",
+								"comment_count": "0",
+								"who": {
+									"text": "praiskup",
+									"name": "Pavel Raiskup"
+								},
+								"bug_when": "2017-05-10 16:59:19 +0000",
+								"thetext": "+++ This bug was initially created as a clone of Bug #1449517 +++\n\nDescription of problem:\n\nless /usr/share/doc/roundcubemail-1.1.9/README.rpm\n\nlesspipe.sh invokes rpm to parse README.rpm file and rpm hangs so badly you can't even terminate it from same terminal.\n\nPlease rename the file to something which doesn't have .rpm extension. I'd suggest README.rpm-install.\n\nFedora version has exactly same problem so I suggest fixing this same issue there too.\n\n--- Additional comment from Remi Collet on 2017-05-10 11:43:20 CEST ---\n\nI plan to fix this minor issue during next update\n\nAlready fixed in my repo, used as upstream for Fedora:\nhttps://git.remirepo.net/cgit/rpms/roundcubemail.git/commit/?id=a0d08f6587f09706a221dcf327ab96b84164c2e7\n\n--- Additional comment from Remi Collet on 2017-05-10 12:07:14 CEST ---\n\nAdding less maintained to CC, as this probably other packages (.rpm was quite commonly used name for readme file, since .fedora was discouraged)\n\nCould be nice, if this can be fixed globally on \"less\" side.\n\n--- Additional comment from Tuomo Soini on 2017-05-10 12:12:47 CEST ---\n\nActually dnf only found some other pakcages with same issue on F25.\n\ncyrus-imapd\niipsrv\nmozldap\nslrn-pull\n\n--- Additional comment from Pavel Raiskup on 2017-05-10 14:51:35 CEST ---\n\nFWIW: In PostgreSQL packaging, we use 'README.rpmdist'."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10401556",
+								"comment_count": "1",
+								"who": {
+									"text": "tis",
+									"name": "Tuomo Soini"
+								},
+								"bug_when": "2017-05-10 17:25:12 +0000",
+								"thetext": "lesspipe.sh already uses file - maybe it should use file command to find out if files are actually desired file type?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10417303",
+								"comment_count": "2",
+								"who": {
+									"text": "praiskup",
+									"name": "Pavel Raiskup"
+								},
+								"bug_when": "2017-05-16 14:56:15 +0000",
+								"thetext": "Based on discussion with Kevin, I added the --nomanifest option into\nlesspipe.sh:\nhttp://pkgs.fedoraproject.org/cgit/rpms/less.git/commit/?id=f32e1da3d76fa34a53cd"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10417309",
+								"comment_count": "3",
+								"who": {
+									"text": "praiskup",
+									"name": "Pavel Raiskup"
+								},
+								"bug_when": "2017-05-16 14:57:24 +0000",
+								"thetext": "> Based on discussion with Kevin\n\nSorry, I meant Florian -> in bug 1450277.  Thanks!"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10417361",
+								"comment_count": "4",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2017-05-16 15:06:56 +0000",
+								"thetext": "less-481-7.fc25 has been submitted as an update to Fedora 25. https://bodhi.fedoraproject.org/updates/FEDORA-2017-6b8e25a859"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10417364",
+								"comment_count": "5",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2017-05-16 15:07:29 +0000",
+								"thetext": "less-487-3.fc26 has been submitted as an update to Fedora 26. https://bodhi.fedoraproject.org/updates/FEDORA-2017-46cca25356"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10422404",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2017-05-17 19:07:40 +0000",
+								"thetext": "less-487-3.fc26 has been pushed to the Fedora 26 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2017-46cca25356"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10423339",
+								"comment_count": "7",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2017-05-17 23:11:57 +0000",
+								"thetext": "less-481-7.fc25 has been pushed to the Fedora 25 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2017-6b8e25a859"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10427986",
+								"comment_count": "8",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2017-05-19 08:00:25 +0000",
+								"thetext": "less-481-7.fc25 has been pushed to the Fedora 25 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10494025",
+								"comment_count": "9",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2017-06-09 18:59:36 +0000",
+								"thetext": "less-487-3.fc26 has been pushed to the Fedora 26 stable repository. If problems still persist, please make note of it in this bug report."
+							}
+						]
+					},
+					{
+						"bug_id": "1450277",
+						"creation_ts": "2017-05-12 06:56:36 +0000",
+						"short_desc": "`rpm -qp  README.rpm` hangs  when the 'README.rpm' is text file",
+						"delta_ts": "2017-05-12 10:33:31 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "UPSTREAM",
+						"priority": "unspecified",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1449517",
+							"1449790"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "10406589",
+								"comment_count": "0",
+								"who": {
+									"text": "praiskup",
+									"name": "Pavel Raiskup"
+								},
+								"bug_when": "2017-05-12 06:56:36 +0000",
+								"thetext": "Created attachment 1278076\nExample file\n\nThe /usr/share/doc/roundcubemail/README.rpm text file is attached.\n\nThis is what I get:\n\n    $ rpm -qp  /tmp/README.rpm \n    error: open of Additional failed: No such file or directory\n    error: open of installation failed: No such file or directory\n    error: open of and failed: No such file or directory\n    error: open of update failed: No such file or directory\n    error: open of information: failed: No such file or directory\n    error: open of Upstream failed: No such file or directory\n    error: open of documentation: failed: No such file or directory\n    ^Cerror: open of http://trac.roundcube.net/wiki failed: Interrupted\n    system call\n    error: open of Notice failed: No such file or directory\n    ^C^C^C^C^C^C^C^C^C^C^C^C^C^C^C^Z\n    [2]+  Stopped                 rpm -qp /tmp/README.rpm\n    $ killall -9 rpm\n    [2]+  Killed                  rpm -qp /tmp/README.rpm\n\nSeems like rpm is also trying to reach internet?\n\n\n+++ This bug was initially created as a clone of Bug #1449790 +++\n+++ This bug was initially created as a clone of Bug #1449517 +++"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10406880",
+								"comment_count": "1",
+								"who": {
+									"text": "ffesti",
+									"name": "Florian Festi"
+								},
+								"bug_when": "2017-05-12 08:54:21 +0000",
+								"thetext": "Well, works as intended ... ehm ... may be ...\n\nRPM allows passing manifest files at the command line. These files are supposed to contain file names of packages or other manifest files.\n\nSo rpm tries to open all these \"file names\".\n\nAs far as I can see it does not try to access the internet but tries to open the URL as a file name (and fails).\n\nThere seems to be an issue with rpm treating the \"-\" from the file as stdin. This results in rpm waiting for the user to type in more package names. Removing all the standalone \"-\" signs makes rpm go through the file without stopping.\n\nUpstream has a few more checks in place now rejecting the file right away. There also is some code to not open stdin on encountering \"-\"."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10407025",
+								"comment_count": "2",
+								"who": {
+									"text": "praiskup",
+									"name": "Pavel Raiskup"
+								},
+								"bug_when": "2017-05-12 09:48:52 +0000",
+								"thetext": "> As far as I can see it does not try to access the internet but tries to open\n> the URL as a file name (and fails).\n\n$ strace -e execve -f rpm -qp /tmp/README.rpm\n....\nstrace: Process 31757 attached\n[pid 31757] execve(\"/usr/bin/curl\", [\"/usr/bin/curl\", \"--silent\", \"--show-error\", \"--fail\", \"--globoff\", \"--location\", \"-o\", \"/var/tmp/rpm-tmp.lQSoq1\", \"http://trac.roundcube.net/wiki\"], [/* 90 vars */]) = 0\n....\nstrace: Process 31760 attached\n[pid 31760] execve(\"/usr/bin/curl\", [\"/usr/bin/curl\", \"--silent\", \"--show-error\", \"--fail\", \"--globoff\", \"--location\", \"-o\", \"/var/tmp/rpm-tmp.rhKYfQ\", \"http://trac.roundcube.net/wiki\"], [/* 90 vars */]) = 0\n....\n\n> Upstream has a few more checks in place now rejecting the file right\n> away. There also is some code to not open stdin on encountering \"-\".\n\nOk, good to know.  What is your suggestion for the 'less' (bug 1449790)\nissue?  Can I detect (without file) that \"README.rpm\" is manifest file,\nand open the file as text file (without using file)?  Thanks!"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10407078",
+								"comment_count": "3",
+								"who": {
+									"text": "ffesti",
+									"name": "Florian Festi"
+								},
+								"bug_when": "2017-05-12 10:08:46 +0000",
+								"thetext": "I think this is the wrong question. The manifest files are not supposed to end with .rpm. So the issue here is not detecting manifest files names *.rpm but detecting any improper files named *.rpm. There has been a lot of work improving file checks upstream (by Panu mostly).\n\nProper manifest files can and should end with .txt or something like that. So they already should be listed correctly.\n\nSo the right answer here is rpm becoming more robust when being passed garbage. This is something happening right now.\n\nWrt less: Using file instead of the ending alone would make things more robust. There is no real way around that other that reimplementing the check used by file: looking for the magic bytes at the beginning of an rpm package."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10407152",
+								"comment_count": "4",
+								"who": {
+									"text": "praiskup",
+									"name": "Pavel Raiskup"
+								},
+								"bug_when": "2017-05-12 10:32:11 +0000",
+								"thetext": "> Proper manifest files can and should end with .txt or something like that. So\n> they already should be listed correctly.\n\nAh, OK.  Then it should be safe to do 'rpm -qp --nomanifest', do I get it right?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10407159",
+								"comment_count": "5",
+								"who": {
+									"text": "ffesti",
+									"name": "Florian Festi"
+								},
+								"bug_when": "2017-05-12 10:33:31 +0000",
+								"thetext": "yes."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10399387",
+						"comment_count": "0",
+						"who": {
+							"text": "tis",
+							"name": "Tuomo Soini"
+						},
+						"bug_when": "2017-05-10 08:24:36 +0000",
+						"thetext": "Description of problem:\n\nless /usr/share/doc/roundcubemail-1.1.9/README.rpm\n\nlesspipe.sh invokes rpm to parse README.rpm file and rpm hangs so badly you can't even terminate it from same terminal.\n\nPlease rename the file to something which doesn't have .rpm extension. I'd suggest README.rpm-install.\n\nFedora version has exactly same problem so I suggest fixing this same issue there too."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10399652",
+						"comment_count": "1",
+						"who": {
+							"text": "fedora",
+							"name": "Remi Collet"
+						},
+						"bug_when": "2017-05-10 09:43:20 +0000",
+						"thetext": "I plan to fix this minor issue during next update\n\nAlready fixed in my repo, used as upstream for Fedora:\nhttps://git.remirepo.net/cgit/rpms/roundcubemail.git/commit/?id=a0d08f6587f09706a221dcf327ab96b84164c2e7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10399721",
+						"comment_count": "2",
+						"who": {
+							"text": "fedora",
+							"name": "Remi Collet"
+						},
+						"bug_when": "2017-05-10 10:07:14 +0000",
+						"thetext": "Adding less maintained to CC, as this probably other packages (.rpm was quite commonly used name for readme file, since .fedora was discouraged)\n\nCould be nice, if this can be fixed globally on \"less\" side."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10399748",
+						"comment_count": "3",
+						"who": {
+							"text": "tis",
+							"name": "Tuomo Soini"
+						},
+						"bug_when": "2017-05-10 10:12:47 +0000",
+						"thetext": "Actually dnf only found some other pakcages with same issue on F25.\n\ncyrus-imapd\niipsrv\nmozldap\nslrn-pull"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10400489",
+						"comment_count": "4",
+						"who": {
+							"text": "praiskup",
+							"name": "Pavel Raiskup"
+						},
+						"bug_when": "2017-05-10 12:51:35 +0000",
+						"thetext": "FWIW: In PostgreSQL packaging, we use 'README.rpmdist'."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10561970",
+						"comment_count": "5",
+						"who": {
+							"text": "fedora",
+							"name": "Remi Collet"
+						},
+						"bug_when": "2017-07-03 14:39:41 +0000",
+						"thetext": "Fixed in master with rouncubemail 1.3"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11550288",
+						"comment_count": "6",
+						"who": {
+							"text": "tis",
+							"name": "Tuomo Soini"
+						},
+						"bug_when": "2018-05-02 18:59:48 +0000",
+						"thetext": "Please fix for epel too."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11551538",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-03 05:00:39 +0000",
+						"thetext": "roundcubemail-1.1.12-2.el7 has been submitted as an update to Fedora EPEL 7. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2018-ce811a54c9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11551541",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-03 05:01:00 +0000",
+						"thetext": "roundcubemail-1.1.12-2.el7 has been submitted as an update to Fedora EPEL 7. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2018-ce811a54c9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11560064",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-03 16:14:34 +0000",
+						"thetext": "roundcubemail-1.1.12-2.el7 has been pushed to the Fedora EPEL 7 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2018-ce811a54c9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11628009",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-23 15:29:24 +0000",
+						"thetext": "roundcubemail-1.1.12-2.el7 has been pushed to the Fedora EPEL 7 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1566744,
+			"security": true,
+			"title": "CVE-2018-9846 roundcubemail: MX injection in archive.php [epel-all]",
+			"bugzilla": {
+				"bug_id": "1566744",
+				"creation_ts": "2018-04-12 22:36:19 +0000",
+				"short_desc": "CVE-2018-9846 roundcubemail: MX injection in archive.php [epel-all]",
+				"delta_ts": "2018-05-23 15:29:14 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1566743",
+						"alias": "CVE-2018-9846",
+						"creation_ts": "2018-04-12 22:34:39 +0000",
+						"short_desc": "CVE-2018-9846 roundcubemail: MX injection in archive.php",
+						"delta_ts": "2021-10-21 19:59:58 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1566744"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "11483490",
+								"comment_count": "0",
+								"who": {
+									"text": "lpardo",
+									"name": "Laura Pardo"
+								},
+								"bug_when": "2018-04-12 22:34:39 +0000",
+								"thetext": "A flaw was found in Roundcube from versions 1.2.0 to 1.3.5, with the archive plugin enabled and configured, it's possible to exploit the unsanitized, user-controlled \"_uid\" parameter (in an archive.php _task=mail&_mbox=INBOX&_action=plugin.move2archive request) to perform an MX (IMAP) injection attack by placing an IMAP command after a %0d%0a sequence. NOTE: this is less easily exploitable in 1.3.4 and later because of a Same Origin Policy protection mechanism.\n\n\nReferences:\nhttps://github.com/roundcube/roundcubemail/issues/6229\nhttps://github.com/roundcube/roundcubemail/issues/6238\nhttps://medium.com/@ndrbasi/cve-2018-9846-roundcube-303097048b0a\n\nPatch:\nhttps://github.com/roundcube/roundcubemail/commit/e3dd5b66d236867572e68fcb80281e9268a0cfb0"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11483494",
+								"comment_count": "1",
+								"who": {
+									"text": "lpardo",
+									"name": "Laura Pardo"
+								},
+								"bug_when": "2018-04-12 22:36:31 +0000",
+								"thetext": "Created roundcubemail tracking bugs for this issue:\n\nAffects: epel-all [bug 1566744]"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11483492",
+						"comment_count": "0",
+						"who": {
+							"text": "lpardo",
+							"name": "Laura Pardo"
+						},
+						"bug_when": "2018-04-12 22:36:19 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof epel-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora EPEL. While\nonly one tracking bug has been filed, please correct all affected versions\nat the same time.  If you need to fix the versions independent of each\nother, you may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11483493",
+						"comment_count": "1",
+						"who": {
+							"text": "lpardo",
+							"name": "Laura Pardo"
+						},
+						"bug_when": "2018-04-12 22:36:26 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1566743,1566744\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11505655",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-19 06:07:35 +0000",
+						"thetext": "roundcubemail-1.1.11-1.el7 has been submitted as an update to Fedora EPEL 7. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2018-26155198e1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11508021",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-19 16:59:15 +0000",
+						"thetext": "roundcubemail-1.1.11-1.el7 has been pushed to the Fedora EPEL 7 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2018-26155198e1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11546763",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-02 05:54:28 +0000",
+						"thetext": "roundcubemail-1.1.12-1.el7 has been submitted as an update to Fedora EPEL 7. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2018-ce811a54c9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11547457",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-02 09:31:10 +0000",
+						"thetext": "roundcubemail-1.1.12-1.el7 has been pushed to the Fedora EPEL 7 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2018-ce811a54c9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11551540",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-03 05:00:52 +0000",
+						"thetext": "roundcubemail-1.1.12-2.el7 has been submitted as an update to Fedora EPEL 7. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2018-ce811a54c9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11560063",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-03 16:14:30 +0000",
+						"thetext": "roundcubemail-1.1.12-2.el7 has been pushed to the Fedora EPEL 7 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2018-ce811a54c9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11628007",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-23 15:29:14 +0000",
+						"thetext": "roundcubemail-1.1.12-2.el7 has been pushed to the Fedora EPEL 7 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "roundcubemail-1.1.12-2.el7",
+			"release_id": 8,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "roundcubemail",
+						"version": "1.1.12",
+						"release": "2.el7",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "roundcubemail",
+						"version": "1.1.12",
+						"release": "2.el7",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 776600,
+			"text": "This update has been submitted for testing by remi. ",
+			"timestamp": "2018-05-02 05:54:22",
+			"update_id": 114326,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 776602,
+			"text": "This update has obsoleted [roundcubemail-1.1.11-1.el7](https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2018-26155198e1), and has inherited its bugs and notes.",
+			"timestamp": "2018-05-02 05:54:25",
+			"update_id": 114326,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 776724,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2018-05-02 09:31:23",
+			"update_id": 114326,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 777328,
+			"text": "remi edited this update.\n\nNew build(s):\n\n- roundcubemail-1.1.12-2.el7\n\nRemoved build(s):\n\n- roundcubemail-1.1.12-1.el7\n\nKarma has been reset.",
+			"timestamp": "2018-05-03 05:00:33",
+			"update_id": 114326,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 777329,
+			"text": "This update has been submitted for testing by remi. ",
+			"timestamp": "2018-05-03 05:00:34",
+			"update_id": 114326,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 777900,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2018-05-03 16:15:21",
+			"update_id": 114326,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 786025,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2018-05-17 18:00:19",
+			"update_id": 114326,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 788508,
+			"text": "This update has been submitted for batched by remi. ",
+			"timestamp": "2018-05-23 04:20:48",
+			"update_id": 114326,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 788509,
+			"text": "This update has been submitted for stable by remi. ",
+			"timestamp": "2018-05-23 04:20:57",
+			"update_id": 114326,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 788754,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2018-05-23 15:29:44",
+			"update_id": 114326,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2018-05-03 05:00:35",
+	"date_pushed": "2018-05-23 15:29:09",
+	"date_stable": "2018-05-23 15:29:09",
+	"date_submitted": "2018-05-02 05:54:22",
+	"date_testing": "2018-05-03 16:14:25",
+	"meets_testing_requirements": true,
+	"notes": "**Version 1.1.12**\n\nThis is a follow-up to the recent security update for the stable version 1.1. It fixes a regression that sneaked in with the IMAP command injection protection which unintentionally disabled actions that operate on all selected messages (e.g. mark all as junk).\n\nWe recommend to update all productive installations of Roundcube 1.1.11. Please do backup your data before updating!\n\nCHANGELOG\n\n*    Fix regression where IMAP commands with '*' uidset argument wasn't working\n\n----\n\n**Version 1.1.11**\n\nThis is a security update to the stable version 1.1. It fixes a recently reported vulnerability allowing IMAP command injection via a GET parameters. More details about this are published under CVE-2018-9846.\n\nThe second fix is about a missed remote content blocking on HTML messages with specially crafted image and style tags.\n\nWe strongly recommend to update all productive installations of Roundcube 1.1.x. Please do backup your data before updating!\n\nCHANGELOG\n\n*    Don't ignore (global) userlogins/sendmail logs in per_user_logging mode\n*    Fix security issue in remote content blocking on HTML image and style tags (#6178)\n*    Fix check_request() bypass in places using get_uids() [CVE-2018-9846] (#6238)\n*    Fix possible IMAP command injection vulnerability [CVE-2018-9846] (#6229)\n\n\n",
+	"pushed": true,
+	"release": {
+		"branch": "epel7",
+		"candidate_tag": "epel7-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "epel7",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 7",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EPEL-7",
+		"override_tag": "epel7-override",
+		"package_manager": "unspecified",
+		"pending_signing_tag": "epel7-signing-pending",
+		"pending_stable_tag": "epel7-pending",
+		"pending_testing_tag": "epel7-testing-pending",
+		"stable_tag": "epel7",
+		"state": "current",
+		"testing_tag": "epel7-testing",
+		"version": "7"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "roundcubemail-1.1.12-2.el7",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2018-ce811a54c9",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2018-ce811a54c9",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/33ddfefecc66c71eb7d6eb60503cf7f665d3bceb22e2f8e3af2704260a995ab2?s=24&d=retro",
+		"email": "fedora@famillecollet.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "centosproject-email-aliases"
+			},
+			{
+				"name": "sig-sclo"
+			}
+		],
+		"id": 94,
+		"name": "remi",
+		"openid": "remi.id.fedoraproject.org"
+	},
+	"version_hash": "b63a0e3e5e9358e164effa157d14f15bc35fa2b8"
+}

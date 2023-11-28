@@ -1,0 +1,865 @@
+{
+	"alias": "FEDORA-EPEL-2013-12159",
+	"bugs": [
+		{
+			"bug_id": 1024552,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2013-4485 389-ds-base: DoS due to improper handling of ger attr searches",
+			"bugzilla": {
+				"bug_id": "1024552",
+				"alias": "CVE-2013-4485",
+				"creation_ts": "2013-10-29 22:36:08 +0000",
+				"short_desc": "CVE-2013-4485 389-ds-base: DoS due to improper handling of ger attr searches",
+				"delta_ts": "2020-03-03 11:59:32 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "high",
+				"bug_severity": "high",
+				"depends_on": [
+					"1024977",
+					"1024978",
+					"1024979",
+					"1024980",
+					"1032898",
+					"1032899"
+				],
+				"blocked": [
+					{
+						"bug_id": "1024971",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2013:1753",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6467255",
+						"comment_count": "0",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2013-10-29 22:36:08 +0000",
+						"thetext": "A flaw in how 389-ds-base and Red Hat Directory Server handled the checking of access rights on entries using GER (Get Effective Rights), a way to extend directory searches to also display what access rights a user has to a specified entry.  When an attribute list is given in the search request, and if there are several attributes whose names contain the '@' character, 389-ds-base and Red Hat Directory Server would crash.  An attacker able to contact the server would be able to submit this type of search request with no authentication required."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6467305",
+						"comment_count": "1",
+						"who": {
+							"text": "rmeggins",
+							"name": "Rich Megginson"
+						},
+						"bug_when": "2013-10-29 23:18:11 +0000",
+						"thetext": "Created attachment 817198\n0001-server-crash-with-bogus-GER-attribute-list.patch"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6467307",
+						"comment_count": "2",
+						"who": {
+							"text": "rmeggins",
+							"name": "Rich Megginson"
+						},
+						"bug_when": "2013-10-29 23:18:50 +0000",
+						"thetext": "Comment on attachment 817198\n0001-server-crash-with-bogus-GER-attribute-list.patch\n\npatch against master branch.  may take some editing to apply to other branches - 1.2.11, 8.2, etc."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6467310",
+						"comment_count": "3",
+						"who": {
+							"text": "rmeggins",
+							"name": "Rich Megginson"
+						},
+						"bug_when": "2013-10-29 23:20:00 +0000",
+						"thetext": "Added test to ger npattr.sh - no regressions in GER with patch"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6467315",
+						"comment_count": "4",
+						"who": {
+							"text": "rmeggins",
+							"name": "Rich Megginson"
+						},
+						"bug_when": "2013-10-29 23:22:06 +0000",
+						"thetext": "Index: npattr.sh\n===================================================================\n--- npattr.sh\t(revision 8190)\n+++ npattr.sh\t(working copy)\n@@ -5,7 +5,7 @@\n NPATTR_BASEDN=\"o=npattr\"\n tet_startup=\"ServerInfo\"\n tet_cleanup=\"\"\n-iclist=\"ic1 ic2 ic3 ic4 ic5 ic6 ic7 ic8 ic9 ic10 ic11 ic12 ic13 ic14 ic15 ic16 ic17 ic18 ic19 ic20 ic21 ic22 ic23 ic24 ic25\" \n+iclist=\"ic1 ic2 ic3 ic4 ic5 ic6 ic7 ic8 ic9 ic10 ic11 ic12 ic13 ic14 ic15 ic16 ic17 ic18 ic19 ic20 ic21 ic22 ic23 ic24 ic25 ic26\" \n \n ic1=\"tp1\"\n ic2=\"tp2\"\n@@ -32,6 +32,7 @@\n ic23=\"tp23\"\n ic24=\"tp24\"\n ic25=\"tp25\"\n+ic26=\"bz1024552\"\n \n TestSuiteName=\"ger\"\n export TestSuiteName\n@@ -467,7 +468,26 @@\n restore_default_aci\n }\n \n+bz1024552() {\n+    tchead \"$tet_thistest: crash the server with a well crafted list of GER search attrs\"\n+    num=128\n+    ii=1\n+    attrs=\"\"\n+    while [ $ii -le $num ] ; do\n+        attrs=\"$attrs ${ii}@${ii} @$ii ${ii}@ ${ii}@${ii}@${ii}\"\n+        ii=`expr $ii + 1`\n+    done\n+\tif $LDAPSEARCH -h \"$LDAPhost\" -p $LDAPport -b \"$NPATTR_BASEDN\" 'objectclass=*' $attrs > /dev/null ; then\n+        result PASS\n+        return 0\n+    else\n+        message \"ldapsearch failed $?\"\n+        result FAIL\n+        return 1\n+    fi\n+}\n \n+\n ######################################################################\n ######################################################################\n ######################################################################"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6470850",
+						"comment_count": "10",
+						"who": {
+							"text": "rmeggins",
+							"name": "Rich Megginson"
+						},
+						"bug_when": "2013-10-30 17:40:32 +0000",
+						"thetext": "The problem is when an attribute list is given in the search request, and there are several attributes whose names contain the \"@\" character."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6471503",
+						"comment_count": "15",
+						"who": {
+							"text": "rmeggins",
+							"name": "Rich Megginson"
+						},
+						"bug_when": "2013-10-30 20:02:18 +0000",
+						"thetext": "Comment on attachment 817198\n0001-server-crash-with-bogus-GER-attribute-list.patch\n\nreviewed by nhosoi (Thanks!)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6541743",
+						"comment_count": "18",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2013-11-21 08:18:18 +0000",
+						"thetext": "\nCreated 389-ds-base tracking bugs for this issue:\n\nAffects: fedora-all [bug 1032898]\nAffects: epel-5 [bug 1032899]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6547655",
+						"comment_count": "19",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2013-11-22 00:33:40 +0000",
+						"thetext": "This issue has been addressed in following products:\n\n  Red Hat Directory Server 8 for RHEL 5\n\nVia RHSA-2013:1753 https://rhn.redhat.com/errata/RHSA-2013-1753.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6547658",
+						"comment_count": "20",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2013-11-22 00:34:35 +0000",
+						"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2013:1752 https://rhn.redhat.com/errata/RHSA-2013-1752.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6557402",
+						"comment_count": "21",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-11-26 04:13:23 +0000",
+						"thetext": "389-ds-base-1.3.2.7-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6579725",
+						"comment_count": "22",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-03 10:31:43 +0000",
+						"thetext": "389-ds-base-1.3.1.16-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6703565",
+						"comment_count": "23",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-13 20:07:59 +0000",
+						"thetext": "389-ds-base-1.2.11.25-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6705883",
+						"comment_count": "24",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-14 08:38:59 +0000",
+						"thetext": "389-ds-base-1.3.0.9-1.fc18 has been pushed to the Fedora 18 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1032898,
+			"security": true,
+			"title": "CVE-2013-4485 389-ds-base: DoS due to improper handling of ger attr searches [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1032898",
+				"creation_ts": "2013-11-21 08:17:36 +0000",
+				"short_desc": "CVE-2013-4485 389-ds-base: DoS due to improper handling of ger attr searches [fedora-all]",
+				"delta_ts": "2020-09-13 20:51:15 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "1024552",
+						"alias": "CVE-2013-4485",
+						"creation_ts": "2013-10-29 22:36:08 +0000",
+						"short_desc": "CVE-2013-4485 389-ds-base: DoS due to improper handling of ger attr searches",
+						"delta_ts": "2020-03-03 11:59:32 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"1024977",
+							"1024978",
+							"1024979",
+							"1024980",
+							"1032898",
+							"1032899"
+						],
+						"blocked": [
+							{
+								"bug_id": "1024971",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2013:1753",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "6467255",
+								"comment_count": "0",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2013-10-29 22:36:08 +0000",
+								"thetext": "A flaw in how 389-ds-base and Red Hat Directory Server handled the checking of access rights on entries using GER (Get Effective Rights), a way to extend directory searches to also display what access rights a user has to a specified entry.  When an attribute list is given in the search request, and if there are several attributes whose names contain the '@' character, 389-ds-base and Red Hat Directory Server would crash.  An attacker able to contact the server would be able to submit this type of search request with no authentication required."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6467305",
+								"comment_count": "1",
+								"who": {
+									"text": "rmeggins",
+									"name": "Rich Megginson"
+								},
+								"bug_when": "2013-10-29 23:18:11 +0000",
+								"thetext": "Created attachment 817198\n0001-server-crash-with-bogus-GER-attribute-list.patch"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6467307",
+								"comment_count": "2",
+								"who": {
+									"text": "rmeggins",
+									"name": "Rich Megginson"
+								},
+								"bug_when": "2013-10-29 23:18:50 +0000",
+								"thetext": "Comment on attachment 817198\n0001-server-crash-with-bogus-GER-attribute-list.patch\n\npatch against master branch.  may take some editing to apply to other branches - 1.2.11, 8.2, etc."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6467310",
+								"comment_count": "3",
+								"who": {
+									"text": "rmeggins",
+									"name": "Rich Megginson"
+								},
+								"bug_when": "2013-10-29 23:20:00 +0000",
+								"thetext": "Added test to ger npattr.sh - no regressions in GER with patch"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6467315",
+								"comment_count": "4",
+								"who": {
+									"text": "rmeggins",
+									"name": "Rich Megginson"
+								},
+								"bug_when": "2013-10-29 23:22:06 +0000",
+								"thetext": "Index: npattr.sh\n===================================================================\n--- npattr.sh\t(revision 8190)\n+++ npattr.sh\t(working copy)\n@@ -5,7 +5,7 @@\n NPATTR_BASEDN=\"o=npattr\"\n tet_startup=\"ServerInfo\"\n tet_cleanup=\"\"\n-iclist=\"ic1 ic2 ic3 ic4 ic5 ic6 ic7 ic8 ic9 ic10 ic11 ic12 ic13 ic14 ic15 ic16 ic17 ic18 ic19 ic20 ic21 ic22 ic23 ic24 ic25\" \n+iclist=\"ic1 ic2 ic3 ic4 ic5 ic6 ic7 ic8 ic9 ic10 ic11 ic12 ic13 ic14 ic15 ic16 ic17 ic18 ic19 ic20 ic21 ic22 ic23 ic24 ic25 ic26\" \n \n ic1=\"tp1\"\n ic2=\"tp2\"\n@@ -32,6 +32,7 @@\n ic23=\"tp23\"\n ic24=\"tp24\"\n ic25=\"tp25\"\n+ic26=\"bz1024552\"\n \n TestSuiteName=\"ger\"\n export TestSuiteName\n@@ -467,7 +468,26 @@\n restore_default_aci\n }\n \n+bz1024552() {\n+    tchead \"$tet_thistest: crash the server with a well crafted list of GER search attrs\"\n+    num=128\n+    ii=1\n+    attrs=\"\"\n+    while [ $ii -le $num ] ; do\n+        attrs=\"$attrs ${ii}@${ii} @$ii ${ii}@ ${ii}@${ii}@${ii}\"\n+        ii=`expr $ii + 1`\n+    done\n+\tif $LDAPSEARCH -h \"$LDAPhost\" -p $LDAPport -b \"$NPATTR_BASEDN\" 'objectclass=*' $attrs > /dev/null ; then\n+        result PASS\n+        return 0\n+    else\n+        message \"ldapsearch failed $?\"\n+        result FAIL\n+        return 1\n+    fi\n+}\n \n+\n ######################################################################\n ######################################################################\n ######################################################################"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6470850",
+								"comment_count": "10",
+								"who": {
+									"text": "rmeggins",
+									"name": "Rich Megginson"
+								},
+								"bug_when": "2013-10-30 17:40:32 +0000",
+								"thetext": "The problem is when an attribute list is given in the search request, and there are several attributes whose names contain the \"@\" character."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6471503",
+								"comment_count": "15",
+								"who": {
+									"text": "rmeggins",
+									"name": "Rich Megginson"
+								},
+								"bug_when": "2013-10-30 20:02:18 +0000",
+								"thetext": "Comment on attachment 817198\n0001-server-crash-with-bogus-GER-attribute-list.patch\n\nreviewed by nhosoi (Thanks!)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6541743",
+								"comment_count": "18",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2013-11-21 08:18:18 +0000",
+								"thetext": "\nCreated 389-ds-base tracking bugs for this issue:\n\nAffects: fedora-all [bug 1032898]\nAffects: epel-5 [bug 1032899]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6547655",
+								"comment_count": "19",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2013-11-22 00:33:40 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Directory Server 8 for RHEL 5\n\nVia RHSA-2013:1753 https://rhn.redhat.com/errata/RHSA-2013-1753.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6547658",
+								"comment_count": "20",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2013-11-22 00:34:35 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2013:1752 https://rhn.redhat.com/errata/RHSA-2013-1752.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6557402",
+								"comment_count": "21",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2013-11-26 04:13:23 +0000",
+								"thetext": "389-ds-base-1.3.2.7-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6579725",
+								"comment_count": "22",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2013-12-03 10:31:43 +0000",
+								"thetext": "389-ds-base-1.3.1.16-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6703565",
+								"comment_count": "23",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-01-13 20:07:59 +0000",
+								"thetext": "389-ds-base-1.2.11.25-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6705883",
+								"comment_count": "24",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-01-14 08:38:59 +0000",
+								"thetext": "389-ds-base-1.3.0.9-1.fc18 has been pushed to the Fedora 18 stable repository.  If problems still persist, please make note of it in this bug report."
+							}
+						]
+					}
+				],
+				"external_bugs": {
+					"text": "389ds/389-ds-base/issues/942",
+					"name": "Github"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6541737",
+						"comment_count": "0",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2013-11-21 08:17:36 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen creating a Bodhi update request, please use the bodhi submission link\nnoted in the next comment(s).  This will include the bug IDs of this\ntracking bug as well as the relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nBodhi notes field when available.\n\nPlease note: this issue affects multiple supported versions of Fedora.\nOnly one tracking bug has been filed; please ensure that it is only closed\nwhen all affected versions are fixed.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6541739",
+						"comment_count": "1",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2013-11-21 08:17:53 +0000",
+						"thetext": "\nPlease use the following update submission link to create the Bodhi\nrequest for this issue as it contains the top-level parent bug(s) as well\nas this tracking bug.  This will ensure that all associated bugs get\nupdated when new packages are pushed to stable.\n\nPlease also ensure that the \"Close bugs when update is stable\" option\nremains checked.\n\nBodhi update submission link:\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1024552,1032898"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6545374",
+						"comment_count": "2",
+						"who": {
+							"text": "rmeggins",
+							"name": "Rich Megginson"
+						},
+						"bug_when": "2013-11-21 18:09:27 +0000",
+						"thetext": "Upstream ticket:\nhttps://fedorahosted.org/389/ticket/47605"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6546192",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-11-21 20:32:29 +0000",
+						"thetext": "389-ds-base-1.2.11.25-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/389-ds-base-1.2.11.25-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6546209",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-11-21 20:34:13 +0000",
+						"thetext": "389-ds-base-1.3.2.5-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/389-ds-base-1.3.2.5-1.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6546218",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-11-21 20:35:29 +0000",
+						"thetext": "389-ds-base-1.3.1.15-1.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/389-ds-base-1.3.1.15-1.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6546228",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-11-21 20:37:00 +0000",
+						"thetext": "389-ds-base-1.3.0.9-1.fc18 has been submitted as an update for Fedora 18.\nhttps://admin.fedoraproject.org/updates/389-ds-base-1.3.0.9-1.fc18"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6551033",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-11-23 02:35:19 +0000",
+						"thetext": "Package 389-ds-base-1.2.11.25-1.el5:\n* should fix your issue,\n* was pushed to the Fedora EPEL 5 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=epel-testing 389-ds-base-1.2.11.25-1.el5'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2013-12159/389-ds-base-1.2.11.25-1.el5\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6551086",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-11-23 03:29:42 +0000",
+						"thetext": "389-ds-base-1.3.2.6-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/389-ds-base-1.3.2.6-1.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6551088",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-11-23 03:30:36 +0000",
+						"thetext": "389-ds-base-1.3.1.16-1.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/389-ds-base-1.3.1.16-1.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6555436",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-11-25 16:00:40 +0000",
+						"thetext": "389-ds-base-1.3.2.7-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/389-ds-base-1.3.2.7-1.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6557400",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-11-26 04:12:49 +0000",
+						"thetext": "389-ds-base-1.3.2.7-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6579721",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-03 10:31:29 +0000",
+						"thetext": "389-ds-base-1.3.1.16-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6687922",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-08 22:29:26 +0000",
+						"thetext": "389-ds-base-1.3.1.17-1.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/389-ds-base-1.3.1.17-1.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6703564",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-13 20:07:53 +0000",
+						"thetext": "389-ds-base-1.2.11.25-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6705881",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-14 08:38:52 +0000",
+						"thetext": "389-ds-base-1.3.0.9-1.fc18 has been pushed to the Fedora 18 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "389-ds-base-1.2.11.25-1.el5",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"i386": [
+					{
+						"name": "389-ds-base-devel",
+						"version": "1.2.11.25",
+						"release": "1.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "389-ds-base-selinux-devel",
+						"version": "1.2.11.25",
+						"release": "1.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "389-ds-base-libs",
+						"version": "1.2.11.25",
+						"release": "1.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "389-ds-base",
+						"version": "1.2.11.25",
+						"release": "1.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "389-ds-base-debuginfo",
+						"version": "1.2.11.25",
+						"release": "1.el5",
+						"arch": "i386"
+					}
+				],
+				"ppc": [
+					{
+						"name": "389-ds-base-devel",
+						"version": "1.2.11.25",
+						"release": "1.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "389-ds-base-debuginfo",
+						"version": "1.2.11.25",
+						"release": "1.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "389-ds-base-libs",
+						"version": "1.2.11.25",
+						"release": "1.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "389-ds-base",
+						"version": "1.2.11.25",
+						"release": "1.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "389-ds-base-selinux-devel",
+						"version": "1.2.11.25",
+						"release": "1.el5",
+						"arch": "ppc"
+					}
+				],
+				"src": [
+					{
+						"name": "389-ds-base",
+						"version": "1.2.11.25",
+						"release": "1.el5",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "389-ds-base-debuginfo",
+						"version": "1.2.11.25",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "389-ds-base-libs",
+						"version": "1.2.11.25",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "389-ds-base-selinux-devel",
+						"version": "1.2.11.25",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "389-ds-base",
+						"version": "1.2.11.25",
+						"release": "1.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "389-ds-base-devel",
+						"version": "1.2.11.25",
+						"release": "1.el5",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 205137,
+			"text": "This update has been submitted for testing by rmeggins. ",
+			"timestamp": "2013-11-21 20:32:33",
+			"update_id": 26360,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 205138,
+			"text": "This update is currently being pushed to the Fedora EPEL 5 testing updates repository.",
+			"timestamp": "2013-11-22 23:04:36",
+			"update_id": 26360,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 205139,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2013-11-23 02:35:22",
+			"update_id": 26360,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 205140,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2013-12-07 03:20:40",
+			"update_id": 26360,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 205141,
+			"text": "This update has been submitted for stable by rmeggins. ",
+			"timestamp": "2014-01-13 16:53:23",
+			"update_id": 26360,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 205142,
+			"text": "This update is currently being pushed to the Fedora EPEL 5 stable updates repository.",
+			"timestamp": "2014-01-13 17:52:02",
+			"update_id": 26360,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 205143,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2014-01-13 20:08:02",
+			"update_id": 26360,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2014-01-13 20:08:02",
+	"date_stable": "2014-01-13 20:08:02",
+	"date_submitted": "2013-11-21 20:32:09",
+	"date_testing": "2013-11-23 02:35:22",
+	"meets_testing_requirements": true,
+	"notes": "Each release has bug fixes in addition to the CVE fix\nrebase to 1.2.11.24",
+	"pushed": true,
+	"release": {
+		"branch": "el5",
+		"candidate_tag": "dist-5E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "dist-5E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 5",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-5",
+		"override_tag": "dist-5E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-5E-epel",
+		"state": "archived",
+		"testing_tag": "dist-5E-epel-testing",
+		"version": "5"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_cases": [
+		{
+			"id": 142,
+			"name": "QA:Testcase 389 ds base setup testcase"
+		},
+		{
+			"id": 143,
+			"name": "QA:Testcase Create normalized dn cache testcase"
+		},
+		{
+			"id": 144,
+			"name": "QA:Testcase Create normalized dn cache testcase2"
+		}
+	],
+	"title": "389-ds-base-1.2.11.25-1.el5",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2013-12159",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2013-12159",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/271ba9fce10308458eebf13137b7c13349956acda35f7f32a15c6f5e0450ab43?s=24&d=retro",
+		"email": "rmeggins@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "summer-coding"
+			}
+		],
+		"id": 314,
+		"name": "rmeggins",
+		"openid": "rmeggins.id.fedoraproject.org"
+	},
+	"version_hash": "8db1a2159c53bdbc3bd85bc13d1bf3534f5fbbb4"
+}

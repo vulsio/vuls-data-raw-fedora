@@ -1,0 +1,611 @@
+{
+	"alias": "FEDORA-EPEL-2011-3535",
+	"bugs": [
+		{
+			"bug_id": 711463,
+			"security": true,
+			"title": "CVE-2011-2193 Torque Server Buffer Overflow Vulnerability",
+			"bugzilla": {
+				"bug_id": "711463",
+				"alias": "CVE-2011-2193",
+				"creation_ts": "2011-06-07 14:51:55 +0000",
+				"short_desc": "CVE-2011-2193 Torque Server Buffer Overflow Vulnerability",
+				"delta_ts": "2011-07-12 22:01:39 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "3798226",
+						"comment_count": "0",
+						"who": {
+							"text": "LindaAnnCornwall",
+							"name": "Linda Cornwall"
+						},
+						"bug_when": "2011-06-07 14:51:55 +0000",
+						"thetext": "User-Agent:       Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; WOW64; Trident/4.0; SLCC2; .NET CLR 2.0.50727; .NET CLR 3.5.30729; .NET CLR 3.0.30729; Media Center PC 6.0; InfoPath.2; .NET4.0C)\n\n(This is the bug as submitted to the EGI SVG - see additional info.)\nHello,\n\nI represent Polish NGI (security officer). I would like\nto report a vulnerability we've found in Torque.\nBelow is my original email to Torque developers.\nThis issue concerns PBS Pro (at least last version) as well.\n\nbest regards\n- -- \nBartlomiej Balcerek\nWroclaw University of Technology, Poland\nWroclaw Centre for Networking and Supercomputing\nphone: +48 (71) 320-20-79 mail: bartol@pwr.wroc.pl [lookup email] [lookup \"pwr.wroc.pl\"]\n\n\n\n- ------ Wiadomość oryginalna ------\nTemat: Security vulnerability in Torque\nData: Tue, 10 May 2011 10:11:19 +0200\nNadawca: Bartlomiej Balcerek <bartol@pwr.wroc.pl> [lookup email] [lookup \"pwr.wroc.pl\"]\nFirma/Organizacja: WCSS, PWr.\nAdresat: info@clusterresources.com [lookup email] [lookup \"clusterresources.com\"]\nKopia: maciej.kotowicz@pwr.wroc.pl [lookup email] [lookup \"pwr.wroc.pl\"], adam.zabrocki@pwr.wroc.pl [lookup email] [lookup \"pwr.wroc.pl\"]\n\nDear Sirs,\n\nI represent Wroclaw Centre for Networking and Supercomputing Security\nTeam. Recently, during the security audit, we discovered a bug in\nTorque server and pbs_iff (all versions) which can have serious\nimplications to security. This is likely to lead attacker to elevate his\nprivileges.\n\nTorque server does not check the length of \"job name\" argument before\nusing it - this string is verified only on the client side. It is\npossible to use modified Torque client or DRMAA interface to submit job\nwith arbitrary chosen job name in terms of length and content. Thus, it\nis possible to attacker to overflow buffer and overwrite some Torque\nserver process internal data causing its specific behavior.\n\nBelow are some technical details concerning x86_64 build:\n\nWhat can be overwritten is log_buffer global string array and\nall next symbols:\n\n0000000000734b00 B log_buffer\n0000000000738b00 B msg_registerrel\n0000000000738b08 B msg_manager\n0000000000738b10 B msg_startup1\n0000000000738b18 B msg_momnoexec1\n0000000000738b20 B msg_man_uns\n0000000000738b28 B msg_sched_nocall\n0000000000738b30 B msg_issuebad\n0000000000738b38 B stdout@@GLIBC_2.2.5\n0000000000738b40 B msg_job_end_stat\n0000000000738b48 b dtor_idx.6147\n0000000000738b50 b completed.6145\n0000000000738b58 b acct_opened\n0000000000738b5c b acct_auto_switch\n0000000000738b60 b acctfile\n0000000000738b68 b acct_opened_day\n0000000000738b70 b spaceused\n0000000000738b78 b spaceavail\n0000000000738b80 b username.6360\n0000000000738bc0 b groupname.6402\n\nHere I submit the crafted job:\n\n[bartol@bartek_torque torque-mod]$ echo /bin/date | ./src/cmds/qsub -Z\n\"Job_Name=`perl -e 'print \"A\"x16350'`\"\n\nIt is possible now to see in debugger that structures adjacent to\nlog_buffer are overwritten with \"A\" chars (encoded as 0x41 numbers):\n\nProgram received signal SIGINT, Interrupt.\n0x00000033550cd323 in __select_nocancel () from /lib64/libc.so.6\n(gdb) x/20x 0x0000000000738b00\n0x738b00 <msg_registerrel>: 0x4141414141414141 0x4141414141414141\n0x738b10 <msg_startup1>: 0x4141414141414141 0x4141414141414141\n0x738b20 <msg_man_uns>: 0x4141414141414141 0x4141414141414141\n\nThe overflow occurs in the following code:\n\n1560 sprintf(log_buffer, msg_jobnew,\n1561 preq->rq_user, preq->rq_host,\n1562 pj->ji_wattr[(int)JOB_ATR_job_owner].at_val.at_str,\n1563 pj->ji_wattr[(int)JOB_ATR_jobname].at_val.at_str,\n1564 pj->ji_qhdr->qu_qs.qu_name);\n\nWe proved that server crash is easily possible (including database\ndamage) and we think privilege escalation can be done with some more\neffort as well, but the latter is strongly dependable on particular\nbuild flags and architecture.\n\nThe overflow is also possible in pbs_iff setuid binary, since the \"host\"\nvariable length is not checked:\n\nsprintf(log_buffer,\"cannot resolve IP address for host '%s'\nherror=%d: %s\",\nhostname, /*1*/\nh_errno,\nhstrerror(h_errno));\n\n\nPlease let us know if you need some additional information and what\nare your plans concerning this issue.\n\nBartlomiej Balcerek\nMaciej Kotowicz\nAdam Zabrocki\n\n\n\n\nReproducible: Always\n\n\n\n\nThis problem was reported to the EGI Software Vulnerability Group  by Bartlomiej.Balcerek   (Bartlomiej.Balcerek@pwr.wroc.pl) rather than found by the submitter. It has also been reported to the Torque providers, and been fixed by them -  \nan e-mail from Douglas Wightman  (wightman@adaptivecomputing.com) states:\n\nDear Bartlomiej,\n\nThank you for the email.  I apologize that we did not reply sooner.  Our Torque engineers have patched this vulnerability in the latest releases of Torque (2.4 and higher).\n\nWe are working on getting you a new release that you can verify.  Please expect a follow-up email soon.\n\nThanks for your help with this issue and please continue to report all future issues that you may encounter.\n\nThanks,\n\n- Douglas Wightman\n\nThis bug is being entered in order that a 'fixed' version of Torque is available in EPEL. \n\nThe EGI http://www.egi.eu/ Software Vulnerability group  http://www.egi.eu/policy/groups/Software_Vulnerability_Group_SVG.html runs a process for handling software vulnerabilities reported. While our work is primarily designed to handle vulnerabilities in Grid Middleware, other vulnerabilities found in software used in the EGI infrastructure may also be reported to us and we pass the information on to the software suppliers, as well as considering the risk to the EGI infrastructure."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3800814",
+						"comment_count": "1",
+						"who": {
+							"text": "steve.traylen",
+							"name": "Steve Traylen"
+						},
+						"bug_when": "2011-06-08 15:28:00 +0000",
+						"thetext": "\nThanks for the report,\n\nI should have new packages in the next day or so for EPEL 4, EPEL5, EPEL6 , Fedora 14, Fedora\n15 and Fedora 16 where this vulnerability applies.\n\nLooking upstream I can see a fix submitted to HEAD for this but it does not look\nto be released AFAICT in any of their releases as yet.\n\nI've back-ported their patch back to the EPEL version as well.\n\nWill push updates to testing in a day or so at same time as making this bug public."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3801177",
+						"comment_count": "2",
+						"who": {
+							"text": "steve.traylen",
+							"name": "Steve Traylen"
+						},
+						"bug_when": "2011-06-08 17:50:13 +0000",
+						"thetext": "Created attachment 503747\nTrivial patch for buffer overrun\n\nThis is patch pulled from trunk on SVN.\n\nsvn diff  -r 4680:4681 svn://svn.clusterresources.com/torque/trunk"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3801562",
+						"comment_count": "3",
+						"who": {
+							"text": "bressers",
+							"name": "Josh Bressers"
+						},
+						"bug_when": "2011-06-08 18:42:16 +0000",
+						"thetext": "The upstream fix can be found via:\nsvn diff -r 4705:4706 svn://clusterresources.com/torque/\n\nI'm assigning this CVE-2011-2193.\n\nIf someone could tell upstream, that would be handy.\n\nI would like to open this bug up now. Since the fix is public (and clearly marked as fixing a buffer overflow in svn).\n\nThanks"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3801615",
+						"comment_count": "4",
+						"who": {
+							"text": "steve.traylen",
+							"name": "Steve Traylen"
+						},
+						"bug_when": "2011-06-08 19:03:14 +0000",
+						"thetext": "\nYes: 4705:4706 is correct, I was using another branch but it's the correct fix I had to redo\nthe patch anyway for everything older than Fedora 15.\n\nPushing packages now."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3801666",
+						"comment_count": "5",
+						"who": {
+							"text": "steve.traylen",
+							"name": "Steve Traylen"
+						},
+						"bug_when": "2011-06-08 19:37:10 +0000",
+						"thetext": "Hi,\nPlease open the bug up, it seems all my  bodhi updates failed to update this bug with:\n\nUpdate successfully created. Unable to access one or more bugs: You are not authorized to access bug #711463..  :-)\n\nAnyway updates are here:\n\nhttps://admin.fedoraproject.org/updates/torque-2.3.13-2.el4\nhttps://admin.fedoraproject.org/updates/torque-2.3.13-2.el5\nhttps://admin.fedoraproject.org/updates/torque-2.5.5-2.el6\n\nhttps://admin.fedoraproject.org/updates/torque-2.4.11-2.fc14\nhttps://admin.fedoraproject.org/updates/torque-3.0.1-2.fc15"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3801843",
+						"comment_count": "6",
+						"who": {
+							"text": "bressers",
+							"name": "Josh Bressers"
+						},
+						"bug_when": "2011-06-08 21:20:04 +0000",
+						"thetext": "It should be public now."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3801890",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-06-08 21:49:21 +0000",
+						"thetext": "torque-2.3.13-2.el4 has been submitted as an update for Fedora EPEL 4.\nhttps://admin.fedoraproject.org/updates/torque-2.3.13-2.el4"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3801895",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-06-08 21:53:56 +0000",
+						"thetext": "torque-2.3.13-2.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/torque-2.3.13-2.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3801897",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-06-08 21:54:39 +0000",
+						"thetext": "torque-2.5.5-2.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/torque-2.5.5-2.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3801899",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-06-08 21:55:38 +0000",
+						"thetext": "torque-2.4.11-2.fc14 has been submitted as an update for Fedora 14.\nhttps://admin.fedoraproject.org/updates/torque-2.4.11-2.fc14"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3801901",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-06-08 21:56:09 +0000",
+						"thetext": "torque-3.0.1-2.fc15 has been submitted as an update for Fedora 15.\nhttps://admin.fedoraproject.org/updates/torque-3.0.1-2.fc15"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3801970",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-06-08 23:21:52 +0000",
+						"thetext": "torque-3.0.1-2.fc15 has been submitted as an update for Fedora 15.\nhttps://admin.fedoraproject.org/updates/torque-3.0.1-2.fc15"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3802602",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-06-09 07:52:26 +0000",
+						"thetext": "Package torque-2.5.5-2.el6:\n* should fix your issue,\n* was pushed to the Fedora EPEL 6 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=epel-testing torque-2.5.5-2.el6'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/torque-2.5.5-2.el6\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3828180",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-06-21 17:18:08 +0000",
+						"thetext": "torque-2.4.11-2.fc14 has been pushed to the Fedora 14 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3838266",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-06-23 21:58:37 +0000",
+						"thetext": "torque-2.3.13-2.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3838270",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-06-23 21:59:10 +0000",
+						"thetext": "torque-2.3.13-2.el4 has been pushed to the Fedora EPEL 4 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3838278",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-06-23 22:01:13 +0000",
+						"thetext": "torque-2.5.5-2.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3879984",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-07-12 22:01:20 +0000",
+						"thetext": "torque-3.0.1-4.fc15 has been pushed to the Fedora 15 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "torque-2.3.13-2.el5",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"i386": [
+					{
+						"name": "libtorque-devel",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "torque-server",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "torque-docs",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "torque-gui",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "torque-pam",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "torque",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "torque-mom",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "torque-debuginfo",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "libtorque",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "torque-scheduler",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "torque-client",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "i386"
+					}
+				],
+				"ppc": [
+					{
+						"name": "torque-mom",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "torque-gui",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "torque-docs",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "torque",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "torque-scheduler",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "torque-pam",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "torque-debuginfo",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "torque-server",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "torque-client",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "libtorque-devel",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "libtorque",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "ppc"
+					}
+				],
+				"src": [
+					{
+						"name": "torque",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "torque",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "torque-client",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "torque-server",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "torque-debuginfo",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "torque-scheduler",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "torque-gui",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "torque-pam",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libtorque",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libtorque-devel",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "torque-docs",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "torque-mom",
+						"version": "2.3.13",
+						"release": "2.el5",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 96272,
+			"text": "This update has been submitted for testing by stevetraylen. ",
+			"timestamp": "2011-06-08 19:27:46",
+			"update_id": 13230,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 96273,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2011-06-09 07:52:31",
+			"update_id": 13230,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 96274,
+			"karma": 1,
+			"text": "Tests out OK after upgrade from 2.3.13-1.el5.",
+			"timestamp": "2011-06-14 14:32:20",
+			"update_id": 13230,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/07a7dacf929f14b792352fc4799aa1bc2205dd62955c86f90a7e7e8500eaf83a?s=24&d=retro",
+				"email": "dennisvd@nikhef.nl",
+				"groups": [
+					{
+						"name": "packager"
+					}
+				],
+				"id": 1361,
+				"name": "dennisvd",
+				"openid": "dennisvd.id.fedoraproject.org"
+			},
+			"user_id": 1361
+		},
+		{
+			"id": 96275,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2011-06-23 17:04:39",
+			"update_id": 13230,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 96276,
+			"text": "This update has been submitted for stable by stevetraylen. ",
+			"timestamp": "2011-06-23 17:57:46",
+			"update_id": 13230,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 96277,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2011-06-23 21:58:46",
+			"update_id": 13230,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2011-06-09 09:04:01",
+	"date_pushed": "2011-06-23 21:58:46",
+	"date_stable": "2011-06-23 21:58:46",
+	"date_submitted": "2011-06-08 19:27:39",
+	"date_testing": "2011-06-09 07:52:31",
+	"karma": 1,
+	"meets_testing_requirements": true,
+	"notes": "This update fixes a buffer overflow that could allow for remote arbitrary code execution by a torque service. Credit to Bartlomiej Balcerek.\r\n\r\nAdvisories:\r\n* https://wiki.egi.eu/wiki/SVG:Advisory-SVG-2011-1870\r\n* http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2011-2193\r\n",
+	"pushed": true,
+	"release": {
+		"branch": "el5",
+		"candidate_tag": "dist-5E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "dist-5E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 5",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-5",
+		"override_tag": "dist-5E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-5E-epel",
+		"state": "archived",
+		"testing_tag": "dist-5E-epel-testing",
+		"version": "5"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "torque-2.3.13-2.el5",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2011-3535",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2011-3535",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/a825a2ad5ec6be13d9b45c362b1ed8214c65b8b16573bdc3fd4323d0f196b617?s=24&d=retro",
+		"email": "steve.traylen@cern.ch",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "centosproject-email-aliases"
+			},
+			{
+				"name": "sig-sclo"
+			}
+		],
+		"id": 374,
+		"name": "stevetraylen",
+		"openid": "stevetraylen.id.fedoraproject.org"
+	},
+	"version_hash": "6fa72a73ad77fe4fb38e9211f4db7c5721abc27b"
+}

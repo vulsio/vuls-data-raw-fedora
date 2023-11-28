@@ -1,0 +1,610 @@
+{
+	"alias": "FEDORA-2017-2500a024ef",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 150139,
+			"title": "Invalid bug number",
+			"bugzilla": {
+				"bug_id": "150139",
+				"error": "NotPermitted"
+			}
+		},
+		{
+			"bug_id": 1499820,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2017-15595 xsa240 xen: Unlimited recursion in linear pagetable de-typing (XSA-240)",
+			"bugzilla": {
+				"bug_id": "1499820",
+				"alias": "xsa240",
+				"creation_ts": "2017-10-09 12:51:30 +0000",
+				"short_desc": "CVE-2017-15595 xsa240 xen: Unlimited recursion in linear pagetable de-typing (XSA-240)",
+				"delta_ts": "2021-02-17 01:26:00 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "WONTFIX",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1501391"
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10868363",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2017-10-09 12:51:30 +0000",
+						"thetext": "ISSUE DESCRIPTION\n=================\n\nx86 PV guests are permitted to set up certain forms of what is often\ncalled \"linear page tables\", where pagetables contain references to\nother pagetables at the same level or higher.  Certain restrictions\napply in order to fit into Xen's page type handling system.  An\nimportant restriction was missed, however: Stacking multiple layers\nof page tables of the same level on top of one another is not very\nuseful, and the tearing down of such an arrangement involves\nrecursion.  With sufficiently many layers such recursion will result\nin a stack overflow, commonly resulting in Xen to crash.\n\nIMPACT\n======\n\nA malicious or buggy PV guest may cause the hypervisor to crash,\nresulting in Denial of Service (DoS) affecting the entire host.\nPrivilege escalation and information leaks cannot be excluded.\n\nVULNERABLE SYSTEMS\n==================\n\nAll Xen versions from at least 3.2 onwards are vulnerable.  Earlier\nversions have not been checked.\n\nOnly x86 systems are affected.  ARM systems are not affected.\n\nOnly x86 PV guests can leverage the vulnerability.  x86 HVM guests\ncannot leverage the vulnerability.\n\nMITIGATION\n==========\n\nRunning only HVM guests will avoid this vulnerability.\n\nFor PV guests, the vulnerability can be avoided if the guest kernel is\ncontrolled by the host rather than guest administrator, provided that\nfurther steps are taken to prevent the guest administrator from loading\ncode into the kernel (e.g. by disabling loadable modules etc) or from\nusing other mechanisms which allow them to run code at kernel privilege.\n\nExternal References:\n\nhttp://xenbits.xen.org/xsa/advisory-240.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10881135",
+						"comment_count": "1",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2017-10-12 13:42:34 +0000",
+						"thetext": "Created xen tracking bugs for this issue:\n\nAffects: fedora-all [bug 1501391]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10899754",
+						"comment_count": "2",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2017-10-18 15:06:25 +0000",
+						"thetext": "Acknowledgments:\n\nName: the Xen project\nUpstream: Jann Horn (Google)"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1499823,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2017-15592 xsa243 xen: x86: Incorrect handling of self-linear shadow mappings with translated guests (XSA-243)",
+			"bugzilla": {
+				"bug_id": "1499823",
+				"alias": "xsa243",
+				"creation_ts": "2017-10-09 12:51:46 +0000",
+				"short_desc": "CVE-2017-15592 xsa243 xen: x86: Incorrect handling of self-linear shadow mappings with translated guests (XSA-243)",
+				"delta_ts": "2021-02-17 01:26:05 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "WONTFIX",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1501391"
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10868368",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2017-10-09 12:51:46 +0000",
+						"thetext": "ISSUE DESCRIPTION\n=================\n\nThe shadow pagetable code uses linear mappings to inspect and modify the\nshadow pagetables.  A linear mapping which points back to itself is known as\nself-linear.  For translated guests, the shadow linear mappings (being in a\nseparate address space) are not intended to be self-linear.  For\nnon-translated guests, the shadow linear mappings (being the same\naddress space) are intended to be self-linear.\n\nWhen constructing a monitor pagetable for Xen to run on a vcpu with, the shadow\nlinear slot is filled with a self-linear mapping, and for translated guests,\nshortly thereafter replaced with a non-self-linear mapping, when the guest's\n%cr3 is shadowed.\n\nHowever when writeable heuristics are used, the shadow mappings are used as\npart of shadowing %cr3, causing the heuristics to be applied to Xen's\npagetables, not the guest shadow pagetables.\n\nWhile investigating, it was also identified that PV auto-translate mode was\ninsecure.  This mode was removed in Xen 4.7 due to being unused, unmaintained\nand presumed broken.  We are not aware of any guest implementation of PV\nauto-translate mode.\n\nIMPACT\n======\n\nA malicious or buggy HVM guest may cause a hypervisor crash, resulting in a\nDenial of Service (DoS) affecting the entire host, or cause hypervisor memory\ncorruption.  We cannot rule out a guest being able to escalate its privilege.\n\nVULNERABLE SYSTEMS\n==================\n\nAll versions of Xen are vulnerable.\n\nHVM guests using shadow mode paging can exploit this vulnerability.\nHVM guests using Hardware Assisted Paging (HAP) as well as PV guests\ncannot exploit this vulnerability. guests cannot exploit the\nvulnerability.\n\nARM systems are not vulnerable.\n\nMITIGATION\n==========\n\nRunning only PV guests will avoid this vulnerability.\n\nWhere the HVM guest is explicitly configured to use shadow paging (eg\nvia the `hap=0' xl domain configuration file parameter), changing to\nHAP (eg by setting `hap=1') will avoid exposing the vulnerability to\nthose guests.  HAP is the default (in upstream Xen), where the\nhardware supports it; so this mitigation is only applicable if HAP has\nbeen disabled by configuration.\n\nExternal References:\n\nhttp://xenbits.xen.org/xsa/advisory-243.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10881130",
+						"comment_count": "1",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2017-10-12 13:41:54 +0000",
+						"thetext": "Created xen tracking bugs for this issue:\n\nAffects: fedora-all [bug 1501391]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10899610",
+						"comment_count": "2",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2017-10-18 14:40:19 +0000",
+						"thetext": "Acknowledgments:\n\nName: the Xen project\nUpstream: Andrew Cooper (Citrix)"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "xen-4.8.2-7.fc26",
+			"release_id": 16,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "xen-devel",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-ocaml-devel",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-debuginfo",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-hypervisor",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-libs",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-runtime",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-licenses",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-ocaml",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-doc",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "xen-doc",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-licenses",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-ocaml",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-libs",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-runtime",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-debuginfo",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-hypervisor",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-ocaml-devel",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-devel",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "xen-libs",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-runtime",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-ocaml-devel",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-hypervisor",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-devel",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-licenses",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-ocaml",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-doc",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-debuginfo",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "xen",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "xen-hypervisor",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-doc",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-licenses",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-devel",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-libs",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-runtime",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-ocaml",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-debuginfo",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-ocaml-devel",
+						"version": "4.8.2",
+						"release": "7.fc26",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 697026,
+			"text": "This update has been submitted for testing by myoung. ",
+			"timestamp": "2017-11-19 17:20:33",
+			"update_id": 102571,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 697463,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2017-11-20 20:39:07",
+			"update_id": 102571,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 698459,
+			"karma": 1,
+			"text": "No regressions noted",
+			"timestamp": "2017-11-21 21:55:00",
+			"update_id": 102571,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/0fa05851f1f2f54b981d3c0ab58e0a15cc1384567409b91e76ec2e2078d47e5e?s=24&d=retro",
+				"email": "jonathanecalloway@gmail.com",
+				"id": 1359,
+				"name": "jonathancalloway",
+				"openid": "jonathancalloway.id.fedoraproject.org"
+			},
+			"user_id": 1359
+		},
+		{
+			"id": 698978,
+			"karma": 1,
+			"text": "Works",
+			"timestamp": "2017-11-22 09:34:57",
+			"update_id": 102571,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/cd6029d8d81108a2a69c38a2373d2a185c0e86224b8ee4971cd77bb6cdad7a20?s=24&d=retro",
+				"email": "walter.pete@yandex.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 491,
+				"name": "pwalter",
+				"openid": "pwalter.id.fedoraproject.org"
+			},
+			"user_id": 491
+		},
+		{
+			"id": 701239,
+			"karma": 1,
+			"text": "works for me in a VM",
+			"timestamp": "2017-11-27 17:01:13",
+			"update_id": 102571,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/054959f4db5d1ad8f22cae1ba73e26ebfd3edd6690c21cc7ee00608f294ff22a?s=24&d=retro",
+				"email": "cserpentis@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 739,
+				"name": "cserpentis",
+				"openid": "cserpentis.id.fedoraproject.org"
+			},
+			"user_id": 739
+		},
+		{
+			"id": 701240,
+			"text": "This update has been submitted for batched by bodhi. ",
+			"timestamp": "2017-11-27 17:01:15",
+			"update_id": 102571,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 701729,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2017-11-28 03:23:40",
+			"update_id": 102571,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 702181,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2017-11-28 16:26:56",
+			"update_id": 102571,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2017-11-28 15:34:11",
+	"date_stable": "2017-11-28 15:34:11",
+	"date_submitted": "2017-11-19 17:20:33",
+	"date_testing": "2017-11-20 20:08:24",
+	"karma": 3,
+	"meets_testing_requirements": true,
+	"notes": "fix an issue in patch for [XSA-240, CVE-2017-15595] that might be a\nsecurity issue\nfix for [XSA-243, CVE-2017-15592] could cause hypervisor crash (DOS)",
+	"pushed": true,
+	"release": {
+		"branch": "f26",
+		"candidate_tag": "f26-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f26",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 26",
+		"mail_template": "fedora_errata_template",
+		"name": "F26",
+		"override_tag": "f26-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f26-signing-pending",
+		"pending_stable_tag": "f26-updates-pending",
+		"pending_testing_tag": "f26-updates-testing-pending",
+		"stable_tag": "f26-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f26-updates-testing",
+		"version": "26"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "xen-4.8.2-7.fc26",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2017-2500a024ef",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2017-2500a024ef",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/452c109725b44d08b366f9b865d80b0ed8e42a74addb73d34d139d0bdba27b63?s=24&d=retro",
+		"email": "m.a.young@durham.ac.uk",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 129,
+		"name": "myoung",
+		"openid": "myoung.id.fedoraproject.org"
+	},
+	"version_hash": "6d9b017b7866c10d6a091396aea55f8620dc6060"
+}

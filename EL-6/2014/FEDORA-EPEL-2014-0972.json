@@ -1,0 +1,1755 @@
+{
+	"alias": "FEDORA-EPEL-2014-0972",
+	"bugs": [
+		{
+			"bug_id": 1028075,
+			"title": "munin-node doesn't get added to chkconfig",
+			"bugzilla": {
+				"bug_id": "1028075",
+				"creation_ts": "2013-11-07 15:49:43 +0000",
+				"short_desc": "munin-node doesn't get added to chkconfig",
+				"delta_ts": "2014-04-15 23:30:14 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6497902",
+						"comment_count": "0",
+						"who": {
+							"text": "sheltren",
+							"name": "Jeff Sheltren"
+						},
+						"bug_when": "2013-11-07 15:49:43 +0000",
+						"thetext": "Description of problem:\nAfter installing munin-node, it is not included in chkconfig.\n\n# chkconfig --list munin-node\nservice munin-node supports chkconfig, but is not referenced in any runlevel (run 'chkconfig --add munin-node')\n\n\nVersion-Release number of selected component (if applicable):\nmunin-node-2.0.17-6.el6\n\n\nAdditional info:\n\nHere's the scripts included in the package -- I see a call to remove munin-node from chkconfig on uninstall.  Note the comment about sysvinit, but there's no command directly after it.\n\npreinstall scriptlet (using /bin/sh):\n/usr/bin/getent group munin >/dev/null || \\\n  /usr/sbin/groupadd -r munin\n/usr/bin/getent passwd munin >/dev/null || \\\n  /usr/sbin/useradd -r -g munin -d /var/lib/munin -s /sbin/nologin \\\n    -c \"Munin user\" munin\nexit 0\n\n#why this? search for BUG above\npostinstall scriptlet (using /bin/sh):\n# sysvinit only in f15 and older and epel\n# Only run configure on a new install, not an upgrade.\nif [ \"$1\" = \"1\" ]; then\n     /usr/sbin/munin-node-configure --shell 2> /dev/null | sh >& /dev/null || :\nfi\npreuninstall scriptlet (using /bin/sh):\n# Older installs use sysvinit / upstart\nif [ \"$1\" = 0 ]; then\n  service munin-node stop &>/dev/null || :\n  /sbin/chkconfig --del munin-node\nfi\npostuninstall scriptlet (using /bin/sh):\nif [ \"$1\" = \"0\" ]; then\n  [ -d /etc/munin/plugins ] && \\\n    find /etc/munin/plugins/ -maxdepth 1 -type l -print0 | \\\n      xargs -0 rm || :\nfi"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6500202",
+						"comment_count": "1",
+						"who": {
+							"text": "drjohnson1",
+							"name": "d. johnson"
+						},
+						"bug_when": "2013-11-08 00:37:55 +0000",
+						"thetext": "Not sure I follow.  The only services that should be added automatically are listed here:\n\nhttps://fedoraproject.org/wiki/Starting_services_by_default\n\nMunin is not one of those.\n\nDid you mean something different?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6502712",
+						"comment_count": "2",
+						"who": {
+							"text": "sheltren",
+							"name": "Jeff Sheltren"
+						},
+						"bug_when": "2013-11-08 16:06:46 +0000",
+						"thetext": "Right, it should not be enabled by default (chkconfig munin-node on), but it should get added to chkconfig when installed (chkconfig --add munin-node), and it's not currently.\n\nI see the chkconfig --add call in the spec file, so it seems the conditional before it may be incorrect."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6956533",
+						"comment_count": "3",
+						"who": {
+							"text": "2229",
+							"name": "boss-chifra"
+						},
+						"bug_when": "2014-03-26 22:07:17 +0000",
+						"thetext": "Agree with \"Jeff Sheltren\" it should get added to chkconfig when installed (chkconfig --add munin-node and chkconfig --add munin-asyncd), and it's not currently.\n\nSeems the conditional may be incorrect. (in the spec file)\n\n- %if ! 0%{?fedora} > 15 || 0%{?rhel} > 6\n+ %if ! 0%{?fedora} > 15 || 0%{?rhel} > 4"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6956638",
+						"comment_count": "4",
+						"who": {
+							"text": "drjohnson1",
+							"name": "d. johnson"
+						},
+						"bug_when": "2014-03-26 23:27:40 +0000",
+						"thetext": "Ref:\n\nhttp://pkgs.fedoraproject.org/cgit/munin.git/tree/munin.spec#n542\n\nThis says if NOT (fedora > 15) OR (RHEL > 6) run chkconfig.\n\nThat is correct.\n\nIf you are on a system newer than F15 or EL6, you do not use chkconfig at all. Instead you use systemctl.  The macro for this is:\n\n%systemd_post munin-node.service"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6956660",
+						"comment_count": "5",
+						"who": {
+							"text": "2229",
+							"name": "boss-chifra"
+						},
+						"bug_when": "2014-03-26 23:48:33 +0000",
+						"thetext": "But it does not work. I don't see \"/sbin/chkconfig --add munin-node\" anywhere\n\n-------------------------------------------------------------------------\nrpm -qp --scripts munin-node-2.0.19-1.el6.noarch.rpm\n\npreinstall scriptlet (using /bin/sh):\n/usr/bin/getent group munin >/dev/null || \\\n  /usr/sbin/groupadd -r munin\n/usr/bin/getent passwd munin >/dev/null || \\\n  /usr/sbin/useradd -r -g munin -d /var/lib/munin -s /sbin/nologin \\\n    -c \"Munin user\" munin\nexit 0\n\n#why this? search for BUG above\npostinstall scriptlet (using /bin/sh):\n# sysvinit only in f15 and older and epel\n# Only run configure on a new install, not an upgrade.\nif [ \"$1\" = \"1\" ]; then\n     /usr/sbin/munin-node-configure --shell 2> /dev/null | sh >& /dev/null || :\nfi\npreuninstall scriptlet (using /bin/sh):\n# Older installs use sysvinit / upstart\nif [ \"$1\" = 0 ]; then\n  service munin-node stop &>/dev/null || :\n  /sbin/chkconfig --del munin-node\nfi\npostuninstall scriptlet (using /bin/sh):\nif [ \"$1\" = \"0\" ]; then\n  [ -d /etc/munin/plugins ] && \\\n    find /etc/munin/plugins/ -maxdepth 1 -type l -print0 | \\\n      xargs -0 rm || :\nfi"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6956997",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-27 02:14:31 +0000",
+						"thetext": "munin-2.0.19-2.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-2.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6957006",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-27 02:17:03 +0000",
+						"thetext": "munin-2.0.19-2.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-2.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6957012",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-27 02:18:25 +0000",
+						"thetext": "munin-2.0.19-2.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-2.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6957018",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-27 02:19:21 +0000",
+						"thetext": "munin-2.0.19-2.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-2.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6957615",
+						"comment_count": "10",
+						"who": {
+							"text": "2229",
+							"name": "boss-chifra"
+						},
+						"bug_when": "2014-03-27 06:39:44 +0000",
+						"thetext": "And if it possible fix chkconfig --add for munin-asyncd, because i think \nthis does not work correct\n----------------------------------------\n%post async\n%if ! 0%{?fedora} > 15 || 0%{?rhel} > 6\n  /sbin/chkconfig --add munin-asyncd\n%endif\n%if 0%{?rhel} > 6 || 0%{?fedora} > 15\n  %if 0%{?systemd_post:1}\n    %systemd_post munin-asyncd.service\n  %else\n    if [ $1 -eq 1 ] ; then\n      # Initial installation\n      /bin/systemctl daemon-reload >/dev/null 2>&1 || :\n    fi\n  %endif\n%endif\n--------------------------------------------\nrpm -qp --scripts munin-async-2.0.19-1.el6.noarch.rpm\npostinstall program: /bin/sh"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6960629",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-27 20:43:24 +0000",
+						"thetext": "Package munin-2.0.19-2.el5:\n* should fix your issue,\n* was pushed to the Fedora EPEL 5 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=epel-testing munin-2.0.19-2.el5'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2014-0971/munin-2.0.19-2.el5\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6965275",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-29 13:33:10 +0000",
+						"thetext": "munin-2.0.20-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/munin-2.0.20-1.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6965280",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-29 13:34:47 +0000",
+						"thetext": "munin-2.0.20-1.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/munin-2.0.20-1.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6965285",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-29 13:36:04 +0000",
+						"thetext": "munin-2.0.20-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/munin-2.0.20-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6965290",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-29 13:38:08 +0000",
+						"thetext": "munin-2.0.20-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/munin-2.0.20-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6988432",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-07 03:26:10 +0000",
+						"thetext": "munin-2.0.20-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6988438",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-07 03:26:40 +0000",
+						"thetext": "munin-2.0.20-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7013185",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-15 23:29:46 +0000",
+						"thetext": "munin-2.0.20-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7013192",
+						"comment_count": "19",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-15 23:30:14 +0000",
+						"thetext": "munin-2.0.20-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1037888,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2013-6048 CVE-2013-6359 munin: two denial of service flaws fixed in 2.0.18",
+			"bugzilla": {
+				"bug_id": "1037888",
+				"alias": "CVE-2013-6359",
+				"creation_ts": "2013-12-04 02:09:52 +0000",
+				"short_desc": "CVE-2013-6048 CVE-2013-6359 munin: two denial of service flaws fixed in 2.0.18",
+				"delta_ts": "2019-09-29 13:10:38 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1037889",
+					"1037890"
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6582700",
+						"comment_count": "0",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2013-12-04 02:09:52 +0000",
+						"thetext": "Christoph Biedl reported that Munin 2.0.18 fixes two denial of service flaws:\n\n* CVE-2013-6048, a node could cause excessive memory consumption on the Munin master.\n\n* CVE-2013-6359, a malicious plug-in could prevent data collection for the node.\n\nReferences:\n\nhttps://github.com/munin-monitoring/munin/blob/2.0.18/ChangeLog"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6582709",
+						"comment_count": "1",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2013-12-04 02:12:20 +0000",
+						"thetext": "\nCreated munin tracking bugs for this issue:\n\nAffects: fedora-all [bug 1037889]\nAffects: epel-all [bug 1037890]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6619371",
+						"comment_count": "2",
+						"who": {
+							"text": "drjohnson1",
+							"name": "d. johnson"
+						},
+						"bug_when": "2013-12-13 23:36:43 +0000",
+						"thetext": "Package munin-2.0.19-1:\n* should fix your issue,\n* was pushed to the Fedora + EPEL testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing munin-2.0.19-1'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2013-22968/munin-2.0.19-1.fc20\nthen log in and leave karma (feedback).\n\nWas also pushed for EL5 / EL6 / F18 / F19 / F20:\nhttps://admin.fedoraproject.org/updates/munin"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6622704",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-16 07:08:19 +0000",
+						"thetext": "munin-2.0.19-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6625779",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-16 23:01:57 +0000",
+						"thetext": "munin-2.0.19-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6625790",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-16 23:03:41 +0000",
+						"thetext": "munin-2.0.19-1.fc18 has been pushed to the Fedora 18 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6654917",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-23 21:29:23 +0000",
+						"thetext": "munin-2.0.19-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6654926",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-23 21:30:02 +0000",
+						"thetext": "munin-2.0.19-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6988435",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-07 03:26:24 +0000",
+						"thetext": "munin-2.0.20-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6988441",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-07 03:26:53 +0000",
+						"thetext": "munin-2.0.20-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7013188",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-15 23:29:59 +0000",
+						"thetext": "munin-2.0.20-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7013195",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-15 23:30:27 +0000",
+						"thetext": "munin-2.0.20-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1037889,
+			"security": true,
+			"title": "CVE-2013-6048 CVE-2013-6359 munin: two denial of service flaws fixed in 2.0.18 [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1037889",
+				"creation_ts": "2013-12-04 02:11:42 +0000",
+				"short_desc": "CVE-2013-6048 CVE-2013-6359 munin: two denial of service flaws fixed in 2.0.18 [fedora-all]",
+				"delta_ts": "2015-01-04 22:38:01 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1037888",
+						"alias": "CVE-2013-6359",
+						"creation_ts": "2013-12-04 02:09:52 +0000",
+						"short_desc": "CVE-2013-6048 CVE-2013-6359 munin: two denial of service flaws fixed in 2.0.18",
+						"delta_ts": "2019-09-29 13:10:38 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1037889",
+							"1037890"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "6582700",
+								"comment_count": "0",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2013-12-04 02:09:52 +0000",
+								"thetext": "Christoph Biedl reported that Munin 2.0.18 fixes two denial of service flaws:\n\n* CVE-2013-6048, a node could cause excessive memory consumption on the Munin master.\n\n* CVE-2013-6359, a malicious plug-in could prevent data collection for the node.\n\nReferences:\n\nhttps://github.com/munin-monitoring/munin/blob/2.0.18/ChangeLog"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6582709",
+								"comment_count": "1",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2013-12-04 02:12:20 +0000",
+								"thetext": "\nCreated munin tracking bugs for this issue:\n\nAffects: fedora-all [bug 1037889]\nAffects: epel-all [bug 1037890]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6619371",
+								"comment_count": "2",
+								"who": {
+									"text": "drjohnson1",
+									"name": "d. johnson"
+								},
+								"bug_when": "2013-12-13 23:36:43 +0000",
+								"thetext": "Package munin-2.0.19-1:\n* should fix your issue,\n* was pushed to the Fedora + EPEL testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing munin-2.0.19-1'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2013-22968/munin-2.0.19-1.fc20\nthen log in and leave karma (feedback).\n\nWas also pushed for EL5 / EL6 / F18 / F19 / F20:\nhttps://admin.fedoraproject.org/updates/munin"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6622704",
+								"comment_count": "3",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2013-12-16 07:08:19 +0000",
+								"thetext": "munin-2.0.19-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6625779",
+								"comment_count": "4",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2013-12-16 23:01:57 +0000",
+								"thetext": "munin-2.0.19-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6625790",
+								"comment_count": "5",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2013-12-16 23:03:41 +0000",
+								"thetext": "munin-2.0.19-1.fc18 has been pushed to the Fedora 18 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6654917",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2013-12-23 21:29:23 +0000",
+								"thetext": "munin-2.0.19-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6654926",
+								"comment_count": "7",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2013-12-23 21:30:02 +0000",
+								"thetext": "munin-2.0.19-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6988435",
+								"comment_count": "8",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-04-07 03:26:24 +0000",
+								"thetext": "munin-2.0.20-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6988441",
+								"comment_count": "9",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-04-07 03:26:53 +0000",
+								"thetext": "munin-2.0.20-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7013188",
+								"comment_count": "10",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-04-15 23:29:59 +0000",
+								"thetext": "munin-2.0.20-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7013195",
+								"comment_count": "11",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-04-15 23:30:27 +0000",
+								"thetext": "munin-2.0.20-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6582704",
+						"comment_count": "0",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2013-12-04 02:11:42 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen creating a Bodhi update request, please use the bodhi submission link\nnoted in the next comment(s).  This will include the bug IDs of this\ntracking bug as well as the relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nBodhi notes field when available.\n\nPlease note: this issue affects multiple supported versions of Fedora.\nOnly one tracking bug has been filed; please ensure that it is only closed\nwhen all affected versions are fixed.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6582705",
+						"comment_count": "1",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2013-12-04 02:11:55 +0000",
+						"thetext": "\nPlease use the following update submission link to create the Bodhi\nrequest for this issue as it contains the top-level parent bug(s) as well\nas this tracking bug.  This will ensure that all associated bugs get\nupdated when new packages are pushed to stable.\n\nPlease also ensure that the \"Close bugs when update is stable\" option\nremains checked.\n\nBodhi update submission link:\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1037888,1037889"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594508",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 03:18:34 +0000",
+						"thetext": "munin-2.0.18-2.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/munin-2.0.18-2.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594510",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 03:19:43 +0000",
+						"thetext": "munin-2.0.18-2.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/munin-2.0.18-2.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594512",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 03:20:22 +0000",
+						"thetext": "munin-2.0.18-2.fc18 has been submitted as an update for Fedora 18.\nhttps://admin.fedoraproject.org/updates/munin-2.0.18-2.fc18"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594514",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 03:21:23 +0000",
+						"thetext": "munin-2.0.18-2.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/munin-2.0.18-2.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594516",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 03:22:03 +0000",
+						"thetext": "munin-2.0.18-2.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/munin-2.0.18-2.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594582",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 07:48:28 +0000",
+						"thetext": "munin-2.0.19-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-1.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594584",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 07:49:14 +0000",
+						"thetext": "munin-2.0.19-1.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-1.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594587",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 07:53:03 +0000",
+						"thetext": "munin-2.0.19-1.fc18 has been submitted as an update for Fedora 18.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-1.fc18"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594590",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 07:54:06 +0000",
+						"thetext": "munin-2.0.19-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594593",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 07:57:22 +0000",
+						"thetext": "munin-2.0.19-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594994",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 17:49:26 +0000",
+						"thetext": "Package munin-2.0.19-1.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing munin-2.0.19-1.fc20'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2013-22968/munin-2.0.19-1.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6622703",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-16 07:08:08 +0000",
+						"thetext": "munin-2.0.19-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6625778",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-16 23:01:49 +0000",
+						"thetext": "munin-2.0.19-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6625789",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-16 23:03:30 +0000",
+						"thetext": "munin-2.0.19-1.fc18 has been pushed to the Fedora 18 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6654916",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-23 21:29:17 +0000",
+						"thetext": "munin-2.0.19-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6654925",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-23 21:29:52 +0000",
+						"thetext": "munin-2.0.19-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6957000",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-27 02:14:42 +0000",
+						"thetext": "munin-2.0.19-2.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-2.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6957008",
+						"comment_count": "19",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-27 02:17:12 +0000",
+						"thetext": "munin-2.0.19-2.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-2.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6957014",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-27 02:18:32 +0000",
+						"thetext": "munin-2.0.19-2.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-2.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6957020",
+						"comment_count": "21",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-27 02:19:29 +0000",
+						"thetext": "munin-2.0.19-2.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-2.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6965277",
+						"comment_count": "22",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-29 13:33:18 +0000",
+						"thetext": "munin-2.0.20-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/munin-2.0.20-1.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6965282",
+						"comment_count": "23",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-29 13:34:54 +0000",
+						"thetext": "munin-2.0.20-1.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/munin-2.0.20-1.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6965287",
+						"comment_count": "24",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-29 13:36:11 +0000",
+						"thetext": "munin-2.0.20-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/munin-2.0.20-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6965292",
+						"comment_count": "25",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-29 13:38:16 +0000",
+						"thetext": "munin-2.0.20-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/munin-2.0.20-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6988434",
+						"comment_count": "26",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-07 03:26:18 +0000",
+						"thetext": "munin-2.0.20-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6988440",
+						"comment_count": "27",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-07 03:26:47 +0000",
+						"thetext": "munin-2.0.20-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7013187",
+						"comment_count": "28",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-15 23:29:53 +0000",
+						"thetext": "munin-2.0.20-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7013194",
+						"comment_count": "29",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-15 23:30:22 +0000",
+						"thetext": "munin-2.0.20-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1037890,
+			"security": true,
+			"title": "CVE-2013-6048 CVE-2013-6359 munin: two denial of service flaws fixed in 2.0.18 [epel-all]",
+			"bugzilla": {
+				"bug_id": "1037890",
+				"creation_ts": "2013-12-04 02:12:00 +0000",
+				"short_desc": "CVE-2013-6048 CVE-2013-6359 munin: two denial of service flaws fixed in 2.0.18 [epel-all]",
+				"delta_ts": "2015-01-04 22:38:01 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1037888",
+						"alias": "CVE-2013-6359",
+						"creation_ts": "2013-12-04 02:09:52 +0000",
+						"short_desc": "CVE-2013-6048 CVE-2013-6359 munin: two denial of service flaws fixed in 2.0.18",
+						"delta_ts": "2019-09-29 13:10:38 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1037889",
+							"1037890"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "6582700",
+								"comment_count": "0",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2013-12-04 02:09:52 +0000",
+								"thetext": "Christoph Biedl reported that Munin 2.0.18 fixes two denial of service flaws:\n\n* CVE-2013-6048, a node could cause excessive memory consumption on the Munin master.\n\n* CVE-2013-6359, a malicious plug-in could prevent data collection for the node.\n\nReferences:\n\nhttps://github.com/munin-monitoring/munin/blob/2.0.18/ChangeLog"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6582709",
+								"comment_count": "1",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2013-12-04 02:12:20 +0000",
+								"thetext": "\nCreated munin tracking bugs for this issue:\n\nAffects: fedora-all [bug 1037889]\nAffects: epel-all [bug 1037890]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6619371",
+								"comment_count": "2",
+								"who": {
+									"text": "drjohnson1",
+									"name": "d. johnson"
+								},
+								"bug_when": "2013-12-13 23:36:43 +0000",
+								"thetext": "Package munin-2.0.19-1:\n* should fix your issue,\n* was pushed to the Fedora + EPEL testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing munin-2.0.19-1'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2013-22968/munin-2.0.19-1.fc20\nthen log in and leave karma (feedback).\n\nWas also pushed for EL5 / EL6 / F18 / F19 / F20:\nhttps://admin.fedoraproject.org/updates/munin"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6622704",
+								"comment_count": "3",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2013-12-16 07:08:19 +0000",
+								"thetext": "munin-2.0.19-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6625779",
+								"comment_count": "4",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2013-12-16 23:01:57 +0000",
+								"thetext": "munin-2.0.19-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6625790",
+								"comment_count": "5",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2013-12-16 23:03:41 +0000",
+								"thetext": "munin-2.0.19-1.fc18 has been pushed to the Fedora 18 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6654917",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2013-12-23 21:29:23 +0000",
+								"thetext": "munin-2.0.19-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6654926",
+								"comment_count": "7",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2013-12-23 21:30:02 +0000",
+								"thetext": "munin-2.0.19-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6988435",
+								"comment_count": "8",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-04-07 03:26:24 +0000",
+								"thetext": "munin-2.0.20-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6988441",
+								"comment_count": "9",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-04-07 03:26:53 +0000",
+								"thetext": "munin-2.0.20-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7013188",
+								"comment_count": "10",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-04-15 23:29:59 +0000",
+								"thetext": "munin-2.0.20-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7013195",
+								"comment_count": "11",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-04-15 23:30:27 +0000",
+								"thetext": "munin-2.0.20-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6582706",
+						"comment_count": "0",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2013-12-04 02:12:00 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora EPEL.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen creating a Bodhi update request, please use the bodhi submission link\nnoted in the next comment(s).  This will include the bug IDs of this\ntracking bug as well as the relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nBodhi notes field when available.\n\nPlease note: this issue affects multiple supported versions of Fedora EPEL.\nOnly one tracking bug has been filed; please ensure that it is only closed\nwhen all affected versions are fixed.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6582708",
+						"comment_count": "1",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2013-12-04 02:12:15 +0000",
+						"thetext": "\nPlease use the following update submission link to create the Bodhi\nrequest for this issue as it contains the top-level parent bug(s) as well\nas this tracking bug.  This will ensure that all associated bugs get\nupdated when new packages are pushed to stable.\n\nPlease also ensure that the \"Close bugs when update is stable\" option\nremains checked.\n\nBodhi update submission link:\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1037888,1037890"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594507",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 03:18:31 +0000",
+						"thetext": "munin-2.0.18-2.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/munin-2.0.18-2.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594509",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 03:19:40 +0000",
+						"thetext": "munin-2.0.18-2.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/munin-2.0.18-2.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594511",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 03:20:19 +0000",
+						"thetext": "munin-2.0.18-2.fc18 has been submitted as an update for Fedora 18.\nhttps://admin.fedoraproject.org/updates/munin-2.0.18-2.fc18"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594513",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 03:21:20 +0000",
+						"thetext": "munin-2.0.18-2.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/munin-2.0.18-2.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594515",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 03:21:59 +0000",
+						"thetext": "munin-2.0.18-2.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/munin-2.0.18-2.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594581",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 07:48:24 +0000",
+						"thetext": "munin-2.0.19-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-1.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594583",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 07:49:10 +0000",
+						"thetext": "munin-2.0.19-1.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-1.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594586",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 07:52:59 +0000",
+						"thetext": "munin-2.0.19-1.fc18 has been submitted as an update for Fedora 18.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-1.fc18"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594589",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 07:54:03 +0000",
+						"thetext": "munin-2.0.19-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594592",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 07:57:18 +0000",
+						"thetext": "munin-2.0.19-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6594993",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-08 17:49:21 +0000",
+						"thetext": "Package munin-2.0.19-1.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing munin-2.0.19-1.fc20'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2013-22968/munin-2.0.19-1.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6622702",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-16 07:08:03 +0000",
+						"thetext": "munin-2.0.19-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6625775",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-16 23:01:43 +0000",
+						"thetext": "munin-2.0.19-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6625788",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-16 23:03:26 +0000",
+						"thetext": "munin-2.0.19-1.fc18 has been pushed to the Fedora 18 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6654915",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-23 21:29:12 +0000",
+						"thetext": "munin-2.0.19-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6654922",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-23 21:29:49 +0000",
+						"thetext": "munin-2.0.19-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6956999",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-27 02:14:37 +0000",
+						"thetext": "munin-2.0.19-2.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-2.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6957007",
+						"comment_count": "19",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-27 02:17:07 +0000",
+						"thetext": "munin-2.0.19-2.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-2.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6957013",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-27 02:18:28 +0000",
+						"thetext": "munin-2.0.19-2.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-2.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6957019",
+						"comment_count": "21",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-27 02:19:26 +0000",
+						"thetext": "munin-2.0.19-2.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-2.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6965276",
+						"comment_count": "22",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-29 13:33:14 +0000",
+						"thetext": "munin-2.0.20-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/munin-2.0.20-1.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6965281",
+						"comment_count": "23",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-29 13:34:50 +0000",
+						"thetext": "munin-2.0.20-1.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/munin-2.0.20-1.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6965286",
+						"comment_count": "24",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-29 13:36:07 +0000",
+						"thetext": "munin-2.0.20-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/munin-2.0.20-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6965291",
+						"comment_count": "25",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-29 13:38:13 +0000",
+						"thetext": "munin-2.0.20-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/munin-2.0.20-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6988433",
+						"comment_count": "26",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-07 03:26:14 +0000",
+						"thetext": "munin-2.0.20-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6988439",
+						"comment_count": "27",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-07 03:26:44 +0000",
+						"thetext": "munin-2.0.20-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7013186",
+						"comment_count": "28",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-15 23:29:50 +0000",
+						"thetext": "munin-2.0.20-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7013193",
+						"comment_count": "29",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-15 23:30:18 +0000",
+						"thetext": "munin-2.0.20-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1081254,
+			"title": "munin-asyncd should wait for munin-node",
+			"bugzilla": {
+				"bug_id": "1081254",
+				"creation_ts": "2014-03-26 21:49:59 +0000",
+				"short_desc": "munin-asyncd should wait for munin-node",
+				"delta_ts": "2014-04-15 23:30:10 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "urgent",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6956502",
+						"comment_count": "0",
+						"who": {
+							"text": "2229",
+							"name": "boss-chifra"
+						},
+						"bug_when": "2014-03-26 21:49:59 +0000",
+						"thetext": "Description of problem:\nmunin-asyncd needs munin-node to properly run.\n\nVersion-Release number of selected component (if applicable):\n\nmunin-async-2.0.19-1.el6.noarch\nmunin-node-2.0.19-1.el6.noarch\nmunin-common-2.0.19-1.el6.noarch\n\nHow reproducible:\nalways\n\nSteps to Reproduce:\n1. yum install  munin-async munin-node munin-common\n2.\n/sbin/chkconfig --add munin-node\n/sbin/chkconfig --add munin-asyncd\n/sbin/chkconfig  munin-node on\n3.\n/sbin/chkconfig --list | grep munin\nmunin-asyncd    0:off   1:off   2:on    3:on    4:on    5:on    6:off\nmunin-node      0:off   1:off   2:on    3:on    4:on    5:on    6:off\n\nActual results:\n\nls -al /etc/rc2.d/*munin*\nlrwxrwxrwx 1 root root 22 Mar 27 01:38 /etc/rc2.d/S50munin-asyncd -> ../init.d/munin-asyncd\nlrwxrwxrwx 1 root root 20 Mar 27 01:40 /etc/rc2.d/S90munin-node -> ../init.d/munin-node\nExpected results:\n\nmunin-asyncd should start after munin-node like\n\nls -al /etc/rc2.d/*munin*\nlrwxrwxrwx 1 root root 22 Mar 27 01:38 /etc/rc2.d/S91munin-asyncd -> ../init.d/munin-asyncd\nlrwxrwxrwx 1 root root 20 Mar 27 01:40 /etc/rc2.d/S90munin-node -> ../init.d/munin-node\n\n\nAdditional info:\nmunin-async requires munin-node to be started before it otherwise it will just stop. So please add in the init script munin-asyncd :\n\n+ # Required-Start: $local_fs $remote_fs $network munin-node\n- # Required-Stop: $local_fs $remote_fs $network"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6956995",
+						"comment_count": "1",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-27 02:14:27 +0000",
+						"thetext": "munin-2.0.19-2.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-2.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6957005",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-27 02:16:59 +0000",
+						"thetext": "munin-2.0.19-2.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-2.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6957011",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-27 02:18:21 +0000",
+						"thetext": "munin-2.0.19-2.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-2.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6957017",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-27 02:19:17 +0000",
+						"thetext": "munin-2.0.19-2.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/munin-2.0.19-2.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6960628",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-27 20:43:18 +0000",
+						"thetext": "Package munin-2.0.19-2.el5:\n* should fix your issue,\n* was pushed to the Fedora EPEL 5 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=epel-testing munin-2.0.19-2.el5'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2014-0971/munin-2.0.19-2.el5\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6964109",
+						"comment_count": "6",
+						"who": {
+							"text": "2229",
+							"name": "boss-chifra"
+						},
+						"bug_when": "2014-03-28 20:48:38 +0000",
+						"thetext": "I am tested munin-2.0.19-2.el6 and all works fine. Thanks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6965274",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-29 13:33:07 +0000",
+						"thetext": "munin-2.0.20-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/munin-2.0.20-1.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6965279",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-29 13:34:43 +0000",
+						"thetext": "munin-2.0.20-1.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/munin-2.0.20-1.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6965284",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-29 13:36:01 +0000",
+						"thetext": "munin-2.0.20-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/munin-2.0.20-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6965289",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-03-29 13:38:05 +0000",
+						"thetext": "munin-2.0.20-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/munin-2.0.20-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6988431",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-07 03:26:06 +0000",
+						"thetext": "munin-2.0.20-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6988437",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-07 03:26:36 +0000",
+						"thetext": "munin-2.0.20-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7013184",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-15 23:29:42 +0000",
+						"thetext": "munin-2.0.20-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7013191",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-04-15 23:30:10 +0000",
+						"thetext": "munin-2.0.20-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "munin-2.0.19-2.el6",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "munin-java-plugins",
+						"version": "2.0.19",
+						"release": "2.el6",
+						"arch": "noarch"
+					},
+					{
+						"name": "munin-async",
+						"version": "2.0.19",
+						"release": "2.el6",
+						"arch": "noarch"
+					},
+					{
+						"name": "munin-node",
+						"version": "2.0.19",
+						"release": "2.el6",
+						"arch": "noarch"
+					},
+					{
+						"name": "munin",
+						"version": "2.0.19",
+						"release": "2.el6",
+						"arch": "noarch"
+					},
+					{
+						"name": "munin-nginx",
+						"version": "2.0.19",
+						"release": "2.el6",
+						"arch": "noarch"
+					},
+					{
+						"name": "munin-cgi",
+						"version": "2.0.19",
+						"release": "2.el6",
+						"arch": "noarch"
+					},
+					{
+						"name": "munin-netip-plugins",
+						"version": "2.0.19",
+						"release": "2.el6",
+						"arch": "noarch"
+					},
+					{
+						"name": "munin-ruby-plugins",
+						"version": "2.0.19",
+						"release": "2.el6",
+						"arch": "noarch"
+					},
+					{
+						"name": "munin-common",
+						"version": "2.0.19",
+						"release": "2.el6",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "munin",
+						"version": "2.0.19",
+						"release": "2.el6",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 144477,
+			"text": "This update has been submitted for testing by fenris02. ",
+			"timestamp": "2014-03-27 02:18:56",
+			"update_id": 19225,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 144478,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 testing updates repository.",
+			"timestamp": "2014-03-27 16:07:43",
+			"update_id": 19225,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 144479,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-03-27 20:43:44",
+			"update_id": 19225,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 144480,
+			"text": "This update has been obsoleted by https://admin.fedoraproject.org/updates/munin-2.0.20-1.el6",
+			"timestamp": "2014-03-29 13:36:15",
+			"update_id": 19225,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2014-03-27 20:43:44",
+	"date_submitted": "2014-03-27 02:18:32",
+	"date_testing": "2014-03-27 20:43:44",
+	"meets_testing_requirements": true,
+	"notes": "minor bugfix release:\n- BZ# 1081254: Start asyncd after node\n- BZ# 1028075: munin-node doesn't get added to chkconfig\nUpstream update to 2.0.18, fixes CVE-2013-6359",
+	"pushed": true,
+	"release": {
+		"branch": "el6",
+		"candidate_tag": "dist-6E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "dist-6E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 6",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-6",
+		"override_tag": "dist-6E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-6E-epel",
+		"state": "archived",
+		"testing_tag": "dist-6E-epel-testing",
+		"version": "6"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "obsolete",
+	"suggest": "unspecified",
+	"title": "munin-2.0.19-2.el6",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2014-0972",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2014-0972",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/664a0365c3b1da2ac03149140b43a7ee649ef97adf7fc98f70cba7d3d95bc67d?s=24&d=retro",
+		"email": "drjohnson1@gmail.com",
+		"groups": [
+			{
+				"name": "proventesters"
+			},
+			{
+				"name": "packager"
+			}
+		],
+		"id": 575,
+		"name": "fenris02",
+		"openid": "fenris02.id.fedoraproject.org"
+	},
+	"version_hash": "87294f5151859fc978070e80026bd3d7d5fb9b0e"
+}

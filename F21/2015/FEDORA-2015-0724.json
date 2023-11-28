@@ -1,0 +1,3178 @@
+{
+	"alias": "FEDORA-2015-0724",
+	"bugs": [
+		{
+			"bug_id": 1094948,
+			"title": "Backlight control doesn't work on the Samsung N145P netbook",
+			"bugzilla": {
+				"bug_id": "1094948",
+				"creation_ts": "2014-05-06 18:17:47 +0000",
+				"short_desc": "Backlight control doesn't work on the Samsung N145P netbook",
+				"delta_ts": "2015-01-26 02:31:01 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"external_bugs": {
+					"text": "861573",
+					"name": "Red Hat Bugzilla"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7066658",
+						"comment_count": "0",
+						"who": {
+							"text": "vpodzime",
+							"name": "Vratislav Podzimek"
+						},
+						"bug_when": "2014-05-06 18:17:47 +0000",
+						"thetext": "Description of problem:\nBacklight control doesn't work on the Samsung N145P netbook. Hitting the keys make the popup with the with the bar appear and it changes, but the actual brightness doesn't change. The problem seems to be the X server using the /sys/class/backlight/samsung/ interface that doesn't work instead of /sys/class/backlight/intel_backlight/ which works.\n\nBooting with any of:\nvideo.use_native_backlight=1\nacpi_backlight=vendor\nacpi_osi=\"!Windows 2012\"\nacpi_osi=\"!Windows 2009\"\n\nboot options doesn't help. What on the other hand helps is adding the following /etc/X11/xorg.conf.d/80-backlight.conf file:\nSection \"Device\"\n  Identifier  \"Intel Graphics\"\n  Driver      \"intel\"\n  Option      \"AccelMethod\"     \"sna\"\n  Option      \"Backlight\"       \"intel_backlight\"\n  Driver      \"intel\"\n  BusID       \"PCI:0:2:0\"\nEndSection\n\n\nVersion-Release number of selected component (if applicable):\nxorg-x11-drv-intel-2.21.15-5.fc20.i686\nkernel-3.15.0-0.rc3.git4.2.fc21.i686\n\nHow reproducible:\n100 %\n\nSteps to Reproduce:\n1. try to change brightness level with special keyboard keys on the Samsung N145P netbook\n\nActual results:\nno brightness changes\n\nExpected results:\nbrightness changing"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7066875",
+						"comment_count": "1",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2014-05-06 20:02:06 +0000",
+						"thetext": "Looks like this is a regression, can you try with a 3.13 kernel, ie try installing:\nhttp://koji.fedoraproject.org/koji/buildinfo?buildID=512681\n\nIf that helps, you can also try a 3.14 kernel, ie:\nhttp://koji.fedoraproject.org/koji/buildinfo?buildID=513888\n\nThanks,\n\nHans"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7784978",
+						"comment_count": "2",
+						"who": {
+							"text": "p.wolfger",
+							"name": "Paul Wolfger"
+						},
+						"bug_when": "2014-12-22 10:27:59 +0000",
+						"thetext": "I have a samsung series 7 notebook (730U3E) using fedora 21 (uefi) and experience the same problem. \n\nUsing ubuntu 14.04.01 backlight control works. Under ubuntu \"ls -l /cat/sys/backlight\":\nlrwxrwxrwx  1 root root 0 Dec 22 09:32 acpi_video0 -> ../../devices/pci0000:00/0000:00:01.0/0000:01:00.0/backlight/acpi_video0\nlrwxrwxrwx  1 root root 0 Dec 22 09:32 acpi_video1 -> ../../devices/pci0000:00/0000:00:02.0/backlight/acpi_video1\nlrwxrwxrwx  1 root root 0 Dec 22 09:32 intel_backlight -> ../../devices/pci0000:00/0000:00:02.0/drm/card0/card0-eDP-1/intel_backlight\n\nchanging the brightness effects the values in acpi_video0 and not in intel_backlight\n\nin f21 I only have:\nlrwxrwxrwx.  1 root root 0 Dec 22 11:01 intel_backlight -> ../../devices/pci0000:00/0000:00:02.0/drm/card0/card0-eDP-1/intel_backlight/\nactual_brightness gets updated when using the fn keys, however the brightness does not change\n\nI gladly would provide any needed additional information.\nThanks,\npaul"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7784990",
+						"comment_count": "3",
+						"who": {
+							"text": "p.wolfger",
+							"name": "Paul Wolfger"
+						},
+						"bug_when": "2014-12-22 10:35:16 +0000",
+						"thetext": "ps:\nkernel-3.17.6-300.fc21.x86_64\nxorg-x11-drv-intel-2.99.916-3.20141117.fc21.x86_64"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7785448",
+						"comment_count": "4",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2014-12-22 13:43:38 +0000",
+						"thetext": "Hi,\n\n(In reply to Paul Wolfger from comment #2)\n> I have a samsung series 7 notebook (730U3E) using fedora 21 (uefi) and\n> experience the same problem. \n> \n> Using ubuntu 14.04.01 backlight control works. Under ubuntu \"ls -l\n> /cat/sys/backlight\":\n> lrwxrwxrwx  1 root root 0 Dec 22 09:32 acpi_video0 ->\n> ../../devices/pci0000:00/0000:00:01.0/0000:01:00.0/backlight/acpi_video0\n> lrwxrwxrwx  1 root root 0 Dec 22 09:32 acpi_video1 ->\n> ../../devices/pci0000:00/0000:00:02.0/backlight/acpi_video1\n> lrwxrwxrwx  1 root root 0 Dec 22 09:32 intel_backlight ->\n> ../../devices/pci0000:00/0000:00:02.0/drm/card0/card0-eDP-1/intel_backlight\n> \n> changing the brightness effects the values in acpi_video0 and not in\n> intel_backlight\n> \n> in f21 I only have:\n> lrwxrwxrwx.  1 root root 0 Dec 22 11:01 intel_backlight ->\n> ../../devices/pci0000:00/0000:00:02.0/drm/card0/card0-eDP-1/intel_backlight/\n> actual_brightness gets updated when using the fn keys, however the\n> brightness does not change\n\nOk, this sounds like it has a different root-cause then the one of the original reporter, can you try booting with \"video.use_native_backlight=0\" added to your kernel commandline ? Then you should get back the acpi_video# entries under /sys/class/backlight, and hopefully that will also fix the backlight control.\n\nAlso please do:\n\nsudo dmidecode > dmi.log\n\nAnd attach dmi.log here. Please let me know if the kernel commandline parameter works for you, if it does then I'll add your laptop model to the kernel quirks table containing models which need \"video.use_native_backlight=0\" so that future kernels will do the right thing automatically.\n\nRegards,\n\nHans"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7785528",
+						"comment_count": "5",
+						"who": {
+							"text": "p.wolfger",
+							"name": "Paul Wolfger"
+						},
+						"bug_when": "2014-12-22 14:15:27 +0000",
+						"thetext": "Thank you very much, this kernel parameter does the trick! I can now change the brightness by writing to /sys/class/backlight/acpi_video0/brightness.\n\nHowever, using the fn keys or the slider in the gnome terminal does only change the values in /sys/class/backlight/intel_backlight/brightness. Do you know how to fix this behaviour?\n\nThe dmi.log is attached.\n\nThe exact model name:\n# cat /sys/class/dmi/id/product_name             \n730U3E/740U3E\n\n\nBest regards,\npaul"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7785529",
+						"comment_count": "6",
+						"who": {
+							"text": "p.wolfger",
+							"name": "Paul Wolfger"
+						},
+						"bug_when": "2014-12-22 14:16:00 +0000",
+						"thetext": "Created attachment 972044\ndmi.log"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7785564",
+						"comment_count": "7",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2014-12-22 14:35:56 +0000",
+						"thetext": "Hi,\n\n(In reply to Paul Wolfger from comment #5)\n> Thank you very much, this kernel parameter does the trick! I can now change\n> the brightness by writing to /sys/class/backlight/acpi_video0/brightness.\n> \n> However, using the fn keys or the slider in the gnome terminal does only\n> change the values in /sys/class/backlight/intel_backlight/brightness. Do you\n> know how to fix this behaviour?\n\nThat should not happen, have you perhaps but a custom xorg.conf file somewhere ?\n\nIf /sys/class/backlight/acpi_video0 is present then xorg (and via xorg gnome) should prefer it over intel_backlight.\n\nRegards,\n\nHans"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7785695",
+						"comment_count": "8",
+						"who": {
+							"text": "p.wolfger",
+							"name": "Paul Wolfger"
+						},
+						"bug_when": "2014-12-22 15:38:42 +0000",
+						"thetext": "No I do not have a custom xorg.conf file. /etc/X11/xorg.conf.d contains a single file, which only defines the keyboard layout:\n# cat 00-anaconda-keyboard.conf \n#This file was generated by the Anaconda installer\nSection \"InputClass\"\n\tIdentifier\t\"anaconda-keyboard\"\n\tMatchIsKeyboard\t\"on\"\n\tOption\t\"XkbLayout\"\t\"at\"\nEndSection%       \n\n\nBest regards,\npaul"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7822295",
+						"comment_count": "9",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2015-01-09 12:15:25 +0000",
+						"thetext": "(In reply to Vratislav Podzimek from comment #0)\n> Description of problem:\n> Backlight control doesn't work on the Samsung N145P netbook. Hitting the\n> keys make the popup with the with the bar appear and it changes, but the\n> actual brightness doesn't change. The problem seems to be the X server using\n> the /sys/class/backlight/samsung/ interface that doesn't work instead of\n> /sys/class/backlight/intel_backlight/ which works.\n> \n> Booting with any of:\n> video.use_native_backlight=1\n> acpi_backlight=vendor\n> acpi_osi=\"!Windows 2012\"\n> acpi_osi=\"!Windows 2009\"\n> \n> boot options doesn't help. What on the other hand helps is adding the\n> following /etc/X11/xorg.conf.d/80-backlight.conf file:\n> Section \"Device\"\n>   Identifier  \"Intel Graphics\"\n>   Driver      \"intel\"\n>   Option      \"AccelMethod\"     \"sna\"\n>   Option      \"Backlight\"       \"intel_backlight\"\n>   Driver      \"intel\"\n>   BusID       \"PCI:0:2:0\"\n> EndSection\n> \n> \n> Version-Release number of selected component (if applicable):\n> xorg-x11-drv-intel-2.21.15-5.fc20.i686\n> kernel-3.15.0-0.rc3.git4.2.fc21.i686\n> \n> How reproducible:\n> 100 %\n> \n> Steps to Reproduce:\n> 1. try to change brightness level with special keyboard keys on the Samsung\n> N145P netbook\n> \n> Actual results:\n> no brightness changes\n> \n> Expected results:\n> brightness changing\n\nHi Vratislav,\n\nI assume that this is still happening ? I've had similar reports from other uses and I'm working on a kernel fix to only export the intel_backlight interface on affected Samsung laptops, to apply this fix to your model to I need to have some of the DMI strings of your model, can you please do:\n\ncat /sys/class/dmi/id/sys_vendor\ncat /sys/class/dmi/id/board_name\ncat /sys/class/dmi/id/product_name\n\nAnd copy and paste the output of those 3 commands here ?\n\nThanks.\n\nHans"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7822302",
+						"comment_count": "10",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2015-01-09 12:17:22 +0000",
+						"thetext": "(In reply to Paul Wolfger from comment #8)\n> No I do not have a custom xorg.conf file. /etc/X11/xorg.conf.d contains a\n\nAre you really really sure, have you also looked under /usr/share/X11/xorg.conf.d ? Your latest problem sounds a lot like you've a config file as described in comment 0 of this bug.\n\nWhat desktop environment are you using ?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7822368",
+						"comment_count": "11",
+						"who": {
+							"text": "p.wolfger",
+							"name": "Paul Wolfger"
+						},
+						"bug_when": "2015-01-09 12:32:55 +0000",
+						"thetext": "You were right, under /usr/share/X11/xorg.conf.d I had a config file. I'm sorry, I'm not familiar yet with these new locations.\n\nNevertheless, thank you very much for your help. Brightness control works now as expected!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7822436",
+						"comment_count": "12",
+						"who": {
+							"text": "vpodzime",
+							"name": "Vratislav Podzimek"
+						},
+						"bug_when": "2015-01-09 12:57:03 +0000",
+						"thetext": "(In reply to Hans de Goede from comment #9)\n> (In reply to Vratislav Podzimek from comment #0)\n> > Description of problem:\n> > Backlight control doesn't work on the Samsung N145P netbook. Hitting the\n> > keys make the popup with the with the bar appear and it changes, but the\n> > actual brightness doesn't change. The problem seems to be the X server using\n> > the /sys/class/backlight/samsung/ interface that doesn't work instead of\n> > /sys/class/backlight/intel_backlight/ which works.\n> > \n> > Booting with any of:\n> > video.use_native_backlight=1\n> > acpi_backlight=vendor\n> > acpi_osi=\"!Windows 2012\"\n> > acpi_osi=\"!Windows 2009\"\n> > \n> > boot options doesn't help. What on the other hand helps is adding the\n> > following /etc/X11/xorg.conf.d/80-backlight.conf file:\n> > Section \"Device\"\n> >   Identifier  \"Intel Graphics\"\n> >   Driver      \"intel\"\n> >   Option      \"AccelMethod\"     \"sna\"\n> >   Option      \"Backlight\"       \"intel_backlight\"\n> >   Driver      \"intel\"\n> >   BusID       \"PCI:0:2:0\"\n> > EndSection\n> > \n> > \n> > Version-Release number of selected component (if applicable):\n> > xorg-x11-drv-intel-2.21.15-5.fc20.i686\n> > kernel-3.15.0-0.rc3.git4.2.fc21.i686\n> > \n> > How reproducible:\n> > 100 %\n> > \n> > Steps to Reproduce:\n> > 1. try to change brightness level with special keyboard keys on the Samsung\n> > N145P netbook\n> > \n> > Actual results:\n> > no brightness changes\n> > \n> > Expected results:\n> > brightness changing\n> \n> Hi Vratislav,\n> \n> I assume that this is still happening ? I've had similar reports from other\n> uses and I'm working on a kernel fix to only export the intel_backlight\n> interface on affected Samsung laptops, to apply this fix to your model to I\n> need to have some of the DMI strings of your model, can you please do:\n> \n> cat /sys/class/dmi/id/sys_vendor\n> cat /sys/class/dmi/id/board_name\n> cat /sys/class/dmi/id/product_name\n> \n> And copy and paste the output of those 3 commands here ?\nSure, sorry for the delay, I didn't notice this comment. The issue still happens, without the 80-backlight.conf file brightness controls don't work.\n\nHere are the contents:\n/sys/class/dmi/id/sys_vendor:SAMSUNG ELECTRONICS CO., LTD.\n/sys/class/dmi/id/board_name:N145P/N250P/N260P          \n/sys/class/dmi/id/product_name:N145P/N250P/N260P"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7823195",
+						"comment_count": "13",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2015-01-09 15:58:25 +0000",
+						"thetext": "Hi,\n\nI've done a kernel scratch-build, with a fix for both the Samsung N145P and the Samsung series 7 issues discussed in this bug, please give it a try.\n\nPlease download the following rpms:\nkernel-3.17.8-...rpm\nkernel-core-3.17.8-...rpm\nkernel-modules-3.17.8-...rpm\n\nFor your arch from here:\nhttp://koji.fedoraproject.org/koji/taskinfo?taskID=8571559\n(note this is still building atm)\n\nSave them all to the same directory (which should not contain other rpms) and do:\n\nsudo rpm -ivh kernel-*.rpm\n\nFrom within that directory.\n\nThen:\n\nVratislav: mv the custom xorg.conf file to somewhere where xorg will not find it; and\nPaul: remove the \"video.use_native_backlight=0\" from the kernel commandline for the new kernel; and\nBoth:  boot into the new kernel and check if the backlight works as expected.\n\nThanks & Regards,\n\nHans"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7834012",
+						"comment_count": "14",
+						"who": {
+							"text": "vpodzime",
+							"name": "Vratislav Podzimek"
+						},
+						"bug_when": "2015-01-12 09:37:49 +0000",
+						"thetext": "I can confirm that the kernel build from comment #13 works great on my N145P Samsung netbook. Backlight control works as expected out of the box, no special config nor boot option needed. Thanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7834043",
+						"comment_count": "15",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2015-01-12 09:45:12 +0000",
+						"thetext": "(In reply to Vratislav Podzimek from comment #14)\n> I can confirm that the kernel build from comment #13 works great on my N145P\n> Samsung netbook. Backlight control works as expected out of the box, no\n> special config nor boot option needed. Thanks!\n\nThanks, I've sent the patch upstream and asked Josh Boyer to add the patch fixing this to the official Fedora kernel builds for now."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7835118",
+						"comment_count": "16",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-01-12 14:15:15 +0000",
+						"thetext": "Patch added to Fedora git.  Thanks Hans!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7843841",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-14 13:14:34 +0000",
+						"thetext": "kernel-3.18.2-200.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.2-200.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7846036",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-14 23:59:52 +0000",
+						"thetext": "Package kernel-3.18.2-200.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-3.18.2-200.fc21'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-0724/kernel-3.18.2-200.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7858526",
+						"comment_count": "19",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-19 20:49:14 +0000",
+						"thetext": "kernel-3.18.3-201.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.3-201.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7876414",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-26 02:31:01 +0000",
+						"thetext": "kernel-3.18.3-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1115713,
+			"title": "backlight problem with Intel i915 integrated graphics adatper in N4xx/N5xx Atom after kernel 3.14.2",
+			"bugzilla": {
+				"bug_id": "1115713",
+				"creation_ts": "2014-07-02 21:22:20 +0000",
+				"short_desc": "backlight problem with Intel i915 integrated graphics adatper in N4xx/N5xx Atom after kernel 3.14.2",
+				"delta_ts": "2015-01-26 02:31:04 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7259516",
+						"comment_count": "0",
+						"who": {
+							"text": "prd-fedora",
+							"name": "Paul DeStefano"
+						},
+						"bug_when": "2014-07-02 21:22:20 +0000",
+						"thetext": "Description of problem:\n\nAfter update to kernel 3.14.2, backlight adjustment via fn-key combination doesn't work.  Furthermore, 3.14.7 does not fix the problem.\n\nlspci -vv:\n...\nVGA compatible controller: Intel Corporation Atom Processor D4xx/D5xx/N4xx/N5xx Integrated Graphics Controller\n...\nKernel driver in use: i915\n...\n\nVersion-Release number of selected component (if applicable): 3.14.2-200\n\n\nHow reproducible:\nSince 3.14.2\n\nSteps to Reproduce:\n1. Update to kernel v3.14.2 or later,\n2.\n3.\n\nActual results:\nBacklight adjustment from X session is broken, cannot adjust.\n\nExpected results:\nShould behave as v3.14.1 or earlier.\n\nAdditional info:\n\nThis bug is nearly identical to bug 1093991, but isn't since problem persists after bug was fixed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7670983",
+						"comment_count": "1",
+						"who": {
+							"text": "jforbes",
+							"name": "Justin M. Forbes"
+						},
+						"bug_when": "2014-11-13 16:01:46 +0000",
+						"thetext": "*********** MASS BUG UPDATE **************\n\nWe apologize for the inconvenience.  There is a large number of bugs to go through and several of them have gone stale.  Due to this, we are doing a mass bug update across all of the Fedora 20 kernel bugs.\n\nFedora 20 has now been rebased to 3.17.2-200.fc20.  Please test this kernel update (or newer) and let us know if you issue has been resolved or if it is still present with the newer kernel.\n\nIf you have moved on to Fedora 21, and are still experiencing this issue, please change the version to Fedora 21.\n\nIf you experience different issues, please open a new bug report for those."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7676546",
+						"comment_count": "2",
+						"who": {
+							"text": "prd-fedora",
+							"name": "Paul DeStefano"
+						},
+						"bug_when": "2014-11-15 23:30:07 +0000",
+						"thetext": "Problem is still present with latest kernel v3.17.2.\n\nJust to remind you, the problem and symptoms are identical to bug 1093991.  'backlight' shows FN-keys are changing the backlight setting, but backlight is not actually adjusted.  And the workaround for X11 is still required:\n\nSection \"Device\"\n    Identifier  \"Intel Graphics\"\n    Driver      \"intel\"\n    Option      \"AccelMethod\"     \"sna\"\n    Option      \"Backlight\"       \"intel_backlight\" # use your backlight that works here\n    BusID       \"PCI:0:2:0\"\nEndSection"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7705942",
+						"comment_count": "3",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2014-11-25 13:30:47 +0000",
+						"thetext": "Hi Paul,\n\n(In reply to Paul DeStefano from comment #2)\n> Problem is still present with latest kernel v3.17.2.\n> \n> Just to remind you, the problem and symptoms are identical to bug 1093991. \n> 'backlight' shows FN-keys are changing the backlight setting, but backlight\n> is not actually adjusted.  And the workaround for X11 is still required:\n> \n> Section \"Device\"\n>     Identifier  \"Intel Graphics\"\n>     Driver      \"intel\"\n>     Option      \"AccelMethod\"     \"sna\"\n>     Option      \"Backlight\"       \"intel_backlight\" # use your backlight\n> that works here\n>     BusID       \"PCI:0:2:0\"\n> EndSection\n\nSo with this workaround things do work ?\n\nCan you please do \"sudo dmidecode > dmi.log\" and attach the generated dmi.log file here ?\n\nRegards,\n\nHans"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7756874",
+						"comment_count": "4",
+						"who": {
+							"text": "prd-fedora",
+							"name": "Paul DeStefano"
+						},
+						"bug_when": "2014-12-11 21:54:00 +0000",
+						"thetext": "Confirmed on F21.\n\nBut, let me try your request, now; just saw it."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7756879",
+						"comment_count": "5",
+						"who": {
+							"text": "prd-fedora",
+							"name": "Paul DeStefano"
+						},
+						"bug_when": "2014-12-11 21:56:34 +0000",
+						"thetext": "Created attachment 967401\ndmidecode log"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7758552",
+						"comment_count": "6",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2014-12-12 11:51:54 +0000",
+						"thetext": "Hi Paul,\n\nThanks for the info, 2 questions:\n\n1) Can you please do:\n\n\"ls /sys/class/backlight\"\n\nIn a terminal and copy & paste the output here ?\n\n2) Can you please confirm that things do work properly with the workaround from comment #2 ?\n\nThanks,\n\nHans"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7762003",
+						"comment_count": "7",
+						"who": {
+							"text": "prd-fedora",
+							"name": "Paul DeStefano"
+						},
+						"bug_when": "2014-12-14 08:05:35 +0000",
+						"thetext": "\n\n(In reply to Hans de Goede from comment #6)\n> 1) Can you please do:\n> \n> \"ls /sys/class/backlight\"\n\nSure, you bet...\n\n> ls -ltr /sys/class/backlight/\ntotal 0\nlrwxrwxrwx. 1 root root 0 Dec 13 15:53 intel_backlight -> ../../devices/pci0000:00/0000:00:02.0/drm/card0/card0-LVDS-1/intel_backlight/\nlrwxrwxrwx. 1 root root 0 Dec 13 23:53 samsung -> ../../devices/platform/samsung/backlight/samsung/\n\n> 2) Can you please confirm that things do work properly with the workaround\n> from comment #2 ?\n\nYes, I'm still using the same file contents shown in comment #2 as a workaround.\n\nFWIW, the on-screen overlay backlight adjustment indicator is missing in F21, but that could be an issue with my desktop.  If F20, there was a horizontal percentage bar that would show for a few seconds while changing the brightness; that's gone now and no brightness indication is shown while adjusting.  If you could tell me whether that's part of this bug or not, that'd be helpful.  But, asside from the indicator bar, the backlight adjustment *does work* with the aforementioned workaround, and doesn't work without the workaround."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7823175",
+						"comment_count": "8",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2015-01-09 15:54:00 +0000",
+						"thetext": "Hi,\n\nI've done a kernel scratch-build, with a fix for this, please give it a try.\n\nPlease download the following rpms:\nkernel-3.17.8-...rpm\nkernel-core-3.17.8-...rpm\nkernel-modules-3.17.8-...rpm\n\nFor your arch from here:\nhttp://koji.fedoraproject.org/koji/taskinfo?taskID=8571559\n(note this is still building atm)\n\nSave them all to the same directory (which should not contain other rpms) and do:\n\nsudo rpm -ivh kernel-*.rpm\n\nFrom within that directory.\n\nThen mv the custom xorg.conf file to somewhere where xorg will not find it,\nboot into the new kernel check if the backlight works as expected.\n\nRegards,\n\nHans"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7831739",
+						"comment_count": "9",
+						"who": {
+							"text": "prd-fedora",
+							"name": "Paul DeStefano"
+						},
+						"bug_when": "2015-01-10 08:05:08 +0000",
+						"thetext": "Success!  Yes, that works.\n\nFWIW, backlight is 100% now at boot on battery, which is different than it was before.  But, fn-keys adjust backlight as expected with your kernel build.\n\nShould I uninstall these packages, now?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7831764",
+						"comment_count": "10",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2015-01-10 08:54:34 +0000",
+						"thetext": "(In reply to Paul DeStefano from comment #9)\n> Success!  Yes, that works.\n> \n> FWIW, backlight is 100% now at boot on battery, which is different than it\n> was before.  But, fn-keys adjust backlight as expected with your kernel\n> build.\n\nThat is likely only the case the first boot because the backlight device in use changed, systemd should remember your backlight level over reboots, so once you reboot from the new kernel to the new kernel you should get your last used backlight level.\n\n> Should I uninstall these packages, now?\n\nThere is no reason to uninstall them really. Once I've confirmation for the fixes in question for a number of related bugs I'll ask the kernel team to add the fixes to the official Fedora kernel builds."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7835120",
+						"comment_count": "11",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-01-12 14:15:22 +0000",
+						"thetext": "Patch added to Fedora git.  Thanks Hans!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7843842",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-14 13:14:36 +0000",
+						"thetext": "kernel-3.18.2-200.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.2-200.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7846037",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-14 23:59:55 +0000",
+						"thetext": "Package kernel-3.18.2-200.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-3.18.2-200.fc21'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-0724/kernel-3.18.2-200.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7858527",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-19 20:49:17 +0000",
+						"thetext": "kernel-3.18.3-201.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.3-201.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7876415",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-26 02:31:04 +0000",
+						"thetext": "kernel-3.18.3-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1124119,
+			"title": "usb 3.0 HDD SCSI UASP",
+			"bugzilla": {
+				"bug_id": "1124119",
+				"creation_ts": "2014-07-29 02:31:22 +0000",
+				"short_desc": "usb 3.0 HDD SCSI UASP",
+				"delta_ts": "2015-02-07 12:55:07 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "urgent",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7334779",
+						"comment_count": "0",
+						"who": {
+							"text": "kunronio",
+							"name": "Ronio"
+						},
+						"bug_when": "2014-07-29 02:31:22 +0000",
+						"thetext": "Created attachment 922006\nthis is enclosure HDD 3.5\"\n\nDescription of problem:\nAfter buy Rock External HDD 3,5\" UASP usb 3.0 enclosure + WD Caviar Black 1 TB (WD1003FZEX), i format in Windows 8 64bit with MBR--NTFS partition. In Windows it's not problem, working as it should & fast :-).\nBut when i connect in notebook Asus A53S usb3.0 Fedora 20 64bit problem arise & my notebook always crash/Hang :-(. in usb 2.0 port can't detect/ HDD can't fungtion \n\nVersion-Release number of selected component (if applicable):\n#uname -r\n3.15.6-200.fc20.x86_64\n\n# tail -20 /var/log/messages\nJul 29 08:29:13 localhost kernel: [   71.914208] sd 6:0:0:0: uas_eh_device_reset_handler\nJul 29 08:29:13 localhost kernel: [   71.914211] scsi host6: uas_eh_task_mgmt: LOGICAL UNIT RESET: error already running a task\nJul 29 08:29:13 localhost kernel: [   71.914216] scsi host6: uas_eh_bus_reset_handler start\nJul 29 08:29:13 localhost kernel: [   71.914320] usb 4-1: stat urb: killed, stream 32\nJul 29 08:29:13 localhost kernel: [   71.914445] usb 4-1: stat urb: killed, stream 3\nJul 29 08:29:13 localhost kernel: [   71.914567] usb 4-1: stat urb: killed, stream 2\nJul 29 08:29:13 localhost kernel: [   71.914691] sd 6:0:0:0: [sdb] uas_data_cmplt ffff8800372a4c00 tag 1, inflight: CMD abort\nJul 29 08:29:13 localhost kernel: [   71.914694] sd 6:0:0:0: [sdb] data cmplt err -2 stream 3\nJul 29 08:29:13 localhost kernel: [   71.914815] sd 6:0:0:0: [sdb] uas_data_cmplt ffff8800372a5500 tag 0, inflight: CMD abort\nJul 29 08:29:13 localhost kernel: [   71.914818] sd 6:0:0:0: [sdb] data cmplt err -2 stream 2\nJul 29 08:29:13 localhost kernel: [   71.914830] sd 6:0:0:0: [sdb] uas_zap_dead ffff8800372a5500 tag 0, inflight: CMD abort\nJul 29 08:29:13 localhost kernel: [   71.914833] sd 6:0:0:0: [sdb] abort completed\nJul 29 08:29:13 localhost kernel: [   71.914836] sd 6:0:0:0: [sdb] uas_zap_dead ffff8800372a4c00 tag 1, inflight: CMD abort\nJul 29 08:29:13 localhost kernel: [   71.914839] sd 6:0:0:0: [sdb] abort completed\nJul 29 08:29:13 localhost kernel: [   72.022313] usb 4-1: reset SuperSpeed USB device number 2 using xhci_hcd\nJul 29 08:29:13 localhost kernel: [   72.037011] xhci_hcd 0000:04:00.0: xHCI xhci_drop_endpoint called with disabled ep ffff880070556e00\nJul 29 08:29:13 localhost kernel: [   72.037016] xhci_hcd 0000:04:00.0: xHCI xhci_drop_endpoint called with disabled ep ffff880070556e48\nJul 29 08:29:13 localhost kernel: [   72.037020] xhci_hcd 0000:04:00.0: xHCI xhci_drop_endpoint called with disabled ep ffff880070556e90\nJul 29 08:29:13 localhost kernel: [   72.037023] xhci_hcd 0000:04:00.0: xHCI xhci_drop_endpoint called with disabled ep ffff880070556ed8\nJul 29 08:29:13 localhost kernel: [   72.041335] scsi host6: uas_eh_bus_reset_handler success\n\n# tail -20 /var/log/messages\n\nJul 29 08:29:13 localhost kernel: [   71.914208] sd 6:0:0:0: uas_eh_device_reset_handler\nJul 29 08:29:13 localhost kernel: [   71.914211] scsi host6: uas_eh_task_mgmt: LOGICAL UNIT RESET: error already running a task\nJul 29 08:29:13 localhost kernel: [   71.914216] scsi host6: uas_eh_bus_reset_handler start\nJul 29 08:29:13 localhost kernel: [   71.914320] usb 4-1: stat urb: killed, stream 32\nJul 29 08:29:13 localhost kernel: [   71.914445] usb 4-1: stat urb: killed, stream 3\nJul 29 08:29:13 localhost kernel: [   71.914567] usb 4-1: stat urb: killed, stream 2\nJul 29 08:29:13 localhost kernel: [   71.914691] sd 6:0:0:0: [sdb] uas_data_cmplt ffff8800372a4c00 tag 1, inflight: CMD abort\nJul 29 08:29:13 localhost kernel: [   71.914694] sd 6:0:0:0: [sdb] data cmplt err -2 stream 3\nJul 29 08:29:13 localhost kernel: [   71.914815] sd 6:0:0:0: [sdb] uas_data_cmplt ffff8800372a5500 tag 0, inflight: CMD abort\nJul 29 08:29:13 localhost kernel: [   71.914818] sd 6:0:0:0: [sdb] data cmplt err -2 stream 2\nJul 29 08:29:13 localhost kernel: [   71.914830] sd 6:0:0:0: [sdb] uas_zap_dead ffff8800372a5500 tag 0, inflight: CMD abort\nJul 29 08:29:13 localhost kernel: [   71.914833] sd 6:0:0:0: [sdb] abort completed\nJul 29 08:29:13 localhost kernel: [   71.914836] sd 6:0:0:0: [sdb] uas_zap_dead ffff8800372a4c00 tag 1, inflight: CMD abort\nJul 29 08:29:13 localhost kernel: [   71.914839] sd 6:0:0:0: [sdb] abort completed\nJul 29 08:29:13 localhost kernel: [   72.022313] usb 4-1: reset SuperSpeed USB device number 2 using xhci_hcd\nJul 29 08:29:13 localhost kernel: [   72.037011] xhci_hcd 0000:04:00.0: xHCI xhci_drop_endpoint called with disabled ep ffff880070556e00\nJul 29 08:29:13 localhost kernel: [   72.037016] xhci_hcd 0000:04:00.0: xHCI xhci_drop_endpoint called with disabled ep ffff880070556e48\nJul 29 08:29:13 localhost kernel: [   72.037020] xhci_hcd 0000:04:00.0: xHCI xhci_drop_endpoint called with disabled ep ffff880070556e90\nJul 29 08:29:13 localhost kernel: [   72.037023] xhci_hcd 0000:04:00.0: xHCI xhci_drop_endpoint called with disabled ep ffff880070556ed8\nJul 29 08:29:13 localhost kernel: [   72.041335] scsi host6: uas_eh_bus_reset_handler success\n\n\nHow reproducible:\n\n\nSteps to Reproduce:\n1.\n2.\n3.\n\nActual results:\n\n\nExpected results:\n\n\nAdditional info:"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7335676",
+						"comment_count": "1",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2014-07-29 08:23:46 +0000",
+						"thetext": "Can you please provide the output of the following commands:\n\nlspci -nn\nlsusb\n\nAnd can you also please do:\n\n\"dmesg > dmesg.log\" directly after attaching the external hdd, so that dmesg.log includes all messages from the moment the kernel detects the usb device, including device and manufacturer strings, but also the very first error which happens, and then attach dmesg.log here ?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7350412",
+						"comment_count": "2",
+						"who": {
+							"text": "daveiro",
+							"name": "David"
+						},
+						"bug_when": "2014-08-02 23:45:26 +0000",
+						"thetext": "Hi, having a similar problem myself also. I will attach just next all messages in system log since attaching my external USB 3.0 HDD, trying to copy a file to the drive, and then unmounting the drive in a forceful way. I will also attach the output of lspci and lsusb."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7350424",
+						"comment_count": "3",
+						"who": {
+							"text": "daveiro",
+							"name": "David"
+						},
+						"bug_when": "2014-08-02 23:48:36 +0000",
+						"thetext": "Created attachment 923534\nsystem log messages\n\nAug 03 00:32:03 - Just after I attached the drive\nAug 03 00:32:43 - When I try to copy a 4GB file to the drive and the copy freezes with nothing copied and I cannot access anymore the drive\nAug 03 00:33:11 - When I force unmount through Nautilus"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7350425",
+						"comment_count": "4",
+						"who": {
+							"text": "daveiro",
+							"name": "David"
+						},
+						"bug_when": "2014-08-02 23:51:29 +0000",
+						"thetext": "Created attachment 923535\nlspci -nn output"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7350426",
+						"comment_count": "5",
+						"who": {
+							"text": "daveiro",
+							"name": "David"
+						},
+						"bug_when": "2014-08-02 23:52:24 +0000",
+						"thetext": "Created attachment 923536\nlsusb output"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7350427",
+						"comment_count": "6",
+						"who": {
+							"text": "daveiro",
+							"name": "David"
+						},
+						"bug_when": "2014-08-02 23:55:02 +0000",
+						"thetext": "PS: this external hard drive works just fine in Fedora 19 Live CD (160MB/s transfer rate) and today I ran a full smartctl surface test and 0 errors found."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7353890",
+						"comment_count": "7",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2014-08-04 17:59:42 +0000",
+						"thetext": "Hi David,\n\nThanks for the logs. I think I know what is going on in your case. I've started a kernel scratch build with 2 patches added, once which I think / hope fixes things for your case, and one which adds some additional debugging in case it does not fix things.\n\nThis kernel is currently building here:\n\nhttp://koji.fedoraproject.org/koji/taskinfo?taskID=7240566\n\nOnce it is finished can you please download the kernel-3.15....rpm for your architecture, and then install it using: \"sudo rpm -ivh kernel-3.15....rpm\".\n\nThen reboot into the new kernel and see if that fixes things. If it does not fix things, please collect dmesg output again.\n\nThanks,\n\nHans"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7353891",
+						"comment_count": "8",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2014-08-04 18:00:15 +0000",
+						"thetext": "p.s.\n\nRonio, if you've an intel chipset with intel xhci controller, you may want to give this kernel a try too."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7354320",
+						"comment_count": "9",
+						"who": {
+							"text": "daveiro",
+							"name": "David"
+						},
+						"bug_when": "2014-08-04 20:13:06 +0000",
+						"thetext": "Hi Hans,\n\nthanks for your feedback. I proceeded as you instructed and the problem persists in the new kernel... I will just next attach the dmesg ouput where I followed the same steps as mentioned in my initial report.\n\nKind regards\nDavid"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7354322",
+						"comment_count": "10",
+						"who": {
+							"text": "daveiro",
+							"name": "David"
+						},
+						"bug_when": "2014-08-04 20:13:41 +0000",
+						"thetext": "Created attachment 923999\ndmesg output with new kernel"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7378855",
+						"comment_count": "11",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2014-08-12 16:06:44 +0000",
+						"thetext": "Hi David,\n\nThanks for the new logs. Unfortunately the messages I was hoping were the cause are now gone (showing my patches fixed those), but unfortunately they were clearly not the cause :|\n\nSo this seems to be a case of the scsi later sending a command tripping up the disk and/or the usb<->sata convertor chip.\n\nCan you try forcing use of the usb-storage driver instead of uas and see if that helps? To do this pass the following on the kernel commandline when booting:\n\nusb-storage quirks=059b:0070:u\n\nThanks,\n\nHans"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7378862",
+						"comment_count": "12",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2014-08-12 16:08:40 +0000",
+						"thetext": "Correction you should add the following to the kernel commandline:\n\nusb-storage.quirks=059b:0070:u\n\nThanks,\n\nHans"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7390348",
+						"comment_count": "13",
+						"who": {
+							"text": "daveiro",
+							"name": "David"
+						},
+						"bug_when": "2014-08-16 00:06:45 +0000",
+						"thetext": "Hi Hans,\n\nthat kernel commandline solved the issue. The iomega/toshiba disk is now working fine and at normal USB 3.0 speeds. I was afraid another drive I have (Crucial SSD with SATA-USB 3.0 interface with UAS support) would not work at max speed with this workaround but it still works at nice 400MB/s transfer speeds. So thank you for providing a solution! :)\n\nAs I said before, this iomega drive worked fine in Fedora 19 so it's strange how this \"regression\" ocurred... any chance this is somehow patched in the kernel so this drive does not need kernel commands at boot time?\n\nFor the record I will attach the system log that says:\n\nusb-storage 2-1:1.0: Quirks match for vid 059b pid 0070: 800000\n\nThanks,\nDavid"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7390349",
+						"comment_count": "14",
+						"who": {
+							"text": "daveiro",
+							"name": "David"
+						},
+						"bug_when": "2014-08-16 00:07:59 +0000",
+						"thetext": "Created attachment 927279\ndmesg output with kernel command: usb-storage.quirks=059b:0070:u"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7670760",
+						"comment_count": "15",
+						"who": {
+							"text": "jforbes",
+							"name": "Justin M. Forbes"
+						},
+						"bug_when": "2014-11-13 15:56:43 +0000",
+						"thetext": "*********** MASS BUG UPDATE **************\n\nWe apologize for the inconvenience.  There is a large number of bugs to go through and several of them have gone stale.  Due to this, we are doing a mass bug update across all of the Fedora 20 kernel bugs.\n\nFedora 20 has now been rebased to 3.17.2-200.fc20.  Please test this kernel update (or newer) and let us know if you issue has been resolved or if it is still present with the newer kernel.\n\nIf you have moved on to Fedora 21, and are still experiencing this issue, please change the version to Fedora 21.\n\nIf you experience different issues, please open a new bug report for those."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7753126",
+						"comment_count": "16",
+						"who": {
+							"text": "rth",
+							"name": "Richard Henderson"
+						},
+						"bug_when": "2014-12-10 22:36:48 +0000",
+						"thetext": "I've been experiencing an oops with 3.17.4-301 that appears to\nmatch these sets of error messages with rawhide 3.18.0-1:\n\n\n[  598.175324] usb 2-2: new SuperSpeed USB device number 3 using xhci_hcd\n[  598.187083] usb 2-2: New USB device found, idVendor=4971, idProduct=8017\n[  598.187092] usb 2-2: New USB device strings: Mfr=10, Product=11, SerialNumber=3\n[  598.187096] usb 2-2: Product: G-RAID\n[  598.187099] usb 2-2: Manufacturer: HGST\n[  598.187103] usb 2-2: SerialNumber: FD0131100312\n[  598.194322] scsi host5: uas\n[  598.195978] scsi 5:0:0:0: Direct-Access     HGST     G-RAID           0005 PQ: 0 ANSI: 6\n[  598.199098] sd 5:0:0:0: Attached scsi generic sg2 type 0\n[  598.199485] sd 5:0:0:0: [sdc] 7813857280 512-byte logical blocks: (4.00 TB/3.63 TiB)\n[  598.199492] sd 5:0:0:0: [sdc] 4096-byte physical blocks\n[  598.202054] sd 5:0:0:0: [sdc] Write Protect is off\n[  598.202062] sd 5:0:0:0: [sdc] Mode Sense: 67 00 10 08\n[  598.203306] sd 5:0:0:0: [sdc] Write cache: enabled, read cache: enabled, supports DPO and FUA\n[  628.848231] sd 5:0:0:0: uas_eh_abort_handler 0 tag 2 inflight: IN \n[  628.848238] sd 5:0:0:0: CDB: \n[  628.848242] Report supported operation codes: a3 0c 01 12 00 00 00 00 02 00 00 00\n[  628.848400] scsi host5: uas_eh_bus_reset_handler start\n[  628.950747] usb 2-2: reset SuperSpeed USB device number 3 using xhci_hcd\n[  628.961883] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with disabled ep ffff8801e0c07400\n[  628.961889] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with disabled ep ffff8801e0c07448\n[  628.961892] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with disabled ep ffff8801e0c07490\n[  628.961895] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with disabled ep ffff8801e0c074d8\n[  628.962648] scsi host5: uas_eh_bus_reset_handler success\n[  659.925699] sd 5:0:0:0: uas_eh_abort_handler 0 tag 2 inflight: IN \n[  659.925708] sd 5:0:0:0: CDB: \n[  659.925712] Report supported operation codes: a3 0c 01 12 00 00 00 00 02 00 00 00\n[  659.925814] scsi host5: uas_eh_bus_reset_handler start\n[  660.028279] usb 2-2: reset SuperSpeed USB device number 3 using xhci_hcd\n[  660.039759] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with disabled ep ffff8801e0c07400\n[  660.039767] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with disabled ep ffff8801e0c07448\n[  660.039772] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with disabled ep ffff8801e0c07490\n[  660.039775] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with disabled ep ffff8801e0c074d8\n[  660.040547] scsi host5: uas_eh_bus_reset_handler success\n[  690.939024] sd 5:0:0:0: uas_eh_abort_handler 0 tag 2 inflight: IN \n\n\n$ lspci -nn\n00:00.0 Host bridge [0600]: Intel Corporation Haswell-ULT DRAM Controller [8086:0a04] (rev 09)\n00:02.0 VGA compatible controller [0300]: Intel Corporation Device [8086:0a2e] (rev 09)\n00:03.0 Audio device [0403]: Intel Corporation Haswell-ULT HD Audio Controller [8086:0a0c] (rev 09)\n00:04.0 Signal processing controller [1180]: Intel Corporation Device [8086:0a03] (rev 09)\n00:14.0 USB controller [0c03]: Intel Corporation 8 Series USB xHCI HC [8086:9c31] (rev 04)\n00:16.0 Communication controller [0780]: Intel Corporation 8 Series HECI #0 [8086:9c3a] (rev 04)\n00:1b.0 Audio device [0403]: Intel Corporation 8 Series HD Audio Controller [8086:9c20] (rev 04)\n00:1c.0 PCI bridge [0604]: Intel Corporation 8 Series PCI Express Root Port 1 [8086:9c10] (rev e4)\n00:1c.3 PCI bridge [0604]: Intel Corporation 8 Series PCI Express Root Port 4 [8086:9c16] (rev e4)\n00:1f.0 ISA bridge [0601]: Intel Corporation 8 Series LPC Controller [8086:9c43] (rev 04)\n00:1f.2 RAID bus controller [0104]: Intel Corporation 82801 Mobile SATA Controller [RAID mode] [8086:282a] (rev 04)\n00:1f.3 SMBus [0c05]: Intel Corporation 8 Series SMBus Controller [8086:9c22] (rev 04)\n02:00.0 Network controller [0280]: Intel Corporation Wireless 7260 [8086:08b1] (rev 6b)\n\n$ lsusb\nBus 002 Device 003: ID 4971:8017 SimpleTech \nBus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub\nBus 001 Device 004: ID 03eb:8a0c Atmel Corp. \nBus 001 Device 003: ID 1bcf:2987 Sunplus Innovation Technology Inc. \nBus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7758501",
+						"comment_count": "17",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2014-12-12 11:30:22 +0000",
+						"thetext": "Hi,\n\n(In reply to Richard Henderson from comment #16)\n> I've been experiencing an oops with 3.17.4-301 that appears to\n> match these sets of error messages with rawhide 3.18.0-1:\n> \n> \n> [  598.175324] usb 2-2: new SuperSpeed USB device number 3 using xhci_hcd\n> [  598.187083] usb 2-2: New USB device found, idVendor=4971, idProduct=8017\n> [  598.187092] usb 2-2: New USB device strings: Mfr=10, Product=11,\n> SerialNumber=3\n> [  598.187096] usb 2-2: Product: G-RAID\n> [  598.187099] usb 2-2: Manufacturer: HGST\n> [  598.187103] usb 2-2: SerialNumber: FD0131100312\n> [  598.194322] scsi host5: uas\n> [  598.195978] scsi 5:0:0:0: Direct-Access     HGST     G-RAID          \n> 0005 PQ: 0 ANSI: 6\n> [  598.199098] sd 5:0:0:0: Attached scsi generic sg2 type 0\n> [  598.199485] sd 5:0:0:0: [sdc] 7813857280 512-byte logical blocks: (4.00\n> TB/3.63 TiB)\n> [  598.199492] sd 5:0:0:0: [sdc] 4096-byte physical blocks\n> [  598.202054] sd 5:0:0:0: [sdc] Write Protect is off\n> [  598.202062] sd 5:0:0:0: [sdc] Mode Sense: 67 00 10 08\n> [  598.203306] sd 5:0:0:0: [sdc] Write cache: enabled, read cache: enabled,\n> supports DPO and FUA\n> [  628.848231] sd 5:0:0:0: uas_eh_abort_handler 0 tag 2 inflight: IN \n> [  628.848238] sd 5:0:0:0: CDB: \n> [  628.848242] Report supported operation codes: a3 0c 01 12 00 00 00 00 02\n> 00 00 00\n> [  628.848400] scsi host5: uas_eh_bus_reset_handler start\n> [  628.950747] usb 2-2: reset SuperSpeed USB device number 3 using xhci_hcd\n> [  628.961883] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with\n> disabled ep ffff8801e0c07400\n> [  628.961889] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with\n> disabled ep ffff8801e0c07448\n> [  628.961892] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with\n> disabled ep ffff8801e0c07490\n> [  628.961895] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with\n> disabled ep ffff8801e0c074d8\n> [  628.962648] scsi host5: uas_eh_bus_reset_handler success\n> [  659.925699] sd 5:0:0:0: uas_eh_abort_handler 0 tag 2 inflight: IN \n> [  659.925708] sd 5:0:0:0: CDB: \n> [  659.925712] Report supported operation codes: a3 0c 01 12 00 00 00 00 02\n> 00 00 00\n> [  659.925814] scsi host5: uas_eh_bus_reset_handler start\n> [  660.028279] usb 2-2: reset SuperSpeed USB device number 3 using xhci_hcd\n> [  660.039759] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with\n> disabled ep ffff8801e0c07400\n> [  660.039767] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with\n> disabled ep ffff8801e0c07448\n> [  660.039772] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with\n> disabled ep ffff8801e0c07490\n> [  660.039775] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with\n> disabled ep ffff8801e0c074d8\n> [  660.040547] scsi host5: uas_eh_bus_reset_handler success\n> [  690.939024] sd 5:0:0:0: uas_eh_abort_handler 0 tag 2 inflight: IN \n\nThanks for giving things a run with 3.18, as you've noticed 3.18 has greatly improved uas error handling, so that we actually get usable error logs instead of an oops.\n\nLooking at the errors, things should work if you pass the following on the linux kernel commandline:\n\nusb-storage.quirks=4971:8017:f\n\nI think this should work with both recent 3.17 kernel and 3.18, please let me know if this helps, then I'll send a patch upstream adding a permanent quirk for your model drive to the kernel."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7826622",
+						"comment_count": "18",
+						"who": {
+							"text": "rth",
+							"name": "Richard Henderson"
+						},
+						"bug_when": "2015-01-09 18:47:08 +0000",
+						"thetext": "Yes indeed, that quirk allowed 3.17.7-300 to mount the drive without oopsing.\nThanks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7834623",
+						"comment_count": "19",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2015-01-12 12:37:03 +0000",
+						"thetext": "Hi,\n\n(In reply to Richard Henderson from comment #18)\n> Yes indeed, that quirk allowed 3.17.7-300 to mount the drive without oopsing.\n\nThanks for testing, I've send a patch with this quirk for your model upstream, and I've requested for it to be added to the official Fedora kernel builds.\n\nRegards,\n\nHans"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7835002",
+						"comment_count": "20",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-01-12 13:54:04 +0000",
+						"thetext": "Patch added.  Thanks Hans!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7843840",
+						"comment_count": "21",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-14 13:14:31 +0000",
+						"thetext": "kernel-3.18.2-200.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.2-200.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7846035",
+						"comment_count": "22",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-14 23:59:49 +0000",
+						"thetext": "Package kernel-3.18.2-200.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-3.18.2-200.fc21'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-0724/kernel-3.18.2-200.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7858525",
+						"comment_count": "23",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-19 20:49:12 +0000",
+						"thetext": "kernel-3.18.3-201.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.3-201.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7876413",
+						"comment_count": "24",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-26 02:30:58 +0000",
+						"thetext": "kernel-3.18.3-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7914255",
+						"comment_count": "25",
+						"who": {
+							"text": "gerien",
+							"name": "gerien"
+						},
+						"bug_when": "2015-02-06 11:47:08 +0000",
+						"thetext": "Hi, \n\nI'm still experiencing those kernel freezes with a usb3 iomega drive during file transfers\n\nI'm using the 3.18.5-201.fc21.x86_64 kernel\n\nIf you need more info, please ask me.\n\nCheers\n\n$ lspci -nn\n00:00.0 Host bridge [0600]: Intel Corporation Xeon E3-1200 v2/3rd Gen Core processor DRAM Controller [8086:0150] (rev 09)\n00:02.0 VGA compatible controller [0300]: Intel Corporation Xeon E3-1200 v2/3rd Gen Core processor Graphics Controller [8086:0152] (rev 09)\n00:14.0 USB controller [0c03]: Intel Corporation 7 Series/C210 Series Chipset Family USB xHCI Host Controller [8086:1e31] (rev 04)\n00:16.0 Communication controller [0780]: Intel Corporation 7 Series/C210 Series Chipset Family MEI Controller #1 [8086:1e3a] (rev 04)\n00:1a.0 USB controller [0c03]: Intel Corporation 7 Series/C210 Series Chipset Family USB Enhanced Host Controller #2 [8086:1e2d] (rev 04)\n00:1b.0 Audio device [0403]: Intel Corporation 7 Series/C210 Series Chipset Family High Definition Audio Controller [8086:1e20] (rev 04)\n00:1c.0 PCI bridge [0604]: Intel Corporation 7 Series/C210 Series Chipset Family PCI Express Root Port 1 [8086:1e10] (rev c4)\n00:1c.1 PCI bridge [0604]: Intel Corporation 7 Series/C210 Series Chipset Family PCI Express Root Port 2 [8086:1e12] (rev c4)\n00:1c.3 PCI bridge [0604]: Intel Corporation 82801 PCI Bridge [8086:244e] (rev c4)\n00:1d.0 USB controller [0c03]: Intel Corporation 7 Series/C210 Series Chipset Family USB Enhanced Host Controller #1 [8086:1e26] (rev 04)\n00:1f.0 ISA bridge [0601]: Intel Corporation Z77 Express Chipset LPC Controller [8086:1e44] (rev 04)\n00:1f.2 SATA controller [0106]: Intel Corporation 7 Series/C210 Series Chipset Family 6-port SATA Controller [AHCI mode] [8086:1e02] (rev 04)\n00:1f.3 SMBus [0c05]: Intel Corporation 7 Series/C210 Series Chipset Family SMBus Controller [8086:1e22] (rev 04)\n02:00.0 Ethernet controller [0200]: Realtek Semiconductor Co., Ltd. RTL8111/8168/8411 PCI Express Gigabit Ethernet Controller [10ec:8168] (rev 06)\n03:00.0 PCI bridge [0604]: ASMedia Technology Inc. ASM1083/1085 PCIe to PCI Bridge [1b21:1080] (rev 01)\n\n$ lsusb\nBus 004 Device 003: ID 059b:0070 Iomega Corp. eGo Portable Hard Drive\nBus 004 Device 002: ID 8087:0024 Intel Corp. Integrated Rate Matching Hub\nBus 004 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub\nBus 003 Device 003: ID 046d:c52b Logitech, Inc. Unifying Receiver\nBus 003 Device 002: ID 8087:0024 Intel Corp. Integrated Rate Matching Hub\nBus 003 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub\nBus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub\nBus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub\n\n$ dmesg\n[ 1324.220095] usb 2-1: new SuperSpeed USB device number 4 using xhci_hcd\n[ 1324.286049] usb 2-1: New USB device found, idVendor=059b, idProduct=0070\n[ 1324.286053] usb 2-1: New USB device strings: Mfr=1, Product=2, SerialNumber=3\n[ 1324.286056] usb 2-1: Product: eGo USB\n[ 1324.286058] usb 2-1: Manufacturer: Iomega\n[ 1324.286060] usb 2-1: SerialNumber: 080000000001F961\n[ 1324.371947] scsi host9: uas\n[ 1324.378895] scsi 9:0:0:0: Direct-Access     OEM      Ext Hard Disk    0000 PQ: 0 ANSI: 5\n[ 1324.644715] sd 9:0:0:0: Attached scsi generic sg2 type 0\n[ 1324.743784] sd 9:0:0:0: [sdb] 1953504688 512-byte logical blocks: (1.00 TB/931 GiB)\n[ 1324.892662] sd 9:0:0:0: [sdb] Write Protect is off\n[ 1324.892668] sd 9:0:0:0: [sdb] Mode Sense: 10 00 00 00\n[ 1324.938551] sd 9:0:0:0: [sdb] Cache data unavailable\n[ 1324.938556] sd 9:0:0:0: [sdb] Assuming drive cache: write through\n[ 1325.482425]  sdb: sdb1\n[ 1325.987131] sd 9:0:0:0: [sdb] Attached SCSI disk\n[ 1326.722926] SELinux: initialized (dev sdb1, type fuseblk), uses genfs_contexts\n[ 1332.036893] SELinux: initialized (dev tmpfs, type tmpfs), uses transition SIDs"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7914260",
+						"comment_count": "26",
+						"who": {
+							"text": "gerien",
+							"name": "gerien"
+						},
+						"bug_when": "2015-02-06 11:50:24 +0000",
+						"thetext": "Here is a log during a failing transfer\n\n$ dmesg\n[ 1712.838222] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 5 inflight: CMD OUT \n[ 1712.838228] sd 9:0:0:0: [sdb] CDB: \n[ 1712.838229] Write(10): 2a 00 0e 8e 29 b8 00 00 48 00\n[ 1712.838276] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 6 inflight: CMD OUT \n[ 1712.838278] sd 9:0:0:0: [sdb] CDB: \n[ 1712.838279] Write(10): 2a 00 0e 8e 29 98 00 00 10 00\n[ 1712.838441] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 7 inflight: CMD OUT \n[ 1712.838445] sd 9:0:0:0: [sdb] CDB: \n[ 1712.838447] Write(10): 2a 00 0e 8e 29 68 00 00 10 00\n[ 1712.838480] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 8 inflight: CMD OUT \n[ 1712.838482] sd 9:0:0:0: [sdb] CDB: \n[ 1712.838483] Write(10): 2a 00 0e 8e 29 48 00 00 10 00\n[ 1712.838514] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 9 inflight: CMD OUT \n[ 1712.838516] sd 9:0:0:0: [sdb] CDB: \n[ 1712.838517] Write(10): 2a 00 0e 8e 27 d8 00 00 58 00\n[ 1712.838611] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 10 inflight: CMD OUT \n[ 1712.838615] sd 9:0:0:0: [sdb] CDB: \n[ 1712.838616] Write(10): 2a 00 0e 8e 27 88 00 00 18 00\n[ 1712.838649] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 11 inflight: CMD OUT \n[ 1712.838651] sd 9:0:0:0: [sdb] CDB: \n[ 1712.838652] Write(10): 2a 00 0e 8e 0a 28 00 00 08 00\n[ 1712.838691] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 12 inflight: CMD OUT \n[ 1712.838693] sd 9:0:0:0: [sdb] CDB: \n[ 1712.838694] Write(10): 2a 00 0e ac ac f8 00 04 00 00\n[ 1712.838751] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 13 inflight: CMD OUT \n[ 1712.838753] sd 9:0:0:0: [sdb] CDB: \n[ 1712.838754] Write(10): 2a 00 0e ac b0 f8 00 04 00 00\n[ 1712.838820] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 14 inflight: CMD OUT \n[ 1712.838822] sd 9:0:0:0: [sdb] CDB: \n[ 1712.838823] Write(10): 2a 00 0e ac b4 f8 00 04 00 00\n[ 1712.838869] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 15 inflight: CMD OUT \n[ 1712.838871] sd 9:0:0:0: [sdb] CDB: \n[ 1712.838872] Write(10): 2a 00 0e ac b8 f8 00 04 00 00\n[ 1712.838896] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 16 inflight: CMD OUT \n[ 1712.838898] sd 9:0:0:0: [sdb] CDB: \n[ 1712.838899] Write(10): 2a 00 0e ac bc f8 00 04 00 00\n[ 1712.838937] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 17 inflight: CMD OUT \n[ 1712.838939] sd 9:0:0:0: [sdb] CDB: \n[ 1712.838940] Write(10): 2a 00 00 00 de 50 00 00 08 00\n[ 1712.838973] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 2 inflight: CMD OUT \n[ 1712.838975] sd 9:0:0:0: [sdb] CDB: \n[ 1712.838976] Write(10): 2a 00 0e ac c0 f8 00 04 00 00\n[ 1712.839025] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 3 inflight: CMD OUT \n[ 1712.839027] sd 9:0:0:0: [sdb] CDB: \n[ 1712.839028] Write(10): 2a 00 0e ac c4 f8 00 04 00 00\n[ 1712.839068] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 4 inflight: CMD OUT \n[ 1712.839070] sd 9:0:0:0: [sdb] CDB: \n[ 1712.839071] Write(10): 2a 00 0e ac c8 f8 00 04 00 00\n[ 1712.839096] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 18 inflight: CMD OUT \n[ 1712.839098] sd 9:0:0:0: [sdb] CDB: \n[ 1712.839099] Write(10): 2a 00 0e ac cc f8 00 04 00 00\n[ 1712.839136] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 19 inflight: CMD OUT \n[ 1712.839138] sd 9:0:0:0: [sdb] CDB: \n[ 1712.839139] Write(10): 2a 00 0e ac d0 f8 00 04 00 00\n[ 1712.839226] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 20 inflight: CMD OUT \n[ 1712.839231] sd 9:0:0:0: [sdb] CDB: \n[ 1712.839232] Write(10): 2a 00 0e ac d4 f8 00 04 00 00\n[ 1712.839307] sd 9:0:0:0: [sdb] uas_eh_abort_handler 0 tag 21 inflight: CMD IN \n[ 1712.839310] sd 9:0:0:0: [sdb] CDB: \n[ 1712.839311] Read(10): 28 00 0e 8e 2c 40 00 01 00 00\n[ 1712.839392] scsi host9: uas_eh_bus_reset_handler start\n[ 1712.949050] usb 2-1: reset SuperSpeed USB device number 4 using xhci_hcd\n[ 1713.079736] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with disabled ep ffff88008bec3e00\n[ 1713.079741] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with disabled ep ffff88008bec3e48\n[ 1713.079744] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with disabled ep ffff88008bec3e90\n[ 1713.079746] xhci_hcd 0000:00:14.0: xHCI xhci_drop_endpoint called with disabled ep ffff88008bec3ed8\n[ 1713.148359] scsi host9: uas_eh_bus_reset_handler success"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7916102",
+						"comment_count": "27",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2015-02-07 09:02:55 +0000",
+						"thetext": "Hi Gerien,\n\nWhen you say \"kernel freezes\" what exactly do you mean ? Do you mean that apps accessing the disk become unresponsive, or something else ?\n\nHave you checked that your usb-cable and harddisk powersupply are ok ?\n\nIs the disk powered via usb, or through an external power supply ?\n\nRegards,\n\nHans"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7916205",
+						"comment_count": "28",
+						"who": {
+							"text": "gerien",
+							"name": "gerien"
+						},
+						"bug_when": "2015-02-07 12:55:07 +0000",
+						"thetext": "Sorry, I shouldn't have sayed \"kernel freeze\". During the file transfer, the transfer window indicates no more progress after a short time (a few seconds at most). And the log keeps growing with the same messages I copied earlier. It's impossible de stop the transfer. And if I try to unmount the disk using nautilus, I get a message saying that a file transfer is in progress and I shouldn't unplug the disk.\n\nUSB cable and harddisk powersuply seem OK. If I plug the disk with USB 2, it works almost perfectly (even if displayed file transfer speed is going from very high to very low)\n\nThe disk is powered via USB."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1163574,
+			"title": "Backlight control needs kernel param: video.use_native_backlight=0",
+			"bugzilla": {
+				"bug_id": "1163574",
+				"creation_ts": "2014-11-13 03:31:47 +0000",
+				"short_desc": "Backlight control needs kernel param: video.use_native_backlight=0",
+				"delta_ts": "2015-02-04 13:20:26 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7668045",
+						"comment_count": "0",
+						"who": {
+							"text": "kgamesan",
+							"name": "Karthik  Ganesan"
+						},
+						"bug_when": "2014-11-13 03:31:47 +0000",
+						"thetext": "Description of problem:\n\nSince updating to kernel version 3.16+, the backlight keys/applet do not control the backlight on my Dell XPS15 (L521X, NVIDIA GeForce GT 630M and integrated Intel(R) HD Graphics 4000 ). \n\nThe backlight keys invoke the OSD display - but, don't actually control the backlight. Manually writing to the /sys/class/backlight/intel_baclight/brightness does not work either.\n\nAdding kernel parameter video.use_native_backlight=0 results in working backlight (via keys and applet). There are two more backlight interfaces in /sys/class/backlight - acpi_video0 and acpi_video1.\n\nVersion-Release number of selected component (if applicable):\nCurrent kernel version: 3.17.2\n\nHow reproducible:\nAlways reproducible. \n\nSteps to Reproduce:\n1.Use Fn+F4/Fn+F5 to reduce/increase brightness. \n2.Alternatively, use gnome interface in top bar.\n3.Or manually write to /sys/class/backlight/intel_backlight/brightness\n\nActual results:\nBacklight level does not change\n\nExpected results:\nBacklight level should change\n\nAdditional info:"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7670016",
+						"comment_count": "1",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2014-11-13 13:43:42 +0000",
+						"thetext": "Hi,\n\nSo it looks like we need to add a quirk for your model for this, can you please do:\n\nsudo dmidecode > dmi.log\n\nAnd attach the generated dmi.log file here ?\n\nThanks,\n\nHans"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7672605",
+						"comment_count": "2",
+						"who": {
+							"text": "kgamesan",
+							"name": "Karthik  Ganesan"
+						},
+						"bug_when": "2014-11-14 02:01:32 +0000",
+						"thetext": "Created attachment 957386\nOutput of dmidecode\n\nHi Hans,\nHere is the file.\nThank you,\n-Karthik"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7695421",
+						"comment_count": "3",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2014-11-21 12:51:19 +0000",
+						"thetext": "Hi,\n\nThanks for the dmidecode, I've prepared a patch to send upstream to fix your laptop without needing to specify anything on the kernel commandline.\n\nI've started a scratch kernel build with this patch, please give it a try, and let me know if it fixes things, once I've confirmation this fixes things I'll send it upstream.\n\nPlease download kernel-3.17.3-...rpm for your arch from here:\nTask info: http://koji.fedoraproject.org/koji/taskinfo?taskID=8201334\n(note this is still building atm)\n\nAnd install it with:\n\nrpm -ivh kernel-3.17.3-...rpm\n\nThen boot into the new kernel without specifying any special kernel commandline options, and check if the backlight works as expected.\n\nRegards,\n\nHans"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7823160",
+						"comment_count": "4",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2015-01-09 15:52:15 +0000",
+						"thetext": "Hi,\n\nI've done another scratch-build, with the fix for this, please give it a try.\n\nPlease download the following rpms:\nkernel-3.17.8-...rpm\nkernel-core-3.17.8-...rpm\nkernel-modules-3.17.8-...rpm\n\nFor your arch from here:\nhttp://koji.fedoraproject.org/koji/taskinfo?taskID=8571559\n(note this is still building atm)\n\nSave them all to the same directory (which should not contain other rpms) and do:\n\nsudo rpm -ivh kernel-*.rpm\n\nFrom within that directory.\n\nThen boot into the new kernel without specifying any special kernel commandline options, and check if the backlight works as expected.\n\nRegards,\n\nHans"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7835121",
+						"comment_count": "5",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-01-12 14:15:30 +0000",
+						"thetext": "Patch added to Fedora git.  Thanks Hans!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7842120",
+						"comment_count": "6",
+						"who": {
+							"text": "kgamesan",
+							"name": "Karthik  Ganesan"
+						},
+						"bug_when": "2015-01-14 04:19:46 +0000",
+						"thetext": "Hello Hans,\nSorry for the tardy reply. Flu season :(. \nI am still running FC20 and did not download the kernels that you had created in time... Should/Can I try to install the FC21 kernel in FC20?\nThanks,\n-Karthik"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7842701",
+						"comment_count": "7",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2015-01-14 08:00:12 +0000",
+						"thetext": "(In reply to Karthik  Ganesan from comment #6)\n> Hello Hans,\n> Sorry for the tardy reply. Flu season :(. \n> I am still running FC20 and did not download the kernels that you had\n> created in time... Should/Can I try to install the FC21 kernel in FC20?\n> Thanks,\n> -Karthik\n\nHi Karthik,\n\nSince you did confirm that adding video.use_native_backlight=0 on the commandline helps I've just gone ahead with the quirk patch for doing that automatically on your model. An official Fedora kernel update with the patch included should show up soonish.\n\nInstalling F-21 kernels on F-20 works fine, so if you want you can still give the scratch build a try.\n\nRegards,\n\nHans"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7843843",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-14 13:14:38 +0000",
+						"thetext": "kernel-3.18.2-200.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.2-200.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7846038",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-14 23:59:57 +0000",
+						"thetext": "Package kernel-3.18.2-200.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-3.18.2-200.fc21'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-0724/kernel-3.18.2-200.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7858528",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-19 20:49:19 +0000",
+						"thetext": "kernel-3.18.3-201.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.3-201.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7876416",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-26 02:31:06 +0000",
+						"thetext": "kernel-3.18.3-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7905093",
+						"comment_count": "12",
+						"who": {
+							"text": "gwidion",
+							"name": "Joao S. O. Bueno"
+						},
+						"bug_when": "2015-02-03 19:29:24 +0000",
+						"thetext": "Hi - I've been hit by this on an Lenovo Ideapad - \nstill on fedora 20, though, so I will just get the new kernel when I upgrade.\n\nI am adding the data on my hardware as more people might benefit:\nOutput of grep '.*' /sys/class/dmi/id/*_* 2> /dev/null:\n\n/sys/class/dmi/id/bios_date:07/12/2013\n/sys/class/dmi/id/bios_vendor:LENOVO\n/sys/class/dmi/id/bios_version:71CN51WW(V1.21)\n/sys/class/dmi/id/board_asset_tag:No Asset Tag\n/sys/class/dmi/id/board_name:INVALID\n/sys/class/dmi/id/board_serial:PE006G0E\n/sys/class/dmi/id/board_vendor:LENOVO\n/sys/class/dmi/id/board_version:00B98409WIN8 STD SGL\n/sys/class/dmi/id/chassis_asset_tag:No Asset Tag\n/sys/class/dmi/id/chassis_serial:PE006G0E\n/sys/class/dmi/id/chassis_type:10\n/sys/class/dmi/id/chassis_vendor:LENOVO\n/sys/class/dmi/id/chassis_version:Lenovo IdeaPad Z400 Touch       \n/sys/class/dmi/id/product_name:VIWZ1\n/sys/class/dmi/id/product_serial:8SSB20E53404K1BR39LN2RE\n/sys/class/dmi/id/product_uuid:011C8A01-21C9-11E3-8F81-641C676104A5\n/sys/class/dmi/id/product_version:Lenovo IdeaPad Z400 Touch       \n/sys/class/dmi/id/sys_vendor:LENOVO"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7905094",
+						"comment_count": "13",
+						"who": {
+							"text": "gwidion",
+							"name": "Joao S. O. Bueno"
+						},
+						"bug_when": "2015-02-03 19:30:50 +0000",
+						"thetext": "Created attachment 987784\ndmi.log of leove notebook with the same problem on kernel  3.17.8-200.fc20.x86_64"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7907686",
+						"comment_count": "14",
+						"who": {
+							"text": "hdegoede",
+							"name": "Hans de Goede"
+						},
+						"bug_when": "2015-02-04 13:20:26 +0000",
+						"thetext": "Hi,\n\n(In reply to Joao S. O. Bueno from comment #12)\n> Hi - I've been hit by this on an Lenovo Ideapad - \n> still on fedora 20, though, so I will just get the new kernel when I upgrade.\n> \n> I am adding the data on my hardware as more people might benefit:\n> Output of grep '.*' /sys/class/dmi/id/*_* 2> /dev/null:\n> \n> /sys/class/dmi/id/bios_date:07/12/2013\n> /sys/class/dmi/id/bios_vendor:LENOVO\n> /sys/class/dmi/id/bios_version:71CN51WW(V1.21)\n> /sys/class/dmi/id/board_asset_tag:No Asset Tag\n> /sys/class/dmi/id/board_name:INVALID\n> /sys/class/dmi/id/board_serial:PE006G0E\n> /sys/class/dmi/id/board_vendor:LENOVO\n> /sys/class/dmi/id/board_version:00B98409WIN8 STD SGL\n> /sys/class/dmi/id/chassis_asset_tag:No Asset Tag\n> /sys/class/dmi/id/chassis_serial:PE006G0E\n> /sys/class/dmi/id/chassis_type:10\n> /sys/class/dmi/id/chassis_vendor:LENOVO\n> /sys/class/dmi/id/chassis_version:Lenovo IdeaPad Z400 Touch       \n> /sys/class/dmi/id/product_name:VIWZ1\n> /sys/class/dmi/id/product_serial:8SSB20E53404K1BR39LN2RE\n> /sys/class/dmi/id/product_uuid:011C8A01-21C9-11E3-8F81-641C676104A5\n> /sys/class/dmi/id/product_version:Lenovo IdeaPad Z400 Touch       \n> /sys/class/dmi/id/sys_vendor:LENOVO\n\nCan you please file a new bug for this, component kernel, and put me in the Cc ?\n\nPlease also provide the following information in the new bug report:\n\n1) What desktop environment you are using\n1.1) If the desktop environment shows an on screen display showing the brightness value when you press the brightness up / down buttons\n2) Output of \"ls /sys/class/backlight\" both with and without \"video.use_native_backlight=0\"\n3) For each directory under /sys/class/backlight cd into that directory and:\n3.1) cat max_brightness\n3.2) echo $val > brightness, where $val is max_brightness on the first try, and half of  max_brightness on the second try\n3.3) check if the echo-ing changes the actual display brightness\n3.4) Add a list to the bug with for which directories backlight control works and for which it does not"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1178975,
+			"title": "endless loop in clock_gettime() on a kvm-based VM",
+			"bugzilla": {
+				"bug_id": "1178975",
+				"creation_ts": "2015-01-05 19:42:58 +0000",
+				"short_desc": "endless loop in clock_gettime() on a kvm-based VM",
+				"delta_ts": "2015-01-26 02:30:55 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7808427",
+						"comment_count": "0",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2015-01-05 19:42:58 +0000",
+						"thetext": "I reinstalled our koji buildvm builders recently with Fedora 21. \n\nFor most builds they seem to work just fine, but after a while random builds get stuck on them and do not complete. \n\n  ├─kojid,447 /usr/sbin/kojid --force-lock --verbose\n  │   ├─kojid,3555 /usr/sbin/kojid --force-lock --verbose\n  │   │   └─mock,3811 -tt /usr/sbin/mock -r koji/f22-build-2775703-442858 --no-clean ...\n  │   │       └─yum-builddep,3861 -tt /usr/bin/yum-builddep --installroot...\n  │   │           ├─urlgrabber-ext-,3864 /usr/libexec/urlgrabber-ext-down\n  │   │           └─urlgrabber-ext-,3867 /usr/libexec/urlgrabber-ext-down\n\nroot      3864  0.0  0.1 319144 15324 ?        S    17:09   0:01 /usr/bin/python /usr/libexec/urlgrabber-ext-down\nroot      3867 99.8  0.1 319148 15276 ?        R    17:09 150:32 /usr/bin/python /usr/libexec/urlgrabber-ext-down\n\n# ls -l /proc/3867/fd\ntotal 0\nlr-x------. 1 root root 64 Jan  5 19:20 0 -> pipe:[27684]\nl-wx------. 1 root root 64 Jan  5 19:20 1 -> pipe:[27685]\nl-wx------. 1 root root 64 Jan  5 19:20 2 -> pipe:[27670]\nlrwx------. 1 root root 64 Jan  5 19:20 3 -> socket:[26080]\nl-wx------. 1 root root 64 Jan  5 19:20 4 -> /var/lib/mock/f22-build-2775703-442858/root/var/log/yum.log\nl-wx------. 1 root root 64 Jan  5 19:20 5 -> /var/lib/mock/f22-build-2775703-442858/root/var/cache/yum/build/packages/opus-1.1.1-0.1.beta.fc22.i686.rpm\nlrwx------. 1 root root 64 Jan  5 19:20 6 -> socket:[26082]\nlrwx------. 1 root root 64 Jan  5 19:20 7 -> anon_inode:[eventpoll]\nlrwx------. 1 root root 64 Jan  5 19:20 8 -> socket:[28719]\n\n(gdb) where\n#0  0x00007fff963fec29 in clock_gettime ()\n#1  0x00007fe9ebd919fd in clock_gettime () from /lib64/libc.so.6\n#2  0x00007fe9e0ba1f83 in curlx_tvnow () from /lib64/libcurl.so.4\n#3  0x00007fe9e0ba34a2 in Curl_pgrsUpdate () from /lib64/libcurl.so.4\n#4  0x00007fe9e0bcafce in multi_runsingle () from /lib64/libcurl.so.4\n#5  0x00007fe9e0bcbd71 in curl_multi_perform () from /lib64/libcurl.so.4\n#6  0x00007fe9e0bc2d0c in curl_easy_perform () from /lib64/libcurl.so.4\n#7  0x00007fe9e0e0fef3 in do_curl_perform () from /usr/lib64/python2.7/site-packages/pycurl.so\n#8  0x00007fe9eca4d81c in PyEval_EvalFrameEx () from /lib64/libpython2.7.so.1.0\n#9  0x00007fe9eca4cbe6 in PyEval_EvalFrameEx () from /lib64/libpython2.7.so.1.0\n#10 0x00007fe9eca4cbe6 in PyEval_EvalFrameEx () from /lib64/libpython2.7.so.1.0\n#11 0x00007fe9eca4cbe6 in PyEval_EvalFrameEx () from /lib64/libpython2.7.so.1.0\n#12 0x00007fe9eca4e400 in PyEval_EvalCodeEx () from /lib64/libpython2.7.so.1.0\n#13 0x00007fe9ec9da5dc in function_call () from /lib64/libpython2.7.so.1.0\n#14 0x00007fe9ec9b5903 in PyObject_Call () from /lib64/libpython2.7.so.1.0\n#15 0x00007fe9ec9c4815 in instancemethod_call () from /lib64/libpython2.7.so.1.0\n#16 0x00007fe9ec9b5903 in PyObject_Call () from /lib64/libpython2.7.so.1.0\n#17 0x00007fe9eca0c837 in slot_tp_init () from /lib64/libpython2.7.so.1.0\n#18 0x00007fe9eca0b56f in type_call () from /lib64/libpython2.7.so.1.0\n#19 0x00007fe9ec9b5903 in PyObject_Call () from /lib64/libpython2.7.so.1.0\n#20 0x00007fe9eca4b585 in PyEval_EvalFrameEx () from /lib64/libpython2.7.so.1.0\n#21 0x00007fe9eca4cbe6 in PyEval_EvalFrameEx () from /lib64/libpython2.7.so.1.0\n#22 0x00007fe9eca4e400 in PyEval_EvalCodeEx () from /lib64/libpython2.7.so.1.0\n#23 0x00007fe9eca4e4f9 in PyEval_EvalCode () from /lib64/libpython2.7.so.1.0\n#24 0x00007fe9eca6790f in run_mod () from /lib64/libpython2.7.so.1.0\n#25 0x00007fe9eca68b32 in PyRun_FileExFlags () from /lib64/libpython2.7.so.1.0\n#26 0x00007fe9eca69d47 in PyRun_SimpleFileExFlags () from /lib64/libpython2.7.so.1.0\n#27 0x00007fe9eca7b2ea in Py_Main () from /lib64/libpython2.7.so.1.0\n#28 0x00007fe9ebca2fe0 in __libc_start_main () from /lib64/libc.so.6\n#29 0x000000000040071e in _start ()\n\nstrace/ltrace just hangs/doesn't output anything.\n\nmock-1.2.3-1.fc21.noarch\ncurl-7.37.0-11.fc21.x86_64\npython-urlgrabber-3.10.1-2.fc21.noarch\nyum-3.4.3-153.fc21.noarch\n\nHappy to try and gather more info..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7810076",
+						"comment_count": "1",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2015-01-06 09:59:58 +0000",
+						"thetext": "Thanks for the report!\n\nDid it never happen before the update?\n\nWhat was the version of libcurl before the update?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7810469",
+						"comment_count": "2",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2015-01-06 11:53:12 +0000",
+						"thetext": "I failed to reproduce it locally.\n\nWhich mirror is actually used to download the packages from?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7811584",
+						"comment_count": "3",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2015-01-06 15:43:27 +0000",
+						"thetext": "Before they were running Fedora 20, so: \n\ncurl-7.32.0-15.fc20.x86_64\nlibcurl-7.32.0-15.fc20.x86_64\n\nPackages are downloaded from a local squid proxy, kojipkgs.fedoraproject.org\n\nI do see a bunch of stuff in recv queue: \n\ntcp    ESTAB      2364240 0                                   10.5.125.105:41955                               10.5.125.36:80    \n\n# fuser -n tcp 41955\n41955/tcp:           16175\n# ps -axuww | grep 16175\nroot     16175 99.9  0.1 319148 15284 ?        R    Jan05 1130:15 /usr/bin/python /usr/libexec/urlgrabber-ext-down"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7811736",
+						"comment_count": "4",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2015-01-06 16:16:36 +0000",
+						"thetext": "It seems to work fine here with an squid proxy running on localhost.\n\nCould you please check it with libcurl-7.32.0-17.fc20?\n\nThat version also includes a patch for bug #1166239 that already caused some issues elsewhere (bug #1172572).\n\nDoes it consume CPU or hangs passively when it happens?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7811862",
+						"comment_count": "5",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2015-01-06 16:51:40 +0000",
+						"thetext": "(In reply to Kamil Dudka from comment #4)\n> It seems to work fine here with an squid proxy running on localhost.\n> \n> Could you please check it with libcurl-7.32.0-17.fc20?\n\nYou want me to try that f20 package on an f21 host? \n\nNote that the problem hosts here are f21. They worked fine _before_ as f20. \n> \n> That version also includes a patch for bug #1166239 that already caused some\n> issues elsewhere (bug #1172572).\n> \n> Does it consume CPU or hangs passively when it happens?\n\nIt consumes 100% cpu."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7811920",
+						"comment_count": "6",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2015-01-06 17:07:21 +0000",
+						"thetext": "(In reply to Kevin Fenzi from comment #5)\n> You want me to try that f20 package on an f21 host?\n\nTrying it on a f20 host should also be fine.  You choose.\n\n> Note that the problem hosts here are f21. They worked fine _before_ as f20.\n\nYou referred to libcurl-7.32.0-15.fc20 as the working version.  However, it is actually libcurl-7.32.0-17.fc20 what is now tagged f20-updates and chances are it suffers from the same bug.  That is why I am asking about f20."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7812071",
+						"comment_count": "7",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2015-01-06 17:48:05 +0000",
+						"thetext": "Per our conversation on irc I tried curl-7.37.0-9.fc21.x86_64 on the f21 hosts. \n\nThe problem still persists. ;( \n\nroot       708 99.8  0.1 319412 15116 ?        R    17:32  13:28 /usr/bin/python /usr/libexec/urlgrabber-ext-down\n\n# ls -l /proc/708/fd/\ntotal 0\nlr-x------. 1 root root 64 Jan  6 17:43 0 -> pipe:[16023]\nl-wx------. 1 root root 64 Jan  6 17:43 1 -> pipe:[16024]\nl-wx------. 1 root root 64 Jan  6 17:43 2 -> pipe:[19263]\nlrwx------. 1 root root 64 Jan  6 17:43 3 -> socket:[19265]\nl-wx------. 1 root root 64 Jan  6 17:43 4 -> /var/lib/mock/f22-build-2780382-443173/root/var/log/yum.log\nlrwx------. 1 root root 64 Jan  6 17:43 5 -> anon_inode:[eventpoll]\nlrwx------. 1 root root 64 Jan  6 17:43 6 -> socket:[19267]\nl-wx------. 1 root root 64 Jan  6 17:43 7 -> /var/lib/mock/f22-build-2780382-443173/root/var/cache/yum/build/931b19ae55c88d785cb04e67f1c9ca417d1cc61271c078df8c6257824b64eadb-primary.sqlite.bz2\nlrwx------. 1 root root 64 Jan  6 17:43 8 -> socket:[19269]\n\n# ss -an | grep 80\ntcp    ESTAB      242708 0           10.5.125.150:55049       10.5.125.36:80    \n\n-rw-rw-r--. 1 root mock 10133504 Jan  6 17:32 /var/lib/mock/f22-build-2780382-443173/root/var/cache/yum/build/931b19ae55c88d785cb04e67f1c9ca417d1cc61271c078df8c6257824b64eadb-primary.sqlite.bz2"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7815702",
+						"comment_count": "8",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2015-01-07 16:03:56 +0000",
+						"thetext": "Thanks for the additional info!\n\nCould you please install libcurl-7.37.0-11.fc21 on a f20 builder and check whether it triggers the bug?\n\nWe need to confirm that this bug is really caused by a change in curl..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7816483",
+						"comment_count": "9",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2015-01-07 20:47:55 +0000",
+						"thetext": "ok. I upgraded our buildhw boxes (f20) to the f21 curl... and so far, no bug. ;( \n\nIt could just take longer on hw... I could try reinstalling a few vm's with f20 and f21 curl and see if it happens there. \n\nNot sure where else to look for the cause here. python-urlgrabber, python-curl, yum are all not very different. glibc and python I guess could be... mock is, but the spin/hang/bug doesn't seem to be in mock anywhere. \n\nSuggestions welcome."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7818202",
+						"comment_count": "10",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2015-01-08 11:14:12 +0000",
+						"thetext": "Thank you for checking it!\n\nIt is possible that both the versions of libcurl suffer from the same bug and something else just triggers it on f21 but not on f20.  Could you please install curl-7.40.0-1.fc22 on a problematic f21 host and check if the problem persists?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7819884",
+						"comment_count": "11",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2015-01-08 17:45:44 +0000",
+						"thetext": "ok. I have updated curl/libcurl on buildvm-10 to buildvm-27. ;) \n\nWill let you know in a bit if the bug appears..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7819961",
+						"comment_count": "12",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2015-01-08 18:05:28 +0000",
+						"thetext": "And it popped up nice and quick. ;( \n\ncurl-7.40.0-1.fc22.x86_64\nlibcurl-7.40.0-1.fc22.x86_64\n\n# ps -axuww | grep url\nroot       719 99.8  0.1 319168 15192 ?        R    17:50  11:09 /usr/bin/python /usr/libexec/urlgrabber-ext-down\nroot       720  0.1  0.1 319164 15420 ?        S    17:50   0:01 /usr/bin/python /usr/libexec/urlgrabber-ext-down"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7822607",
+						"comment_count": "13",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2015-01-09 13:58:13 +0000",
+						"thetext": "I have finally managed to reproduce the bug locally:\n\n1. create a kvm-based x86_64 vm\n2. install fresh f21 server on it\n3. install and start a local squid proxy\n4. run 'mock --installdeps ...' against a non-local yum mirror (over the proxy)\n\nThen I attached gdb to the hanging process and discovered that it actually loops _inside_ clock_gettime().  This could hardly be a bug of libcurl.\n\n/usr/src/debug/glibc-2.20/sysdeps/unix/clock_gettime.c\n101│\n102│ #ifndef HANDLED_REALTIME\n103│     case CLOCK_REALTIME:\n104│       {\n105│         struct timeval tv;\n106│         retval = gettimeofday (&tv, NULL);\n107│         if (retval == 0)\n108│           TIMEVAL_TO_TIMESPEC (&tv, tp);\n109│       }\n110│       break;\n111│ #endif\n112│\n113│     default:\n114│ #ifdef SYSDEP_GETTIME_CPU\n115├>      SYSDEP_GETTIME_CPU (clock_id, tp);\n116│ #endif\n117│ #if HP_TIMING_AVAIL\n118│       if ((clock_id & ((1 << CLOCK_IDFIELD_SIZE) - 1))\n119│           == CLOCK_THREAD_CPUTIME_ID)\n120│         retval = hp_timing_gettime (clock_id, tp);\n121│       else\n122│ #endif\n123│         __set_errno (EINVAL);\n124│       break;\n125│\n126│ #if HP_TIMING_AVAIL && !defined HANDLED_CPUTIME\n127│     case CLOCK_PROCESS_CPUTIME_ID:\n128│       retval = hp_timing_gettime (clock_id, tp);\n129│       break;\n\n\nI suspect this could be a duplicate of bug #1174664.\n\nA similar bug was also reported against Ubuntu:\n\nhttps://bugs.launchpad.net/ubuntu/+source/ubiquity/+bug/1020992"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7822716",
+						"comment_count": "14",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2015-01-09 14:32:41 +0000",
+						"thetext": "Created attachment 978181\nendless loop in the VDSO implementation of clock_gettime()\n\nIt loops in userspace.  The actual loop over the glibc instructions is attached.  I guess it could be caused by integral overflow?  Or just by invalid data from the virtualization layer?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7822732",
+						"comment_count": "15",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2015-01-09 14:35:55 +0000",
+						"thetext": "$ rpm -qa glibc\\* | sort -V\nglibc-2.20-5.fc21.x86_64\nglibc-common-2.20-5.fc21.x86_64\nglibc-debuginfo-2.20-5.fc21.x86_64\nglibc-debuginfo-common-2.20-5.fc21.x86_64\nglibc-devel-2.20-5.fc21.x86_64\nglibc-headers-2.20-5.fc21.x86_64\n\n$ rpm -q kernel\nkernel-3.17.7-300.fc21.x86_64\n\nThe hosting HW is running the same NVR of kernel as the VM."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7823076",
+						"comment_count": "16",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2015-01-09 15:40:20 +0000",
+						"thetext": "(In reply to Kamil Dudka from comment #14)\n> Created attachment 978181 [details]\n> tight loop in glibc code\n\nActually, it does not loop in libc.so.6, but in the VDSO area, which starts at 0x7fff67ffe000 in the hanging process.  I am switching the component to kernel."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7823631",
+						"comment_count": "17",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2015-01-09 16:28:04 +0000",
+						"thetext": "Adding datapoints: \n\nHere the host is a rhel7 machine: 3.10.0-123.13.2.el7.x86_64\n\nI am trying a 3.18.1 kernel (from rawhide) now on the f21 builders to see if it changes anything."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7824061",
+						"comment_count": "18",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2015-01-09 16:48:09 +0000",
+						"thetext": "Seemed to take a bit longer, but the bug persists on 3.18.1-2.fc22.x86_64."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7825137",
+						"comment_count": "19",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2015-01-09 17:40:11 +0000",
+						"thetext": "Another thing to note: The f20 builders which don't show this issue were using the almost same kernel: \nf20 builders, no bug: 3.17.7-200.fc20.x86_64\nf21 builders, yes bug: 3.17.7-300.fc21.x86_64\n\nSo I wonder if glibc might be more likely? Or I suppose it could be a host issue shared by the rhel7 and f21 kernels?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7826114",
+						"comment_count": "20",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-01-09 18:24:45 +0000",
+						"thetext": "Adding Andy on CC since he's now the upstream VDSO maintainer.  He's nice, and maybe he'll have an idea."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7827100",
+						"comment_count": "21",
+						"who": {
+							"text": "luto",
+							"name": "Andy Lutomirski"
+						},
+						"bug_when": "2015-01-09 19:08:06 +0000",
+						"thetext": "Interesting.  I'm currently working on rewriting this code entirely, and I have a hunch.  How many CPUs does the guest have?  Can you post the output of:\n\n$ cat /sys/devices/system/clocksource/clocksource0/current_clocksource\n\nin the guest?\n\nCan you try applying this patch:\n\nhttps://git.kernel.org/cgit/linux/kernel/git/tip/tip.git/commit/?h=x86/urgent&id=1ddf0b1b11aa8a90cef6706e935fc31c75c406ba\n\nand re-testing?  If that patch doesn't apply, grep for __getcpu in arch/x86/include/asm and add the missing volatile.  I hope that this patch will fix the bug for you, but, if it doesn't, then it will at least make what's going on much clearer."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7827316",
+						"comment_count": "22",
+						"who": {
+							"text": "luto",
+							"name": "Andy Lutomirski"
+						},
+						"bug_when": "2015-01-09 19:17:15 +0000",
+						"thetext": "I took a look at the disassembly you provided (thanks!), and I'm reasonably confident that my guess was right.  If you manage to complete an iteration of the vread_pvclock loop with cpu != cpu1, then you'll never escape the loop, because the compiler will keep using cached cpu values on each iteration.  I know this because \"lsl\" doesn't appear anywhere in the disassembly, so the __getcpu isn't happening, despite appearances in the C code.\n\nJosh, I'm confident enough that this is a real problem and is probably the cause of this particular hang that it might be worth kicking off a scratch kernel build or something to make this easier to test.\n\n(The reason I never looked too closely at the implications of the missing volatile was that it seems to be highly dependent on compiler details, phase of the moon, seemingly irrelevant nearby code, etc.)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7828462",
+						"comment_count": "23",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-01-09 20:14:22 +0000",
+						"thetext": "(In reply to Andy Lutomirski from comment #22)\n> I took a look at the disassembly you provided (thanks!), and I'm reasonably\n> confident that my guess was right.  If you manage to complete an iteration\n> of the vread_pvclock loop with cpu != cpu1, then you'll never escape the\n> loop, because the compiler will keep using cached cpu values on each\n> iteration.  I know this because \"lsl\" doesn't appear anywhere in the\n> disassembly, so the __getcpu isn't happening, despite appearances in the C\n> code.\n> \n> Josh, I'm confident enough that this is a real problem and is probably the\n> cause of this particular hang that it might be worth kicking off a scratch\n> kernel build or something to make this easier to test.\n\nStarted:\n\nhttp://koji.fedoraproject.org/koji/taskinfo?taskID=8575247\n\nThe function is in vsyscall.h in 3.17, so a small trivial backport of the patch.\n\nThanks Andy!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7829653",
+						"comment_count": "24",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2015-01-09 21:14:57 +0000",
+						"thetext": "# cat /sys/devices/system/clocksource/clocksource0/current_clocksource\nkvm-clock\n\nGuests have 4 cpus. \n\nWill try that kernel once it's done building. Thanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7831491",
+						"comment_count": "25",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2015-01-09 23:19:12 +0000",
+						"thetext": "ok. About an hour so far on that kernel and 0 cases of the bug... looking pretty good."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7831982",
+						"comment_count": "26",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-01-10 15:55:10 +0000",
+						"thetext": "(In reply to Kevin Fenzi from comment #25)\n> ok. About an hour so far on that kernel and 0 cases of the bug... looking\n> pretty good.\n\nExcellent.  I'll try to get the patch included in Fedora git later this evening."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7834783",
+						"comment_count": "27",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-01-12 13:20:42 +0000",
+						"thetext": "Fixed in git."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7842919",
+						"comment_count": "28",
+						"who": {
+							"text": "redhat",
+							"name": "Gerhard Wiesinger"
+						},
+						"bug_when": "2015-01-14 09:10:30 +0000",
+						"thetext": "Test program posted at https://www.mail-archive.com/qemu-devel@nongnu.org/msg273843.html works well now for more than 1 hour.\n\nSeems to be fixed for me. Can you please release a new official kernel version to the update repo ASAP. Thnx.\n\nFor the records the test program:\n#include <sys/time.h>\n#include <stdio.h>\n\nint main(int argc, char* argv[])\n{\n  struct timeval tv;\n  int i = 0;\n  for (;;)\n  {\n    gettimeofday(&tv, 0);\n    ++i;\n    if (i >= 10000000)\n    {\n      i = 0;\n      printf(\"%i\\n\", (int)tv.tv_sec);\n    }\n  }\n  return 0;\n}\n\nBTW: What was the main source/trigger of the bug? gcc differences between F20 and F21?\nI'm asking as already discussed because same kernel version worked on F20.\n\nI guess the answer is: Bug is in kernel but was not triggered with old F20 gcc and was triggered by F21 newer gcc version.\n\nOK : F20: 3.17.6-200.fc20.x86_64 on guest/host, qemu-kvm-1.6.2-10.fc20.x86_64 on host\nNOK: F21: 3.17.7-300.fc21.x86_64 on guest/host, qemu-kvm-2.1.2-7.fc21.x86_64 on host\nNOK: F21: 3.17.8-300.fc21.x86_64 on guest/host, qemu-kvm-2.2.0-1.fc21.x86_64 on host"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7843839",
+						"comment_count": "29",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-14 13:14:28 +0000",
+						"thetext": "kernel-3.18.2-200.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.2-200.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7846034",
+						"comment_count": "30",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-14 23:59:47 +0000",
+						"thetext": "Package kernel-3.18.2-200.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-3.18.2-200.fc21'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-0724/kernel-3.18.2-200.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7858524",
+						"comment_count": "31",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-19 20:49:09 +0000",
+						"thetext": "kernel-3.18.3-201.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.3-201.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7876412",
+						"comment_count": "32",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-26 02:30:55 +0000",
+						"thetext": "kernel-3.18.3-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1181054,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-9585 kernel: ASLR bruteforce possible for vdso library",
+			"bugzilla": {
+				"bug_id": "1181054",
+				"alias": "CVE-2014-9585",
+				"creation_ts": "2015-01-12 09:56:59 +0000",
+				"short_desc": "CVE-2014-9585 kernel: ASLR bruteforce possible for vdso library",
+				"delta_ts": "2021-06-13 20:24:18 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1181056",
+					"1184896",
+					"1184897",
+					"1184898",
+					"1184899",
+					"1184901",
+					"1252883",
+					"1252884",
+					"1423407"
+				],
+				"blocked": [
+					{
+						"bug_id": "1177829",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2015:1788",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7834077",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-12 09:56:59 +0000",
+						"thetext": "Linux kernel built with the Virtual Dynamic Shared Object(vDSO) support is\nvulnerable to an information leakage flaw. It occurs due to less than perfect\naddress randomisation, which leads to leakage of vDSO library base address.\n\nAn unprivileged user could use this flaw to leak kernel memory addresses.\n\nUpstream fix:\n-------------\n  -> https://git.kernel.org/linus/394f56fe480140877304d342dec46d50dc823d46\n\nReference:\n----------\n  -> http://seclists.org/oss-sec/2015/q1/103\n  -> https://bugzilla.kernel.org/show_bug.cgi?id=89591\n  -> http://marc.info/?l=linux-kernel&m=141909723019695&w=2"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7834086",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-12 09:58:56 +0000",
+						"thetext": "The fix above is in upstream already:\nhttp://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/arch/x86/vdso/vma.c?id=394f56fe480140877304d342dec46d50dc823d46"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7834093",
+						"comment_count": "2",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-12 10:00:19 +0000",
+						"thetext": "\nCreated kernel tracking bugs for this issue:\n\nAffects: fedora-all [bug 1181056]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7869389",
+						"comment_count": "4",
+						"who": {
+							"text": "ppandit",
+							"name": "Prasad Pandit"
+						},
+						"bug_when": "2015-01-22 12:24:03 +0000",
+						"thetext": "Statement:\n\nThis issue affects the versions of the Linux kernel as shipped with\nRed Hat Enterprise Linux 5, 6, 7 and Red Hat Enterprise MRG 2. Future kernel\nupdates for Red Hat Enterprise Linux 7 and Red Hat Enterprise MRG 2 may\naddress this issue.\n\n\nRed Hat Enterprise Linux 5 is now in Production 3 Phase of the support and\nmaintenance life cycle. This has been rated as having Low security\nimpact and is not currently planned to be addressed in future updates. For\nadditional information, refer to the Red Hat Enterprise Linux Life\nCycle: https://access.redhat.com/support/policy/updates/errata/."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7876417",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-26 02:31:09 +0000",
+						"thetext": "kernel-3.18.3-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8318751",
+						"comment_count": "9",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-06-09 14:48:53 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2015:1081 https://rhn.redhat.com/errata/RHSA-2015-1081.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8635629",
+						"comment_count": "11",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-09-15 09:23:26 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  MRG for RHEL-6 v.2\n\nVia RHSA-2015:1787 https://rhn.redhat.com/errata/RHSA-2015-1787.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8635699",
+						"comment_count": "12",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-09-15 09:39:19 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:1788 https://rhn.redhat.com/errata/RHSA-2015-1788.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8636170",
+						"comment_count": "13",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-09-15 12:06:34 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:1778 https://rhn.redhat.com/errata/RHSA-2015-1778.html"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1181056,
+			"security": true,
+			"title": "CVE-2014-9585 kernel: ASLR bruteforce possible for vdso library [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1181056",
+				"creation_ts": "2015-01-12 10:00:11 +0000",
+				"short_desc": "CVE-2014-9585 kernel: ASLR bruteforce possible for vdso library [fedora-all]",
+				"delta_ts": "2015-01-26 02:30:48 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1181054",
+						"alias": "CVE-2014-9585",
+						"creation_ts": "2015-01-12 09:56:59 +0000",
+						"short_desc": "CVE-2014-9585 kernel: ASLR bruteforce possible for vdso library",
+						"delta_ts": "2021-06-13 20:24:18 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1181056",
+							"1184896",
+							"1184897",
+							"1184898",
+							"1184899",
+							"1184901",
+							"1252883",
+							"1252884",
+							"1423407"
+						],
+						"blocked": [
+							{
+								"bug_id": "1177829",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:1788",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7834077",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-01-12 09:56:59 +0000",
+								"thetext": "Linux kernel built with the Virtual Dynamic Shared Object(vDSO) support is\nvulnerable to an information leakage flaw. It occurs due to less than perfect\naddress randomisation, which leads to leakage of vDSO library base address.\n\nAn unprivileged user could use this flaw to leak kernel memory addresses.\n\nUpstream fix:\n-------------\n  -> https://git.kernel.org/linus/394f56fe480140877304d342dec46d50dc823d46\n\nReference:\n----------\n  -> http://seclists.org/oss-sec/2015/q1/103\n  -> https://bugzilla.kernel.org/show_bug.cgi?id=89591\n  -> http://marc.info/?l=linux-kernel&m=141909723019695&w=2"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7834086",
+								"comment_count": "1",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-01-12 09:58:56 +0000",
+								"thetext": "The fix above is in upstream already:\nhttp://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/arch/x86/vdso/vma.c?id=394f56fe480140877304d342dec46d50dc823d46"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7834093",
+								"comment_count": "2",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-01-12 10:00:19 +0000",
+								"thetext": "\nCreated kernel tracking bugs for this issue:\n\nAffects: fedora-all [bug 1181056]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7869389",
+								"comment_count": "4",
+								"who": {
+									"text": "ppandit",
+									"name": "Prasad Pandit"
+								},
+								"bug_when": "2015-01-22 12:24:03 +0000",
+								"thetext": "Statement:\n\nThis issue affects the versions of the Linux kernel as shipped with\nRed Hat Enterprise Linux 5, 6, 7 and Red Hat Enterprise MRG 2. Future kernel\nupdates for Red Hat Enterprise Linux 7 and Red Hat Enterprise MRG 2 may\naddress this issue.\n\n\nRed Hat Enterprise Linux 5 is now in Production 3 Phase of the support and\nmaintenance life cycle. This has been rated as having Low security\nimpact and is not currently planned to be addressed in future updates. For\nadditional information, refer to the Red Hat Enterprise Linux Life\nCycle: https://access.redhat.com/support/policy/updates/errata/."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7876417",
+								"comment_count": "7",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-01-26 02:31:09 +0000",
+								"thetext": "kernel-3.18.3-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8318751",
+								"comment_count": "9",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-06-09 14:48:53 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2015:1081 https://rhn.redhat.com/errata/RHSA-2015-1081.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8635629",
+								"comment_count": "11",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-09-15 09:23:26 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  MRG for RHEL-6 v.2\n\nVia RHSA-2015:1787 https://rhn.redhat.com/errata/RHSA-2015-1787.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8635699",
+								"comment_count": "12",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-09-15 09:39:19 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:1788 https://rhn.redhat.com/errata/RHSA-2015-1788.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8636170",
+								"comment_count": "13",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-09-15 12:06:34 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:1778 https://rhn.redhat.com/errata/RHSA-2015-1778.html"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7834091",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-12 10:00:11 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\nReproducers, if any, will remain confidential and never be made public, unless done so by the security team.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7834092",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-12 10:00:16 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1181054,1181056\n\n# Description of your update\nnotes=Security fix for CVE-2014-9585\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1181054,1181056"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7836218",
+						"comment_count": "2",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-01-12 18:01:10 +0000",
+						"thetext": "Fixed in Fedora git."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7843838",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-14 13:14:26 +0000",
+						"thetext": "kernel-3.18.2-200.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.2-200.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7846033",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-14 23:59:45 +0000",
+						"thetext": "Package kernel-3.18.2-200.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-3.18.2-200.fc21'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-0724/kernel-3.18.2-200.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7858523",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-19 20:49:07 +0000",
+						"thetext": "kernel-3.18.3-201.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.3-201.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7876411",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-26 02:30:48 +0000",
+						"thetext": "kernel-3.18.3-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "kernel-3.18.2-200.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "kernel-tools-libs",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-core",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-modules-extra",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-debuginfo",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "perf-debuginfo",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-tools-libs-devel",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-core",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-tools-debuginfo",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-modules-extra",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "python-perf-debuginfo",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-modules",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-debuginfo-common-armv7hl",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "python-perf",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-devel",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "perf",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-tools",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "kernel-PAE-devel",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "python-perf",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-debuginfo",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "perf-debuginfo",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-tools",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-tools-debuginfo",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-modules",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-core",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-devel",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "python-perf-debuginfo",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-core",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-debuginfo",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-devel",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-core",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-modules",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "perf",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-modules-extra",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-tools-libs",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-modules-extra",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debuginfo-common-i686",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-tools-libs-devel",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-modules",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-modules-extra",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-core",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-modules-extra",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-debuginfo",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "kernel",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "kernel-tools",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-core",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python-perf",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-modules-extra",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debuginfo-common-x86_64",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-modules-extra",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-tools-libs-devel",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-modules",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-core",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-debuginfo",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-tools-libs",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-devel",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "perf-debuginfo",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "perf",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python-perf-debuginfo",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-tools-debuginfo",
+						"version": "3.18.2",
+						"release": "200.fc21",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 70430,
+			"text": "This update has been submitted for testing by jforbes. ",
+			"timestamp": "2015-01-14 13:15:06",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 70431,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/28034/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-01-14 13:23:42",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 70432,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/28034/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-01-14 13:24:09",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 70433,
+			"karma": 1,
+			"text": "No regressions noted",
+			"timestamp": "2015-01-14 14:50:42",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/36281392f26e23ecef1e6295fd712f48c66d11dc1e37365e933f6e07e7588960?s=24&d=retro",
+				"email": "freddy@freddywillemsen.nl",
+				"groups": [
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "signed_fpca"
+					}
+				],
+				"id": 230,
+				"name": "freddyw",
+				"openid": "freddyw.id.fedoraproject.org"
+			},
+			"user_id": 230
+		},
+		{
+			"id": 70434,
+			"text": "Critical path update approved",
+			"timestamp": "2015-01-14 14:50:43",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 70435,
+			"karma": 1,
+			"timestamp": "2015-01-14 15:12:00",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/125831ad90dd19babc098cc3d5991c666148346d9df1b52123bcb56036a6605d?s=24&d=retro",
+				"email": "joelnburleson@yahoo.com",
+				"id": 432,
+				"name": "sysengbd",
+				"openid": "sysengbd.id.fedoraproject.org"
+			},
+			"user_id": 432
+		},
+		{
+			"id": 70436,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2015-01-14 16:36:42",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 70437,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-01-14 23:59:28",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 70438,
+			"karma": 1,
+			"text": "no issues :)",
+			"timestamp": "2015-01-15 03:39:37",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/917623e99034540d289333a810605632291e508b33684aea51959299fe755817?s=24&d=retro",
+				"id": 348,
+				"name": "empateinfinito",
+				"openid": "empateinfinito.id.fedoraproject.org"
+			},
+			"user_id": 348
+		},
+		{
+			"id": 70439,
+			"karma": 1,
+			"text": "Works for me",
+			"timestamp": "2015-01-15 04:09:10",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/2087ddb84fdf1774c00fc96323f629621c9046b99eee2aa497044f598f3979d4?s=24&d=retro",
+				"email": "yuwatana@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					}
+				],
+				"id": 125,
+				"name": "yuwata",
+				"openid": "yuwata.id.fedoraproject.org"
+			},
+			"user_id": 125
+		},
+		{
+			"id": 70440,
+			"karma": -1,
+			"text": "ThinkPad T510, black screen after Gnome start. Cannot switch to any VT. Even\nafter ssh into the box and a reboot, nothing happens. Power cycle only.\nReverting to 3.17.8-300.fc21.x86_64 gets Gnome up again. Possibly related to bug\n#1168039.",
+			"timestamp": "2015-01-15 08:28:11",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/1a8afd83231ef5ba905344806ba95b39f2abd77b399b0ee217ec3e6fa30a4825?s=24&d=retro",
+				"email": "bojan@rexursive.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 198,
+				"name": "bojan",
+				"openid": "bojan.id.fedoraproject.org"
+			},
+			"user_id": 198
+		},
+		{
+			"id": 70441,
+			"karma": 1,
+			"text": "Bug #1178975 appears fixed (although my reproducer is not much reliable).",
+			"timestamp": "2015-01-15 10:12:24",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/59906f618fb1dbd8d6673e6c8ffaabd8c2ef89bf8d5ce891502e702873a67a6d?s=24&d=retro",
+				"email": "kdudka@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "gitcgt"
+					},
+					{
+						"name": "gitcsmock"
+					},
+					{
+						"name": "gitnsspem"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "aufover"
+					},
+					{
+						"name": "gitcscppc"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "gitcswrap"
+					},
+					{
+						"name": "gitcodescan-diff"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "openscanhub"
+					}
+				],
+				"id": 576,
+				"name": "kdudka",
+				"openid": "kdudka.id.fedoraproject.org"
+			},
+			"user_id": 576
+		},
+		{
+			"id": 70442,
+			"text": "Bug #1178975 is fixed for me, could not trigger it anymore with the test program\ndiscussed in the bug report\n\nkarma: +1",
+			"timestamp": "2015-01-15 17:54:44",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/ffa4b7625be5eced4d6d3ea49cd8c8f60d0c6bd502ed5eb97e52e63f15583009?s=24&d=retro",
+				"id": 207,
+				"name": "anonymous",
+				"openid": "anonymous.id.fedoraproject.org"
+			},
+			"user_id": 207
+		},
+		{
+			"id": 70443,
+			"karma": 1,
+			"text": "Bug #1178975 is fixed for me, could not trigger it anymore with the test program\ndiscussed in the bug report",
+			"timestamp": "2015-01-15 18:03:08",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/b59c959f3f154d54c2453dd9ccd148713de7411b02ee58ddf3580922a8a61425?s=24&d=retro",
+				"email": "fedora@wiesinger.com",
+				"id": 1293,
+				"name": "gerhardw",
+				"openid": "gerhardw.id.fedoraproject.org"
+			},
+			"user_id": 1293
+		},
+		{
+			"id": 70444,
+			"karma": -1,
+			"text": "Laptop (Lenovo T61 with i965 gfx) is almost unusable with this kernel - Gnome\nfreezes up after 5 minutes, can't switch to VT after this happens.",
+			"timestamp": "2015-01-15 18:51:02",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/2d3a8d7a2d11bac2866815066e04bf1d397834a8a83f2b2cbdddcf9b2b281605?s=24&d=retro",
+				"email": "moggers87@moggers87.co.uk",
+				"groups": [
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "signed_fpca"
+					}
+				],
+				"id": 709,
+				"name": "moggers87",
+				"openid": "moggers87.id.fedoraproject.org"
+			},
+			"user_id": 709
+		},
+		{
+			"id": 70445,
+			"text": "Should add this was with a 32-bit kernel.",
+			"timestamp": "2015-01-15 18:58:24",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/2d3a8d7a2d11bac2866815066e04bf1d397834a8a83f2b2cbdddcf9b2b281605?s=24&d=retro",
+				"email": "moggers87@moggers87.co.uk",
+				"groups": [
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "signed_fpca"
+					}
+				],
+				"id": 709,
+				"name": "moggers87",
+				"openid": "moggers87.id.fedoraproject.org"
+			},
+			"user_id": 709
+		},
+		{
+			"id": 70446,
+			"text": "does not boot here, standard desktop with amd phenom and radeon card.\n\nkarma: -1",
+			"timestamp": "2015-01-15 19:02:44",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/ffa4b7625be5eced4d6d3ea49cd8c8f60d0c6bd502ed5eb97e52e63f15583009?s=24&d=retro",
+				"id": 207,
+				"name": "anonymous",
+				"openid": "anonymous.id.fedoraproject.org"
+			},
+			"user_id": 207
+		},
+		{
+			"id": 70447,
+			"karma": -1,
+			"text": "similar problem as moggers87: my old intel laptop (gm965) already locked up\ntwice.",
+			"timestamp": "2015-01-15 23:02:51",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/23e02ed0334ecd10e9d671a06bd9f739b0a728f98649c0eb9e60fcaa2b120cb6?s=24&d=retro",
+				"email": "felix.schwarz@oss.schwarz.eu",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "python-sig"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "certbot-sig"
+					},
+					{
+						"name": "python-packagers-sig"
+					}
+				],
+				"id": 397,
+				"name": "fschwarz",
+				"openid": "fschwarz.id.fedoraproject.org"
+			},
+			"user_id": 397
+		},
+		{
+			"id": 70448,
+			"karma": -1,
+			"text": "Same for me (as moggers87) with Lenovo X61 :(",
+			"timestamp": "2015-01-16 01:49:36",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/256b00180c042539cbf54137ab58674b42cbde9b958d72e0cbaaaf3bf72e32f5?s=24&d=retro",
+				"email": "lupinix.fedora@gmail.com",
+				"groups": [
+					{
+						"name": "kde-sig"
+					},
+					{
+						"name": "astro-sig"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "python-sig"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "scitech"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "python-packagers-sig"
+					},
+					{
+						"name": "gitspin-kickstarts"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 763,
+				"name": "lupinix",
+				"openid": "lupinix.id.fedoraproject.org"
+			},
+			"user_id": 763
+		},
+		{
+			"id": 70449,
+			"karma": 1,
+			"text": "Fixes bug 1115713 for me on netbook with Atom integrated video and i915 drivers.",
+			"timestamp": "2015-01-16 04:49:02",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/cb3d5c12753969a6abf303d1d584949c38e947465e17ccf2443e502bb551904e?s=24&d=retro",
+				"email": "prd-fedora@nobig5.com",
+				"groups": [
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "signed_fpca"
+					}
+				],
+				"id": 1294,
+				"name": "pdestefa",
+				"openid": "pdestefa.id.fedoraproject.org"
+			},
+			"user_id": 1294
+		},
+		{
+			"id": 70450,
+			"karma": -1,
+			"text": "Boots successfully only about 50% of the time. Otherwise, locks up, unresponsive\nto most keyboard input. Only hardware poweroff helps.",
+			"timestamp": "2015-01-16 10:39:23",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/e5045d506aa85d296de0918e4dd52b74cc33dec956be122a03bfdbe4be24e97f?s=24&d=retro",
+				"email": "decathorpe@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "rust-sig"
+					},
+					{
+						"name": "libreoffice-sig"
+					},
+					{
+						"name": "diversity-pride"
+					}
+				],
+				"id": 388,
+				"name": "decathorpe",
+				"openid": "decathorpe.id.fedoraproject.org"
+			},
+			"user_id": 388
+		},
+		{
+			"id": 70451,
+			"karma": 1,
+			"text": "No new problems",
+			"timestamp": "2015-01-17 06:56:37",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/827a4c4c2b2c8539e9b85ae863ef076a9f34b29f4bd04afec421fa08c13f2864?s=24&d=retro",
+				"email": "rocketraman@gmail.com",
+				"groups": [
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "signed_fpca"
+					}
+				],
+				"id": 1292,
+				"name": "rocketraman",
+				"openid": "rocketraman.id.fedoraproject.org"
+			},
+			"user_id": 1292
+		},
+		{
+			"id": 70452,
+			"karma": 1,
+			"text": "Been running this on for a few days now no issues on desktop pc (using radeon\ngpu) and intel based laptop.",
+			"timestamp": "2015-01-17 11:24:16",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/666a7316f3f80adf5ceeade2617da111fe18c680ddc846724a416ddacc749351?s=24&d=retro",
+				"email": "adel.gadllah@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "gitdesktop-effects"
+					},
+					{
+						"name": "gitsystem-setup-keyboard"
+					}
+				],
+				"id": 201,
+				"name": "drago01",
+				"openid": "drago01.id.fedoraproject.org"
+			},
+			"user_id": 201
+		},
+		{
+			"id": 70453,
+			"text": "Bug 1183232 - [regression] no GPU accelleration in 3.18, no video output in vlc\nand mplayer\n\nkarma: -1",
+			"timestamp": "2015-01-17 13:46:49",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/ffa4b7625be5eced4d6d3ea49cd8c8f60d0c6bd502ed5eb97e52e63f15583009?s=24&d=retro",
+				"id": 207,
+				"name": "anonymous",
+				"openid": "anonymous.id.fedoraproject.org"
+			},
+			"user_id": 207
+		},
+		{
+			"id": 70454,
+			"karma": 1,
+			"text": "i686 hp nx9105 no regressions",
+			"timestamp": "2015-01-17 14:56:38",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/7ee064ba1639cce664b344a002c8677261611d0ca8b42872b14e9d33d3efd82b?s=24&d=retro",
+				"email": "micsim2007@outlook.com",
+				"groups": [
+					{}
+				],
+				"id": 179,
+				"name": "arehtykitna",
+				"openid": "arehtykitna.id.fedoraproject.org"
+			},
+			"user_id": 179
+		},
+		{
+			"id": 70455,
+			"karma": 1,
+			"text": "everything works as before - no issues noticed",
+			"timestamp": "2015-01-17 18:00:38",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/b69a781f897ff47fb3d40e9bd36309fb6d6aecb6892aa07fbcf302de054e5b12?s=24&d=retro",
+				"email": "nonamedotc@gmail.com",
+				"groups": [
+					{
+						"name": "qa"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "scitech_sig"
+					},
+					{
+						"name": "triagers"
+					}
+				],
+				"id": 306,
+				"name": "nonamedotc",
+				"openid": "nonamedotc.id.fedoraproject.org"
+			},
+			"user_id": 306
+		},
+		{
+			"id": 70456,
+			"karma": 1,
+			"text": "Didn't noticed anything wrong across several machines, +1",
+			"timestamp": "2015-01-17 20:37:26",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/0fd1d5acbf668178227e981c4ef1fcab1f7313bb3d090445347ec7e53fa59914?s=24&d=retro",
+				"id": 567,
+				"name": "rorgoroth",
+				"openid": "rorgoroth.id.fedoraproject.org"
+			},
+			"user_id": 567
+		},
+		{
+			"id": 70457,
+			"karma": 1,
+			"text": "boots fine for me an no problems noted",
+			"timestamp": "2015-01-17 22:09:58",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/cea8a7bf566937938cd3ae702098447e4c6108670b852772899331d1fb696628?s=24&d=retro",
+				"email": "Fedora40@gmail.com",
+				"groups": [
+					{}
+				],
+				"id": 580,
+				"name": "greg18",
+				"openid": "greg18.id.fedoraproject.org"
+			},
+			"user_id": 580
+		},
+		{
+			"id": 70458,
+			"karma": -1,
+			"text": "USB3 ports are broken with this update on my machine, see Bug 1183289",
+			"timestamp": "2015-01-18 05:57:04",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/66f39f6e7b9506c6a7ffb8556a47439461f3bf8b9ab26d33579f74d70c61b971?s=24&d=retro",
+				"email": "hancockrwd@gmail.com",
+				"groups": [
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "signed_fpca"
+					}
+				],
+				"id": 1295,
+				"name": "robhancock",
+				"openid": "robhancock.id.fedoraproject.org"
+			},
+			"user_id": 1295
+		},
+		{
+			"id": 70459,
+			"karma": 1,
+			"text": "Using an old P4 with a HD3850 AGP. The First boot (2 or 3 days ago) of this\nkernel stopped and I had to hard reset the computer. All other boots (4 or 5\nwith the boot today) were flawless (no problems). Did not test more though.",
+			"timestamp": "2015-01-18 11:26:38",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/24fe02c1b3ebd71ae0e4d4197dc7c723530d1965b65e4a9c0350fe8d1b3ffdcd?s=24&d=retro",
+				"id": 1296,
+				"name": "brollylssj",
+				"openid": "brollylssj.id.fedoraproject.org"
+			},
+			"user_id": 1296
+		},
+		{
+			"id": 70460,
+			"karma": -1,
+			"text": "Lenovo T410 (i915), starting X ends with blank screen, hw poweroff required.\nReverting to older kernel (3.17.8-300.fc21) fixes the problem.",
+			"timestamp": "2015-01-19 07:04:44",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/e8a0cd0a7aed26c04b99b2f5799c8183413d171d6d25a57ccec781cea5252d80?s=24&d=retro",
+				"email": "dmach@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					}
+				],
+				"id": 588,
+				"name": "dmach",
+				"openid": "dmach.id.fedoraproject.org"
+			},
+			"user_id": 588
+		},
+		{
+			"id": 70461,
+			"text": "For everyone having issues with i915 graphics, please file a bug.  If you\nalready have, please note it in your comments.",
+			"timestamp": "2015-01-19 13:25:37",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/53aa0a6d4d5e388d3bb56c93e6510dc1e1526c0773eb7646ceb67b8756b8a0c9?s=24&d=retro",
+				"email": "jwboyer@redhat.com",
+				"groups": [
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "bodhiadmin"
+					},
+					{
+						"name": "gitworkstation"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "gitspin-kickstarts"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "eln-sig"
+					},
+					{
+						"name": "torrentadmin"
+					},
+					{
+						"name": "cvsadmin"
+					},
+					{
+						"name": "sysadmin"
+					},
+					{
+						"name": "sig-altarch"
+					},
+					{
+						"name": "centos-board"
+					},
+					{
+						"name": "gitbodhi"
+					},
+					{
+						"name": "disabled_torrent"
+					},
+					{
+						"name": "sysadmin-kernel"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "gitkernel-tests"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "sysadmin-cvs"
+					},
+					{
+						"name": "centosproject-email-aliases"
+					},
+					{
+						"name": "modularity-wg"
+					}
+				],
+				"id": 834,
+				"name": "jwboyer",
+				"openid": "jwboyer.id.fedoraproject.org"
+			},
+			"user_id": 834
+		},
+		{
+			"id": 70462,
+			"text": "This update has been obsoleted by https://admin.fedoraproject.org/updates/kernel-3.18.3-201.fc21",
+			"timestamp": "2015-01-19 20:49:17",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 70463,
+			"karma": 1,
+			"text": "Just wanted to add that vdpau works with mpv for me with the HD3850 AGP. So the\n\"no GPU accelleration\" and \"no video output in vlc and mplayer\" thing could be\nanother problem.",
+			"timestamp": "2015-01-19 22:44:53",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/24fe02c1b3ebd71ae0e4d4197dc7c723530d1965b65e4a9c0350fe8d1b3ffdcd?s=24&d=retro",
+				"id": 1296,
+				"name": "brollylssj",
+				"openid": "brollylssj.id.fedoraproject.org"
+			},
+			"user_id": 1296
+		},
+		{
+			"id": 70464,
+			"text": "Those of you with issues on 3.18.2 try 3.18.3-201\nhttps://admin.fedoraproject.org/updates/kernel-3.18.3-201.fc21",
+			"timestamp": "2015-01-20 13:08:44",
+			"update_id": 9840,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/03ead14065750aad5e4eb5ee42f7c60fb1e50ea2f5ba2dc9a89639bc381796da?s=24&d=retro",
+				"email": "jforbes@redhat.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "gitkernel-tests"
+					},
+					{
+						"name": "hosted-content"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "gitqemu-kvm-fedora"
+					},
+					{
+						"name": "sysadmin-kernel"
+					},
+					{
+						"name": "cla_redhat"
+					},
+					{
+						"name": "security-team"
+					}
+				],
+				"id": 910,
+				"name": "jforbes",
+				"openid": "jforbes.id.fedoraproject.org"
+			},
+			"user_id": 910
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2015-01-14 23:59:28",
+	"date_submitted": "2015-01-14 13:14:38",
+	"date_testing": "2015-01-14 23:59:28",
+	"karma": 7,
+	"meets_testing_requirements": true,
+	"notes": "The 3.18.2 kernel rebase contains several new features as well as several fixes across the tree.",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "obsolete",
+	"suggest": "unspecified",
+	"test_cases": [
+		{
+			"id": 372,
+			"name": "QA:Testcase kernel regression"
+		}
+	],
+	"title": "kernel-3.18.2-200.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-0724",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-0724",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/03ead14065750aad5e4eb5ee42f7c60fb1e50ea2f5ba2dc9a89639bc381796da?s=24&d=retro",
+		"email": "jforbes@redhat.com",
+		"groups": [
+			{
+				"name": "proventesters"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "gitkernel-tests"
+			},
+			{
+				"name": "hosted-content"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "gitqemu-kvm-fedora"
+			},
+			{
+				"name": "sysadmin-kernel"
+			},
+			{
+				"name": "cla_redhat"
+			},
+			{
+				"name": "security-team"
+			}
+		],
+		"id": 910,
+		"name": "jforbes",
+		"openid": "jforbes.id.fedoraproject.org"
+	},
+	"version_hash": "22f7363ec441147f6e36de04cad7d36370d5358b"
+}

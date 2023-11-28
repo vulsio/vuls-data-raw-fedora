@@ -1,0 +1,997 @@
+{
+	"alias": "FEDORA-EPEL-2011-3933",
+	"bugs": [
+		{
+			"bug_id": 713090,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2011-2907 torque: Authorization Bypass Vulnerability",
+			"bugzilla": {
+				"bug_id": "713090",
+				"alias": "CVE-2011-2907",
+				"creation_ts": "2011-06-14 09:49:10 +0000",
+				"short_desc": "CVE-2011-2907 torque: Authorization Bypass Vulnerability",
+				"delta_ts": "2019-09-29 12:45:43 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "CURRENTRELEASE",
+				"keywords": "Security",
+				"priority": "high",
+				"bug_severity": "high",
+				"depends_on": [
+					"730119"
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "3811175",
+						"comment_count": "0",
+						"who": {
+							"text": "LindaAnnCornwall",
+							"name": "Linda Cornwall"
+						},
+						"bug_when": "2011-06-14 09:49:10 +0000",
+						"thetext": "User-Agent:       Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; WOW64; Trident/4.0; SLCC2; .NET CLR 2.0.50727; .NET CLR 3.5.30729; .NET CLR 3.0.30729; Media Center PC 6.0; InfoPath.2; .NET4.0C)\n\nThis Vulnerability was found not by the submitter of the bug but by Bartlomiej Balcerek@pwr.wroc.pl (Bartlomiej.Balcerek@pwr.wroc.pl) \n\nTorque, at least recent version (3.0.1) and GLite versions (e.g.\n2.3.13,2.4.12) are vulnerable to authorization bypass attack.\n\nTorque's server, during authorization relies on data provided\nby \"qsub\" client. Qsub provides submit host name to server (hidden way),\nwhich is used by server to authenticate request.\n\nUsing subverted PBS_O_HOST parameter it is possible to\nomit at least three (of four) authorization mechanisms Torque uses:\n\n1)  RCmd, using ruserok() function,\n2) \"submit_hosts\" server parameter,\n3) \"allow_node_submit\" server parameter\n\nAs for the 4th mechanism: ACL (\"acl_host_enable\" option) it is proof\nagainst such authorization bypass.\n\nThe \"orighost\" is taken from settable on client side variable pbs_o_host:\n\n\"src/lib/Libsite/site_check_u.c\":\n\n   orighost = get_variable(pjob, pbs_o_host);\n\n\nThen three checks are performed to authorize submit host. All\nrefer \"orighost\" variable.\n\n1)\n\"src/lib/Libsite/site_check_u.c\":\n    \n  rc = ruserok(orighost, 0, owner, luser);\n\n   if (rc != 0 && EMsg != NULL)\n        {\n ...\n  snprintf(EMsg, 1024, \"ruserok failed validating %s/%s from %s\",\n                 owner,\n                 luser,\n                 orighost);\n2)\n\"src/lib/Libsite/site_check_u.c\":\n\n for (hostnum = 0;hostnum < submithosts->as_usedptr;hostnum++)\n      {\n      testhost = submithosts->as_string[hostnum];\n\n      if (!strcasecmp(testhost, orighost))\n        {\n        /* job submitted from host found in trusted submit host list,\naccess allowed */\n\n\n3)\n\"src/lib/Libsite/site_check_u.c\":\n\n  if ((HostAllowed == 0) &&\n          (server.sv_attr[SRV_ATR_AllowNodeSubmit].at_flags &\nATR_VFLAG_SET) &&\n          (server.sv_attr[SRV_ATR_AllowNodeSubmit].at_val.at_long     == 1) &&\n          (find_nodebyname(orighost) != NULL))\n        {\n        /* job submitted from compute host, access allowed */\n\n\nProof if concept:\n\n1. Pick the site you want to check against vulnerability, check if its\nport 15001 is open to you,\n2. Check its Torque version ,\n3. Choose a machine, that is not authorized to submit jobs, you must\nhave root access to this machine,\n4. Pick an appropriate  Torque version from\nhttp://www.clusterresources.com/downloads/torque/\nYou can choose v. 2.3.6 to perform check against Torque server <= 2.4.12\n5. Apply the attached patch e.g.:\n\npatch -p1 < torque-2.3.6-customargs.patch\n\n6. Configure and make e.g..:\n\n./configure --with-server-home=/opt/Torque-2.3.6/spool\n--prefix=/opt/Torque-2.3.6 --disable-server --disable-mom\n\nmake\nmake install (from root account)\n\n7. Guess/choose any remote account name,\n\n8. Create an account of such name on your local machine, and\nperform next task using this account,\n\n9. Try to submit a job in regular way e.g.:\n\necho /bin/sleep 100 | /opt/Torque-2.3.6/bin/qsub -q @<site address>\n\nAt the end of the output you should see that your job was rejected:\n\nqsub: Bad UID for job execution MSG=ruserok failed validating\nbartol/bartol from sec.wcss.wroc.pl\n\n10. Check PBS_O_HOST variable on \"Variable_List\" in qsub output.\nIt should be changed to addres of valid \"submit host\". Server name\nitself is good idea there.\n\n11. Submit a job with changed PBS_O_HOST on variable list e.g.:\n\necho /bin/sleep 100 | /opt/Torque-2.3.6/bin/qsub -q @batch.wcss.wroc.pl\n-Z \"Variable_List=PBS_O_HOME=/hom\ne/bartol,PBS_O_LANG=pl_PL.utf8,PBS_O_LOGNAME=bartol,PBS_O_PATH=/usr/lib64/qt-3.3/bin:/usr/NX/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/home/bartol/bin,PBS_O_MAIL=/var/spool/mail/bartol,PBS_O_SHELL=/bin/bash,PBS_SERVER=sec.wcss.wroc.pl,PBS_O_HOST=batch.wcss.wroc.pl,PBS_O_WORKDIR=/home/bartol\"\n\nThe submission should succeed now.\n\n\n\nReproducible: Always\n\n\n\n\nThis bug has already been reported to the Torque providers and the EGI Software Vulnerability Group (SVG)\n\nThe EGI http://www.egi.eu/ Software Vulnerability group  http://www.egi.eu/policy/groups/Software_Vulnerability_Group_SVG.html runs a process for handling software vulnerabilities reported. While our work is primarily designed to handle vulnerabilities in Grid Middleware, other vulnerabilities found in software used in the EGI infrastructure may also be reported to us and we pass the information on to the software suppliers, as well as considering the risk to the EGI infrastructure."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3812934",
+						"comment_count": "1",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2011-06-14 19:20:38 +0000",
+						"thetext": "Hi, Linda.  Thanks for this report.  Has upstream responded back to your notification?  Any ETA on when a fix might be delivered or when this might be made public?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3814679",
+						"comment_count": "2",
+						"who": {
+							"text": "LindaAnnCornwall",
+							"name": "Linda Cornwall"
+						},
+						"bug_when": "2011-06-15 13:50:43 +0000",
+						"thetext": "Hi Vincent,\n \nI've not heard anything. Some members of the SVG are currently working on advice to mitigate the problem on EGI sites.\n \nI'll forward any information when I hear. \n\n(Sorry, not used to gmail, and keep forgetting to check it!)\n \nLinda"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3815798",
+						"comment_count": "3",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2011-06-15 20:38:35 +0000",
+						"thetext": "So upstream hasn't responded to this at all?\n\nPlease keep us advised of this.  Thanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3817910",
+						"comment_count": "4",
+						"who": {
+							"text": "steve.traylen",
+							"name": "Steve Traylen"
+						},
+						"bug_when": "2011-06-16 18:34:11 +0000",
+						"thetext": "I have some comments now from upstream, nothing concluded yet.\n\nGood news is that of course F15 and 16 and not vulnerable since they\nare compiled with munge[1] support.\n\nSwitching  munge on mid OS release is hardly a backwards compatible \nchange for EPEL6. For EPEL4 and 5, and Fedora14 versions are currently to old to\neven have munge support. This is however an option to update and add munge.\n\n[*] http://code.google.com/p/munge/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3899862",
+						"comment_count": "5",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2011-07-20 20:39:00 +0000",
+						"thetext": "So I poked at the code in EPEL 5 (2.3.13) and it is indeed affected by this.\n\nI don't know what the EPEL rules are regarding new packages and updating existing packages to compile against different things.  I believe EPEL tries to follow RHEL-style rules when it comes to updates, so I don't know if adding munge support to those is feasible.\n\nDoes this go away when munge support is enabled?  I.e. there is no need fot the server to obtain this orighost variable from the client as described (munge obsoletes this code perhaps)?\n\nI'm afraid I don't fully understand how munge support makes this not vulnerable.\n\nAny further word from upstream regarding this?  Perhaps in such a way that those installs that are not compiled with munge and/or don't have munge available, can be protected?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3899923",
+						"comment_count": "6",
+						"who": {
+							"text": "steve.traylen",
+							"name": "Steve Traylen"
+						},
+						"bug_when": "2011-07-20 21:06:23 +0000",
+						"thetext": "Hi Vincent,\n\nSwitching to munge support does avoid this bit of code completly basically as I understand it, at the very least it restricts access to nodes where the shared secret is present.\n\nI think in reality the upgrade of torque itself is probably okay.\n\nSwitching on munge will cause an imediate failiure untill a key is generated with \nmunge-keygen and the resulting key be copied to each node with in the cluster.\n\nThese problems can be mitigated against to a certain extent with release notes advising the pre-instalation of munge and key set up before torque is upgraded.\n\nMany epel torque users are screaming out for the upgrade and have left the epel version some time ago.\n\nI did have word from upstream that given munge exist as a solution they are not going to do anything, they are also working on something new authentication wise for torque 4. Upstream is now in CC.\n\nMunge it is then.\n\nOh and thanks digger deaper.\n\nSteve."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3899981",
+						"comment_count": "7",
+						"who": {
+							"text": "knielson",
+							"name": "Ken Nielson"
+						},
+						"bug_when": "2011-07-20 21:46:52 +0000",
+						"thetext": "Adaptive Computing is investigating new ways to to user authorization on the server and authorization between the server and MOM nodes. As soon as we know what method we want to use we will update you on what it is and in which versions it will be available.\n\nRegards\n\nKen Nielson\nAdaptive Computing"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3904100",
+						"comment_count": "8",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2011-07-21 19:35:53 +0000",
+						"thetext": "I'm assuming that Ken is upstream here?  Ken, will switching to munge solve the problem with our packages?  If so, and if that is the best/cleanest way to move forward, then I would say we should do so."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3908930",
+						"comment_count": "9",
+						"who": {
+							"text": "knielson",
+							"name": "Ken Nielson"
+						},
+						"bug_when": "2011-07-21 22:45:26 +0000",
+						"thetext": "Vencent,\n\nI am upstream. \n\nI would suggest switching to munge for those who can. \n\nKen Nielson\nAdaptive Computing"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3914380",
+						"comment_count": "10",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2011-07-25 17:29:19 +0000",
+						"thetext": "Ken, thank you for that.\n\nSteve, I fully support getting munge into EPEL then and building torque against it.\n\nI do not, however, think we should mention the authentication bypass since I do not believe this is public information (am I correct in that regard, Ken)?\n\nWhile munge support will make that problem go away, it doesn't _fix_ the problem.  Ken, do you have plans to correct the problem and make this information public?  This would affect more than just us, regarding people that do not have munge available or having torque built against it.\n\nWe would like to make this bug and the information public at some point, but definitely want to respect your timeframe and solutions.  I also suspect that Linda would appreciate knowing when this would be public as well.\n\nWe can assist with assigning a CVE name to this flaw, and if we can help in other ways to facilitate this (perhaps advising other vendors when a suitable patch/solution is prepared), we would like to.\n\nPlease advise."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3914396",
+						"comment_count": "11",
+						"who": {
+							"text": "knielson",
+							"name": "Ken Nielson"
+						},
+						"bug_when": "2011-07-25 17:38:33 +0000",
+						"thetext": "Vincent,\n\nThank you for your consideration. Our plans are still internal and we have not made a proposal to the community yet.\n\nWe would like to have a solution available by September or October. We will be discussing it with the community before that but it would be nice if they hear it directly from us first.\n\nRegards\n\nKen Nielson\nAdaptive Computing"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3915025",
+						"comment_count": "12",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2011-07-25 21:53:59 +0000",
+						"thetext": "Yikes, that's quite a ways away.\n\nOk, please just let us know when this is public.  For the time being, we would like to get the munge support into Fedora and build our packages against munge, which has the added benefit of preventing this flaw.\n\nWe will make this available as a bug fix or enhancement update (rebase to new version, new functionality, etc. that some people are asking for).  It feels a wee bit sneaky, but we will abide by your wishes for disclosure and still get a preemptive fix out.\n\nSteve, does this work for you?  If it does, please do not note this bug # or any security implications in the update.  Thanks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3915042",
+						"comment_count": "13",
+						"who": {
+							"text": "steve.traylen",
+							"name": "Steve Traylen"
+						},
+						"bug_when": "2011-07-25 22:03:16 +0000",
+						"thetext": "\nACK, \n\nI'll get an update out in the next couple of days at least to testing before I run away for summer break, that's EL4, 5 and 6 and possibly and old fedora.\n\nSteve."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3915110",
+						"comment_count": "14",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2011-07-25 23:02:38 +0000",
+						"thetext": "Perfect.  Thanks Steve."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3916377",
+						"comment_count": "15",
+						"who": {
+							"text": "steve.traylen",
+							"name": "Steve Traylen"
+						},
+						"bug_when": "2011-07-26 12:57:19 +0000",
+						"thetext": "\nOkay builds for EPEL 6, 5 and 4 respectively.\n\nhttp://koji.fedoraproject.org/koji/buildinfo?buildID=255469\nhttp://koji.fedoraproject.org/koji/buildinfo?buildID=255610\nand\nhttp://koji.fedoraproject.org/koji/buildinfo?buildID=255615\n\n6 is fairly small jump.\n\n4 and 5 jump from 2.3.13 to 2.5.7\n\nfrom memory there are no incompatibilities between these two version in particular for\nthe job database in particular which is what matters.\n\nMaybe Ken you know of something big between these versions, of course the fact \nthat munge is now enabled is significant and I am aware of.\n\nTesting time.....\n\nSteve."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3916769",
+						"comment_count": "16",
+						"who": {
+							"text": "knielson",
+							"name": "Ken Nielson"
+						},
+						"bug_when": "2011-07-26 15:13:08 +0000",
+						"thetext": "The only thing users need to be aware of when upgrading to 2.5.7 from 2.4.x and earlier is that job arrays are not backwardly compatible. \n\nTo get around this problem administrators need to make sure that any jobs which have been submitted as job arrays are complete before making an upgrade. For more information see the Release_Notes from the tar ball.\n\nLet me know if you need more information.\n\nKen"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3924501",
+						"comment_count": "17",
+						"who": {
+							"text": "steve.traylen",
+							"name": "Steve Traylen"
+						},
+						"bug_when": "2011-07-29 19:15:21 +0000",
+						"thetext": "\nhttps://admin.fedoraproject.org/updates/torque-2.5.7-1.el6\nhttps://admin.fedoraproject.org/updates/torque-2.5.7-1.el5\nhttps://admin.fedoraproject.org/updates/torque-2.5.7-1.el4\n\nhave been pushed to testing and now contain release notes.\n\nTesting time... has yet to start yet really so I have disable push on karma\nfor now."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3945051",
+						"comment_count": "18",
+						"who": {
+							"text": "knielson",
+							"name": "Ken Nielson"
+						},
+						"bug_when": "2011-08-09 21:51:18 +0000",
+						"thetext": "Is it OK if I copy and paste the formula to reproduce this security hole. We are discussing it with the community right now and they want to know the nature of the problem.\n\nKen Nielson\nAdaptive Computing"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3945109",
+						"comment_count": "19",
+						"who": {
+							"text": "steve.traylen",
+							"name": "Steve Traylen"
+						},
+						"bug_when": "2011-08-09 22:16:38 +0000",
+						"thetext": "\n(In reply to comment #18)\n> are discussing it with the community right now and they want to know the nature\n> of the problem.\n> \n\nhttp://www.clusterresources.com/pipermail/torqueusers/2011-August/013184.html\n\nThis is basically public I would say, almost, the thread wanders around\nit but lots of people actually know."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3945143",
+						"comment_count": "20",
+						"who": {
+							"text": "knielson",
+							"name": "Ken Nielson"
+						},
+						"bug_when": "2011-08-09 22:55:05 +0000",
+						"thetext": "Steve,\n\nThanks. I just wanted to make sure I was no stepping on any toes.\n\nKen"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3945146",
+						"comment_count": "21",
+						"who": {
+							"text": "steve.traylen",
+							"name": "Steve Traylen"
+						},
+						"bug_when": "2011-08-09 22:59:04 +0000",
+						"thetext": "Hi Ken,\n\nI should have said, you should probably wait for comment from Vincent since with public he will probably fill in a CVE.\n\nSteve."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3945842",
+						"comment_count": "22",
+						"who": {
+							"text": "steve.traylen",
+							"name": "Steve Traylen"
+						},
+						"bug_when": "2011-08-10 09:10:09 +0000",
+						"thetext": "\nNew packages in testing for EPEL4 and 5.\n\nhttps://admin.fedoraproject.org/updates/torque-2.5.7-1.el4.1\nhttps://admin.fedoraproject.org/updates/torque-2.5.7-1.el5.1\n\nthe previous ones had a packaging bug, Bug #716659\n\nSteve."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3947128",
+						"comment_count": "23",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2011-08-10 16:41:48 +0000",
+						"thetext": "What we should do is assign a CVE to this now, and if you want to discuss this in public, we should also make this bug public.\n\nThe information on the mailing list is suitably vague, so I don't think MITRE would have picked up on it yet, so we can get the CVE assigned easily.\n\nI'm going to change this to an SRT bug and assign a CVE.  Ken, let me know if making this bug public works for you; I think if you're going to discuss it and provide details, there is no point in keeping this bug private."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3947153",
+						"comment_count": "24",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2011-08-10 16:54:04 +0000",
+						"thetext": "Ok, the name CVE-2011-2907 is assigned to this flaw.  If you discuss it further on the mailing list, can you note the CVE name?\n\nAlso, I would like to make this bug public since the discussion is public and the details are semi-public.  I see no real value in keeping this bug private.\n\nThanks!\n\nSteve, I changed this to an SRT bug.  If you do require some Fedora/EPEL bugs to make things go through the system, please let me know and I'll create them once this bug is public."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3947157",
+						"comment_count": "25",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2011-08-10 16:56:33 +0000",
+						"thetext": "Oh, just went through the thread a bit more and found this:\n\nhttp://www.clusterresources.com/pipermail/torqueusers/2011-August/013194.html\n\nso it is public.  Can someone please note the CVE name in that discussion?  I'd also like to inform the oss-security mailing list."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3948013",
+						"comment_count": "26",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2011-08-11 01:38:59 +0000",
+						"thetext": "Making this public."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3949187",
+						"comment_count": "27",
+						"who": {
+							"text": "knielson",
+							"name": "Ken Nielson"
+						},
+						"bug_when": "2011-08-11 14:10:22 +0000",
+						"thetext": "Vincent,\n\nWe have already gone public with the bug. The TORQUE community is not too concerned since they already have safeguards in place to prevent an exploit.\n\nRegards\n\nKen"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3949803",
+						"comment_count": "28",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2011-08-11 18:05:24 +0000",
+						"thetext": "(In reply to comment #27)\n\n> We have already gone public with the bug. The TORQUE community is not too\n> concerned since they already have safeguards in place to prevent an exploit.\n\nThat's what I thought.  I notified oss-security as well, with the CVE name, so there is no confusion.\n\nThanks Ken!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3949861",
+						"comment_count": "29",
+						"who": {
+							"text": "steve.traylen",
+							"name": "Steve Traylen"
+						},
+						"bug_when": "2011-08-11 18:34:09 +0000",
+						"thetext": "\nHi Vincent,\n\n An SRT bug? Can I have epel4, 5 and 6 bugs then, my understanding is \n this becomes a parent to these. .... For me one bug would be enough\n that I can attach to the bodhi pages.\n\nSteve."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3950374",
+						"comment_count": "30",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2011-08-11 19:57:57 +0000",
+						"thetext": "Created torque tracking bugs for this issue\n\nAffects: epel-all [bug 730119]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3950379",
+						"comment_count": "31",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2011-08-11 20:00:40 +0000",
+						"thetext": "(In reply to comment #29)\n\n>  An SRT bug? Can I have epel4, 5 and 6 bugs then, my understanding is \n>  this becomes a parent to these. .... For me one bug would be enough\n>  that I can attach to the bodhi pages.\n\nDone.  See bug #730119.  Thanks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3950749",
+						"comment_count": "32",
+						"who": {
+							"text": "steve.traylen",
+							"name": "Steve Traylen"
+						},
+						"bug_when": "2011-08-11 21:53:22 +0000",
+						"thetext": "\nThese updates have had this bug attached, they have not been added\nhere automatically by bodhi I presume because they had already been\npushed to testing.\n\nhttps://admin.fedoraproject.org/updates/torque-2.5.7-1.el4.1\nhttps://admin.fedoraproject.org/updates/torque-2.5.7-1.el5.1\nhttps://admin.fedoraproject.org/updates/torque-2.5.7-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3951943",
+						"comment_count": "33",
+						"who": {
+							"text": "steve.traylen",
+							"name": "Steve Traylen"
+						},
+						"bug_when": "2011-08-12 11:14:59 +0000",
+						"thetext": "There be another advisory here soon:\n\nhttps://wiki.egi.eu/wiki/SVG:Advisory-SVG-2011-2296"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 716659,
+			"title": "Torque updates Overwrite nodes file",
+			"bugzilla": {
+				"bug_id": "716659",
+				"creation_ts": "2011-06-26 05:33:52 +0000",
+				"short_desc": "Torque updates Overwrite nodes file",
+				"delta_ts": "2011-08-26 21:56:17 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "3841461",
+						"comment_count": "0",
+						"who": {
+							"text": "urilabob",
+							"name": "bob mckay"
+						},
+						"bug_when": "2011-06-26 05:33:52 +0000",
+						"thetext": "Description of problem:\nUpdate of torque to 3.0.1 versions overwrites \n/var/lib/torque/server_priv/node.conf\n\nVersion-Release number of selected component (if applicable):\n3.0.1-3.fc15 (but applies to all 3.0.1 versions I have tried)\n\nHow reproducible:\n100%\n\nSteps to Reproduce:\n1. Update torque to 3.0.1 version (yum or preupgrade)\n2.\n3.\n  \nActual results:\nnode.conf is overwritten with an empty file\n\nExpected results:\nnode.conf contents are preserved\n\nAdditional info:\nI can't think of anything useful, but happy to oblige"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3841470",
+						"comment_count": "1",
+						"who": {
+							"text": "steve.traylen",
+							"name": "Steve Traylen"
+						},
+						"bug_when": "2011-06-26 06:24:56 +0000",
+						"thetext": "Hi Bob,\nYou say updates to 3.0.1-3, where were you starting from?\n\nSteve"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3841475",
+						"comment_count": "2",
+						"who": {
+							"text": "steve.traylen",
+							"name": "Steve Traylen"
+						},
+						"bug_when": "2011-06-26 06:56:57 +0000",
+						"thetext": "\nI guess you mean\n\n/var/lib/torque/server_priv/nodes \n\nand not \n\n /var/lib/torque/server_priv/node.conf \n\ncertainly the first one is being trashed, I don't think the second\none exists.\n\nSteve."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3841679",
+						"comment_count": "3",
+						"who": {
+							"text": "urilabob",
+							"name": "bob mckay"
+						},
+						"bug_when": "2011-06-26 13:55:17 +0000",
+						"thetext": "Oooops, you're right, sorry."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3841801",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-06-26 18:04:12 +0000",
+						"thetext": "torque-3.0.1-4.fc15 has been submitted as an update for Fedora 15.\nhttps://admin.fedoraproject.org/updates/torque-3.0.1-4.fc15"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3841805",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-06-26 18:07:51 +0000",
+						"thetext": "torque-2.5.5-3.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/torque-2.5.5-3.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3847121",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-06-27 17:48:19 +0000",
+						"thetext": "Package torque-2.5.5-3.el6:\n* should fix your issue,\n* was pushed to the Fedora EPEL 6 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=epel-testing torque-2.5.5-3.el6'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/torque-2.5.5-3.el6\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3879070",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-07-12 14:59:02 +0000",
+						"thetext": "torque-2.5.5-3.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3879986",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-07-12 22:01:34 +0000",
+						"thetext": "torque-3.0.1-4.fc15 has been pushed to the Fedora 15 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3945815",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-08-10 09:01:08 +0000",
+						"thetext": "torque-2.5.7-1.el4.1 has been submitted as an update for Fedora EPEL 4.\nhttps://admin.fedoraproject.org/updates/torque-2.5.7-1.el4.1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3945832",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-08-10 09:04:53 +0000",
+						"thetext": "torque-2.5.7-1.el5.1 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/torque-2.5.7-1.el5.1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3981810",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-08-26 21:55:12 +0000",
+						"thetext": "torque-2.5.7-1.el5.1 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3981816",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2011-08-26 21:56:10 +0000",
+						"thetext": "torque-2.5.7-1.el4.1 has been pushed to the Fedora EPEL 4 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "torque-2.5.7-1.el5.1",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"i386": [
+					{
+						"name": "torque",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "i386"
+					},
+					{
+						"name": "torque-client",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "i386"
+					},
+					{
+						"name": "torque-pam",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "i386"
+					},
+					{
+						"name": "libtorque-devel",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "i386"
+					},
+					{
+						"name": "torque-debuginfo",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "i386"
+					},
+					{
+						"name": "torque-gui",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "i386"
+					},
+					{
+						"name": "torque-scheduler",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "i386"
+					},
+					{
+						"name": "torque-docs",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "i386"
+					},
+					{
+						"name": "libtorque",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "i386"
+					},
+					{
+						"name": "torque-server",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "i386"
+					},
+					{
+						"name": "torque-mom",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "i386"
+					}
+				],
+				"ppc": [
+					{
+						"name": "torque-server",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "ppc"
+					},
+					{
+						"name": "torque-gui",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "ppc"
+					},
+					{
+						"name": "libtorque",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "ppc"
+					},
+					{
+						"name": "libtorque-devel",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "ppc"
+					},
+					{
+						"name": "torque-mom",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "ppc"
+					},
+					{
+						"name": "torque-pam",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "ppc"
+					},
+					{
+						"name": "torque",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "ppc"
+					},
+					{
+						"name": "torque-debuginfo",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "ppc"
+					},
+					{
+						"name": "torque-docs",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "ppc"
+					},
+					{
+						"name": "torque-scheduler",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "ppc"
+					},
+					{
+						"name": "torque-client",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "ppc"
+					}
+				],
+				"src": [
+					{
+						"name": "torque",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "torque-debuginfo",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libtorque",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libtorque-devel",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "x86_64"
+					},
+					{
+						"name": "torque-mom",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "x86_64"
+					},
+					{
+						"name": "torque-gui",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "x86_64"
+					},
+					{
+						"name": "torque",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "x86_64"
+					},
+					{
+						"name": "torque-server",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "x86_64"
+					},
+					{
+						"name": "torque-docs",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "x86_64"
+					},
+					{
+						"name": "torque-pam",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "x86_64"
+					},
+					{
+						"name": "torque-client",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "x86_64"
+					},
+					{
+						"name": "torque-scheduler",
+						"version": "2.5.7",
+						"release": "1.el5.1",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 11676,
+			"text": "This update has been submitted for testing by stevetraylen. ",
+			"timestamp": "2011-07-29 19:13:04",
+			"update_id": 1610,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 11677,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2011-07-30 10:35:11",
+			"update_id": 1610,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 11678,
+			"text": "torque-2.5.7-1.el5    suffers from\nhttps://bugzilla.redhat.com/show_bug.cgi?id=716659    and a new package is\nneeded.",
+			"timestamp": "2011-08-09 23:38:55",
+			"update_id": 1610,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/a825a2ad5ec6be13d9b45c362b1ed8214c65b8b16573bdc3fd4323d0f196b617?s=24&d=retro",
+				"email": "steve.traylen@cern.ch",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "centosproject-email-aliases"
+					},
+					{
+						"name": "sig-sclo"
+					}
+				],
+				"id": 374,
+				"name": "stevetraylen",
+				"openid": "stevetraylen.id.fedoraproject.org"
+			},
+			"user_id": 374
+		},
+		{
+			"id": 11679,
+			"text": "stevetraylen has edited this update. New build(s): torque-2.5.7-1.el5.1. Removed build(s): torque-2.5.7-1.el5.",
+			"timestamp": "2011-08-10 09:04:33",
+			"update_id": 1610,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 11680,
+			"text": "This update has been submitted for testing by stevetraylen. ",
+			"timestamp": "2011-08-10 09:04:57",
+			"update_id": 1610,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 11681,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2011-08-11 20:55:17",
+			"update_id": 1610,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 11682,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2011-08-25 23:03:46",
+			"update_id": 1610,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 11683,
+			"text": "This update has been submitted for stable by stevetraylen. ",
+			"timestamp": "2011-08-26 08:09:00",
+			"update_id": 1610,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 11684,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2011-08-26 21:55:26",
+			"update_id": 1610,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2011-08-22 11:22:12",
+	"date_pushed": "2011-08-26 21:55:26",
+	"date_stable": "2011-08-26 21:55:26",
+	"date_submitted": "2011-07-29 19:13:02",
+	"date_testing": "2011-08-11 20:55:17",
+	"meets_testing_requirements": true,
+	"notes": "**Warning: Significant change, munge enabled - action required:**\r\n\r\nThe updated EPEL5 build of torque-2.5.7-1 as compared to previous versions enables munge[1] as an inter node authentication method.\r\n\r\nIt is highly advisable that prior to upgrading to version 2.5.7-1 of this torque package that munge is installed and enabled. A munge package[2] is of course available within EPEL5.\r\n\r\n * [1] http://code.google.com/p/munge/\r\n * [2] https://admin.fedoraproject.org/community/?package=munge#package_maintenance\r\n\r\nTo enable munge on your torque cluster:\r\n\r\n * Install the munge package on your pbs_server and submission hosts in your cluster.\r\n * On one host generate a key with */usr/sbin/create-munge-key*\r\n * Copy the key, /etc/munge/munge.key to your pbs_server and submission hosts on your cluster.\r\n * Start the munge daemon on these nodes.. **service munge start && chkconfig munge on**\r\n\r\n**Warning: New internal format for Job arrays:**\r\n\r\nTORQUE 2.5 uses a new format for job arrays. It is not backwards\r\ncompatible with job arrays from version 2.3 or 2.4. Therefore, it is imperative that the system be drained of any job arrays BEFORE upgrading. Upgrading with job arrays queued or running may cause data loss, crashes, etc, and is not supported.\r\n\r\nThis update  from 2.3.10 includes numerous bugfixes and enhancements. Please read the torque ChangeLog.The significant changes that require action prior to upgrade are however detailed above.\r\n\r\n\r\n",
+	"pushed": true,
+	"release": {
+		"branch": "el5",
+		"candidate_tag": "dist-5E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "dist-5E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 5",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-5",
+		"override_tag": "dist-5E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-5E-epel",
+		"state": "archived",
+		"testing_tag": "dist-5E-epel-testing",
+		"version": "5"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "torque-2.5.7-1.el5.1",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2011-3933",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2011-3933",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/a825a2ad5ec6be13d9b45c362b1ed8214c65b8b16573bdc3fd4323d0f196b617?s=24&d=retro",
+		"email": "steve.traylen@cern.ch",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "centosproject-email-aliases"
+			},
+			{
+				"name": "sig-sclo"
+			}
+		],
+		"id": 374,
+		"name": "stevetraylen",
+		"openid": "stevetraylen.id.fedoraproject.org"
+	},
+	"version_hash": "5b7cf59ee228a23da80e99daece3b4e4723ea2ba"
+}

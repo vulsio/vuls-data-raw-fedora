@@ -1,0 +1,762 @@
+{
+	"alias": "FEDORA-EPEL-2018-ce5572f6e0",
+	"bugs": [
+		{
+			"bug_id": 1623265,
+			"feedback": [
+				{
+					"bug_id": 1623265,
+					"comment": {
+						"id": 828263,
+						"karma": 1,
+						"timestamp": "2018-08-30 08:00:06",
+						"update_id": 121541,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/10925261ea6b4b39240febe403fdbe3f1bd303074dcb8af5e85b29dbf7a69a42?s=24&d=retro",
+							"email": "zavisa@nikac.me",
+							"id": 4419,
+							"name": "znikac",
+							"openid": "znikac.id.fedoraproject.org"
+						},
+						"user_id": 4419
+					},
+					"comment_id": 828263
+				}
+			],
+			"parent": true,
+			"security": true,
+			"title": "CVE-2011-2767 mod_perl: arbitrary Perl code execution in the context of the user account via a user-owned .htaccess",
+			"bugzilla": {
+				"bug_id": "1623265",
+				"alias": "CVE-2011-2767",
+				"creation_ts": "2018-08-28 20:53:48 +0000",
+				"short_desc": "CVE-2011-2767 mod_perl: arbitrary Perl code execution in the context of the user account via a user-owned .htaccess",
+				"delta_ts": "2021-12-10 17:12:13 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "high",
+				"bug_severity": "high",
+				"depends_on": [
+					"1623267",
+					"1623268",
+					"1623269",
+					"1626272",
+					"1626273",
+					"1626274",
+					"1626275",
+					"1626276"
+				],
+				"blocked": [
+					{
+						"bug_id": "1623271",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2018:2826",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11961745",
+						"comment_count": "0",
+						"who": {
+							"text": "lpardo",
+							"name": "Laura Pardo"
+						},
+						"bug_when": "2018-08-28 20:53:48 +0000",
+						"thetext": "A flaw was found in mod_perl 2.0 through 2.0.10 which allows attackers to execute arbitrary Perl code by placing it in a user-owned .htaccess file, because (contrary to the documentation) there is no configuration option that permits Perl code for the administrator's control of HTTP request processing without also permitting unprivileged users to run Perl code in the context of the user account that runs Apache HTTP Server processes.\n\n\nReferences:\nhttps://bugs.debian.org/cgi-bin/bugreport.cgi?bug=644169"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11961753",
+						"comment_count": "1",
+						"who": {
+							"text": "lpardo",
+							"name": "Laura Pardo"
+						},
+						"bug_when": "2018-08-28 20:55:04 +0000",
+						"thetext": "Created mod_perl tracking bugs for this issue:\n\nAffects: epel-7 [bug 1623268]\nAffects: fedora-all [bug 1623267]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11964280",
+						"comment_count": "3",
+						"who": {
+							"text": "ppisar",
+							"name": "Petr Pisar"
+						},
+						"bug_when": "2018-08-29 10:43:25 +0000",
+						"thetext": "Reproducer:\n\n(1) Enable user's ~/public_html directories in httpd configuration (add \"UserDir public_html\" directive to /etc/httpd/conf.d/userdir.conf) and enable httpd_enable_homedirs SELinux boolean.\n\n(2) Add to ~/public_html/.htaccess:\n<Perl>\nwarn \"HIT\";\n</Perl>\n\n(3) Request <http://localhost/~<USER>/> document.\n\n(4) Check /var/log/httpd/error_log for Perl's \"HIT\" warning message, e.g.\n# tail -n 1 error_log\nHIT at /home/test/public_html/.htaccess line 2.\n\nA <USER> can write any arbitrary text to /var/log/httpd/error_log.\n\nProposed fix:\n\nThe <Perl> section should not be supported in .htaccess files at all as is documented in <http://perl.apache.org/docs/2.0/user/config/config.html#mod_perl_Directives_Argument_Types_and_Allowed_Location>. A fix proposed at <https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=644169#19> does that.\n\nThis a bug in mod_perl implementation. This not about missing or malfunctioning \"PerlOption -Sections\" directive. This is about <Perl> sections being erroneously processed in <Directory>, <Location>, <Files> section, and .htaccess  files."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11994071",
+						"comment_count": "6",
+						"who": {
+							"text": "sgayou",
+							"name": "Scott Gayou"
+						},
+						"bug_when": "2018-09-06 22:57:11 +0000",
+						"thetext": "Thanks for the reproduction notes ppisar. Quite easy to reproduce and gain code execution as the apache process. As a note, SELinux does technically mitigate this in that the UserDir functionality will not work without specific selinux booleans (httpd_enable_homedirs and perhaps httpd_read_user_content). However, it is unlikely that anyone would enable UserDir and not set the corresponding selinux flags as the functionality would obviously not work until the booleans are set.\n\nSeems like this flaw could impact shared hosting the most.\n\nMy guess is that a good mitigation now is to disable UserDir functionality and potentially .htaccess processing via AllowOverride None."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11994090",
+						"comment_count": "8",
+						"who": {
+							"text": "sgayou",
+							"name": "Scott Gayou"
+						},
+						"bug_when": "2018-09-06 23:07:23 +0000",
+						"thetext": "Mitigation:\n\nDisabling the UserDir directive and also setting AllowOverride None should prevent the processing of perl in user .htaccess files."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11994095",
+						"comment_count": "9",
+						"who": {
+							"text": "sgayou",
+							"name": "Scott Gayou"
+						},
+						"bug_when": "2018-09-06 23:11:47 +0000",
+						"thetext": "Statement:\n\nThe default configurations shipped in Red Hat Enterprise Linux 6 and Red Hat Software Collections are not vulnerable to to this flaw.  The UserDir option needs to be enabled as well as AllowOverride being set to values other than \"None\" for this to potentially pose a threat."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11996716",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-07 15:24:05 +0000",
+						"thetext": "mod_perl-2.0.10-9.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11996975",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-07 16:15:24 +0000",
+						"thetext": "mod_perl-2.0.10-11.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12014531",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-13 16:34:13 +0000",
+						"thetext": "mod_perl-2.0.10-3.el7 has been pushed to the Fedora EPEL 7 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12038438",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-21 05:22:58 +0000",
+						"thetext": "mod_perl-2.0.10-13.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12046528",
+						"comment_count": "14",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2018-09-24 15:52:20 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2018:2737 https://access.redhat.com/errata/RHSA-2018:2737"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12058441",
+						"comment_count": "15",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2018-09-27 10:41:25 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.3 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.4 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.5 EUS\n\nVia RHSA-2018:2825 https://access.redhat.com/errata/RHSA-2018:2825"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12058466",
+						"comment_count": "16",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2018-09-27 10:52:32 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.3 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.4 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.5 EUS\n\nVia RHSA-2018:2826 https://access.redhat.com/errata/RHSA-2018:2826"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1623268,
+			"feedback": [
+				{
+					"bug_id": 1623268,
+					"comment": {
+						"id": 828263,
+						"karma": 1,
+						"timestamp": "2018-08-30 08:00:06",
+						"update_id": 121541,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/10925261ea6b4b39240febe403fdbe3f1bd303074dcb8af5e85b29dbf7a69a42?s=24&d=retro",
+							"email": "zavisa@nikac.me",
+							"id": 4419,
+							"name": "znikac",
+							"openid": "znikac.id.fedoraproject.org"
+						},
+						"user_id": 4419
+					},
+					"comment_id": 828263
+				}
+			],
+			"security": true,
+			"title": "CVE-2011-2767 mod_perl: arbitrary Perl code execution in the context of the user account via a user-owned .htaccess [epel-7]",
+			"bugzilla": {
+				"bug_id": "1623268",
+				"creation_ts": "2018-08-28 20:54:53 +0000",
+				"short_desc": "CVE-2011-2767 mod_perl: arbitrary Perl code execution in the context of the user account via a user-owned .htaccess [epel-7]",
+				"delta_ts": "2018-12-06 08:38:28 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "1623265",
+						"alias": "CVE-2011-2767",
+						"creation_ts": "2018-08-28 20:53:48 +0000",
+						"short_desc": "CVE-2011-2767 mod_perl: arbitrary Perl code execution in the context of the user account via a user-owned .htaccess",
+						"delta_ts": "2021-12-10 17:12:13 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"1623267",
+							"1623268",
+							"1623269",
+							"1626272",
+							"1626273",
+							"1626274",
+							"1626275",
+							"1626276"
+						],
+						"blocked": [
+							{
+								"bug_id": "1623271",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2018:2826",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "11961745",
+								"comment_count": "0",
+								"who": {
+									"text": "lpardo",
+									"name": "Laura Pardo"
+								},
+								"bug_when": "2018-08-28 20:53:48 +0000",
+								"thetext": "A flaw was found in mod_perl 2.0 through 2.0.10 which allows attackers to execute arbitrary Perl code by placing it in a user-owned .htaccess file, because (contrary to the documentation) there is no configuration option that permits Perl code for the administrator's control of HTTP request processing without also permitting unprivileged users to run Perl code in the context of the user account that runs Apache HTTP Server processes.\n\n\nReferences:\nhttps://bugs.debian.org/cgi-bin/bugreport.cgi?bug=644169"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11961753",
+								"comment_count": "1",
+								"who": {
+									"text": "lpardo",
+									"name": "Laura Pardo"
+								},
+								"bug_when": "2018-08-28 20:55:04 +0000",
+								"thetext": "Created mod_perl tracking bugs for this issue:\n\nAffects: epel-7 [bug 1623268]\nAffects: fedora-all [bug 1623267]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11964280",
+								"comment_count": "3",
+								"who": {
+									"text": "ppisar",
+									"name": "Petr Pisar"
+								},
+								"bug_when": "2018-08-29 10:43:25 +0000",
+								"thetext": "Reproducer:\n\n(1) Enable user's ~/public_html directories in httpd configuration (add \"UserDir public_html\" directive to /etc/httpd/conf.d/userdir.conf) and enable httpd_enable_homedirs SELinux boolean.\n\n(2) Add to ~/public_html/.htaccess:\n<Perl>\nwarn \"HIT\";\n</Perl>\n\n(3) Request <http://localhost/~<USER>/> document.\n\n(4) Check /var/log/httpd/error_log for Perl's \"HIT\" warning message, e.g.\n# tail -n 1 error_log\nHIT at /home/test/public_html/.htaccess line 2.\n\nA <USER> can write any arbitrary text to /var/log/httpd/error_log.\n\nProposed fix:\n\nThe <Perl> section should not be supported in .htaccess files at all as is documented in <http://perl.apache.org/docs/2.0/user/config/config.html#mod_perl_Directives_Argument_Types_and_Allowed_Location>. A fix proposed at <https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=644169#19> does that.\n\nThis a bug in mod_perl implementation. This not about missing or malfunctioning \"PerlOption -Sections\" directive. This is about <Perl> sections being erroneously processed in <Directory>, <Location>, <Files> section, and .htaccess  files."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11994071",
+								"comment_count": "6",
+								"who": {
+									"text": "sgayou",
+									"name": "Scott Gayou"
+								},
+								"bug_when": "2018-09-06 22:57:11 +0000",
+								"thetext": "Thanks for the reproduction notes ppisar. Quite easy to reproduce and gain code execution as the apache process. As a note, SELinux does technically mitigate this in that the UserDir functionality will not work without specific selinux booleans (httpd_enable_homedirs and perhaps httpd_read_user_content). However, it is unlikely that anyone would enable UserDir and not set the corresponding selinux flags as the functionality would obviously not work until the booleans are set.\n\nSeems like this flaw could impact shared hosting the most.\n\nMy guess is that a good mitigation now is to disable UserDir functionality and potentially .htaccess processing via AllowOverride None."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11994090",
+								"comment_count": "8",
+								"who": {
+									"text": "sgayou",
+									"name": "Scott Gayou"
+								},
+								"bug_when": "2018-09-06 23:07:23 +0000",
+								"thetext": "Mitigation:\n\nDisabling the UserDir directive and also setting AllowOverride None should prevent the processing of perl in user .htaccess files."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11994095",
+								"comment_count": "9",
+								"who": {
+									"text": "sgayou",
+									"name": "Scott Gayou"
+								},
+								"bug_when": "2018-09-06 23:11:47 +0000",
+								"thetext": "Statement:\n\nThe default configurations shipped in Red Hat Enterprise Linux 6 and Red Hat Software Collections are not vulnerable to to this flaw.  The UserDir option needs to be enabled as well as AllowOverride being set to values other than \"None\" for this to potentially pose a threat."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11996716",
+								"comment_count": "10",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2018-09-07 15:24:05 +0000",
+								"thetext": "mod_perl-2.0.10-9.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11996975",
+								"comment_count": "11",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2018-09-07 16:15:24 +0000",
+								"thetext": "mod_perl-2.0.10-11.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12014531",
+								"comment_count": "12",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2018-09-13 16:34:13 +0000",
+								"thetext": "mod_perl-2.0.10-3.el7 has been pushed to the Fedora EPEL 7 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12038438",
+								"comment_count": "13",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2018-09-21 05:22:58 +0000",
+								"thetext": "mod_perl-2.0.10-13.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12046528",
+								"comment_count": "14",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2018-09-24 15:52:20 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2018:2737 https://access.redhat.com/errata/RHSA-2018:2737"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12058441",
+								"comment_count": "15",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2018-09-27 10:41:25 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.3 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.4 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.5 EUS\n\nVia RHSA-2018:2825 https://access.redhat.com/errata/RHSA-2018:2825"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12058466",
+								"comment_count": "16",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2018-09-27 10:52:32 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.3 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.4 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.5 EUS\n\nVia RHSA-2018:2826 https://access.redhat.com/errata/RHSA-2018:2826"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11961750",
+						"comment_count": "0",
+						"who": {
+							"text": "lpardo",
+							"name": "Laura Pardo"
+						},
+						"bug_when": "2018-08-28 20:54:53 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof epel-7.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11961751",
+						"comment_count": "1",
+						"who": {
+							"text": "lpardo",
+							"name": "Laura Pardo"
+						},
+						"bug_when": "2018-08-28 20:54:58 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1623265,1623268\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11964574",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-08-29 12:06:21 +0000",
+						"thetext": "mod_perl-2.0.10-3.el7 has been submitted as an update to Fedora EPEL 7. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2018-ce5572f6e0"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11968039",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-08-30 04:42:27 +0000",
+						"thetext": "mod_perl-2.0.10-3.el7 has been pushed to the Fedora EPEL 7 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2018-ce5572f6e0"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12014532",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-13 16:34:20 +0000",
+						"thetext": "mod_perl-2.0.10-3.el7 has been pushed to the Fedora EPEL 7 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "mod_perl-2.0.10-3.el7",
+			"release_id": 8,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "mod_perl-devel",
+						"version": "2.0.10",
+						"release": "3.el7",
+						"arch": "aarch64"
+					},
+					{
+						"name": "mod_perl-debuginfo",
+						"version": "2.0.10",
+						"release": "3.el7",
+						"arch": "aarch64"
+					},
+					{
+						"name": "mod_perl",
+						"version": "2.0.10",
+						"release": "3.el7",
+						"arch": "aarch64"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "mod_perl",
+						"version": "2.0.10",
+						"release": "3.el7",
+						"arch": "ppc64"
+					},
+					{
+						"name": "mod_perl-devel",
+						"version": "2.0.10",
+						"release": "3.el7",
+						"arch": "ppc64"
+					},
+					{
+						"name": "mod_perl-debuginfo",
+						"version": "2.0.10",
+						"release": "3.el7",
+						"arch": "ppc64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "mod_perl-devel",
+						"version": "2.0.10",
+						"release": "3.el7",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "mod_perl-debuginfo",
+						"version": "2.0.10",
+						"release": "3.el7",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "mod_perl",
+						"version": "2.0.10",
+						"release": "3.el7",
+						"arch": "ppc64le"
+					}
+				],
+				"src": [
+					{
+						"name": "mod_perl",
+						"version": "2.0.10",
+						"release": "3.el7",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "mod_perl-debuginfo",
+						"version": "2.0.10",
+						"release": "3.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "mod_perl-devel",
+						"version": "2.0.10",
+						"release": "3.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "mod_perl",
+						"version": "2.0.10",
+						"release": "3.el7",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"comments": [
+		{
+			"id": 827576,
+			"text": "This update has been submitted for testing by ppisar. ",
+			"timestamp": "2018-08-29 12:06:16",
+			"update_id": 121541,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 828091,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2018-08-30 04:42:40",
+			"update_id": 121541,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"bug_feedback": [
+				{
+					"bug": {
+						"bug_id": 1623265,
+						"parent": true,
+						"security": true,
+						"title": "CVE-2011-2767 mod_perl: arbitrary Perl code execution in the context of the user account via a user-owned .htaccess"
+					},
+					"bug_id": 1623265,
+					"comment_id": 828263
+				},
+				{
+					"bug": {
+						"bug_id": 1623268,
+						"security": true,
+						"title": "CVE-2011-2767 mod_perl: arbitrary Perl code execution in the context of the user account via a user-owned .htaccess [epel-7]"
+					},
+					"bug_id": 1623268,
+					"comment_id": 828263
+				}
+			],
+			"id": 828263,
+			"karma": 1,
+			"timestamp": "2018-08-30 08:00:06",
+			"update_id": 121541,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/10925261ea6b4b39240febe403fdbe3f1bd303074dcb8af5e85b29dbf7a69a42?s=24&d=retro",
+				"email": "zavisa@nikac.me",
+				"id": 4419,
+				"name": "znikac",
+				"openid": "znikac.id.fedoraproject.org"
+			},
+			"user_id": 4419
+		},
+		{
+			"id": 833659,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2018-09-13 06:00:27",
+			"update_id": 121541,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 833742,
+			"text": "This update has been submitted for stable by ppisar. ",
+			"timestamp": "2018-09-13 07:18:25",
+			"update_id": 121541,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 833894,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2018-09-13 16:34:29",
+			"update_id": 121541,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2018-09-13 16:33:49",
+	"date_stable": "2018-09-13 16:33:49",
+	"date_submitted": "2018-08-29 12:06:16",
+	"date_testing": "2018-08-30 04:42:13",
+	"karma": 1,
+	"meets_testing_requirements": true,
+	"notes": "This release fixes CVE-2011-2767 vulnerability (an arbitrary Perl code execution in the context of the httpd server) by disabling <Perl> sections in non-server-level configuration.",
+	"pushed": true,
+	"release": {
+		"branch": "epel7",
+		"candidate_tag": "epel7-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "epel7",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 7",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EPEL-7",
+		"override_tag": "epel7-override",
+		"package_manager": "unspecified",
+		"pending_signing_tag": "epel7-signing-pending",
+		"pending_stable_tag": "epel7-pending",
+		"pending_testing_tag": "epel7-testing-pending",
+		"stable_tag": "epel7",
+		"state": "current",
+		"testing_tag": "epel7-testing",
+		"version": "7"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "mod_perl-2.0.10-3.el7",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2018-ce5572f6e0",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2018-ce5572f6e0",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/12f13283140a3e56271e48fbe0cdccc1fd09b0859759f11ac65baf89dae48515?s=24&d=retro",
+		"email": "ppisar@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "modularity-wg"
+			},
+			{
+				"name": "l10n"
+			},
+			{
+				"name": "cvsl10n"
+			},
+			{
+				"name": "perl-maint-sig"
+			}
+		],
+		"id": 227,
+		"name": "ppisar",
+		"openid": "ppisar.id.fedoraproject.org"
+	},
+	"version_hash": "d4040060a37e33e09ce47ae62cc7688301b336a9"
+}

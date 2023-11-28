@@ -1,0 +1,393 @@
+{
+	"alias": "FEDORA-EPEL-2014-2099",
+	"bugs": [
+		{
+			"bug_id": 1125464,
+			"parent": true,
+			"title": "CVE-2014-5256 V8 Memory Corruption and Stack Overflow",
+			"bugzilla": {
+				"bug_id": "1125464",
+				"alias": "CVE-2014-5256",
+				"creation_ts": "2014-07-31 23:45:09 +0000",
+				"short_desc": "CVE-2014-5256 V8: Memory Corruption and Stack Overflow",
+				"delta_ts": "2021-02-17 06:20:19 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1139698"
+				],
+				"blocked": [
+					{
+						"bug_id": "1126262",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1139716",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2014:1744",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7346104",
+						"comment_count": "0",
+						"who": {
+							"text": "tchollingsworth",
+							"name": "T.C. Hollingsworth"
+						},
+						"bug_when": "2014-07-31 23:45:09 +0000",
+						"thetext": "TJ Fontaine of the Node.js project reports:\n\nA memory corruption vulnerability, which results in a\ndenial-of-service, was identified in the versions of V8 that ship with\nNode.js 0.8 and 0.10. In certain circumstances, a particularly deep\nrecursive workload that may trigger a GC and receive an interrupt may\noverflow the stack and result in a segmentation fault. For instance,\nif your work load involves successive `JSON.parse` calls and the\nparsed objects are significantly deep, you may experience the process\naborting while parsing.\n\nThis issue was identified by Tom Steele of [^Lift\nSecurity](https://liftsecurity.io/) and Fedor Indunty, Node.js Core\nTeam member worked closely with the V8 team to find our resolution.\n\nThe V8 issue is described here https://codereview.chromium.org/339883002\n\nIt has landed in the Node repository here:\nhttps://github.com/joyent/node/commit/530af9cb8e700e7596b3ec812bad123c9fa06356\n\nAnd has been released in the following versions:\n\n * [v0.10.30](http://nodejs.org/dist/v0.10.30)\nhttp://blog.nodejs.org/2014/07/31/node-v0-10-30-stable/\n * [v0.8.28](http://nodejs.org/dist/v0.8.28)\nhttp://blog.nodejs.org/2014/07/31/node-v0-8-28-maintenance/\n\n### The Fix\n\nThe backport of the fix for Node.js is\n\n```diff\ndiff --git a/deps/v8/src/isolate.h b/deps/v8/src/isolate.h\nindex b90191d..2769ca7 100644\n--- a/deps/v8/src/isolate.h\n+++ b/deps/v8/src/isolate.h\n@@ -1392,14 +1392,9 @@ class StackLimitCheck BASE_EMBEDDED {\n  public:\n   explicit StackLimitCheck(Isolate* isolate) : isolate_(isolate) { }\n\n-  bool HasOverflowed() const {\n+  inline bool HasOverflowed() const {\n     StackGuard* stack_guard = isolate_->stack_guard();\n-    // Stack has overflowed in C++ code only if stack pointer exceeds the C++\n-    // stack guard and the limits are not set to interrupt values.\n-    // TODO(214): Stack overflows are ignored if a interrupt is pending. This\n-    // code should probably always use the initial C++ limit.\n-    return (reinterpret_cast<uintptr_t>(this) < stack_guard->climit()) &&\n-           stack_guard->IsStackOverflow();\n+    return reinterpret_cast<uintptr_t>(this) < stack_guard->real_climit();\n   }\n  private:\n   Isolate* isolate_;\n```\n\n### Remediation\n\nThe best course of action is to patch or upgrade Node.js.\n\n### Mitigation\n\nTo mitigate against deep JSON parsing you can limit the size of the\nstring you parse against, or ban clients who trigger a `RangeError`\nfor parsing JSON.\n\nThere is no specific maximum size of a JSON string, though keeping the\nmax to the size of your known message bodies is suggested. If your\nmessage bodies cannot be over 20K, there's no reason to accept 1MB\nbodies.\n\nFor web frameworks that do automatic JSON parsing, you may need to\nconfigure the routes that accept JSON payloads to have a maximum body\nsize.\n\n * [expressjs](http://expressjs.com) and\n[krakenjs](http://krakenjs.com) used with the\n[body-parser](https://github.com/expressjs/body-parser#bodyparserjsonoptions)\nplugin accepts a `limit` parameter in your JSON config\n * [Hapi.js](http://hapijs.com) has `payload.maxBytes`\nhttps://github.com/spumko/hapi/blob/master/docs/Reference.md\n * [restify](http://mcavage.me/node-restify/#Bundled-Plugins) bundled\n`bodyParser` accepts a `maxBodySize`\n\nSource: https://groups.google.com/d/msg/nodejs/-siJEObdp10/2xcqqmTHiEMJ"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7346451",
+						"comment_count": "1",
+						"who": {
+							"text": "tchollingsworth",
+							"name": "T.C. Hollingsworth"
+						},
+						"bug_when": "2014-08-01 01:48:10 +0000",
+						"thetext": "This issue is resolved by the following updates in the listed Fedora releases:\nFedora 20: https://admin.fedoraproject.org/updates/v8-3.14.5.10-11.fc20\nFedora 19: https://admin.fedoraproject.org/updates/v8-3.14.5.10-11.fc19\nEPEL 6: https://admin.fedoraproject.org/updates/v8-3.14.5.10-11.el6\n\nIt is also resolved by the following builds in the listed unreleased products:\nFedora Rawhide: http://koji.fedoraproject.org/koji/buildinfo?buildID=549584\nFedora 21 Branched: http://koji.fedoraproject.org/koji/buildinfo?buildID=549585\nEPEL 7: http://koji.fedoraproject.org/koji/buildinfo?buildID=549589"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7351233",
+						"comment_count": "2",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-08-04 03:32:33 +0000",
+						"thetext": "Thanks for filing this and for the fixes!\n\nIt looks like the nodejs packages in Fedora and EPEL use the system version, so those should be OK (if not, they have/are getting version 0.10.30 anyway)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7352839",
+						"comment_count": "3",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-08-04 12:31:53 +0000",
+						"thetext": "Upstream blog post:\nhttp://blog.nodejs.org/2014/07/31/v8-memory-corruption-stack-overflow/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7366116",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-08-07 15:29:56 +0000",
+						"thetext": "v8-3.14.5.10-11.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7387366",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-08-15 02:33:39 +0000",
+						"thetext": "v8-3.14.5.10-11.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7449672",
+						"comment_count": "6",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2014-09-04 16:36:16 +0000",
+						"thetext": "This was assigned CVE-2014-5256:\n\nhttp://seclists.org/oss-sec/2014/q3/505\n\nAlso note this comment made by MITRE:\n\n\"\"\"\nAlso, the specific wording \"A memory corruption vulnerability, which\nresults in a denial-of-service, was identified in the versions of V8\"\nwas discussed with upstream. The information that we have is that the\nissue actually should not be considered a vulnerability in V8, and\ninstead should be considered a vulnerability in Node.js. It is not a\ncase where a CVE assignment by Google would have been expected.\n\"\"\""
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7512846",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-09-24 03:43:23 +0000",
+						"thetext": "v8-3.14.5.10-11.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7598492",
+						"comment_count": "11",
+						"who": {
+							"text": "mprpic",
+							"name": "Martin Prpič"
+						},
+						"bug_when": "2014-10-22 07:58:33 +0000",
+						"thetext": "IssueDescription:\n\nIt was discovered that V8 did not properly check the stack size limit in certain cases. A remote attacker able to send a request that caused a script executed by V8 to use deep recursion could trigger a stack overflow, leading to a crash of an application using V8."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7625960",
+						"comment_count": "13",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2014-10-30 12:09:28 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 7\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.5 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6.4 EUS\n  Red Hat Software Collections 1 for Red Hat Enterprise Linux 6\n\nVia RHSA-2014:1744 https://rhn.redhat.com/errata/RHSA-2014-1744.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14196965",
+						"comment_count": "14",
+						"who": {
+							"text": "ytale",
+							"name": "Yadnyawalk Tale"
+						},
+						"bug_when": "2020-08-11 14:42:41 +0000",
+						"thetext": "Statement:\n\nRed Hat Product Security has rated this issue as having Low security impact in Red Hat Enterprise Linux OpenStack Platform. This issue is not currently planned to be addressed in a future security update.\n\nRed Hat Satellite 6.5 ship v8 however has been rated as a security impact of Moderate, product version Satellite 6.6 onward is not affected. Satellite 6.5 is in Maintenance Support phase of the product life cycle and is not currently planned to be addressed in future updates. For additional information, refer to the Red Hat Satellite 6 Life Cycle: https://access.redhat.com/support/policy/updates/satellite."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 1,
+			"nvr": "v8-3.14.5.10-11.el6",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"i686": [
+					{
+						"name": "v8-debuginfo",
+						"epoch": 1,
+						"version": "3.14.5.10",
+						"release": "11.el6",
+						"arch": "i686"
+					},
+					{
+						"name": "v8-devel",
+						"epoch": 1,
+						"version": "3.14.5.10",
+						"release": "11.el6",
+						"arch": "i686"
+					},
+					{
+						"name": "v8",
+						"epoch": 1,
+						"version": "3.14.5.10",
+						"release": "11.el6",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "v8",
+						"epoch": 1,
+						"version": "3.14.5.10",
+						"release": "11.el6",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "v8-devel",
+						"epoch": 1,
+						"version": "3.14.5.10",
+						"release": "11.el6",
+						"arch": "x86_64"
+					},
+					{
+						"name": "v8",
+						"epoch": 1,
+						"version": "3.14.5.10",
+						"release": "11.el6",
+						"arch": "x86_64"
+					},
+					{
+						"name": "v8-debuginfo",
+						"epoch": 1,
+						"version": "3.14.5.10",
+						"release": "11.el6",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 234811,
+			"text": "This update has been submitted for testing by patches. ",
+			"timestamp": "2014-08-01 00:53:49",
+			"update_id": 29300,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 234812,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 testing updates repository.",
+			"timestamp": "2014-08-01 14:45:37",
+			"update_id": 29300,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 234813,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-08-01 16:42:51",
+			"update_id": 29300,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 234814,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2014-08-15 17:18:15",
+			"update_id": 29300,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 234815,
+			"text": "This update has been submitted for stable by patches. ",
+			"timestamp": "2014-09-18 22:41:55",
+			"update_id": 29300,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 234816,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 stable updates repository.",
+			"timestamp": "2014-09-19 03:11:30",
+			"update_id": 29300,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 234817,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 stable updates repository.",
+			"timestamp": "2014-09-23 17:59:14",
+			"update_id": 29300,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 234818,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 stable updates repository.",
+			"timestamp": "2014-09-23 18:02:46",
+			"update_id": 29300,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 234819,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2014-09-24 03:42:47",
+			"update_id": 29300,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2014-09-24 03:42:47",
+	"date_stable": "2014-09-24 03:42:47",
+	"date_submitted": "2014-08-01 00:53:45",
+	"date_testing": "2014-08-01 16:42:51",
+	"meets_testing_requirements": true,
+	"notes": "TJ Fontaine of the Node.js project reports:\r\n\r\nA memory corruption vulnerability, which results in a\r\ndenial-of-service, was identified in the versions of V8 that ship with\r\nNode.js 0.8 and 0.10. In certain circumstances, a particularly deep\r\nrecursive workload that may trigger a GC and receive an interrupt may\r\noverflow the stack and result in a segmentation fault. For instance,\r\nif your work load involves successive `JSON.parse` calls and the\r\nparsed objects are significantly deep, you may experience the process\r\naborting while parsing.\r\n\r\nThis issue was identified by Tom Steele of [^Lift\r\nSecurity](https://liftsecurity.io/) and Fedor Indunty, Node.js Core\r\nTeam member worked closely with the V8 team to find our resolution.\r\n\r\nThe V8 issue is described here https://codereview.chromium.org/339883002\r\n\r\nIt has landed in the Node repository here:\r\nhttps://github.com/joyent/node/commit/530af9cb8e700e7596b3ec812bad123c9fa06356\r\n\r\nAnd has been released in the following versions:\r\n\r\n * [v0.10.30](http://nodejs.org/dist/v0.10.30)\r\nhttp://blog.nodejs.org/2014/07/31/node-v0-10-30-stable/\r\n * [v0.8.28](http://nodejs.org/dist/v0.8.28)\r\nhttp://blog.nodejs.org/2014/07/31/node-v0-8-28-maintenance/\r\n\r\n### The Fix\r\n\r\n[Applied in this update.]\r\n\r\n### Remediation\r\n\r\nThe best course of action is to patch or upgrade Node.js.\r\n\r\n### Mitigation\r\n\r\nTo mitigate against deep JSON parsing you can limit the size of the\r\nstring you parse against, or ban clients who trigger a `RangeError`\r\nfor parsing JSON.\r\n\r\nThere is no specific maximum size of a JSON string, though keeping the\r\nmax to the size of your known message bodies is suggested. If your\r\nmessage bodies cannot be over 20K, there's no reason to accept 1MB\r\nbodies.\r\n\r\nFor web frameworks that do automatic JSON parsing, you may need to\r\nconfigure the routes that accept JSON payloads to have a maximum body\r\nsize.\r\n\r\n * [expressjs](http://expressjs.com) and\r\n[krakenjs](http://krakenjs.com) used with the\r\n[body-parser](https://github.com/expressjs/body-parser#bodyparserjsonoptions)\r\nplugin accepts a `limit` parameter in your JSON config\r\n * [Hapi.js](http://hapijs.com) has `payload.maxBytes`\r\nhttps://github.com/spumko/hapi/blob/master/docs/Reference.md\r\n * [restify](http://mcavage.me/node-restify/#Bundled-Plugins) bundled\r\n`bodyParser` accepts a `maxBodySize`\r\n\r\nSource: https://groups.google.com/d/msg/nodejs/-siJEObdp10/2xcqqmTHiEMJ",
+	"pushed": true,
+	"release": {
+		"branch": "el6",
+		"candidate_tag": "dist-6E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "dist-6E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 6",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-6",
+		"override_tag": "dist-6E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-6E-epel",
+		"state": "archived",
+		"testing_tag": "dist-6E-epel-testing",
+		"version": "6"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "v8-3.14.5.10-11.el6",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2014-2099",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2014-2099",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/72e5bd14adbc9e9839b22e207a1a44839a43ccfe93c969467eabd438391a46a9?s=24&d=retro",
+		"groups": [
+			{
+				"name": "proventesters"
+			}
+		],
+		"id": 442,
+		"name": "patches",
+		"openid": "patches.id.fedoraproject.org"
+	},
+	"version_hash": "6d9bf8217d665dec2aad7f0ebc662322eb1959cf"
+}

@@ -1,0 +1,349 @@
+{
+	"alias": "FEDORA-EPEL-2015-0740",
+	"bugs": [
+		{
+			"bug_id": 1103566,
+			"title": "python-crypto2.6 breaks ansible in epel repository",
+			"bugzilla": {
+				"bug_id": "1103566",
+				"creation_ts": "2014-06-02 04:44:04 +0000",
+				"short_desc": "python-crypto2.6 breaks ansible in epel repository",
+				"delta_ts": "2015-03-01 21:59:52 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"bug_file_loc": "https://github.com/ansible/ansible/issues/6941",
+				"priority": "unspecified",
+				"bug_severity": "low",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7136311",
+						"comment_count": "0",
+						"who": {
+							"text": "robk",
+							"name": "Rob K"
+						},
+						"bug_when": "2014-06-02 04:44:04 +0000",
+						"thetext": "User-Agent:       Mozilla/5.0 (Windows NT 6.1; WOW64; rv:31.0) Gecko/20100101 Firefox/31.0\nBuild Identifier: \n\npycrypto26 package in epel is built against the gmp-devel 4.3.x package provided in base. Unfortunately, this means that ansible in epel will error out thus:\n\n/usr/lib64/python2.6/site-packages/pycrypto-2.6.1-py2.6-linux-x86_64.egg/Crypto/Util/number.py:57: PowmInsecureWarning: Not using mpz_powm_sec.  You should rebuild using libgmp >= 5 to avoid timing attack vulnerability.\n  _warn(\"Not using mpz_powm_sec.  You should rebuild using libgmp >= 5 to avoid timing attack vulnerability.\", PowmInsecureWarning)\n\nSee the included ansible bug report\n\nReproducible: Always\n\nSteps to Reproduce:\n\n    fresh install of centos 6.5\n    rpm -ivh http://url/to/epel-release\n    yum -y install ansible --enablerepo='epel*'\n    create localhost ssh key and authorized keys\n    install goozbach.EPEL galaxy role\n\n    create following playbook:\n\n    ---\n    - name: master playbook\n      hosts: all\n      user: root\n      roles:\n        - { role: goozbach.EPEL, epel_enabled: 1, epel_testing_enabled: 1 }\n\n    run your ansible playbook\n\n\nActual Results:  \n```\n[root@vagrant-centos-6_4 ansible]# ansible-playbook site.yml\n/usr/lib64/python2.6/site-packages/pycrypto-2.6.1-py2.6-linux-x86_64.egg/Crypto/Util/number.py:57: PowmInsecureWarning: Not using mpz_powm_sec.  You should rebuild using libgmp >= 5 to avoid timing attack vulnerability.\n  _warn(\"Not using mpz_powm_sec.  You should rebuild using libgmp >= 5 to avoid timing attack vulnerability.\", PowmInsecureWarning)\n\nExpected Results:  \nPycrypto shouldn't show warning message.\n\nThis bug is a blocker for using ansible from epel in any way."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7338018",
+						"comment_count": "1",
+						"who": {
+							"text": "tkuratom",
+							"name": "Toshio Kuratomi"
+						},
+						"bug_when": "2014-07-29 18:51:54 +0000",
+						"thetext": "Note -- it's not erroring out, just a warning.\n\nIs there an updated gmp available in RHEL/EPEL to build against?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7338104",
+						"comment_count": "2",
+						"who": {
+							"text": "notting",
+							"name": "Bill Nottingham"
+						},
+						"bug_when": "2014-07-29 19:17:12 +0000",
+						"thetext": "mpz_powm_sec was added in gmp5, so not for RHEL 6 unless it's decided to add it there as an additional ABI."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7676296",
+						"comment_count": "3",
+						"who": {
+							"text": "a.badger",
+							"name": "Toshio Ernie Kuratomi"
+						},
+						"bug_when": "2014-11-15 15:47:16 +0000",
+						"thetext": "So, infra  sig, you own this package now.  I see several ways to proceed.\n\n* Decide that the version of gmp isn't something we control and therefore close this as CANTFIX.  I've looked at the code and the warning actually means that python-crypto is not going to use gmp because of timing attacks.  It instead falls back on \"slowmath\" -- implementations of isPrime() and getStrongPrime() in pure python instead of in C.  So python-crypto2.6 is not insecure on RHEL6 - it simply is slower than it is on a distro which has a newer gmp available.  The drawback to doing nothing is that users see the warning about a \"vulnerability\" and think that their code is insecure because of the old gmp.\n\n* Patch the warning out of the code because of the above analysis.  This package is primarily here for ansible vault in epel6.  The crypto routines are \"fast enough\" for ansible vault's purposes and most end users aren't going to read the warning and then compile their own gmp and python-crypto2.6.  Therefore, don't scare the users.  The drawback is if someone is evaluating python-crypto2.6 (or ansible-vault in a non-standard workload) and decides that it is too slow, not knowing that it's because of the gmp version on their OS that's causing it.\n\n* Patch the warning to be more clear.  Something like:\n\n    _warn(\"mpz_powm_sec in libgmp < 5 is vulnerable to timing attacks.  Using non-vulnerable pure-python fallback.  Recompile pycrypto against libgmp >= 5 to use faster routines.\",  PowmInsecureWarning)\n\n* Create a gmp forward compat package for EPEL6 and link against this.  It looks like the SONAME of the current Fedora package is different than that of the RHEL6 gmp so that portion is possible.  The package also contains a libgmpxx library which has not changed sonames.  This support library is only needed for building programs which use a C++ compiler to link to gmp.  We could place it in a different directory or omit it.  The header files for gmp are placed directly into /usr/include.  We'd need to place those into a versioned subdirectory and then patch build files to look in that subdirectory for header files.\n\n* Patch the code to use fastmath with or without a warning.  The primary purpose of this forward compat library is to support ansible-vault.  In standard command line usage, the user will have access to any vault files that are present.  Therefore, they can simply copy the files to their own host to attack rather than relying on a timing attack on our systems to give them information about how close their attempted password is to the password used to encrypt the files.  I do not advise this option as we don't know who else might be using python-crypto2.6 on their own home-built applications where a timing attack would be important.\n\nIf this was still my package I'd probably patch the warning to be more clear unless someone else decided to build and maintain a forward compat libgmp in EPEL6."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7676348",
+						"comment_count": "4",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2014-11-15 16:37:15 +0000",
+						"thetext": "I am completely happy to adjust the warning to be more clear. \n\nHopefully also upstream would take a PR to do so in the next release? (It should apply anywhere I would think)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7796040",
+						"comment_count": "5",
+						"who": {
+							"text": "a.badger",
+							"name": "Toshio Ernie Kuratomi"
+						},
+						"bug_when": "2014-12-31 02:43:48 +0000",
+						"thetext": "Made an upstream Pull Request: https://github.com/dlitz/pycrypto/pull/111\n\nWill attach patch here."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7796041",
+						"comment_count": "6",
+						"who": {
+							"text": "a.badger",
+							"name": "Toshio Ernie Kuratomi"
+						},
+						"bug_when": "2014-12-31 02:44:28 +0000",
+						"thetext": "Created attachment 974672\nClarify warning message about older version of libgmp"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7937311",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-13 21:41:54 +0000",
+						"thetext": "python-crypto2.6-2.6.1-2.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/python-crypto2.6-2.6.1-2.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7937339",
+						"comment_count": "8",
+						"who": {
+							"text": "a.badger",
+							"name": "Toshio Ernie Kuratomi"
+						},
+						"bug_when": "2015-02-13 21:48:51 +0000",
+						"thetext": "I took another look at this today and found that I was wrong about precisely when the fallback code is invoked.  It looks like the fallback occurs when the C extension is unable to be loaded.  If the C extension is importable the code just will use it even if libgmp does not provide the secure function.\n\nThe package I've just pushed removes the _fastmath C extension so that the code will properly fallback on the slower but non-vulnerable python code.  Please test that it works."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7937641",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-14 02:52:02 +0000",
+						"thetext": "Package python-crypto2.6-2.6.1-2.el6:\n* should fix your issue,\n* was pushed to the Fedora EPEL 6 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=epel-testing python-crypto2.6-2.6.1-2.el6'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2015-0740/python-crypto2.6-2.6.1-2.el6\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7986785",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-01 21:59:52 +0000",
+						"thetext": "python-crypto2.6-2.6.1-2.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "python-crypto2.6-2.6.1-2.el6",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"i686": [
+					{
+						"name": "python-crypto2.6",
+						"version": "2.6.1",
+						"release": "2.el6",
+						"arch": "i686"
+					},
+					{
+						"name": "python-crypto2.6-debuginfo",
+						"version": "2.6.1",
+						"release": "2.el6",
+						"arch": "i686"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "python-crypto2.6-debuginfo",
+						"version": "2.6.1",
+						"release": "2.el6",
+						"arch": "ppc64"
+					},
+					{
+						"name": "python-crypto2.6",
+						"version": "2.6.1",
+						"release": "2.el6",
+						"arch": "ppc64"
+					}
+				],
+				"src": [
+					{
+						"name": "python-crypto2.6",
+						"version": "2.6.1",
+						"release": "2.el6",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "python-crypto2.6",
+						"version": "2.6.1",
+						"release": "2.el6",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python-crypto2.6-debuginfo",
+						"version": "2.6.1",
+						"release": "2.el6",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 196629,
+			"text": "This update has been submitted for testing by toshio. ",
+			"timestamp": "2015-02-13 21:41:58",
+			"update_id": 25422,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 196630,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 testing updates repository.",
+			"timestamp": "2015-02-13 23:38:42",
+			"update_id": 25422,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 196631,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-02-14 02:52:03",
+			"update_id": 25422,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 196632,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2015-02-28 08:36:27",
+			"update_id": 25422,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 196633,
+			"text": "This update has been submitted for stable by toshio. ",
+			"timestamp": "2015-02-28 16:10:18",
+			"update_id": 25422,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 196634,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 stable updates repository.",
+			"timestamp": "2015-03-01 19:33:05",
+			"update_id": 25422,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 196635,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-03-01 21:59:54",
+			"update_id": 25422,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2015-03-01 21:59:54",
+	"date_stable": "2015-03-01 21:59:54",
+	"date_submitted": "2015-02-13 21:41:50",
+	"date_testing": "2015-02-14 02:52:03",
+	"meets_testing_requirements": true,
+	"notes": "* Disable C extension accelerator to avoid a timing vulnerability with the version of libgmp available on RHEL6",
+	"pushed": true,
+	"release": {
+		"branch": "el6",
+		"candidate_tag": "dist-6E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "dist-6E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 6",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-6",
+		"override_tag": "dist-6E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-6E-epel",
+		"state": "archived",
+		"testing_tag": "dist-6E-epel-testing",
+		"version": "6"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "python-crypto2.6-2.6.1-2.el6",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2015-0740",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2015-0740",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/085a38b9cf600926924645b292f0b7121a98a5165e559e0ad1882cfe33c6b395?s=24&d=retro",
+		"email": "a.badger@gmail.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "infra-sig"
+			},
+			{
+				"name": "python-sig"
+			}
+		],
+		"id": 116,
+		"name": "toshio",
+		"openid": "toshio.id.fedoraproject.org"
+	},
+	"version_hash": "5ccaaf556e6bc5e16cba26523a5b1d2aa1f609fa"
+}

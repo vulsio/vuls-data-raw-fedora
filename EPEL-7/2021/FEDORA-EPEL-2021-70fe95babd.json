@@ -1,0 +1,690 @@
+{
+	"alias": "FEDORA-EPEL-2021-70fe95babd",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 1995634,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2021-3712 openssl: Read buffer overruns processing ASN.1 strings",
+			"bugzilla": {
+				"bug_id": "1995634",
+				"alias": "CVE-2021-3712",
+				"creation_ts": "2021-08-19 14:14:16 +0000",
+				"short_desc": "CVE-2021-3712 openssl: Read buffer overruns processing ASN.1 strings",
+				"delta_ts": "2023-09-26 18:23:23 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1996053",
+					"1996054",
+					"1996185",
+					"1996186",
+					"1997219",
+					"1997220",
+					"1997221",
+					"1997223",
+					"1997297",
+					"1997298",
+					"1997299",
+					"1997300",
+					"1997301",
+					"1997473",
+					"2005400",
+					"2005401",
+					"2005402"
+				],
+				"blocked": [
+					{
+						"bug_id": "1995569",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2022:0064",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "15402960",
+						"comment_count": "0",
+						"who": {
+							"text": "cbuissar",
+							"name": "Cedric Buissart"
+						},
+						"bug_when": "2021-08-19 14:14:16 +0000",
+						"thetext": "Severity: Moderate\n\nASN.1 strings are represented internally within OpenSSL as an ASN1_STRING\nstructure which contains a buffer holding the string data and a field holding\nthe buffer length. This contrasts with normal C strings which are repesented as\na buffer for the string data which is terminated with a NUL (0) byte.\n\nAlthough not a strict requirement, ASN.1 strings that are parsed using OpenSSL's\nown \"d2i\" functions (and other similar parsing functions) as well as any string\nwhose value has been set with the ASN1_STRING_set() function will additionally\nNUL terminate the byte array in the ASN1_STRING structure.\n\nHowever, it is possible for applications to directly construct valid ASN1_STRING\nstructures which do not NUL terminate the byte array by directly setting the\n\"data\" and \"length\" fields in the ASN1_STRING array. This can also happen by\nusing the ASN1_STRING_set0() function.\n\nNumerous OpenSSL functions that print ASN.1 data have been found to assume that\nthe ASN1_STRING byte array will be NUL terminated, even though this is not\nguaranteed for strings that have been directly constructed. Where an application\nrequests an ASN.1 structure to be printed, and where that ASN.1 structure\ncontains ASN1_STRINGs that have been directly constructed by the application\nwithout NUL terminating the \"data\" field, then a read buffer overrun can occur.\n\nThe same thing can also occur during name constraints processing of certificates\n(for example if a certificate has been directly constructed by the application\ninstead of loading it via the OpenSSL parsing functions, and the certificate\ncontains non NUL terminated ASN1_STRING structures). It can also occur in the\nX509_get1_email(), X509_REQ_get1_email() and X509_get1_ocsp() functions.\n\nIf a malicious actor can cause an application to directly construct an\nASN1_STRING and then process it through one of the affected OpenSSL functions\nthen this issue could be hit. This might result in a crash (causing a Denial of\nService attack). It could also result in the disclosure of private memory\ncontents (such as private keys, or sensitive plaintext).\n\nOpenSSL versions 1.1.1k and below are affected by this issue. Users of these\nversions should upgrade to OpenSSL 1.1.1l.\n\nOpenSSL versions 1.0.2y and below are affected by this issue. However OpenSSL\n1.0.2 is out of support and no longer receiving public updates. Premium support\ncustomers of OpenSSL 1.0.2 should upgrade to 1.0.2z. Other users should upgrade\nto 1.1.1l.\n\nAn initial instance of this issue in the X509_aux_print() function was reported\nto OpenSSL on 18th July 2021 by Ingo Schwarze. The bugfix was developed by Ingo\nSchwarze and first publicly released in OpenBSD-current on 10th July 2021 and\nsubsequently in OpenSSL on 20th July 2021 (commit d9d838d). Subsequent\nanalysis by David Benjamin on 17th August 2021 identified more instances of the\nsame bug. Additional analysis was performed by Matt Caswell. Fixes for the\nadditional instances of this issue were developed by Matt Caswell."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15406803",
+						"comment_count": "6",
+						"who": {
+							"text": "cbuissar",
+							"name": "Cedric Buissart"
+						},
+						"bug_when": "2021-08-20 13:16:22 +0000",
+						"thetext": "Description of the flaw:\n\nIt was found that several functions internal to openssl were assuming thata given string would be NUL ('\\0') terminated.\n\nHowever, it may happen that a given application using openssl libraries is tricked by an attacker into calling these functions with specially crafted, non-NUL terminated strings.\n\nThis would result in these functions reading past the string's allocated buffer, into the application memory (until a NUL byte is read).\n\nThis may result in the crash of the application, or, if the attacker is able to retrieve the content read, disclosure of the application's memory.\n\nThe affected functions are X.509 certificate related, and likely used for logging purpose. The memory disclosure is thus likely to be local only (not sent back to a remote attacker)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15417076",
+						"comment_count": "12",
+						"who": {
+							"text": "cbuissar",
+							"name": "Cedric Buissart"
+						},
+						"bug_when": "2021-08-24 14:01:43 +0000",
+						"thetext": "Upstream fixes, for the 1.1.1 branch :\n\nhttps://github.com/openssl/openssl/commit/94d23fcff9b2a7a8368dfe52214d5c2569882c11\nhttps://github.com/openssl/openssl/commit/2d0e5d4a4a5d4332325b5e5cea492fad2be633e1\nhttps://github.com/openssl/openssl/commit/bb4d2ed4091408404e18b3326e3df67848ef63d0\nhttps://github.com/openssl/openssl/commit/4de66925203ca99189c842136ec4a623137ea447\nhttps://github.com/openssl/openssl/commit/8393de42498f8be75cf0353f5c9f906a43a748d2\nhttps://github.com/openssl/openssl/commit/23446958685a593d4d9434475734b99138902ed2\nhttps://github.com/openssl/openssl/commit/5f54e57406ca17731b9ade3afd561d3c652e07f2\nhttps://github.com/openssl/openssl/commit/d9d838ddc0ed083fb4c26dd067e71aad7c65ad16"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15417637",
+						"comment_count": "13",
+						"who": {
+							"text": "cbuissar",
+							"name": "Cedric Buissart"
+						},
+						"bug_when": "2021-08-24 16:06:29 +0000",
+						"thetext": "Created mingw-openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1997221]\n\n\nCreated openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1997219]\n\n\nCreated openssl11 tracking bugs for this issue:\n\nAffects: epel-7 [bug 1997220]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15673983",
+						"comment_count": "22",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2021-11-10 17:15:55 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat JBoss Core Services\n\nVia RHSA-2021:4613 https://access.redhat.com/errata/RHSA-2021:4613"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15674000",
+						"comment_count": "23",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2021-11-10 17:19:21 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  JBoss Core Services on RHEL 7\n  JBoss Core Services for RHEL 8\n\nVia RHSA-2021:4614 https://access.redhat.com/errata/RHSA-2021:4614"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15677806",
+						"comment_count": "24",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2021-11-11 18:32:25 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Advanced Cluster Management for Kubernetes 2.4 for RHEL 8\n\nVia RHSA-2021:4618 https://access.redhat.com/errata/RHSA-2021:4618"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15677877",
+						"comment_count": "25",
+						"who": {
+							"text": "prodsec-dev",
+							"name": "Product Security DevOps Team"
+						},
+						"bug_when": "2021-11-11 18:57:40 +0000",
+						"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2021-3712"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15792593",
+						"comment_count": "28",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2021-12-21 09:42:14 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2021:5226 https://access.redhat.com/errata/RHSA-2021:5226"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15832568",
+						"comment_count": "29",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2022-01-11 17:30:30 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2022:0064 https://access.redhat.com/errata/RHSA-2022:0064"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15839843",
+						"comment_count": "30",
+						"who": {
+							"text": "voetelink",
+							"name": "Dennixx"
+						},
+						"bug_when": "2022-01-13 09:08:38 +0000",
+						"thetext": "There seems to be a bug in the fix for RHEL7 which crashes Apache or nginx. See bugzilla id 2039993"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1997220,
+			"security": true,
+			"title": "CVE-2021-3712 openssl11: openssl: Read buffer overruns processing ASN.1 strings [epel-7]",
+			"bugzilla": {
+				"bug_id": "1997220",
+				"creation_ts": "2021-08-24 16:06:10 +0000",
+				"short_desc": "CVE-2021-3712 openssl11: openssl: Read buffer overruns processing ASN.1 strings [epel-7]",
+				"delta_ts": "2021-11-26 00:40:53 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1995634",
+						"alias": "CVE-2021-3712",
+						"creation_ts": "2021-08-19 14:14:16 +0000",
+						"short_desc": "CVE-2021-3712 openssl: Read buffer overruns processing ASN.1 strings",
+						"delta_ts": "2023-09-26 18:23:23 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1996053",
+							"1996054",
+							"1996185",
+							"1996186",
+							"1997219",
+							"1997220",
+							"1997221",
+							"1997223",
+							"1997297",
+							"1997298",
+							"1997299",
+							"1997300",
+							"1997301",
+							"1997473",
+							"2005400",
+							"2005401",
+							"2005402"
+						],
+						"blocked": [
+							{
+								"bug_id": "1995569",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2022:0064",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "15402960",
+								"comment_count": "0",
+								"who": {
+									"text": "cbuissar",
+									"name": "Cedric Buissart"
+								},
+								"bug_when": "2021-08-19 14:14:16 +0000",
+								"thetext": "Severity: Moderate\n\nASN.1 strings are represented internally within OpenSSL as an ASN1_STRING\nstructure which contains a buffer holding the string data and a field holding\nthe buffer length. This contrasts with normal C strings which are repesented as\na buffer for the string data which is terminated with a NUL (0) byte.\n\nAlthough not a strict requirement, ASN.1 strings that are parsed using OpenSSL's\nown \"d2i\" functions (and other similar parsing functions) as well as any string\nwhose value has been set with the ASN1_STRING_set() function will additionally\nNUL terminate the byte array in the ASN1_STRING structure.\n\nHowever, it is possible for applications to directly construct valid ASN1_STRING\nstructures which do not NUL terminate the byte array by directly setting the\n\"data\" and \"length\" fields in the ASN1_STRING array. This can also happen by\nusing the ASN1_STRING_set0() function.\n\nNumerous OpenSSL functions that print ASN.1 data have been found to assume that\nthe ASN1_STRING byte array will be NUL terminated, even though this is not\nguaranteed for strings that have been directly constructed. Where an application\nrequests an ASN.1 structure to be printed, and where that ASN.1 structure\ncontains ASN1_STRINGs that have been directly constructed by the application\nwithout NUL terminating the \"data\" field, then a read buffer overrun can occur.\n\nThe same thing can also occur during name constraints processing of certificates\n(for example if a certificate has been directly constructed by the application\ninstead of loading it via the OpenSSL parsing functions, and the certificate\ncontains non NUL terminated ASN1_STRING structures). It can also occur in the\nX509_get1_email(), X509_REQ_get1_email() and X509_get1_ocsp() functions.\n\nIf a malicious actor can cause an application to directly construct an\nASN1_STRING and then process it through one of the affected OpenSSL functions\nthen this issue could be hit. This might result in a crash (causing a Denial of\nService attack). It could also result in the disclosure of private memory\ncontents (such as private keys, or sensitive plaintext).\n\nOpenSSL versions 1.1.1k and below are affected by this issue. Users of these\nversions should upgrade to OpenSSL 1.1.1l.\n\nOpenSSL versions 1.0.2y and below are affected by this issue. However OpenSSL\n1.0.2 is out of support and no longer receiving public updates. Premium support\ncustomers of OpenSSL 1.0.2 should upgrade to 1.0.2z. Other users should upgrade\nto 1.1.1l.\n\nAn initial instance of this issue in the X509_aux_print() function was reported\nto OpenSSL on 18th July 2021 by Ingo Schwarze. The bugfix was developed by Ingo\nSchwarze and first publicly released in OpenBSD-current on 10th July 2021 and\nsubsequently in OpenSSL on 20th July 2021 (commit d9d838d). Subsequent\nanalysis by David Benjamin on 17th August 2021 identified more instances of the\nsame bug. Additional analysis was performed by Matt Caswell. Fixes for the\nadditional instances of this issue were developed by Matt Caswell."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15406803",
+								"comment_count": "6",
+								"who": {
+									"text": "cbuissar",
+									"name": "Cedric Buissart"
+								},
+								"bug_when": "2021-08-20 13:16:22 +0000",
+								"thetext": "Description of the flaw:\n\nIt was found that several functions internal to openssl were assuming thata given string would be NUL ('\\0') terminated.\n\nHowever, it may happen that a given application using openssl libraries is tricked by an attacker into calling these functions with specially crafted, non-NUL terminated strings.\n\nThis would result in these functions reading past the string's allocated buffer, into the application memory (until a NUL byte is read).\n\nThis may result in the crash of the application, or, if the attacker is able to retrieve the content read, disclosure of the application's memory.\n\nThe affected functions are X.509 certificate related, and likely used for logging purpose. The memory disclosure is thus likely to be local only (not sent back to a remote attacker)."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15417076",
+								"comment_count": "12",
+								"who": {
+									"text": "cbuissar",
+									"name": "Cedric Buissart"
+								},
+								"bug_when": "2021-08-24 14:01:43 +0000",
+								"thetext": "Upstream fixes, for the 1.1.1 branch :\n\nhttps://github.com/openssl/openssl/commit/94d23fcff9b2a7a8368dfe52214d5c2569882c11\nhttps://github.com/openssl/openssl/commit/2d0e5d4a4a5d4332325b5e5cea492fad2be633e1\nhttps://github.com/openssl/openssl/commit/bb4d2ed4091408404e18b3326e3df67848ef63d0\nhttps://github.com/openssl/openssl/commit/4de66925203ca99189c842136ec4a623137ea447\nhttps://github.com/openssl/openssl/commit/8393de42498f8be75cf0353f5c9f906a43a748d2\nhttps://github.com/openssl/openssl/commit/23446958685a593d4d9434475734b99138902ed2\nhttps://github.com/openssl/openssl/commit/5f54e57406ca17731b9ade3afd561d3c652e07f2\nhttps://github.com/openssl/openssl/commit/d9d838ddc0ed083fb4c26dd067e71aad7c65ad16"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15417637",
+								"comment_count": "13",
+								"who": {
+									"text": "cbuissar",
+									"name": "Cedric Buissart"
+								},
+								"bug_when": "2021-08-24 16:06:29 +0000",
+								"thetext": "Created mingw-openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1997221]\n\n\nCreated openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1997219]\n\n\nCreated openssl11 tracking bugs for this issue:\n\nAffects: epel-7 [bug 1997220]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15673983",
+								"comment_count": "22",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2021-11-10 17:15:55 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat JBoss Core Services\n\nVia RHSA-2021:4613 https://access.redhat.com/errata/RHSA-2021:4613"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15674000",
+								"comment_count": "23",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2021-11-10 17:19:21 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  JBoss Core Services on RHEL 7\n  JBoss Core Services for RHEL 8\n\nVia RHSA-2021:4614 https://access.redhat.com/errata/RHSA-2021:4614"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15677806",
+								"comment_count": "24",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2021-11-11 18:32:25 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Advanced Cluster Management for Kubernetes 2.4 for RHEL 8\n\nVia RHSA-2021:4618 https://access.redhat.com/errata/RHSA-2021:4618"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15677877",
+								"comment_count": "25",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2021-11-11 18:57:40 +0000",
+								"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2021-3712"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15792593",
+								"comment_count": "28",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2021-12-21 09:42:14 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2021:5226 https://access.redhat.com/errata/RHSA-2021:5226"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15832568",
+								"comment_count": "29",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2022-01-11 17:30:30 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2022:0064 https://access.redhat.com/errata/RHSA-2022:0064"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15839843",
+								"comment_count": "30",
+								"who": {
+									"text": "voetelink",
+									"name": "Dennixx"
+								},
+								"bug_when": "2022-01-13 09:08:38 +0000",
+								"thetext": "There seems to be a bug in the fix for RHEL7 which crashes Apache or nginx. See bugzilla id 2039993"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "15417633",
+						"comment_count": "0",
+						"who": {
+							"text": "cbuissar",
+							"name": "Cedric Buissart"
+						},
+						"bug_when": "2021-08-24 16:06:10 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof epel-7.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15417634",
+						"comment_count": "1",
+						"who": {
+							"text": "cbuissar",
+							"name": "Cedric Buissart"
+						},
+						"bug_when": "2021-08-24 16:06:12 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1995634,1997220\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15692636",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-11-17 08:43:30 +0000",
+						"thetext": "FEDORA-EPEL-2021-70fe95babd has been submitted as an update to Fedora EPEL 7. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2021-70fe95babd"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15695031",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-11-18 01:41:34 +0000",
+						"thetext": "FEDORA-EPEL-2021-70fe95babd has been pushed to the Fedora EPEL 7 testing repository.\n\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2021-70fe95babd\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15715050",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-11-26 00:40:53 +0000",
+						"thetext": "FEDORA-EPEL-2021-70fe95babd has been pushed to the Fedora EPEL 7 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 1,
+			"nvr": "openssl11-1.1.1k-2.el7",
+			"release_id": 8,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"ppc64le": [
+					{
+						"name": "openssl11",
+						"epoch": 1,
+						"version": "1.1.1k",
+						"release": "2.el7",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "openssl11-libs",
+						"epoch": 1,
+						"version": "1.1.1k",
+						"release": "2.el7",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "openssl11-devel",
+						"epoch": 1,
+						"version": "1.1.1k",
+						"release": "2.el7",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "openssl11-static",
+						"epoch": 1,
+						"version": "1.1.1k",
+						"release": "2.el7",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "openssl11-debuginfo",
+						"epoch": 1,
+						"version": "1.1.1k",
+						"release": "2.el7",
+						"arch": "ppc64le"
+					}
+				],
+				"src": [
+					{
+						"name": "openssl11",
+						"epoch": 1,
+						"version": "1.1.1k",
+						"release": "2.el7",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "openssl11",
+						"epoch": 1,
+						"version": "1.1.1k",
+						"release": "2.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "openssl11-libs",
+						"epoch": 1,
+						"version": "1.1.1k",
+						"release": "2.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "openssl11-devel",
+						"epoch": 1,
+						"version": "1.1.1k",
+						"release": "2.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "openssl11-static",
+						"epoch": 1,
+						"version": "1.1.1k",
+						"release": "2.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "openssl11-debuginfo",
+						"epoch": 1,
+						"version": "1.1.1k",
+						"release": "2.el7",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 2286304,
+			"text": "This update has been submitted for testing by robert. ",
+			"timestamp": "2021-11-17 08:43:25",
+			"update_id": 354868,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2286305,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2021-11-17 08:43:26",
+			"update_id": 354868,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2286306,
+			"text": "robert edited this update.",
+			"timestamp": "2021-11-17 08:44:33",
+			"update_id": 354868,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2286767,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2021-11-18 01:41:34",
+			"update_id": 354868,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2292651,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2021-11-25 01:43:05",
+			"update_id": 354868,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2293312,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2021-11-26 00:40:59",
+			"update_id": 354868,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2021-11-17 08:44:33",
+	"date_pushed": "2021-11-26 00:40:51",
+	"date_stable": "2021-11-26 00:40:51",
+	"date_submitted": "2021-11-17 08:43:25",
+	"date_testing": "2021-11-18 01:41:32",
+	"meets_testing_requirements": true,
+	"notes": "- backport from 1.1.1k-5: CVE-2021-3712 openssl: Read buffer overruns processing ASN.1 strings. Resolves: rhbz#2005400\n",
+	"pushed": true,
+	"release": {
+		"branch": "epel7",
+		"candidate_tag": "epel7-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "epel7",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 7",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EPEL-7",
+		"override_tag": "epel7-override",
+		"package_manager": "unspecified",
+		"pending_signing_tag": "epel7-signing-pending",
+		"pending_stable_tag": "epel7-pending",
+		"pending_testing_tag": "epel7-testing-pending",
+		"stable_tag": "epel7",
+		"state": "current",
+		"testing_tag": "epel7-testing",
+		"version": "7"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "medium",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "reboot",
+	"test_gating_status": "ignored",
+	"title": "openssl11-1.1.1k-2.el7",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2021-70fe95babd",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2021-70fe95babd",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/74d863c618d1ff08d6ed19e90c58349761e8a5fa7888ce464063fc2809ba7dc2?s=24&d=retro",
+		"email": "redhat@linuxnetz.de",
+		"groups": [
+			{
+				"name": "proventesters"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "ambassadors"
+			},
+			{
+				"name": "campusambassadors"
+			},
+			{
+				"name": "gitfedora-web"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "advocates"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "gitsecurity-spin"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "gitfama"
+			},
+			{
+				"name": "epel-packagers-sig"
+			},
+			{
+				"name": "web"
+			},
+			{
+				"name": "clamav"
+			}
+		],
+		"id": 172,
+		"name": "robert",
+		"openid": "robert.id.fedoraproject.org"
+	},
+	"version_hash": "a5218117cd4bdb62149ffe95182f6cc313f8d3cf"
+}

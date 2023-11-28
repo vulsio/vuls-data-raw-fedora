@@ -1,0 +1,906 @@
+{
+	"alias": "FEDORA-2018-7cd077ddd3",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1571880,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2018-10982 xsa261 xen: x86 vHPET interrupt injection errors (XSA-261)",
+			"bugzilla": {
+				"bug_id": "1571880",
+				"alias": "xsa261",
+				"creation_ts": "2018-04-25 15:10:14 +0000",
+				"short_desc": "CVE-2018-10982 xsa261 xen: x86 vHPET interrupt injection errors (XSA-261)",
+				"delta_ts": "2021-02-17 00:25:07 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "NOTABUG",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1576089"
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11527491",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2018-04-25 15:10:14 +0000",
+						"thetext": "ISSUE DESCRIPTION\n=================\n\nThe High Precision Event Timer (HPET) can be configured to deliver\ninterrupts in one of three different modes - through legacy interrupts;\nthrough the IO-APIC; or optionally via a method similar to PCI MSI.  The\nlast mode is optional and not implemented by Xen.  However, of the first\ntwo modes, only the legacy variant was properly implemented.\n\nIf a guest set up an HPET timer in IO-APIC mode, Xen would still\nhandle this using the code for the legacy mode.  Unfortunately, the\navailable IO-APIC mode interrupt numbers are higher than legacy mode\ninterrupts.  The result was array overruns.\n\nIMPACT\n======\n\nA malicious or buggy HVM guest may cause a hypervisor crash, resulting\nin a Denial of Service (DoS) affecting the entire host.  Privilege\nescalation, or information leaks, cannot be excluded.\n\nVULNERABLE SYSTEMS\n==================\n\nXen versions 3.1 and later are vulnerable.\n\nOnly x86 systems are vulnerable.  ARM systems are not vulnerable.\n\nOnly x86 HVM guests can exploit the vulnerability.  x86 PV and PVH\nguests cannot exploit the vulnerability.\n\nOnly x86 HVM guests provided with hypervisor-side HPET emulation can\nexploit the vulnerability.  That is the default configuration.  x86\nHVM guests whose configuration explicitly disables this emulation (via\n\"hpet=0\") cannot exploit the vulnerability.\n\nMITIGATION\n==========\n\nRunning only PV or PVH guests avoids the vulnerability.\n\nNot exposing the hypervisor based HPET emulation to HVM guests, by\nadding \"hpet=0\" to the guest configuration, also avoids the\nvulnerability.\n\nExternal References:\n\nhttp://xenbits.xen.org/xsa/advisory-261.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11576300",
+						"comment_count": "3",
+						"who": {
+							"text": "lpardo",
+							"name": "Laura Pardo"
+						},
+						"bug_when": "2018-05-08 19:18:30 +0000",
+						"thetext": "Created xen tracking bugs for this issue:\n\nAffects: fedora-all [bug 1576089]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11586083",
+						"comment_count": "4",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2018-05-11 09:22:25 +0000",
+						"thetext": "Acknowledgments:\n\nName: the Xen project\nUpstream: Roger Pau Monné (Citrix)"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1571881,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2018-10981 xsa262 xen: qemu may drive Xen into unbounded loop (XSA-262)",
+			"bugzilla": {
+				"bug_id": "1571881",
+				"alias": "xsa262",
+				"creation_ts": "2018-04-25 15:10:21 +0000",
+				"short_desc": "CVE-2018-10981 xsa262 xen: qemu may drive Xen into unbounded loop (XSA-262)",
+				"delta_ts": "2021-02-17 00:25:09 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "NOTABUG",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1576680"
+				],
+				"blocked": [
+					{
+						"bug_id": "1571887",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11527493",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2018-04-25 15:10:21 +0000",
+						"thetext": "ISSUE DESCRIPTION\n=================\n\nWhen Xen sends requests to a device model, the next expected action\ninside Xen is tracked using a state field.  The requests themselves\nare placed in a memory page shared with the device model, so that the\ndevice model can communicate to Xen its progress on the request.  The\nstate field is in the request itself, where the device model may write\nto it.  Xen correctly rejects invalid state values, but failed to reject\ninvalid transitions between states.  As a result, a device model which\nswitches a request between two states at the right times can drive Xen\ninto an unbounded loop.\n\nIMPACT\n======\n\nA malicious unprivileged device model can cause a Denial of Service\n(DoS) affecting the entire host.  Specifically, it may prevent use of a\nphysical CPU for an indeterminate period of time.\n\nVULNERABLE SYSTEMS\n==================\n\nAll Xen versions are vulnerable.\n\nOnly x86 systems are affected.  ARM systems are not affected.\n\nOnly HVM guests can expose this vulnerability.  PV and PVH guests cannot\nexpose this vulnerability, but note that the domains being able to\nleverage the vulnerability are PV or PVH ones, running the device model.\n\nThis vulnerability is only applicable to Xen systems using stub domains.\n\nMITIGATION\n==========\n\nRunning only PV or PVH guests will avoid this issue.\n\n(The security of a Xen system using stub domains is still better than\nwith a qemu-dm running as an unrestricted dom0 process.  Therefore\nusers with these configurations should not switch to an unrestricted\ndom0 qemu-dm.)\n\nExternal References:\n\nhttp://xenbits.xen.org/xsa/advisory-262.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11581843",
+						"comment_count": "2",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2018-05-10 06:49:50 +0000",
+						"thetext": "Acknowledgments:\n\nName: the Xen project\nUpstream: Jan Beulich (SUSE)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11581847",
+						"comment_count": "3",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2018-05-10 06:50:14 +0000",
+						"thetext": "Created xen tracking bugs for this issue:\n\nAffects: fedora-all [bug 1576680]"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1576089,
+			"security": true,
+			"title": "xen: xsa261 xen: x86 vHPET interrupt injection errors (XSA-261) [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1576089",
+				"creation_ts": "2018-05-08 19:18:21 +0000",
+				"short_desc": "xen: xsa261 xen: x86 vHPET interrupt injection errors (XSA-261) [fedora-all]",
+				"delta_ts": "2018-05-27 19:18:51 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1571880",
+						"alias": "xsa261",
+						"creation_ts": "2018-04-25 15:10:14 +0000",
+						"short_desc": "CVE-2018-10982 xsa261 xen: x86 vHPET interrupt injection errors (XSA-261)",
+						"delta_ts": "2021-02-17 00:25:07 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "NOTABUG",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1576089"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "11527491",
+								"comment_count": "0",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2018-04-25 15:10:14 +0000",
+								"thetext": "ISSUE DESCRIPTION\n=================\n\nThe High Precision Event Timer (HPET) can be configured to deliver\ninterrupts in one of three different modes - through legacy interrupts;\nthrough the IO-APIC; or optionally via a method similar to PCI MSI.  The\nlast mode is optional and not implemented by Xen.  However, of the first\ntwo modes, only the legacy variant was properly implemented.\n\nIf a guest set up an HPET timer in IO-APIC mode, Xen would still\nhandle this using the code for the legacy mode.  Unfortunately, the\navailable IO-APIC mode interrupt numbers are higher than legacy mode\ninterrupts.  The result was array overruns.\n\nIMPACT\n======\n\nA malicious or buggy HVM guest may cause a hypervisor crash, resulting\nin a Denial of Service (DoS) affecting the entire host.  Privilege\nescalation, or information leaks, cannot be excluded.\n\nVULNERABLE SYSTEMS\n==================\n\nXen versions 3.1 and later are vulnerable.\n\nOnly x86 systems are vulnerable.  ARM systems are not vulnerable.\n\nOnly x86 HVM guests can exploit the vulnerability.  x86 PV and PVH\nguests cannot exploit the vulnerability.\n\nOnly x86 HVM guests provided with hypervisor-side HPET emulation can\nexploit the vulnerability.  That is the default configuration.  x86\nHVM guests whose configuration explicitly disables this emulation (via\n\"hpet=0\") cannot exploit the vulnerability.\n\nMITIGATION\n==========\n\nRunning only PV or PVH guests avoids the vulnerability.\n\nNot exposing the hypervisor based HPET emulation to HVM guests, by\nadding \"hpet=0\" to the guest configuration, also avoids the\nvulnerability.\n\nExternal References:\n\nhttp://xenbits.xen.org/xsa/advisory-261.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11576300",
+								"comment_count": "3",
+								"who": {
+									"text": "lpardo",
+									"name": "Laura Pardo"
+								},
+								"bug_when": "2018-05-08 19:18:30 +0000",
+								"thetext": "Created xen tracking bugs for this issue:\n\nAffects: fedora-all [bug 1576089]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11586083",
+								"comment_count": "4",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2018-05-11 09:22:25 +0000",
+								"thetext": "Acknowledgments:\n\nName: the Xen project\nUpstream: Roger Pau Monné (Citrix)"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11576297",
+						"comment_count": "0",
+						"who": {
+							"text": "lpardo",
+							"name": "Laura Pardo"
+						},
+						"bug_when": "2018-05-08 19:18:21 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11576298",
+						"comment_count": "1",
+						"who": {
+							"text": "lpardo",
+							"name": "Laura Pardo"
+						},
+						"bug_when": "2018-05-08 19:18:26 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1571880,1576089\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11576541",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-08 21:00:26 +0000",
+						"thetext": "xen-4.10.1-2.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-a7ac26523d"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11580770",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-09 22:04:12 +0000",
+						"thetext": "xen-4.9.2-3.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-98684f429b"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11581141",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-10 01:30:17 +0000",
+						"thetext": "xen-4.10.1-2.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-a7ac26523d"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11584556",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-10 20:01:10 +0000",
+						"thetext": "xen-4.9.2-3.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-98684f429b"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11589594",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-12 18:20:21 +0000",
+						"thetext": "xen-4.10.1-2.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11589648",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-12 19:02:31 +0000",
+						"thetext": "xen-4.8.3-5.fc26 has been pushed to the Fedora 26 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-7cd077ddd3"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11603999",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-16 13:45:04 +0000",
+						"thetext": "xen-4.9.2-3.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11638809",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-27 19:18:51 +0000",
+						"thetext": "xen-4.8.3-5.fc26 has been pushed to the Fedora 26 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1576680,
+			"security": true,
+			"title": "xen: xsa262 xen: qemu may drive Xen into unbounded loop (XSA-262) [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1576680",
+				"creation_ts": "2018-05-10 06:50:06 +0000",
+				"short_desc": "xen: xsa262 xen: qemu may drive Xen into unbounded loop (XSA-262) [fedora-all]",
+				"delta_ts": "2018-05-27 19:18:55 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1571881",
+						"alias": "xsa262",
+						"creation_ts": "2018-04-25 15:10:21 +0000",
+						"short_desc": "CVE-2018-10981 xsa262 xen: qemu may drive Xen into unbounded loop (XSA-262)",
+						"delta_ts": "2021-02-17 00:25:09 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "NOTABUG",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1576680"
+						],
+						"blocked": [
+							{
+								"bug_id": "1571887",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "11527493",
+								"comment_count": "0",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2018-04-25 15:10:21 +0000",
+								"thetext": "ISSUE DESCRIPTION\n=================\n\nWhen Xen sends requests to a device model, the next expected action\ninside Xen is tracked using a state field.  The requests themselves\nare placed in a memory page shared with the device model, so that the\ndevice model can communicate to Xen its progress on the request.  The\nstate field is in the request itself, where the device model may write\nto it.  Xen correctly rejects invalid state values, but failed to reject\ninvalid transitions between states.  As a result, a device model which\nswitches a request between two states at the right times can drive Xen\ninto an unbounded loop.\n\nIMPACT\n======\n\nA malicious unprivileged device model can cause a Denial of Service\n(DoS) affecting the entire host.  Specifically, it may prevent use of a\nphysical CPU for an indeterminate period of time.\n\nVULNERABLE SYSTEMS\n==================\n\nAll Xen versions are vulnerable.\n\nOnly x86 systems are affected.  ARM systems are not affected.\n\nOnly HVM guests can expose this vulnerability.  PV and PVH guests cannot\nexpose this vulnerability, but note that the domains being able to\nleverage the vulnerability are PV or PVH ones, running the device model.\n\nThis vulnerability is only applicable to Xen systems using stub domains.\n\nMITIGATION\n==========\n\nRunning only PV or PVH guests will avoid this issue.\n\n(The security of a Xen system using stub domains is still better than\nwith a qemu-dm running as an unrestricted dom0 process.  Therefore\nusers with these configurations should not switch to an unrestricted\ndom0 qemu-dm.)\n\nExternal References:\n\nhttp://xenbits.xen.org/xsa/advisory-262.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11581843",
+								"comment_count": "2",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2018-05-10 06:49:50 +0000",
+								"thetext": "Acknowledgments:\n\nName: the Xen project\nUpstream: Jan Beulich (SUSE)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11581847",
+								"comment_count": "3",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2018-05-10 06:50:14 +0000",
+								"thetext": "Created xen tracking bugs for this issue:\n\nAffects: fedora-all [bug 1576680]"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11581845",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2018-05-10 06:50:06 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11581846",
+						"comment_count": "1",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2018-05-10 06:50:11 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1571881,1576680\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11584596",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-10 20:19:41 +0000",
+						"thetext": "xen-4.10.1-2.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-a7ac26523d"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11584599",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-10 20:21:08 +0000",
+						"thetext": "xen-4.9.2-3.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-98684f429b"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11589596",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-12 18:20:39 +0000",
+						"thetext": "xen-4.10.1-2.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11589649",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-12 19:02:34 +0000",
+						"thetext": "xen-4.8.3-5.fc26 has been pushed to the Fedora 26 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-7cd077ddd3"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11604001",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-16 13:45:08 +0000",
+						"thetext": "xen-4.9.2-3.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11638810",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-27 19:18:55 +0000",
+						"thetext": "xen-4.8.3-5.fc26 has been pushed to the Fedora 26 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "xen-4.8.3-5.fc26",
+			"release_id": 16,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "xen-ocaml-devel",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-devel",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-ocaml",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-licenses",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-libs",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-hypervisor",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-debuginfo",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-doc",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "aarch64"
+					},
+					{
+						"name": "xen-runtime",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "xen-hypervisor",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-devel",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-doc",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-debuginfo",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-libs",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-ocaml",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-licenses",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-runtime",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xen-ocaml-devel",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "xen-libs",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-ocaml",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-devel",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-runtime",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-debuginfo",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-doc",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-hypervisor",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-licenses",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "i686"
+					},
+					{
+						"name": "xen-ocaml-devel",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "xen",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "xen-debuginfo",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-devel",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-ocaml",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-doc",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-ocaml-devel",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-licenses",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-runtime",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-libs",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xen-hypervisor",
+						"version": "4.8.3",
+						"release": "5.fc26",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 782946,
+			"text": "This update has been submitted for testing by myoung. ",
+			"timestamp": "2018-05-11 21:52:05",
+			"update_id": 115197,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 783259,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2018-05-12 19:02:38",
+			"update_id": 115197,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 784144,
+			"karma": 1,
+			"text": "Works",
+			"timestamp": "2018-05-14 10:49:14",
+			"update_id": 115197,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/cd6029d8d81108a2a69c38a2373d2a185c0e86224b8ee4971cd77bb6cdad7a20?s=24&d=retro",
+				"email": "walter.pete@yandex.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 491,
+				"name": "pwalter",
+				"openid": "pwalter.id.fedoraproject.org"
+			},
+			"user_id": 491
+		},
+		{
+			"id": 790411,
+			"text": "This update has been submitted for batched by myoung. ",
+			"timestamp": "2018-05-26 19:42:47",
+			"update_id": 115197,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 790634,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2018-05-27 03:00:08",
+			"update_id": 115197,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 790736,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2018-05-27 19:19:03",
+			"update_id": 115197,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2018-05-27 19:18:48",
+	"date_stable": "2018-05-27 19:18:48",
+	"date_submitted": "2018-05-11 21:52:05",
+	"date_testing": "2018-05-12 19:02:16",
+	"karma": 1,
+	"meets_testing_requirements": true,
+	"notes": "x86: mishandling of debug exceptions [XSA-260, CVE-2018-8897]\nx86 vHPET interrupt injection errors [XSA-261, CVE-2018-10982] (#1576089)\nqemu may drive Xen into unbounded loop [XSA-262, CVE-2018-10981] (#1576680)",
+	"pushed": true,
+	"release": {
+		"branch": "f26",
+		"candidate_tag": "f26-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f26",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 26",
+		"mail_template": "fedora_errata_template",
+		"name": "F26",
+		"override_tag": "f26-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f26-signing-pending",
+		"pending_stable_tag": "f26-updates-pending",
+		"pending_testing_tag": "f26-updates-testing-pending",
+		"stable_tag": "f26-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f26-updates-testing",
+		"version": "26"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "xen-4.8.3-5.fc26",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2018-7cd077ddd3",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2018-7cd077ddd3",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/452c109725b44d08b366f9b865d80b0ed8e42a74addb73d34d139d0bdba27b63?s=24&d=retro",
+		"email": "m.a.young@durham.ac.uk",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 129,
+		"name": "myoung",
+		"openid": "myoung.id.fedoraproject.org"
+	},
+	"version_hash": "ead7ab3926180081a03ef4c17352acfa0106ce8b"
+}

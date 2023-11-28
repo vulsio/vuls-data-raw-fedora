@@ -1,0 +1,2052 @@
+{
+	"alias": "FEDORA-2018-080a3d7866",
+	"bugs": [
+		{
+			"bug_id": 1550251,
+			"title": "diff-highlight needs building as part of the git package build",
+			"bugzilla": {
+				"bug_id": "1550251",
+				"creation_ts": "2018-02-28 20:40:08 +0000",
+				"short_desc": "diff-highlight needs building as part of the git package build",
+				"delta_ts": "2018-06-01 12:19:50 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11335038",
+						"comment_count": "0",
+						"who": {
+							"text": "richardfearn",
+							"name": "Richard Fearn"
+						},
+						"bug_when": "2018-02-28 20:40:08 +0000",
+						"thetext": "Description of problem:\n\nSince git 2.13.3, diff-highlight needs to be built (see https://github.com/git/git/commit/0c977dbc8180892af42d7ab9235fd3e51d6c4078):\n\n  make -C contrib/diff-highlight/\n\nThe spec file currently cleans up unnecessary files in other contrib subdirectories, so it could do that for diff-highlight, too:\n\n  # Clean up contrib/diff-highlight to avoid cruft in the git-core-doc docdir\n  rm -rf contrib/diff-highlight/{DiffHighlight.pm,Makefile,diff-highlight.perl,shebang.perl,t}\n\nThe only remaining problem is that the spec removes the executable bit from every file in contrib. This means the packaged diff-highlight script won't be executable by default, which would be annoying. This might help:\n\n  chmod a+x contrib/diff-highlight/diff-highlight\n\nThat would mean git-core-doc would contain an executable, though.\n\nAnother possibility might be to put it /usr/libexec/git-core - perhaps in a new subdirectory, /usr/libexec/git-core/contrib, or even its own subdirectory of that, /usr/libexec/git-core/contrib/diff-highlight. Then it could be included in the git-core package."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11385874",
+						"comment_count": "1",
+						"who": {
+							"text": "tmz",
+							"name": "Todd Zullinger"
+						},
+						"bug_when": "2018-03-16 04:29:57 +0000",
+						"thetext": "Hi Richard,\n\nI added diff-highlight in my local builds, which should eventually reach fedora.  You can test this COPR: https://copr.fedorainfracloud.org/coprs/tmz/git/ (this is currently 2.17.0.rc0).\n\nThe commit adding this is on the devel branch of my git fork:\n\n    https://src.fedoraproject.org/fork/tmz/rpms/git/c/9bcb66d7\n\n> The only remaining problem is that the spec removes the executable bit from\n> every file in contrib. This means the packaged diff-highlight script won't\n> be executable by default, which would be annoying. This might help:\n> \n>   chmod a+x contrib/diff-highlight/diff-highlight\n> \n> That would mean git-core-doc would contain an executable, though.\n\nYeah, we explicitly remove the exec bit from files in the docs, to avoid the rpm dependency generators from pulling in unwanted requirements found in the example scripts.\n\n> Another possibility might be to put it /usr/libexec/git-core - perhaps in a\n> new subdirectory, /usr/libexec/git-core/contrib, or even its own\n> subdirectory of that, /usr/libexec/git-core/contrib/diff-highlight. Then it\n> could be included in the git-core package.\n\nWe also don't want any perl dependencies in git-core.  Removing the perl dependency was the initial motivation for splitting git-core from git. :)\n\nInstead, I've installed diff-highlight in /usr/share/git-core/contrib/diff-highlight.  I used /usr/share/git-core/contrib for two reasons: 1) diff-highlight is just a perl script, so /usr/share seems more appropriate, and 2) we already have other contrib bits under /usr/share/git-core.  I think that's a reasonable location (unless diff-highlight is rewritten in C and still left in contrib, which seems unlikely).\n\nIt could certainly fit in /usr/libexec/git-core/contrib as well, but that would mean adding another location for a contrib dir and I thought it seemed more likely to be a cause of confusion than it was worth.  (I could be wrong about all this.  But that was my thought process, in any case. ;) )\n\nThe documentation is still at /usr/share/doc/git/contrib/diff-highlight/README.  Adjusting the paths from the README, you can try out the diff-highlight program with:\n\n    git log -p --color | /usr/share/git-core/contrib/diff-highlight\n\nOr make it the default by setting pager.{diff,log,show} in .gitconfig, e.g.:\n\n    [pager]\n\t    log = /usr/share/git-core/contrib/diff-highlight | less\n\t    show = /usr/share/git-core/contrib/diff-highlight | less\n\t    diff = /usr/share/git-core/contrib/diff-highlight | less\n\nIf you can test this and let me know if you run into any issues, it would be most appreciated."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11389755",
+						"comment_count": "2",
+						"who": {
+							"text": "richardfearn",
+							"name": "Richard Fearn"
+						},
+						"bug_when": "2018-03-17 08:33:27 +0000",
+						"thetext": "Thanks very much Todd for looking at this! I will try it out and report back."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11404650",
+						"comment_count": "3",
+						"who": {
+							"text": "richardfearn",
+							"name": "Richard Fearn"
+						},
+						"bug_when": "2018-03-21 23:23:18 +0000",
+						"thetext": "Yep, this works well. I think the choices you've made are fine. diff-highlight itself is in the git package, and its README is in git-core-doc.\n\nI did notice that git-core-doc also includes DiffHighlight.pm (i.e. it's not removed by the \"clean up to avoid cruft\" part of the spec), but that might have been intentional. Doesn't affect diff-highlight itself, though.\n\nWould it be possible to apply this change to the F27/F28 packages, as well as rawhide? I've cherry-picked your commit to the f27 branch (currently 2.14.3) and built git using mock; that too works fine.\n\nThanks a lot!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11404967",
+						"comment_count": "4",
+						"who": {
+							"text": "tmz",
+							"name": "Todd Zullinger"
+						},
+						"bug_when": "2018-03-22 02:17:18 +0000",
+						"thetext": "Thanks for testing Richard!\n\nIndeed it was intentional that DiffHighlight.pm is left in the doc dir.  That makes it easier for someone to discover, as that was split out of the script in order to allow others to re-use it.  I don't know if eventually it will end up installed in the perl-Git module tree or not.\n\nI've got 2.17.0-rc1 building for f28 now, as I intend to push that before f28 is released.  (It's just waiting on a really slow -- or hung -- ppc64le builder now.)\n\nI have been considering updating f27 to the current git release as well.  For a while we'd been keeping the same git release for an entire release, but I'm personally in favor of rebasing that at least every so often during a release cycle.  The git community does a very good job of not making breaking changes, so I think we'd be better off updating git in the current fedora releases to pick up the smaller bug fixes and improvements which don't get applied to a maintenance release.\n\nI have also been keeping a COPR for builds from the master/rawhide branch for EPEL and Fedora at https://copr.fedorainfracloud.org/coprs/g/git-maint/git/.  I'll probably wait until 2.17.0 is final before updating that, which should be in the next few weeks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11405084",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-03-22 03:29:54 +0000",
+						"thetext": "git-2.17.0-0.1.rc1.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-4171b66b98"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11406677",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-03-22 14:14:07 +0000",
+						"thetext": "git-2.17.0-0.1.rc1.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-4171b66b98"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11408823",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-03-22 21:55:47 +0000",
+						"thetext": "git-2.17.0-0.1.rc1.fc28.1 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-4171b66b98"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11411150",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-03-23 14:43:40 +0000",
+						"thetext": "git-2.17.0-0.1.rc1.fc28.1 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-4171b66b98"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11412216",
+						"comment_count": "9",
+						"who": {
+							"text": "richardfearn",
+							"name": "Richard Fearn"
+						},
+						"bug_when": "2018-03-23 18:41:35 +0000",
+						"thetext": "> Indeed it was intentional that DiffHighlight.pm is left in the doc dir. \n> That makes it easier for someone to discover, as that was split out of the\n> script in order to allow others to re-use it.\n\nI thought that would be the case.\n\n> I have been considering updating f27 to the current git release as well. \n> For a while we'd been keeping the same git release for an entire release,\n> but I'm personally in favor of rebasing that at least every so often during\n> a release cycle.  The git community does a very good job of not making\n> breaking changes, so I think we'd be better off updating git in the current\n> fedora releases to pick up the smaller bug fixes and improvements which\n> don't get applied to a maintenance release.\n\nWhether F27 is updated to 2.17, or stays with 2.14, I'd be very happy to see the diff-highlight change applied to the F27 package, too.\n\nIn the meantime, I'm testing the F28 2.17 packages you submitted, but on F27.\n\nThanks a lot!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11422573",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-03-27 18:18:50 +0000",
+						"thetext": "git-2.17.0-0.1.rc1.fc28.2 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-4171b66b98"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11423417",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-03-27 23:22:47 +0000",
+						"thetext": "git-2.17.0-0.1.rc1.fc28.2 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-4171b66b98"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11428859",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-03-28 22:35:17 +0000",
+						"thetext": "git-2.17.0-0.2.rc2.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-be5660a0d9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11431672",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-03-29 13:57:11 +0000",
+						"thetext": "git-2.17.0-0.2.rc2.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-be5660a0d9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11440926",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-02 22:38:07 +0000",
+						"thetext": "git-2.17.0-1.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-be5660a0d9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11443821",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-03 15:56:31 +0000",
+						"thetext": "git-2.17.0-1.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-be5660a0d9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11479472",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-11 23:01:56 +0000",
+						"thetext": "git-2.17.0-1.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11639069",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-28 01:13:30 +0000",
+						"thetext": "git-2.14.3-4.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-080a3d7866"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11641514",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-28 14:24:11 +0000",
+						"thetext": "git-2.14.3-4.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-080a3d7866"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11652605",
+						"comment_count": "19",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-29 19:23:27 +0000",
+						"thetext": "git-2.14.4-1.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-080a3d7866"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11655626",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-30 13:41:06 +0000",
+						"thetext": "git-2.14.4-1.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-080a3d7866"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11663994",
+						"comment_count": "21",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-01 12:19:50 +0000",
+						"thetext": "git-2.14.4-1.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1581678,
+			"title": "git: Null pointer dereference in git rev-parse with unknown hash",
+			"bugzilla": {
+				"bug_id": "1581678",
+				"creation_ts": "2018-05-23 11:52:31 +0000",
+				"short_desc": "git: Null pointer dereference in git rev-parse with unknown hash",
+				"delta_ts": "2018-06-01 12:19:54 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11627002",
+						"comment_count": "0",
+						"who": {
+							"text": "fweimer",
+							"name": "Florian Weimer"
+						},
+						"bug_when": "2018-05-23 11:52:31 +0000",
+						"thetext": "$ git init\nInitialized empty Git repository in /tmp/t/.git/\n$ git rev-parse ffffffffffffffffffffffffffffffffffffffff^@\nSegmentation fault (core dumped)\n$ rpm -q git\ngit-2.14.3-3.fc27.x86_64\n\nGDB shows this:\n\n(gdb) break lookup_commit_reference\nBreakpoint 1 at 0x555555609f00: lookup_commit_reference. (3 locations)\n(gdb) r\nStarting program: /usr/bin/git rev-parse ffffffffffffffffffffffffffffffffffffffff\\^@\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/lib64/libthread_db.so.1\".\n\nBreakpoint 1, lookup_commit_reference (oid=oid@entry=0x7fffffffd550) at commit.c:34\n34\t\treturn lookup_commit_reference_gently(oid, 0);\n(gdb) finish\nRun till exit from #0  lookup_commit_reference (oid=oid@entry=0x7fffffffd550) at commit.c:34\ntry_parent_shorthands (arg=0x7fffffffdd44 'f' <repeats 40 times>) at builtin/rev-parse.c:314\n314\t\t\tinclude_parents = 1;\nValue returned is $1 = (struct commit *) 0x0\n(gdb) c\n\n(gdb) c\nContinuing.\n\nProgram received signal SIGSEGV, Segmentation fault.\ntry_parent_shorthands (arg=0x7fffffffdd44 'f' <repeats 40 times>) at builtin/rev-parse.c:345\n345\t\tfor (parents = commit->parents, parent_number = 1;\n(gdb) l 336,+15\n336\t\tcommit = lookup_commit_reference(&oid);\n337\t\tif (exclude_parent &&\n338\t\t    exclude_parent > commit_list_count(commit->parents)) {\n339\t\t\t*dotdot = '^';\n340\t\t\treturn 0;\n341\t\t}\n342\t\n343\t\tif (include_rev)\n344\t\t\tshow_rev(NORMAL, &oid, arg);\n345\t\tfor (parents = commit->parents, parent_number = 1;\n346\t\t     parents;\n347\t\t     parents = parents->next, parent_number++) {\n348\t\t\tchar *name = NULL;\n349\t\n350\t\t\tif (exclude_parent && parent_number != exclude_parent)\n351\t\t\t\tcontinue;\n\nLooks like a null pointer check is missing."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11628993",
+						"comment_count": "1",
+						"who": {
+							"text": "tmz",
+							"name": "Todd Zullinger"
+						},
+						"bug_when": "2018-05-23 19:55:09 +0000",
+						"thetext": "Thanks for the detailed report Florian.  I reported this upstream here:\n\nhttps://public-inbox.org/git/20180523195227.GT26695@zaya.teonanacatl.net/T/#u\n\nThis goes back a long time.  The oldest git I tested was 1.8.3.1 from EL6."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11639070",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-28 01:13:39 +0000",
+						"thetext": "git-2.14.3-4.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-080a3d7866"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11641517",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-28 14:24:15 +0000",
+						"thetext": "git-2.14.3-4.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-080a3d7866"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11652606",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-29 19:23:36 +0000",
+						"thetext": "git-2.14.4-1.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-080a3d7866"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11655627",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-30 13:41:11 +0000",
+						"thetext": "git-2.14.4-1.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-080a3d7866"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11663995",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-01 12:19:54 +0000",
+						"thetext": "git-2.14.4-1.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1583862,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2018-11235 git: arbitrary code execution when recursively cloning a malicious repository",
+			"bugzilla": {
+				"bug_id": "1583862",
+				"alias": "CVE-2018-11235",
+				"creation_ts": "2018-05-29 23:08:10 +0000",
+				"short_desc": "CVE-2018-11235 git: arbitrary code execution when recursively cloning a malicious repository",
+				"delta_ts": "2021-09-09 14:17:53 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "high",
+				"bug_severity": "high",
+				"depends_on": [
+					"1583877",
+					"1583878",
+					"1584195",
+					"1584196",
+					"1584197",
+					"1584198",
+					"1584505",
+					"1585001",
+					"1595769",
+					"1596744",
+					"1620099",
+					"1620101",
+					"1620102",
+					"1620103",
+					"1620104",
+					"1620105"
+				],
+				"blocked": [
+					{
+						"bug_id": "1583883",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2018:2147",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11653123",
+						"comment_count": "0",
+						"who": {
+							"text": "tmz",
+							"name": "Todd Zullinger"
+						},
+						"bug_when": "2018-05-29 23:08:10 +0000",
+						"thetext": "A flaw was found in git which allows arbitrary code to be executed when running 'git clone --recurse-submodules` (or the deprecated 'git clone --recursive' synonym).  A malicious repository can include a .gitmodules submodule config file which points outside of the repository.  When git clones such a repository it can be tricked into running hooks within the cloned submodule, which is under the control of the attacker.\n\nReferences:\nhttps://public-inbox.org/git/xmqqy3g2flb6.fsf@gitster-ct.c.googlers.com/\nhttps://www.edwardthomson.com/blog/upgrading_git_for_cve2018_11235.html\nhttps://news.ycombinator.com/item?id=17181238"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11653131",
+						"comment_count": "1",
+						"who": {
+							"text": "tmz",
+							"name": "Todd Zullinger"
+						},
+						"bug_when": "2018-05-29 23:12:54 +0000",
+						"thetext": "Updated Fedora builds have been submitted for current releases:\n\nF28: https://bodhi.fedoraproject.org/updates/FEDORA-2018-75f7624a9f\nF27: https://bodhi.fedoraproject.org/updates/FEDORA-2018-080a3d7866\n\nSites hosting git repositories can help mitigate the propagation of this issue to unpatched git clients by enabling 'transfer.fsckObjects'.  (The hosting site should be running a patched git, of course.)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11653212",
+						"comment_count": "2",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-05-30 00:17:32 +0000",
+						"thetext": "Created git tracking bugs for this issue:\n\nAffects: fedora-all [bug 1583878]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11653911",
+						"comment_count": "4",
+						"who": {
+							"text": "jshepherd",
+							"name": "Jason Shepherd"
+						},
+						"bug_when": "2018-05-30 06:29:58 +0000",
+						"thetext": "There is a simple way to test if you installation of 'git' is vulnerable:\n\ngit init test && \\\n  cd test && \\\n  git update-index --add --cacheinfo 120000,e69de29bb2d1d6434b8b29ae775ad8c2e48c5391,.gitmodules\n\nReference: https://www.edwardthomson.com/blog/upgrading_git_for_cve2018_11235.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11654007",
+						"comment_count": "7",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2018-05-30 07:03:34 +0000",
+						"thetext": "External References:\n\nhttps://www.edwardthomson.com/blog/upgrading_git_for_cve2018_11235.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11658200",
+						"comment_count": "16",
+						"who": {
+							"text": "jshepherd",
+							"name": "Jason Shepherd"
+						},
+						"bug_when": "2018-05-31 06:34:22 +0000",
+						"thetext": "A user of Openshift Online does not have the ability to add new volumes. Therefore this vulnerability cannot be exploited by a user of Openshift Online by creating a volume from a GitRepo source [1]. The 'source-to-image' functionality in Openshift Online is currently affected.\n\n[1] https://docs.openshift.com/container-platform/3.9/dev_guide/volumes.html#adding-volumes"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11662924",
+						"comment_count": "23",
+						"who": {
+							"text": "jshepherd",
+							"name": "Jason Shepherd"
+						},
+						"bug_when": "2018-06-01 06:41:02 +0000",
+						"thetext": "The 'git' binary is not installed in the RHEL Atomic base image, registry.access.redhat.com/rhel7-atomic."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11663934",
+						"comment_count": "26",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-01 12:04:16 +0000",
+						"thetext": "git-2.17.1-2.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11723404",
+						"comment_count": "33",
+						"who": {
+							"text": "otheus.uibk",
+							"name": "Otheus"
+						},
+						"bug_when": "2018-06-20 15:43:10 +0000",
+						"thetext": "Is there someone working on a patch for 1.8.3.1 (RHEL7)?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11724778",
+						"comment_count": "34",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2018-06-20 23:05:52 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2018:1957 https://access.redhat.com/errata/RHSA-2018:1957"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11747352",
+						"comment_count": "35",
+						"who": {
+							"text": "rschiron",
+							"name": "Riccardo Schirone"
+						},
+						"bug_when": "2018-06-27 14:06:43 +0000",
+						"thetext": "Created libgit2 tracking bugs for this issue:\n\nAffects: fedora-all [bug 1595769]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11782100",
+						"comment_count": "36",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2018-07-10 08:34:47 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.5 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.3 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.4 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n\nVia RHSA-2018:2147 https://access.redhat.com/errata/RHSA-2018:2147"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11939091",
+						"comment_count": "46",
+						"who": {
+							"text": "jshepherd",
+							"name": "Jason Shepherd"
+						},
+						"bug_when": "2018-08-22 12:59:24 +0000",
+						"thetext": "Mitigation:\n\nDon't create OCP source-to-image applications from source code repositories hosted by untrusted parties. Github is blocking users from pushing repositories with malicious submodules so it's less likely you can pull a malicious repository from there which triggers this vulnerability."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11954094",
+						"comment_count": "49",
+						"who": {
+							"text": "jshepherd",
+							"name": "Jason Shepherd"
+						},
+						"bug_when": "2018-08-27 01:08:25 +0000",
+						"thetext": "Statement:\n\nThis issue did not affect the versions of git as shipped with Red Hat Enterprise Linux 6 as they did not include the vulnerable code.\n\nIf using OCP 3.6 make sure atomic-openshift-3.6.173.0.128-1.git.0.8da0828.el7 or later is installed on the master."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11954100",
+						"comment_count": "50",
+						"who": {
+							"text": "bparees",
+							"name": "Ben Parees"
+						},
+						"bug_when": "2018-08-27 01:16:47 +0000",
+						"thetext": "I was wrong, they were not the same package.  The git binary reports the same version, but the package level is different and I guess something was patched between the two."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1583878,
+			"security": true,
+			"title": "CVE-2018-11235 git: arbitrary code execution when recursively cloning a malicious repository [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1583878",
+				"creation_ts": "2018-05-30 00:17:22 +0000",
+				"short_desc": "CVE-2018-11235 git: arbitrary code execution when recursively cloning a malicious repository [fedora-all]",
+				"delta_ts": "2018-06-02 15:24:16 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "1583862",
+						"alias": "CVE-2018-11235",
+						"creation_ts": "2018-05-29 23:08:10 +0000",
+						"short_desc": "CVE-2018-11235 git: arbitrary code execution when recursively cloning a malicious repository",
+						"delta_ts": "2021-09-09 14:17:53 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"1583877",
+							"1583878",
+							"1584195",
+							"1584196",
+							"1584197",
+							"1584198",
+							"1584505",
+							"1585001",
+							"1595769",
+							"1596744",
+							"1620099",
+							"1620101",
+							"1620102",
+							"1620103",
+							"1620104",
+							"1620105"
+						],
+						"blocked": [
+							{
+								"bug_id": "1583883",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2018:2147",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "11653123",
+								"comment_count": "0",
+								"who": {
+									"text": "tmz",
+									"name": "Todd Zullinger"
+								},
+								"bug_when": "2018-05-29 23:08:10 +0000",
+								"thetext": "A flaw was found in git which allows arbitrary code to be executed when running 'git clone --recurse-submodules` (or the deprecated 'git clone --recursive' synonym).  A malicious repository can include a .gitmodules submodule config file which points outside of the repository.  When git clones such a repository it can be tricked into running hooks within the cloned submodule, which is under the control of the attacker.\n\nReferences:\nhttps://public-inbox.org/git/xmqqy3g2flb6.fsf@gitster-ct.c.googlers.com/\nhttps://www.edwardthomson.com/blog/upgrading_git_for_cve2018_11235.html\nhttps://news.ycombinator.com/item?id=17181238"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11653131",
+								"comment_count": "1",
+								"who": {
+									"text": "tmz",
+									"name": "Todd Zullinger"
+								},
+								"bug_when": "2018-05-29 23:12:54 +0000",
+								"thetext": "Updated Fedora builds have been submitted for current releases:\n\nF28: https://bodhi.fedoraproject.org/updates/FEDORA-2018-75f7624a9f\nF27: https://bodhi.fedoraproject.org/updates/FEDORA-2018-080a3d7866\n\nSites hosting git repositories can help mitigate the propagation of this issue to unpatched git clients by enabling 'transfer.fsckObjects'.  (The hosting site should be running a patched git, of course.)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11653212",
+								"comment_count": "2",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2018-05-30 00:17:32 +0000",
+								"thetext": "Created git tracking bugs for this issue:\n\nAffects: fedora-all [bug 1583878]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11653911",
+								"comment_count": "4",
+								"who": {
+									"text": "jshepherd",
+									"name": "Jason Shepherd"
+								},
+								"bug_when": "2018-05-30 06:29:58 +0000",
+								"thetext": "There is a simple way to test if you installation of 'git' is vulnerable:\n\ngit init test && \\\n  cd test && \\\n  git update-index --add --cacheinfo 120000,e69de29bb2d1d6434b8b29ae775ad8c2e48c5391,.gitmodules\n\nReference: https://www.edwardthomson.com/blog/upgrading_git_for_cve2018_11235.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11654007",
+								"comment_count": "7",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2018-05-30 07:03:34 +0000",
+								"thetext": "External References:\n\nhttps://www.edwardthomson.com/blog/upgrading_git_for_cve2018_11235.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11658200",
+								"comment_count": "16",
+								"who": {
+									"text": "jshepherd",
+									"name": "Jason Shepherd"
+								},
+								"bug_when": "2018-05-31 06:34:22 +0000",
+								"thetext": "A user of Openshift Online does not have the ability to add new volumes. Therefore this vulnerability cannot be exploited by a user of Openshift Online by creating a volume from a GitRepo source [1]. The 'source-to-image' functionality in Openshift Online is currently affected.\n\n[1] https://docs.openshift.com/container-platform/3.9/dev_guide/volumes.html#adding-volumes"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11662924",
+								"comment_count": "23",
+								"who": {
+									"text": "jshepherd",
+									"name": "Jason Shepherd"
+								},
+								"bug_when": "2018-06-01 06:41:02 +0000",
+								"thetext": "The 'git' binary is not installed in the RHEL Atomic base image, registry.access.redhat.com/rhel7-atomic."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11663934",
+								"comment_count": "26",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2018-06-01 12:04:16 +0000",
+								"thetext": "git-2.17.1-2.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11723404",
+								"comment_count": "33",
+								"who": {
+									"text": "otheus.uibk",
+									"name": "Otheus"
+								},
+								"bug_when": "2018-06-20 15:43:10 +0000",
+								"thetext": "Is there someone working on a patch for 1.8.3.1 (RHEL7)?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11724778",
+								"comment_count": "34",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2018-06-20 23:05:52 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2018:1957 https://access.redhat.com/errata/RHSA-2018:1957"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11747352",
+								"comment_count": "35",
+								"who": {
+									"text": "rschiron",
+									"name": "Riccardo Schirone"
+								},
+								"bug_when": "2018-06-27 14:06:43 +0000",
+								"thetext": "Created libgit2 tracking bugs for this issue:\n\nAffects: fedora-all [bug 1595769]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11782100",
+								"comment_count": "36",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2018-07-10 08:34:47 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.5 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.3 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.4 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n\nVia RHSA-2018:2147 https://access.redhat.com/errata/RHSA-2018:2147"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11939091",
+								"comment_count": "46",
+								"who": {
+									"text": "jshepherd",
+									"name": "Jason Shepherd"
+								},
+								"bug_when": "2018-08-22 12:59:24 +0000",
+								"thetext": "Mitigation:\n\nDon't create OCP source-to-image applications from source code repositories hosted by untrusted parties. Github is blocking users from pushing repositories with malicious submodules so it's less likely you can pull a malicious repository from there which triggers this vulnerability."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11954094",
+								"comment_count": "49",
+								"who": {
+									"text": "jshepherd",
+									"name": "Jason Shepherd"
+								},
+								"bug_when": "2018-08-27 01:08:25 +0000",
+								"thetext": "Statement:\n\nThis issue did not affect the versions of git as shipped with Red Hat Enterprise Linux 6 as they did not include the vulnerable code.\n\nIf using OCP 3.6 make sure atomic-openshift-3.6.173.0.128-1.git.0.8da0828.el7 or later is installed on the master."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11954100",
+								"comment_count": "50",
+								"who": {
+									"text": "bparees",
+									"name": "Ben Parees"
+								},
+								"bug_when": "2018-08-27 01:16:47 +0000",
+								"thetext": "I was wrong, they were not the same package.  The git binary reports the same version, but the package level is different and I guess something was patched between the two."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11653210",
+						"comment_count": "0",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-05-30 00:17:22 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11653211",
+						"comment_count": "1",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-05-30 00:17:28 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1583862,1583878\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11653256",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-30 00:49:47 +0000",
+						"thetext": "git-2.17.1-2.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-75f7624a9f"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11653257",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-30 00:50:56 +0000",
+						"thetext": "git-2.14.4-1.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-080a3d7866"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11655628",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-30 13:41:16 +0000",
+						"thetext": "git-2.14.4-1.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-080a3d7866"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11656589",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-30 16:56:00 +0000",
+						"thetext": "git-2.17.1-2.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-75f7624a9f"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11663932",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-01 12:04:12 +0000",
+						"thetext": "git-2.17.1-2.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11663996",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-01 12:19:58 +0000",
+						"thetext": "git-2.14.4-1.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1583888,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2018-11233 git: path sanity-checks on NTFS can read arbitrary memory",
+			"bugzilla": {
+				"bug_id": "1583888",
+				"alias": "CVE-2018-11233",
+				"creation_ts": "2018-05-30 00:43:05 +0000",
+				"short_desc": "CVE-2018-11233 git: path sanity check in is_ntfs_dotgit() can read arbitrary memory",
+				"delta_ts": "2021-02-17 00:14:52 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1583890",
+					"1583891",
+					"1584241",
+					"1593733"
+				],
+				"blocked": [
+					{
+						"bug_id": "1583883",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2018:2147",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11653251",
+						"comment_count": "0",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-05-30 00:43:05 +0000",
+						"thetext": "Git before versions 2.13.7, 2.14.4, 2.15.2, 2.16.4 and 2.17.1 performs path\nsanity-checks in is_ntfs_dotgit():path.c that can be fooled into reading\narbitrary memory.\n\nUpstream announcement:\nhttps://marc.info/?l=git&m=152761328506724&w=2"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11653283",
+						"comment_count": "1",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-05-30 01:11:16 +0000",
+						"thetext": "Created git tracking bugs for this issue:\n\nAffects: fedora-all [bug 1583890]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11659828",
+						"comment_count": "7",
+						"who": {
+							"text": "rschiron",
+							"name": "Riccardo Schirone"
+						},
+						"bug_when": "2018-05-31 11:25:38 +0000",
+						"thetext": "Statement:\n\nThis issue did not affect the versions of git as shipped with Red Hat Enterprise Linux 6 and 7 as they did not include the vulnerable code."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11663936",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-01 12:04:37 +0000",
+						"thetext": "git-2.17.1-2.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11778500",
+						"comment_count": "15",
+						"who": {
+							"text": "rschiron",
+							"name": "Riccardo Schirone"
+						},
+						"bug_when": "2018-07-09 10:06:00 +0000",
+						"thetext": "Patch:\nhttps://github.com/git/git/commit/11a9f4d807a0d71dc6eff51bb87baf4ca2cccf1d"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11782101",
+						"comment_count": "16",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2018-07-10 08:34:50 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.5 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.3 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.4 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n\nVia RHSA-2018:2147 https://access.redhat.com/errata/RHSA-2018:2147"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1583890,
+			"security": true,
+			"title": "CVE-2018-11233 git: path sanity-checks on NTFS can read arbitrary memory [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1583890",
+				"creation_ts": "2018-05-30 01:11:03 +0000",
+				"short_desc": "CVE-2018-11233 git: path sanity-checks on NTFS can read arbitrary memory [fedora-all]",
+				"delta_ts": "2018-06-02 15:25:46 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1583888",
+						"alias": "CVE-2018-11233",
+						"creation_ts": "2018-05-30 00:43:05 +0000",
+						"short_desc": "CVE-2018-11233 git: path sanity check in is_ntfs_dotgit() can read arbitrary memory",
+						"delta_ts": "2021-02-17 00:14:52 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1583890",
+							"1583891",
+							"1584241",
+							"1593733"
+						],
+						"blocked": [
+							{
+								"bug_id": "1583883",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2018:2147",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "11653251",
+								"comment_count": "0",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2018-05-30 00:43:05 +0000",
+								"thetext": "Git before versions 2.13.7, 2.14.4, 2.15.2, 2.16.4 and 2.17.1 performs path\nsanity-checks in is_ntfs_dotgit():path.c that can be fooled into reading\narbitrary memory.\n\nUpstream announcement:\nhttps://marc.info/?l=git&m=152761328506724&w=2"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11653283",
+								"comment_count": "1",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2018-05-30 01:11:16 +0000",
+								"thetext": "Created git tracking bugs for this issue:\n\nAffects: fedora-all [bug 1583890]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11659828",
+								"comment_count": "7",
+								"who": {
+									"text": "rschiron",
+									"name": "Riccardo Schirone"
+								},
+								"bug_when": "2018-05-31 11:25:38 +0000",
+								"thetext": "Statement:\n\nThis issue did not affect the versions of git as shipped with Red Hat Enterprise Linux 6 and 7 as they did not include the vulnerable code."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11663936",
+								"comment_count": "8",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2018-06-01 12:04:37 +0000",
+								"thetext": "git-2.17.1-2.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11778500",
+								"comment_count": "15",
+								"who": {
+									"text": "rschiron",
+									"name": "Riccardo Schirone"
+								},
+								"bug_when": "2018-07-09 10:06:00 +0000",
+								"thetext": "Patch:\nhttps://github.com/git/git/commit/11a9f4d807a0d71dc6eff51bb87baf4ca2cccf1d"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11782101",
+								"comment_count": "16",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2018-07-10 08:34:50 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.5 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.3 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.4 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 6\n  Red Hat Software Collections for Red Hat Enterprise Linux 6.7 EUS\n\nVia RHSA-2018:2147 https://access.redhat.com/errata/RHSA-2018:2147"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11653280",
+						"comment_count": "0",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-05-30 01:11:03 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11653282",
+						"comment_count": "1",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-05-30 01:11:11 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1583888,1583890\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11653288",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-30 01:15:42 +0000",
+						"thetext": "git-2.14.4-1.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-080a3d7866"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11653290",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-30 01:17:46 +0000",
+						"thetext": "git-2.17.1-2.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-75f7624a9f"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11655632",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-30 13:41:20 +0000",
+						"thetext": "git-2.14.4-1.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-080a3d7866"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11656590",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-30 16:56:04 +0000",
+						"thetext": "git-2.17.1-2.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-75f7624a9f"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11663935",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-01 12:04:33 +0000",
+						"thetext": "git-2.17.1-2.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11663999",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-01 12:20:23 +0000",
+						"thetext": "git-2.14.4-1.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "git-2.14.4-1.fc27",
+			"release_id": 17,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "git-core",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "git",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "git-core-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "git-svn",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "git-daemon-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "git-daemon",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "git-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "git-core-doc",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "git-debugsource",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "git-svn-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "git-daemon-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "git-debugsource",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "git",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "git-svn",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "git-daemon",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "git-core",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "git-core-doc",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "git-core-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "git-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "git-svn-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "git-core-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "git-daemon",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "git-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "git-svn",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "git-core",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "git-svn-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "git",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "git-daemon-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "git-debugsource",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "git-core-doc",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "git-gui",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "noarch"
+					},
+					{
+						"name": "git-email",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "noarch"
+					},
+					{
+						"name": "gitweb",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "noarch"
+					},
+					{
+						"name": "gitk",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "noarch"
+					},
+					{
+						"name": "perl-Git",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "noarch"
+					},
+					{
+						"name": "perl-Git-SVN",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "noarch"
+					},
+					{
+						"name": "git-all",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "noarch"
+					},
+					{
+						"name": "git-cvs",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "noarch"
+					},
+					{
+						"name": "git-p4",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "noarch"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "git-daemon-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "git-debugsource",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "git-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "git-svn-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "git-core",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "git-daemon",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "git-svn",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "git",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "git-core-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "git-core-doc",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "git-debugsource",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "git-core",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "git-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "git-core-doc",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "git-daemon-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "git-svn-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "git",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "git-daemon",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "git-core-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "git-svn",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "git",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "git-core",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "git-core-doc",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "git-daemon",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "git-svn",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "git-debugsource",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "git-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "git-core-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "git-daemon-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "git-svn-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "git",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "git",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "git-svn",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "git-core",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "git-svn-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "git-debugsource",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "git-core-doc",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "git-core-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "git-daemon",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "git-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "git-daemon-debuginfo",
+						"version": "2.14.4",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 790863,
+			"text": "This update has been submitted for testing by tmz. ",
+			"timestamp": "2018-05-28 01:13:23",
+			"update_id": 116246,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 791057,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2018-05-28 14:25:23",
+			"update_id": 116246,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 791635,
+			"text": "tmz edited this update.\n\nNew build(s):\n\n- git-2.14.4-1.fc27\n\nRemoved build(s):\n\n- git-2.14.3-4.fc27\n\nKarma has been reset.",
+			"timestamp": "2018-05-29 19:23:19",
+			"update_id": 116246,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 791636,
+			"text": "This update has been submitted for testing by tmz. ",
+			"timestamp": "2018-05-29 19:23:20",
+			"update_id": 116246,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 791658,
+			"text": "tmz edited this update.",
+			"timestamp": "2018-05-29 23:13:15",
+			"update_id": 116246,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 791693,
+			"text": "tmz edited this update.",
+			"timestamp": "2018-05-30 00:50:52",
+			"update_id": 116246,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 791701,
+			"text": "tmz edited this update.",
+			"timestamp": "2018-05-30 01:15:35",
+			"update_id": 116246,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 791884,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2018-05-30 13:42:39",
+			"update_id": 116246,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 792040,
+			"karma": 1,
+			"text": "Works fine, fixes critical security issue",
+			"timestamp": "2018-05-30 16:12:38",
+			"update_id": 116246,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/386eb2e0aacc77e5f937764246a379b46320717890301edb36805ebf1847b4b8?s=24&d=retro",
+				"email": "mail@leoschabel.de",
+				"id": 3262,
+				"name": "leoluk",
+				"openid": "leoluk.id.fedoraproject.org"
+			},
+			"user_id": 3262
+		},
+		{
+			"id": 792045,
+			"karma": 1,
+			"karma_critpath": 1,
+			"timestamp": "2018-05-30 16:27:35",
+			"update_id": 116246,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/b4b737f1b10d3cd0ea6be323040fb47f99fef16cd1b81438932a5d3442bd16bd?s=24&d=retro",
+				"email": "alex.birkner@gmail.com",
+				"id": 3398,
+				"name": "tyrola",
+				"openid": "tyrola.id.fedoraproject.org"
+			},
+			"user_id": 3398
+		},
+		{
+			"id": 792479,
+			"karma": 1,
+			"karma_critpath": 1,
+			"timestamp": "2018-05-31 13:30:27",
+			"update_id": 116246,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/5720922c291ad411a98ad2d5f469f29ee84710bd8ec9f91f7fd58411fec05056?s=24&d=retro",
+				"email": "carl@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "python-sig"
+					},
+					{
+						"name": "infra-sig"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "sysadmin-web"
+					},
+					{
+						"name": "epel-packagers-sig"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "centosproject-email-aliases"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "caddy"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "sig-extras"
+					},
+					{
+						"name": "centos-rcm"
+					},
+					{
+						"name": "qa_users"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "python-packagers-sig"
+					}
+				],
+				"id": 3717,
+				"name": "carlwgeorge",
+				"openid": "carlwgeorge.id.fedoraproject.org"
+			},
+			"user_id": 3717
+		},
+		{
+			"id": 792535,
+			"text": "This update has been submitted for batched by tmz. ",
+			"timestamp": "2018-05-31 15:03:52",
+			"update_id": 116246,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 792536,
+			"text": "This update has been submitted for stable by tmz. ",
+			"timestamp": "2018-05-31 15:04:02",
+			"update_id": 116246,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 792551,
+			"karma": 1,
+			"text": "works for me in a VM",
+			"timestamp": "2018-05-31 15:06:02",
+			"update_id": 116246,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/054959f4db5d1ad8f22cae1ba73e26ebfd3edd6690c21cc7ee00608f294ff22a?s=24&d=retro",
+				"email": "cserpentis@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 739,
+				"name": "cserpentis",
+				"openid": "cserpentis.id.fedoraproject.org"
+			},
+			"user_id": 739
+		},
+		{
+			"id": 792945,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2018-06-01 12:21:03",
+			"update_id": 116246,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_modified": "2018-05-30 01:15:37",
+	"date_pushed": "2018-06-01 12:19:10",
+	"date_stable": "2018-06-01 12:19:10",
+	"date_submitted": "2018-05-28 01:13:23",
+	"date_testing": "2018-05-30 13:40:54",
+	"karma": 4,
+	"meets_testing_requirements": true,
+	"notes": "Upstream security fixes related to .gitmodules handling.  From the [upstream announcement](https://public-inbox.org/git/xmqqy3g2flb6.fsf@gitster-ct.c.googlers.com/):\n\n```\n* Submodule \"names\" come from the untrusted .gitmodules file, but we\n  blindly append them to $GIT_DIR/modules to create our on-disk repo\n  paths. This means you can do bad things by putting \"../\" into the\n  name. We now enforce some rules for submodule names which will cause\n  Git to ignore these malicious names (CVE-2018-11235).\n\n  Credit for finding this vulnerability and the proof of concept from\n  which the test script was adapted goes to Etienne Stalmans.\n\n* It was possible to trick the code that sanity-checks paths on NTFS\n  into reading random piece of memory (CVE-2018-11233).\n```\n\nAlso fix a segfault in rev-parse with invalid input (#1581678) and install contrib/diff-highlight (#1550251).\n\n\n",
+	"pushed": true,
+	"release": {
+		"branch": "f27",
+		"candidate_tag": "f27-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f27",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 27",
+		"mail_template": "fedora_errata_template",
+		"name": "F27",
+		"override_tag": "f27-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f27-signing-pending",
+		"pending_stable_tag": "f27-updates-pending",
+		"pending_testing_tag": "f27-updates-testing-pending",
+		"stable_tag": "f27-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f27-updates-testing",
+		"version": "27"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "high",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "git-2.14.4-1.fc27",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2018-080a3d7866",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2018-080a3d7866",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/a48a72e5754f0b2cf38fac2815d4e1ae1c5b60f10df13da0463714d020965e58?s=24&d=retro",
+		"email": "tmz@pobox.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "web"
+			},
+			{
+				"name": "gitfedora-web"
+			},
+			{
+				"name": "git-maint"
+			},
+			{
+				"name": "gitkeychecker"
+			}
+		],
+		"id": 136,
+		"name": "tmz",
+		"openid": "tmz.id.fedoraproject.org"
+	},
+	"version_hash": "2df1b3283e73a82bd321c78ae6026da4a4ba21df"
+}

@@ -1,0 +1,380 @@
+{
+	"alias": "FEDORA-EPEL-2010-2708",
+	"bugs": [
+		{
+			"bug_id": 526513,
+			"parent": true,
+			"security": true,
+			"title": "html2ps: arbitrary file disclosure in SSI directives",
+			"bugzilla": {
+				"bug_id": "526513",
+				"alias": "CVE-2009-5067",
+				"creation_ts": "2009-09-30 17:26:22 +0000",
+				"short_desc": "CVE-2009-5067 html2ps: arbitrary file disclosure in SSI directives",
+				"delta_ts": "2019-09-29 12:32:27 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"bug_file_loc": "http://user.it.uu.se/~jan/html2ps.html",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"530386",
+					"530398",
+					"530403",
+					"586356",
+					"587324"
+				],
+				"external_bugs": {
+					"text": "548633",
+					"name": "Debian BTS"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "2386786",
+						"comment_count": "0",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2009-09-30 17:26:22 +0000",
+						"thetext": "It was reported [1] that html2ps suffers from an arbitrary file disclosure in SSI directives, as noted via the exploit [2] posted to PacketStorm.  This has not been addressed upstream from what I can tell.  If html2ps is called via a web page that allows a user to upload the content to convert to ps, it could allow for abitrary file content disclosure based on the permissions of the user running html2ps.\n\nThis would affect html2ps in Fedora 10, 11, rawhide, and EPEL 5.\n\n[1] http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=548633\n[2] http://www.packetstormsecurity.org/0909-exploits/html2ps-disclose.txt"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2413486",
+						"comment_count": "1",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2009-10-20 16:44:21 +0000",
+						"thetext": "This was not reported upstream at all, so I emailed the author.  He isn't really maintaining html2ps anymore, but did provide the following patch to disable SSI support:\n\n*** 2526,2530 ****\n        $inc=\"\";\n        $file=$3;\n!       if($1 eq \"include\" && (substr($file,0,1) ne \"/\" || $opt_r)) {\n          if(substr($file,0,1) ne \"/\") {\n            $file=$B2.$file;\n--- 2526,2530 ----\n        $inc=\"\";\n        $file=$3;\n!       if(0 && $1 eq \"include\" && (substr($file,0,1) ne \"/\" || $opt_r)) {\n          if(substr($file,0,1) ne \"/\") {\n            $file=$B2.$file;\n\nHe has, however, indicated that he will try to come up with a better fix.  I think it unlikely that many people would be using html2ps as a CGI to parse untrusted user input, so it may be prudent to disable the support altogether if we do not get an appropriate fix or cannot come up with one."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2417565",
+						"comment_count": "3",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2009-10-22 15:36:05 +0000",
+						"thetext": "Upstream has released 1.0b6 to address this issue:\n\n  091021 1.0b6   \"Security\" fix. Changed behavior for SSI, to avoid having\n                 arbitrary readable files disclosed on a web server that uses\n                 html2ps in a web application (cgi script etc), allowing HTML\n                 files to be uploaded for conversion. Setting up a service like\n                 this is begging for trouble in my opinion. (Is /bin/cat also\n                 a vulnerability, since one can use it in a web app, allowing\n                 uploading arbitrary parameters to it?)\n\nCould you update to the b6 release?  The diff is quite small so patching would be an option as well, but because the only change in this version is this fix, I think it would be better to update to the latest version.\n\nhttp://user.it.uu.se/~jan/html2ps.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2804349",
+						"comment_count": "7",
+						"who": {
+							"text": "ppisar",
+							"name": "Petr Pisar"
+						},
+						"bug_when": "2010-04-27 11:50:36 +0000",
+						"thetext": "New upstream fix does two things: disable SSI by default and checks for \"..\" in file path.\n\nProblem is the second thing is done by m// operator that replaces $` and $' variables that are used later.\n\nIOW, the fix introduce bug"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2804460",
+						"comment_count": "8",
+						"who": {
+							"text": "ppisar",
+							"name": "Petr Pisar"
+						},
+						"bug_when": "2010-04-27 12:00:38 +0000",
+						"thetext": "(In reply to comment #7)\nIOW, the fix introduce regression. I have proposed following fix to upstream:\n\ndiff --git a/html2ps b/html2ps\nindex 98d3b8c..b6fb943 100755\n--- a/html2ps\n+++ b/html2ps\n@@ -2525,6 +2525,7 @@ sub Subst{\n     while(/<!--#(include|config|echo)\\s+(\\w+)\\s*=\"([^\"]+)\"\\s*-->/) {\n       $inc=\"\";\n       $file=$3;\n+      my ($prefix, $suffix) = ($`,$');\n       if($1 eq \"include\" && ($file !~m\"^/|\\.\\.\" || $opt_r)) {\n         if(substr($file,0,1) ne \"/\") {\n           $file=$B2.$file;\n@@ -2545,7 +2546,7 @@ sub Subst{\n       } elsif ($1 eq \"echo\") {\n         $inc=$var{$3};\n       }\n-      $_=$`.$inc.$';\n+      $_=$prefix.$inc.$suffix;\n     }\n   }\n   s/(&shy;?|&#173;?|<!--hy-->)/)HY(/g;"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2814449",
+						"comment_count": "9",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2010-04-29 15:34:22 +0000",
+						"thetext": "Petr, have you heard from upstream yet regarding this?  Is this fix suitable to fix the regression and something they will be incorporating upstream?\n\nThanks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2815194",
+						"comment_count": "11",
+						"who": {
+							"text": "ppisar",
+							"name": "Petr Pisar"
+						},
+						"bug_when": "2010-04-29 21:01:39 +0000",
+						"thetext": "No, I haven't. However I think the patch is very trivial and bug in 1.0b6 upstream version is obvious. This is what I sent to upstream:\n\n===Begining of mail===\nDate: Tue, 27 Apr 2010 13:30:50 +0200\nFrom: Petr Pisar <ppisar@redhat.com>\nTo: jan@it.uu.se\nSubject: html2ps-1.0b6 SSI fix breaks document composition\n\nHello,\n\nwhile reviewing html2ps-1.0b6 release because of SSI directory traversal bug,\nI found your fix introduced regression:\n\n- if($1 eq \"include\" && (substr($file,0,1) ne \"/\" || $opt_r)) {\n+ if($1 eq \"include\" && ($file !~m\"(^/|\\.\\.)\" || $opt_r)) {\n\nm/// operator replaces $` and $' variables if match succeeds. However these\nvariables are used later on to complete $_. This is reason why former code used\nsusbtr() instead of match operator.\n\nSimple fix is to store those two variables and retrieve their content at the\nend:\n\n[the above quoted patch from comment #8]\n\nThis is testcase where 1.0b6 dismisses everything and pastes just a part of\nfirst included file name matching m\"^/|..\":\n\n<html>\n    <body>\n        <p>Should include (README):</p>\n        <!--#include file=\"README\"-->\n        <p>Should not include (../etc/passwd):</p>\n        <!--#include file=\"../etc/passwd\"-->\n        <p>Should chroot (/etc/passwd):</p>\n        <!--#include file=\"/etc/passwd\"-->\n    </body>\n</html>\n===End of mail===\n\nThus I have not waited longer and fixed the code in RHEL6 on my own."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2820012",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-05-03 10:49:45 +0000",
+						"thetext": "html2ps-1.0-0.3.b5.fc11 has been submitted as an update for Fedora 11.\nhttp://admin.fedoraproject.org/updates/html2ps-1.0-0.3.b5.fc11"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2820013",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-05-03 10:50:21 +0000",
+						"thetext": "html2ps-1.0-0.4.b5.fc12 has been submitted as an update for Fedora 12.\nhttp://admin.fedoraproject.org/updates/html2ps-1.0-0.4.b5.fc12"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2820014",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-05-03 10:50:28 +0000",
+						"thetext": "html2ps-1.0-0.2.b5.el5 has been submitted as an update for Fedora EPEL 5.\nhttp://admin.fedoraproject.org/updates/html2ps-1.0-0.2.b5.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2832426",
+						"comment_count": "15",
+						"who": {
+							"text": "ppisar",
+							"name": "Petr Pisar"
+						},
+						"bug_when": "2010-05-07 12:42:35 +0000",
+						"thetext": "Upstream has accepted proposed patch (comment #8) and released new version 1.0b7."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2876287",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-05-25 18:37:35 +0000",
+						"thetext": "html2ps-1.0-0.3.b5.fc11 has been pushed to the Fedora 11 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2876302",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-05-25 18:40:03 +0000",
+						"thetext": "html2ps-1.0-0.4.b5.fc12 has been pushed to the Fedora 12 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "2877074",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2010-05-26 00:01:47 +0000",
+						"thetext": "html2ps-1.0-0.2.b5.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 530403,
+			"security": true,
+			"title": "html2ps: arbitrary file disclosure in SSI directives [Fedora all]",
+			"bugzilla": {
+				"bug_id": "530403",
+				"error": "NotPermitted"
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "html2ps-1.0-0.2.b5.el5",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "html2ps",
+						"version": "1.0",
+						"release": "0.2.b5.el5",
+						"arch": "noarch"
+					},
+					{
+						"name": "xhtml2ps",
+						"version": "1.0",
+						"release": "0.2.b5.el5",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "html2ps",
+						"version": "1.0",
+						"release": "0.2.b5.el5",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 57976,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2010-05-03 20:26:48",
+			"update_id": 8204,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 57977,
+			"text": "This update has been submitted for stable. ",
+			"timestamp": "2010-05-25 07:42:05",
+			"update_id": 8204,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/12f13283140a3e56271e48fbe0cdccc1fd09b0859759f11ac65baf89dae48515?s=24&d=retro",
+				"email": "ppisar@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "modularity-wg"
+					},
+					{
+						"name": "l10n"
+					},
+					{
+						"name": "cvsl10n"
+					},
+					{
+						"name": "perl-maint-sig"
+					}
+				],
+				"id": 227,
+				"name": "ppisar",
+				"openid": "ppisar.id.fedoraproject.org"
+			},
+			"user_id": 227
+		},
+		{
+			"id": 57978,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2010-05-26 00:01:47",
+			"update_id": 8204,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2010-05-03 10:50:24",
+	"date_pushed": "2010-05-26 00:01:47",
+	"date_stable": "2010-05-26 00:01:47",
+	"date_submitted": "2010-05-03 09:35:47",
+	"date_testing": "2010-05-03 20:26:48",
+	"meets_testing_requirements": true,
+	"notes": "Fix SSI directory traversal and clean spec file up",
+	"pushed": true,
+	"release": {
+		"branch": "el5",
+		"candidate_tag": "dist-5E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "dist-5E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 5",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-5",
+		"override_tag": "dist-5E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-5E-epel",
+		"state": "archived",
+		"testing_tag": "dist-5E-epel-testing",
+		"version": "5"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "html2ps-1.0-0.2.b5.el5",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2010-2708",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2010-2708",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/12f13283140a3e56271e48fbe0cdccc1fd09b0859759f11ac65baf89dae48515?s=24&d=retro",
+		"email": "ppisar@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "modularity-wg"
+			},
+			{
+				"name": "l10n"
+			},
+			{
+				"name": "cvsl10n"
+			},
+			{
+				"name": "perl-maint-sig"
+			}
+		],
+		"id": 227,
+		"name": "ppisar",
+		"openid": "ppisar.id.fedoraproject.org"
+	},
+	"version_hash": "7e31ddbb762c144e5937b9108648f1e15c8813a4"
+}

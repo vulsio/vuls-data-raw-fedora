@@ -1,0 +1,618 @@
+{
+	"alias": "FEDORA-EPEL-2014-4916",
+	"bugs": [
+		{
+			"bug_id": 1177278,
+			"security": true,
+			"title": "CVE-2014-8964 mingw-pcre: pcre: incorrect handling of zero-repeat assertion conditions [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1177278",
+				"creation_ts": "2014-12-25 16:13:51 +0000",
+				"short_desc": "CVE-2014-8964 mingw-pcre: pcre: incorrect handling of zero-repeat assertion conditions [fedora-all]",
+				"delta_ts": "2015-12-02 13:33:41 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1166147",
+						"alias": "CVE-2014-8964",
+						"creation_ts": "2014-11-20 13:17:00 +0000",
+						"short_desc": "CVE-2014-8964 pcre: incorrect handling of zero-repeat assertion conditions",
+						"delta_ts": "2021-10-20 10:47:40 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1165626",
+							"1169797",
+							"1177278"
+						],
+						"blocked": [
+							{
+								"bug_id": "1166148",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:0330",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7691088",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2014-11-20 13:17:00 +0000",
+								"thetext": "Heap buffer overflow issue was reported in PCRE when processing a specially crafted regular expressions:\nhttp://bugs.exim.org/show_bug.cgi?id=1546\n\nUpstream patch for this:\nhttp://www.exim.org/viewvc/pcre2?view=rev&revision=154\n\nThe next upstream release that will contain the above fix is likely to be around Feb/Mar next year (2015)."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7691133",
+								"comment_count": "1",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2014-11-20 13:24:48 +0000",
+								"thetext": "Original report along with the patch:\n...\necho \"a\" | /tmp/pcre-8.36/pcregrep \"((?=(?(?=(?(?=(?(?=())))*))))){2}\" -\n=================================================================\n==29857==ERROR: AddressSanitizer: heap-buffer-overflow on address\n0x61000000fb94 at pc 0x7faf416f0dc6 bp 0x7fff9c91d3b0 sp 0x7fff9c91d3a8\nREAD of size 1 at 0x61000000fb94 thread T0\n    #0 0x7faf416f0dc5 in match /tmp/pcre-8.36/pcre_exec.c:1410:9\n    #1 0x7faf416dfe35 in match /tmp/pcre-8.36/pcre_exec.c:1538:7\n    #2 0x7faf416e46de in match /tmp/pcre-8.36/pcre_exec.c:1399:7\n    #3 0x7faf416dfe35 in match /tmp/pcre-8.36/pcre_exec.c:1538:7\n    #4 0x7faf416ee260 in match /tmp/pcre-8.36/pcre_exec.c:983:9\n    #5 0x7faf416dcd49 in pcre_exec /tmp/pcre-8.36/pcre_exec.c:6923:8\n    #6 0x4a4580 in match_patterns /tmp/pcre-8.36/pcregrep.c:1449:10\n    #7 0x4a13ca in pcregrep /tmp/pcre-8.36/pcregrep.c:1679:11\n    #8 0x4a3624 in grep_or_recurse /tmp/pcre-8.36/pcregrep.c:2122:10\n    #9 0x49efbf in main /tmp/pcre-8.36/pcregrep.c:3251:13\n    #10 0x7faf405b7ec4 in __libc_start_main\n/build/buildd/eglibc-2.19/csu/libc-start.c:287\n    #11 0x4172a6 in _start (/tmp/pcre-8.36/.libs/lt-pcregrep+0x4172a6)\n\nUpstream prepared a fix:\n\n--- pcre_exec.c (revision 1512)\n+++ pcre_exec.c (working copy)\n@@ -1404,8 +1404,11 @@\n         condition = TRUE;\n\n         /* Advance ecode past the assertion to the start of the first branch,\n-        but adjust it so that the general choosing code below works. */\n-\n+        but adjust it so that the general choosing code below works. If the \n+        assertion has a quantifier that allows zero repeats we must skip over \n+        the BRAZERO. This is a lunatic thing to do, but somebody did! */\n+        \n+        if (*ecode == OP_BRAZERO) ecode++; \n         ecode += GET(ecode, 1);\n         while (*ecode == OP_ALT) ecode += GET(ecode, 1);\n         ecode += 1 + LINK_SIZE - PRIV(OP_lengths)[condcode];"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7691145",
+								"comment_count": "2",
+								"who": {
+									"text": "ppisar",
+									"name": "Petr Pisar"
+								},
+								"bug_when": "2014-11-20 13:27:48 +0000",
+								"thetext": "I fixed it in Fedora 22 and 21. I cannot fix it in older Fedoras because the fix depends on another extensive change which I do not want to back-port. If you have different opinion we could try to involve the upstream, but I believe this is not necessary."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7691220",
+								"comment_count": "3",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2014-11-20 13:39:59 +0000",
+								"thetext": "(In reply to Petr Pisar from comment #2)\n> I fixed it in Fedora 22 and 21. I cannot fix it in older Fedoras because the\n> fix depends on another extensive change which I do not want to back-port. If\n> you have different opinion we could try to involve the upstream, but I\n> believe this is not necessary.\n\nTaking the Low impact - I would say it's not necessary.\nUnless a real exploit is found for this I'd say let's leave it for now as it is."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7691638",
+								"comment_count": "4",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2014-11-20 14:56:27 +0000",
+								"thetext": "CVE request: http://seclists.org/oss-sec/2014/q4/714"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7694529",
+								"comment_count": "5",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2014-11-21 09:07:43 +0000",
+								"thetext": "CVE-2014-8964 was assigned to this issue:\n\nhttp://seclists.org/oss-sec/2014/q4/746"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7720158",
+								"comment_count": "6",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-01 11:56:07 +0000",
+								"thetext": "(In reply to Vasyl Kaigorodov from comment #0)\n> Upstream patch for this:\n> http://www.exim.org/viewvc/pcre2?view=rev&revision=154\n\nUpstream patch in pcre / pcre1 repository:\nhttp://www.exim.org/viewvc/pcre?view=revision&revision=1513"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7722153",
+								"comment_count": "7",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-01 20:46:21 +0000",
+								"thetext": "The problem here is that malicious regular expression may cause an op code pointer to point outside of the buffer that holds compiled regular expression.  This happens because the unexpected OP_BRAZERO code makes pcre use the following code (OP_ASSERT in the regular expressions from the upstream bugs) as part of the value that indicate the number of bytes to advance the code pointer by.  In the worst case, pcre may end up interpreting malicious compiled regex op code.  While pcre seems to preform bounds checking when performing write operations while interpreting op code, it may be possible to (indirectly) disclose some portions of the process memory."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7722159",
+								"comment_count": "8",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-01 20:52:03 +0000",
+								"thetext": "(In reply to Petr Pisar from comment #2)\n> I fixed it in Fedora 22 and 21. I cannot fix it in older Fedoras because the\n> fix depends on another extensive change which I do not want to back-port.\n\nIsn't this equivalent change for PCRE 8.32?\n\n--- pcre-8.32/pcre_exec.c.orig\n+++ pcre-8.32/pcre_exec.c\n@@ -1459,7 +1459,9 @@ for (;;)\n         if (md->end_offset_top > offset_top)\n           offset_top = md->end_offset_top;  /* Captures may have happened */\n         condition = TRUE;\n-        ecode += 1 + LINK_SIZE + GET(ecode, LINK_SIZE + 2);\n+        ecode += 1 + LINK_SIZE;\n+        if (*ecode == OP_BRAZERO) ecode++;\n+        ecode += GET(ecode, 1);\n         while (*ecode == OP_ALT) ecode += GET(ecode, 1);\n         }\n \nCode in the more recent PCRE versions increment ecode by 1 + LINK_SIZE earlier, near the beginning of the OP_COND / OP_SCOND case."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7724285",
+								"comment_count": "12",
+								"who": {
+									"text": "ppisar",
+									"name": "Petr Pisar"
+								},
+								"bug_when": "2014-12-02 12:06:22 +0000",
+								"thetext": "(In reply to Tomas Hoger from comment #8)\n> --- pcre-8.32/pcre_exec.c.orig\n> +++ pcre-8.32/pcre_exec.c\n> @@ -1459,7 +1459,9 @@ for (;;)\n>          if (md->end_offset_top > offset_top)\n>            offset_top = md->end_offset_top;  /* Captures may have happened */\n>          condition = TRUE;\n> -        ecode += 1 + LINK_SIZE + GET(ecode, LINK_SIZE + 2);\n> +        ecode += 1 + LINK_SIZE;\n> +        if (*ecode == OP_BRAZERO) ecode++;\n> +        ecode += GET(ecode, 1);\n>          while (*ecode == OP_ALT) ecode += GET(ecode, 1);\n>          }\n>  \n> Code in the more recent PCRE versions increment ecode by 1 + LINK_SIZE\n> earlier, near the beginning of the OP_COND / OP_SCOND case.\n\nGreat. That makes the trick. I will push it."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7757478",
+								"comment_count": "14",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-12-12 04:16:06 +0000",
+								"thetext": "pcre-8.35-8.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7782047",
+								"comment_count": "15",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-12-19 18:27:18 +0000",
+								"thetext": "pcre-8.32-12.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7782062",
+								"comment_count": "16",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-12-19 18:28:58 +0000",
+								"thetext": "pcre-8.33-8.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7790042",
+								"comment_count": "17",
+								"who": {
+									"text": "yselkowi",
+									"name": "Yaakov Selkowitz"
+								},
+								"bug_when": "2014-12-24 17:54:18 +0000",
+								"thetext": "Does this apply also to mingw-pcre?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7790979",
+								"comment_count": "18",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-25 16:11:45 +0000",
+								"thetext": "(In reply to Yaakov Selkowitz from comment #17)\n> Does this apply also to mingw-pcre?\n\nIt most likely does.  Versions 8.32 - 8.35 were confirmed as affected, mingw-pcre versions currently in Fedora are all within the range."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7790982",
+								"comment_count": "19",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-25 16:13:58 +0000",
+								"thetext": "\nCreated mingw-pcre tracking bugs for this issue:\n\nAffects: fedora-all [bug 1177278]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8008959",
+								"comment_count": "21",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-03-05 07:14:59 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:0330 https://rhn.redhat.com/errata/RHSA-2015-0330.html"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7790980",
+						"comment_count": "0",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-25 16:13:51 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7790981",
+						"comment_count": "1",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-25 16:13:57 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1166147,1177278\n\n# Description of your update\nnotes=Security fix for CVE-2014-8964\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1166147,1177278"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7790992",
+						"comment_count": "2",
+						"who": {
+							"text": "yselkowi",
+							"name": "Yaakov Selkowitz"
+						},
+						"bug_when": "2014-12-25 17:12:40 +0000",
+						"thetext": "Created attachment 973054\n(f22) Update to 8.36 and add upstream patches\n\nScratch build: http://koji.fedoraproject.org/koji/taskinfo?taskID=8480133"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7790999",
+						"comment_count": "3",
+						"who": {
+							"text": "yselkowi",
+							"name": "Yaakov Selkowitz"
+						},
+						"bug_when": "2014-12-25 17:43:15 +0000",
+						"thetext": "Created attachment 973056\n(f20) Add upstream patches from main pcre package"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7791000",
+						"comment_count": "4",
+						"who": {
+							"text": "yselkowi",
+							"name": "Yaakov Selkowitz"
+						},
+						"bug_when": "2014-12-25 17:43:42 +0000",
+						"thetext": "(In reply to Yaakov Selkowitz from comment #3)\n> Created attachment 973056 [details]\n> (f20) Add upstream patches from main pcre package\n\nScratch build: http://koji.fedoraproject.org/koji/taskinfo?taskID=8480188"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7791031",
+						"comment_count": "5",
+						"who": {
+							"text": "yselkowi",
+							"name": "Yaakov Selkowitz"
+						},
+						"bug_when": "2014-12-25 19:45:48 +0000",
+						"thetext": "Created attachment 973070\n(f19) Add upstream patches from pcre package\n\nScratch build: http://koji.fedoraproject.org/koji/taskinfo?taskID=8480290"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7791032",
+						"comment_count": "6",
+						"who": {
+							"text": "yselkowi",
+							"name": "Yaakov Selkowitz"
+						},
+						"bug_when": "2014-12-25 19:49:14 +0000",
+						"thetext": "Created attachment 973071\n(f21) Update to 8.35 and add upstream patches\n\nScratch build: http://koji.fedoraproject.org/koji/taskinfo?taskID=8480258"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7791085",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-25 22:47:57 +0000",
+						"thetext": "mingw-pcre-8.35-1.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/mingw-pcre-8.35-1.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7791087",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-25 22:49:13 +0000",
+						"thetext": "mingw-pcre-8.35-1.el7 has been submitted as an update for Fedora EPEL 7.\nhttps://admin.fedoraproject.org/updates/mingw-pcre-8.35-1.el7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7791089",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-25 22:50:00 +0000",
+						"thetext": "mingw-pcre-8.33-4.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/mingw-pcre-8.33-4.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7791091",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-25 22:51:01 +0000",
+						"thetext": "mingw-pcre-8.33-4.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/mingw-pcre-8.33-4.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7791895",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-26 19:48:50 +0000",
+						"thetext": "Package mingw-pcre-8.35-1.el7:\n* should fix your issue,\n* was pushed to the Fedora EPEL 7 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=epel-testing mingw-pcre-8.35-1.el7'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2014-4916/mingw-pcre-8.35-1.el7\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7805407",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-05 07:34:08 +0000",
+						"thetext": "mingw-pcre-8.33-4.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7805473",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-05 07:39:47 +0000",
+						"thetext": "mingw-pcre-8.35-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7805482",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-05 07:40:25 +0000",
+						"thetext": "mingw-pcre-8.33-4.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7836143",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-12 17:39:50 +0000",
+						"thetext": "mingw-pcre-8.35-1.el7 has been pushed to the Fedora EPEL 7 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "mingw-pcre-8.35-1.el7",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "mingw64-pcre",
+						"version": "8.35",
+						"release": "1.el7",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw64-pcre-static",
+						"version": "8.35",
+						"release": "1.el7",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw32-pcre-debuginfo",
+						"version": "8.35",
+						"release": "1.el7",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw64-pcre-debuginfo",
+						"version": "8.35",
+						"release": "1.el7",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw32-pcre",
+						"version": "8.35",
+						"release": "1.el7",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw32-pcre-static",
+						"version": "8.35",
+						"release": "1.el7",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "mingw-pcre",
+						"version": "8.35",
+						"release": "1.el7",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 270431,
+			"text": "This update has been submitted for testing by epienbro. ",
+			"timestamp": "2014-12-25 22:49:24",
+			"update_id": 32849,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 270432,
+			"text": "This update is currently being pushed to the Fedora EPEL 7 testing updates repository.",
+			"timestamp": "2014-12-26 17:42:54",
+			"update_id": 32849,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 270433,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-12-26 19:48:40",
+			"update_id": 32849,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 270434,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2015-01-10 00:38:35",
+			"update_id": 32849,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 270435,
+			"text": "This update has been submitted for stable by epienbro. ",
+			"timestamp": "2015-01-10 11:09:43",
+			"update_id": 32849,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 270436,
+			"text": "This update is currently being pushed to the Fedora EPEL 7 stable updates repository.",
+			"timestamp": "2015-01-12 16:01:40",
+			"update_id": 32849,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 270437,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-01-12 17:39:23",
+			"update_id": 32849,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2015-01-12 17:39:23",
+	"date_stable": "2015-01-12 17:39:23",
+	"date_submitted": "2014-12-25 22:49:18",
+	"date_testing": "2014-12-26 19:48:40",
+	"meets_testing_requirements": true,
+	"notes": "Update to 8.35 and fix CVE-2014-8964",
+	"pushed": true,
+	"release": {
+		"branch": "epel7",
+		"candidate_tag": "epel7-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "epel7",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 7",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EPEL-7",
+		"override_tag": "epel7-override",
+		"package_manager": "unspecified",
+		"pending_signing_tag": "epel7-signing-pending",
+		"pending_stable_tag": "epel7-pending",
+		"pending_testing_tag": "epel7-testing-pending",
+		"stable_tag": "epel7",
+		"state": "current",
+		"testing_tag": "epel7-testing",
+		"version": "7"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "mingw-pcre-8.35-1.el7",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2014-4916",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2014-4916",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/0b2e2432af444125caa89c1c84824761f3445d04a83c5f6543199d8f2e328199?s=24&d=retro",
+		"email": "erik-fedora@vanpienbroek.nl",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			}
+		],
+		"id": 282,
+		"name": "epienbro",
+		"openid": "epienbro.id.fedoraproject.org"
+	},
+	"version_hash": "80f9e5b4d1e37eb2cd47151d067b3e7da468ee07"
+}

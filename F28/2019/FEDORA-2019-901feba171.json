@@ -1,0 +1,2042 @@
+{
+	"alias": "FEDORA-2019-901feba171",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1663068,
+			"feedback": [
+				{
+					"bug_id": 1663068,
+					"comment": {
+						"id": 886840,
+						"karma": 1,
+						"text": "Works great. Thanks!",
+						"timestamp": "2019-01-21 23:46:07",
+						"update_id": 130172,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/bef150da9235aef1b7225ecc5f758fba35fa9d3f1711c31f5d1754fc6d2bf3ff?s=24&d=retro",
+							"email": "ericbasil.rabi@gmail.com",
+							"groups": [
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "signed_fpca"
+								}
+							],
+							"id": 3650,
+							"name": "basilrabi",
+							"openid": "basilrabi.id.fedoraproject.org"
+						},
+						"user_id": 3650
+					},
+					"comment_id": 886840
+				}
+			],
+			"parent": true,
+			"security": true,
+			"title": "runc: not using pivot_root allows mounting of /proc",
+			"bugzilla": {
+				"bug_id": "1663068",
+				"creation_ts": "2019-01-03 02:27:19 +0000",
+				"short_desc": "runc: not using pivot_root allows mounting of /proc",
+				"delta_ts": "2021-10-27 03:22:08 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1663070",
+					"1665769",
+					"1665770",
+					"1667622",
+					"1667626"
+				],
+				"blocked": [
+					{
+						"bug_id": "1663066",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "12335109",
+						"comment_count": "0",
+						"who": {
+							"text": "jshepherd",
+							"name": "Jason Shepherd"
+						},
+						"bug_when": "2019-01-03 02:27:19 +0000",
+						"thetext": "Not using pivot_root(2) leaves the host /proc around in the mount namespace so that it is possible to mount another /proc without any other submount, even if /proc in the container is not fully visible. This flaw allows an attacker to read and modify some parts of the Linux kernel memory."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12335110",
+						"comment_count": "1",
+						"who": {
+							"text": "jshepherd",
+							"name": "Jason Shepherd"
+						},
+						"bug_when": "2019-01-03 02:27:26 +0000",
+						"thetext": "Acknowledgments:\n\nName: the Kubernetes Product Security Team\nUpstream: Akihiro Suda"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12336620",
+						"comment_count": "5",
+						"who": {
+							"text": "dwalsh",
+							"name": "Daniel Walsh"
+						},
+						"bug_when": "2019-01-03 14:23:39 +0000",
+						"thetext": "Can't access the link?  Could you tell me what SELinux label is running when you break out?  `id -Z`\n\nJust curious about whether SELinux blocks the exploit, or at least confines it."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12338006",
+						"comment_count": "6",
+						"who": {
+							"text": "jshepherd",
+							"name": "Jason Shepherd"
+						},
+						"bug_when": "2019-01-03 23:39:33 +0000",
+						"thetext": "I requested access by granted to the runc directory of SRTVULNS repo, but it might take a while to be applied.\n\nIn the meantime, I see that I don't have any SELinux context applied:\n\n$ cat /etc/redhat-release \nFedora release 29 (Twenty Nine)\n$ runc --version\nrunc version 1.0.0-rc6+dev\ncommit: ead425507b6ba28278ef71ad06582df97f2d5b5f\nspec: 1.0.1-dev\n\n$ docker create --name BZ1663068 fedora sh\n$ docker export BZ1663068 > BZ1663068.tar\n$ docker rm -f BZ1663068\n\n$ mkdir rootfs\n$ tar -xf BZ1663068.tar -C rootfs\n\n$ runc spec --rootless\n$ runc --root /tmp/runc run --no-pivot BZ1663068\nsh-4.4# id -Z\nid: --context (-Z) works only on an SELinux-enabled kernel\n\nMy kernel does have SELinux-enabled, however I'm not sure if runc was compiled with SELinux enabled or not."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12338065",
+						"comment_count": "7",
+						"who": {
+							"text": "dwalsh",
+							"name": "Daniel Walsh"
+						},
+						"bug_when": "2019-01-04 00:56:56 +0000",
+						"thetext": "Sorry id -Z might be lying to you.\n\nInside the container do:\ncat /proc/self/current/attr\n\nOutside do getenforce, to make sure SELinux is enabled."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12353123",
+						"comment_count": "8",
+						"who": {
+							"text": "jshepherd",
+							"name": "Jason Shepherd"
+						},
+						"bug_when": "2019-01-10 00:15:58 +0000",
+						"thetext": "Seems it's current with 'unconfined_u:system_r:container_runtime_t:s0-s0:c0.c1023'\n\n[root@runc /]# cat /proc/self/attr/current\nunconfined_u:system_r:container_runtime_t:s0-s0:c0.c1023\n[root@runc /]# exit\nlogout\nsh-4.4# exit\nexit\n[jshepher@localhost BZ1663068]$ getenforce\nEnforcing"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12353148",
+						"comment_count": "10",
+						"who": {
+							"text": "jshepherd",
+							"name": "Jason Shepherd"
+						},
+						"bug_when": "2019-01-10 00:27:19 +0000",
+						"thetext": "Statement:\n\nCRI-O defaults to 'no_pivot' [1] being 'false', so it's not affected by this issue. Users should avoid setting 'no_pivot' to 'true' to prevent this flaw when using a vulnerable versions of runc with CRI-O.\n\nPodman is not affected by this issue as it doesn't use 'runc run --no-pivot'.\n\n[1] https://github.com/kubernetes-sigs/cri-o/blob/master/docs/crio.conf.5.md"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12354769",
+						"comment_count": "11",
+						"who": {
+							"text": "dwalsh",
+							"name": "Daniel Walsh"
+						},
+						"bug_when": "2019-01-10 12:45:23 +0000",
+						"thetext": "Jason, if you run runc with a spec file that does not set a confined SELinux label or any at all, it runs as container_runtime_t.\n\nIf this was run by podman, CRI-O, Buildah or Docker, by default it would run as container_t, and escape would probably be prevented\nor at least controlled.  Since container_t is only able to read /usr and some of /etc, and only able to write to container_file_t.\n\nOf course if you run on an SELinux disabled machine or permissive, or you run your container engine with SELinux disabled then\nthe escalation would not be prevented by SELinux."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12357056",
+						"comment_count": "12",
+						"who": {
+							"text": "jshepherd",
+							"name": "Jason Shepherd"
+						},
+						"bug_when": "2019-01-11 04:02:10 +0000",
+						"thetext": "Is is possible to make use of the '--no-pivot' option of runc when launching it via docker in RHEL? Trying to figure out if 'docker' on RHEL7 would be affected or not if running without SELinux enforcing."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12357057",
+						"comment_count": "13",
+						"who": {
+							"text": "jshepherd",
+							"name": "Jason Shepherd"
+						},
+						"bug_when": "2019-01-11 04:02:12 +0000",
+						"thetext": "Mitigation:\n\nWith SELinux in enforcing mode, and a runc spec file that set a confined SELinux label the container would run with the container_t label and the escape would be prevented. Podman, CRI-O, Buildah or Docker, by default it would run as container_t, and escape would be prevented, since container_t is only able to read /usr and some of /etc, and only able to write to files labelled container_file_t."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12361843",
+						"comment_count": "14",
+						"who": {
+							"text": "jshepherd",
+							"name": "Jason Shepherd"
+						},
+						"bug_when": "2019-01-13 22:58:29 +0000",
+						"thetext": "Upstream Git Pull Request: https://github.com/opencontainers/runc/pull/1962"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12361847",
+						"comment_count": "15",
+						"who": {
+							"text": "jshepherd",
+							"name": "Jason Shepherd"
+						},
+						"bug_when": "2019-01-13 22:59:44 +0000",
+						"thetext": "Created runc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1665769]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12403013",
+						"comment_count": "17",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2019-01-29 03:31:56 +0000",
+						"thetext": "Upstream pointed out that run's `--no-pivot` flag is already known to be insecure as it allows access to the host filesystem from the container. Thus, this particular bug does not warrant a CVE."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1666565,
+			"feedback": [
+				{
+					"bug_id": 1666565,
+					"comment": {
+						"id": 886840,
+						"karma": 1,
+						"text": "Works great. Thanks!",
+						"timestamp": "2019-01-21 23:46:07",
+						"update_id": 130172,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/bef150da9235aef1b7225ecc5f758fba35fa9d3f1711c31f5d1754fc6d2bf3ff?s=24&d=retro",
+							"email": "ericbasil.rabi@gmail.com",
+							"groups": [
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "signed_fpca"
+								}
+							],
+							"id": 3650,
+							"name": "basilrabi",
+							"openid": "basilrabi.id.fedoraproject.org"
+						},
+						"user_id": 3650
+					},
+					"comment_id": 886840
+				}
+			],
+			"parent": true,
+			"security": true,
+			"title": "CVE-2018-20699 docker: Memory exhaustion via large integer used with --cpuset-mems or --cpuset-cpus",
+			"bugzilla": {
+				"bug_id": "1666565",
+				"alias": "CVE-2018-20699",
+				"creation_ts": "2019-01-16 03:54:03 +0000",
+				"short_desc": "CVE-2018-20699 docker: Memory exhaustion via large integer used with --cpuset-mems or --cpuset-cpus",
+				"delta_ts": "2021-02-16 22:32:21 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1666566",
+					"1666567",
+					"1666568",
+					"1667625",
+					"1671333"
+				],
+				"blocked": [
+					{
+						"bug_id": "1666569",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2019:0487",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "12368655",
+						"comment_count": "0",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2019-01-16 03:54:03 +0000",
+						"thetext": "Docker Engine before 18.09 allows attackers to cause a denial of service (dockerd memory consumption) via a large integer in a --cpuset-mems or --cpuset-cpus value, related to daemon/daemon_unix.go, pkg/parsers/parsers.go, and pkg/sysinfo/sysinfo.go. \n\n\nReferences:\n\nhttps://github.com/docker/engine/pull/70\nhttps://github.com/moby/moby/pull/37967"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12368662",
+						"comment_count": "1",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2019-01-16 03:54:36 +0000",
+						"thetext": "Created docker tracking bugs for this issue:\n\nAffects: epel-6 [bug 1666568]\nAffects: fedora-all [bug 1666566]\n\n\nCreated docker:2017.0/docker tracking bugs for this issue:\n\nAffects: fedora-all [bug 1666567]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12378555",
+						"comment_count": "2",
+						"who": {
+							"text": "amurdaca",
+							"name": "Antonio Murdaca"
+						},
+						"bug_when": "2019-01-18 16:14:24 +0000",
+						"thetext": "Fixed via https://github.com/projectatomic/docker/commit/11e17d3b79bc450a52d5e1dd1c1444f7ebe5f751"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12411355",
+						"comment_count": "4",
+						"who": {
+							"text": "rschiron",
+							"name": "Riccardo Schirone"
+						},
+						"bug_when": "2019-01-31 12:25:01 +0000",
+						"thetext": "Function isCpusetListAvailable() in pkg/sysinfo/sysinfo.go uses pkg/parsers/parsers.go:ParseUintList() function to parse the value passed through the --cpuset-mems docker option. ParseUintList() returns a map with each element in the list mapped to true/false. When the list is too big, the daemon tries to allocate such map, using all available memory and causing a crash."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12411361",
+						"comment_count": "6",
+						"who": {
+							"text": "rschiron",
+							"name": "Riccardo Schirone"
+						},
+						"bug_when": "2019-01-31 12:28:14 +0000",
+						"thetext": "Even though, in general, a user needs to be root or have high privilege to run docker commands, it was considered anyway a security issue as there are docker plugins to enable authentication and allow users to perform a subset of the APIs dockerd provides. This would allow a non-privileged user to crash the dockerd daemon itself."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12411382",
+						"comment_count": "7",
+						"who": {
+							"text": "rschiron",
+							"name": "Riccardo Schirone"
+						},
+						"bug_when": "2019-01-31 12:31:18 +0000",
+						"thetext": "Statement:\n\nThis issue affects the versions of docker as shipped with Red Hat Enterprise Linux 7, however if docker is accessible only by root or highly privileged users, as it is by default, a low-privileged attacker will not be able to trigger the flaw."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12464383",
+						"comment_count": "8",
+						"who": {
+							"text": "rschiron",
+							"name": "Riccardo Schirone"
+						},
+						"bug_when": "2019-02-18 08:09:52 +0000",
+						"thetext": "Decreasing Impact to Low because normally Docker is accessible only by root or by high-privileges users."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12538942",
+						"comment_count": "9",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2019-03-13 01:52:22 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7 Extras\n\nVia RHSA-2019:0487 https://access.redhat.com/errata/RHSA-2019:0487"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1666566,
+			"feedback": [
+				{
+					"bug_id": 1666566,
+					"comment": {
+						"id": 886840,
+						"karma": 1,
+						"text": "Works great. Thanks!",
+						"timestamp": "2019-01-21 23:46:07",
+						"update_id": 130172,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/bef150da9235aef1b7225ecc5f758fba35fa9d3f1711c31f5d1754fc6d2bf3ff?s=24&d=retro",
+							"email": "ericbasil.rabi@gmail.com",
+							"groups": [
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "signed_fpca"
+								}
+							],
+							"id": 3650,
+							"name": "basilrabi",
+							"openid": "basilrabi.id.fedoraproject.org"
+						},
+						"user_id": 3650
+					},
+					"comment_id": 886840
+				}
+			],
+			"security": true,
+			"title": "CVE-2018-20699 docker: Memory exhaustion via large integer used with --cpuset-mems or --cpuset-cpus [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1666566",
+				"creation_ts": "2019-01-16 03:54:10 +0000",
+				"short_desc": "CVE-2018-20699 docker: Memory exhaustion via large integer used with --cpuset-mems or --cpuset-cpus [fedora-all]",
+				"delta_ts": "2019-02-18 08:09:54 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1666565",
+						"alias": "CVE-2018-20699",
+						"creation_ts": "2019-01-16 03:54:03 +0000",
+						"short_desc": "CVE-2018-20699 docker: Memory exhaustion via large integer used with --cpuset-mems or --cpuset-cpus",
+						"delta_ts": "2021-02-16 22:32:21 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1666566",
+							"1666567",
+							"1666568",
+							"1667625",
+							"1671333"
+						],
+						"blocked": [
+							{
+								"bug_id": "1666569",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2019:0487",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "12368655",
+								"comment_count": "0",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2019-01-16 03:54:03 +0000",
+								"thetext": "Docker Engine before 18.09 allows attackers to cause a denial of service (dockerd memory consumption) via a large integer in a --cpuset-mems or --cpuset-cpus value, related to daemon/daemon_unix.go, pkg/parsers/parsers.go, and pkg/sysinfo/sysinfo.go. \n\n\nReferences:\n\nhttps://github.com/docker/engine/pull/70\nhttps://github.com/moby/moby/pull/37967"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12368662",
+								"comment_count": "1",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2019-01-16 03:54:36 +0000",
+								"thetext": "Created docker tracking bugs for this issue:\n\nAffects: epel-6 [bug 1666568]\nAffects: fedora-all [bug 1666566]\n\n\nCreated docker:2017.0/docker tracking bugs for this issue:\n\nAffects: fedora-all [bug 1666567]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12378555",
+								"comment_count": "2",
+								"who": {
+									"text": "amurdaca",
+									"name": "Antonio Murdaca"
+								},
+								"bug_when": "2019-01-18 16:14:24 +0000",
+								"thetext": "Fixed via https://github.com/projectatomic/docker/commit/11e17d3b79bc450a52d5e1dd1c1444f7ebe5f751"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12411355",
+								"comment_count": "4",
+								"who": {
+									"text": "rschiron",
+									"name": "Riccardo Schirone"
+								},
+								"bug_when": "2019-01-31 12:25:01 +0000",
+								"thetext": "Function isCpusetListAvailable() in pkg/sysinfo/sysinfo.go uses pkg/parsers/parsers.go:ParseUintList() function to parse the value passed through the --cpuset-mems docker option. ParseUintList() returns a map with each element in the list mapped to true/false. When the list is too big, the daemon tries to allocate such map, using all available memory and causing a crash."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12411361",
+								"comment_count": "6",
+								"who": {
+									"text": "rschiron",
+									"name": "Riccardo Schirone"
+								},
+								"bug_when": "2019-01-31 12:28:14 +0000",
+								"thetext": "Even though, in general, a user needs to be root or have high privilege to run docker commands, it was considered anyway a security issue as there are docker plugins to enable authentication and allow users to perform a subset of the APIs dockerd provides. This would allow a non-privileged user to crash the dockerd daemon itself."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12411382",
+								"comment_count": "7",
+								"who": {
+									"text": "rschiron",
+									"name": "Riccardo Schirone"
+								},
+								"bug_when": "2019-01-31 12:31:18 +0000",
+								"thetext": "Statement:\n\nThis issue affects the versions of docker as shipped with Red Hat Enterprise Linux 7, however if docker is accessible only by root or highly privileged users, as it is by default, a low-privileged attacker will not be able to trigger the flaw."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12464383",
+								"comment_count": "8",
+								"who": {
+									"text": "rschiron",
+									"name": "Riccardo Schirone"
+								},
+								"bug_when": "2019-02-18 08:09:52 +0000",
+								"thetext": "Decreasing Impact to Low because normally Docker is accessible only by root or by high-privileges users."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12538942",
+								"comment_count": "9",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2019-03-13 01:52:22 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7 Extras\n\nVia RHSA-2019:0487 https://access.redhat.com/errata/RHSA-2019:0487"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "12368656",
+						"comment_count": "0",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2019-01-16 03:54:10 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12368657",
+						"comment_count": "1",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2019-01-16 03:54:23 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1666565,1666566\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12379638",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-01-19 05:27:59 +0000",
+						"thetext": "docker-1.13.1-63.git1185cfd.fc29 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2019-a034423db8"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12379643",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-01-19 05:48:44 +0000",
+						"thetext": "docker-1.13.1-63.git1185cfd.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2019-901feba171"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12380030",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-01-20 00:58:21 +0000",
+						"thetext": "docker-1.13.1-63.git1185cfd.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2019-901feba171"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12380052",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-01-20 02:33:50 +0000",
+						"thetext": "docker-1.13.1-63.git1185cfd.fc29 has been pushed to the Fedora 29 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2019-a034423db8"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12410151",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-01-31 02:11:25 +0000",
+						"thetext": "docker-1.13.1-63.git1185cfd.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12410263",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-01-31 03:20:16 +0000",
+						"thetext": "docker-1.13.1-63.git1185cfd.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1667622,
+			"feedback": [
+				{
+					"bug_id": 1667622,
+					"comment": {
+						"id": 886840,
+						"karma": 1,
+						"text": "Works great. Thanks!",
+						"timestamp": "2019-01-21 23:46:07",
+						"update_id": 130172,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/bef150da9235aef1b7225ecc5f758fba35fa9d3f1711c31f5d1754fc6d2bf3ff?s=24&d=retro",
+							"email": "ericbasil.rabi@gmail.com",
+							"groups": [
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "signed_fpca"
+								}
+							],
+							"id": 3650,
+							"name": "basilrabi",
+							"openid": "basilrabi.id.fedoraproject.org"
+						},
+						"user_id": 3650
+					},
+					"comment_id": 886840
+				}
+			],
+			"security": true,
+			"title": "runc: not using pivot_root allows mounting of /proc [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1667622",
+				"creation_ts": "2019-01-19 04:00:10 +0000",
+				"short_desc": "runc: not using pivot_root allows mounting of /proc [fedora-all]",
+				"delta_ts": "2019-01-31 03:20:13 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1663068",
+						"creation_ts": "2019-01-03 02:27:19 +0000",
+						"short_desc": "runc: not using pivot_root allows mounting of /proc",
+						"delta_ts": "2021-10-27 03:22:08 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1663070",
+							"1665769",
+							"1665770",
+							"1667622",
+							"1667626"
+						],
+						"blocked": [
+							{
+								"bug_id": "1663066",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "12335109",
+								"comment_count": "0",
+								"who": {
+									"text": "jshepherd",
+									"name": "Jason Shepherd"
+								},
+								"bug_when": "2019-01-03 02:27:19 +0000",
+								"thetext": "Not using pivot_root(2) leaves the host /proc around in the mount namespace so that it is possible to mount another /proc without any other submount, even if /proc in the container is not fully visible. This flaw allows an attacker to read and modify some parts of the Linux kernel memory."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12335110",
+								"comment_count": "1",
+								"who": {
+									"text": "jshepherd",
+									"name": "Jason Shepherd"
+								},
+								"bug_when": "2019-01-03 02:27:26 +0000",
+								"thetext": "Acknowledgments:\n\nName: the Kubernetes Product Security Team\nUpstream: Akihiro Suda"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12336620",
+								"comment_count": "5",
+								"who": {
+									"text": "dwalsh",
+									"name": "Daniel Walsh"
+								},
+								"bug_when": "2019-01-03 14:23:39 +0000",
+								"thetext": "Can't access the link?  Could you tell me what SELinux label is running when you break out?  `id -Z`\n\nJust curious about whether SELinux blocks the exploit, or at least confines it."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12338006",
+								"comment_count": "6",
+								"who": {
+									"text": "jshepherd",
+									"name": "Jason Shepherd"
+								},
+								"bug_when": "2019-01-03 23:39:33 +0000",
+								"thetext": "I requested access by granted to the runc directory of SRTVULNS repo, but it might take a while to be applied.\n\nIn the meantime, I see that I don't have any SELinux context applied:\n\n$ cat /etc/redhat-release \nFedora release 29 (Twenty Nine)\n$ runc --version\nrunc version 1.0.0-rc6+dev\ncommit: ead425507b6ba28278ef71ad06582df97f2d5b5f\nspec: 1.0.1-dev\n\n$ docker create --name BZ1663068 fedora sh\n$ docker export BZ1663068 > BZ1663068.tar\n$ docker rm -f BZ1663068\n\n$ mkdir rootfs\n$ tar -xf BZ1663068.tar -C rootfs\n\n$ runc spec --rootless\n$ runc --root /tmp/runc run --no-pivot BZ1663068\nsh-4.4# id -Z\nid: --context (-Z) works only on an SELinux-enabled kernel\n\nMy kernel does have SELinux-enabled, however I'm not sure if runc was compiled with SELinux enabled or not."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12338065",
+								"comment_count": "7",
+								"who": {
+									"text": "dwalsh",
+									"name": "Daniel Walsh"
+								},
+								"bug_when": "2019-01-04 00:56:56 +0000",
+								"thetext": "Sorry id -Z might be lying to you.\n\nInside the container do:\ncat /proc/self/current/attr\n\nOutside do getenforce, to make sure SELinux is enabled."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12353123",
+								"comment_count": "8",
+								"who": {
+									"text": "jshepherd",
+									"name": "Jason Shepherd"
+								},
+								"bug_when": "2019-01-10 00:15:58 +0000",
+								"thetext": "Seems it's current with 'unconfined_u:system_r:container_runtime_t:s0-s0:c0.c1023'\n\n[root@runc /]# cat /proc/self/attr/current\nunconfined_u:system_r:container_runtime_t:s0-s0:c0.c1023\n[root@runc /]# exit\nlogout\nsh-4.4# exit\nexit\n[jshepher@localhost BZ1663068]$ getenforce\nEnforcing"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12353148",
+								"comment_count": "10",
+								"who": {
+									"text": "jshepherd",
+									"name": "Jason Shepherd"
+								},
+								"bug_when": "2019-01-10 00:27:19 +0000",
+								"thetext": "Statement:\n\nCRI-O defaults to 'no_pivot' [1] being 'false', so it's not affected by this issue. Users should avoid setting 'no_pivot' to 'true' to prevent this flaw when using a vulnerable versions of runc with CRI-O.\n\nPodman is not affected by this issue as it doesn't use 'runc run --no-pivot'.\n\n[1] https://github.com/kubernetes-sigs/cri-o/blob/master/docs/crio.conf.5.md"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12354769",
+								"comment_count": "11",
+								"who": {
+									"text": "dwalsh",
+									"name": "Daniel Walsh"
+								},
+								"bug_when": "2019-01-10 12:45:23 +0000",
+								"thetext": "Jason, if you run runc with a spec file that does not set a confined SELinux label or any at all, it runs as container_runtime_t.\n\nIf this was run by podman, CRI-O, Buildah or Docker, by default it would run as container_t, and escape would probably be prevented\nor at least controlled.  Since container_t is only able to read /usr and some of /etc, and only able to write to container_file_t.\n\nOf course if you run on an SELinux disabled machine or permissive, or you run your container engine with SELinux disabled then\nthe escalation would not be prevented by SELinux."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12357056",
+								"comment_count": "12",
+								"who": {
+									"text": "jshepherd",
+									"name": "Jason Shepherd"
+								},
+								"bug_when": "2019-01-11 04:02:10 +0000",
+								"thetext": "Is is possible to make use of the '--no-pivot' option of runc when launching it via docker in RHEL? Trying to figure out if 'docker' on RHEL7 would be affected or not if running without SELinux enforcing."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12357057",
+								"comment_count": "13",
+								"who": {
+									"text": "jshepherd",
+									"name": "Jason Shepherd"
+								},
+								"bug_when": "2019-01-11 04:02:12 +0000",
+								"thetext": "Mitigation:\n\nWith SELinux in enforcing mode, and a runc spec file that set a confined SELinux label the container would run with the container_t label and the escape would be prevented. Podman, CRI-O, Buildah or Docker, by default it would run as container_t, and escape would be prevented, since container_t is only able to read /usr and some of /etc, and only able to write to files labelled container_file_t."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12361843",
+								"comment_count": "14",
+								"who": {
+									"text": "jshepherd",
+									"name": "Jason Shepherd"
+								},
+								"bug_when": "2019-01-13 22:58:29 +0000",
+								"thetext": "Upstream Git Pull Request: https://github.com/opencontainers/runc/pull/1962"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12361847",
+								"comment_count": "15",
+								"who": {
+									"text": "jshepherd",
+									"name": "Jason Shepherd"
+								},
+								"bug_when": "2019-01-13 22:59:44 +0000",
+								"thetext": "Created runc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1665769]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12403013",
+								"comment_count": "17",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2019-01-29 03:31:56 +0000",
+								"thetext": "Upstream pointed out that run's `--no-pivot` flag is already known to be insecure as it allows access to the host filesystem from the container. Thus, this particular bug does not warrant a CVE."
+							}
+						]
+					},
+					{
+						"bug_id": "1667626",
+						"creation_ts": "2019-01-19 06:14:28 +0000",
+						"short_desc": "runc: not using pivot_root allows mounting of /proc [fedora-all]",
+						"delta_ts": "2019-01-31 03:20:19 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security, SecurityTracking",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1667622"
+						],
+						"blocked": [
+							{
+								"bug_id": "1663068",
+								"creation_ts": "2019-01-03 02:27:19 +0000",
+								"short_desc": "runc: not using pivot_root allows mounting of /proc",
+								"delta_ts": "2021-10-27 03:22:08 +0000",
+								"bug_status": "CLOSED",
+								"resolution": "ERRATA",
+								"keywords": "Security",
+								"priority": "medium",
+								"bug_severity": "medium",
+								"depends_on": [
+									"1663070",
+									"1665769",
+									"1665770",
+									"1667622",
+									"1667626"
+								],
+								"blocked": [
+									{
+										"bug_id": "1663066",
+										"error": "NotPermitted"
+									}
+								],
+								"long_desc": [
+									{
+										"isprivate": "0",
+										"commentid": "12335109",
+										"comment_count": "0",
+										"who": {
+											"text": "jshepherd",
+											"name": "Jason Shepherd"
+										},
+										"bug_when": "2019-01-03 02:27:19 +0000",
+										"thetext": "Not using pivot_root(2) leaves the host /proc around in the mount namespace so that it is possible to mount another /proc without any other submount, even if /proc in the container is not fully visible. This flaw allows an attacker to read and modify some parts of the Linux kernel memory."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "12335110",
+										"comment_count": "1",
+										"who": {
+											"text": "jshepherd",
+											"name": "Jason Shepherd"
+										},
+										"bug_when": "2019-01-03 02:27:26 +0000",
+										"thetext": "Acknowledgments:\n\nName: the Kubernetes Product Security Team\nUpstream: Akihiro Suda"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "12336620",
+										"comment_count": "5",
+										"who": {
+											"text": "dwalsh",
+											"name": "Daniel Walsh"
+										},
+										"bug_when": "2019-01-03 14:23:39 +0000",
+										"thetext": "Can't access the link?  Could you tell me what SELinux label is running when you break out?  `id -Z`\n\nJust curious about whether SELinux blocks the exploit, or at least confines it."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "12338006",
+										"comment_count": "6",
+										"who": {
+											"text": "jshepherd",
+											"name": "Jason Shepherd"
+										},
+										"bug_when": "2019-01-03 23:39:33 +0000",
+										"thetext": "I requested access by granted to the runc directory of SRTVULNS repo, but it might take a while to be applied.\n\nIn the meantime, I see that I don't have any SELinux context applied:\n\n$ cat /etc/redhat-release \nFedora release 29 (Twenty Nine)\n$ runc --version\nrunc version 1.0.0-rc6+dev\ncommit: ead425507b6ba28278ef71ad06582df97f2d5b5f\nspec: 1.0.1-dev\n\n$ docker create --name BZ1663068 fedora sh\n$ docker export BZ1663068 > BZ1663068.tar\n$ docker rm -f BZ1663068\n\n$ mkdir rootfs\n$ tar -xf BZ1663068.tar -C rootfs\n\n$ runc spec --rootless\n$ runc --root /tmp/runc run --no-pivot BZ1663068\nsh-4.4# id -Z\nid: --context (-Z) works only on an SELinux-enabled kernel\n\nMy kernel does have SELinux-enabled, however I'm not sure if runc was compiled with SELinux enabled or not."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "12338065",
+										"comment_count": "7",
+										"who": {
+											"text": "dwalsh",
+											"name": "Daniel Walsh"
+										},
+										"bug_when": "2019-01-04 00:56:56 +0000",
+										"thetext": "Sorry id -Z might be lying to you.\n\nInside the container do:\ncat /proc/self/current/attr\n\nOutside do getenforce, to make sure SELinux is enabled."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "12353123",
+										"comment_count": "8",
+										"who": {
+											"text": "jshepherd",
+											"name": "Jason Shepherd"
+										},
+										"bug_when": "2019-01-10 00:15:58 +0000",
+										"thetext": "Seems it's current with 'unconfined_u:system_r:container_runtime_t:s0-s0:c0.c1023'\n\n[root@runc /]# cat /proc/self/attr/current\nunconfined_u:system_r:container_runtime_t:s0-s0:c0.c1023\n[root@runc /]# exit\nlogout\nsh-4.4# exit\nexit\n[jshepher@localhost BZ1663068]$ getenforce\nEnforcing"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "12353148",
+										"comment_count": "10",
+										"who": {
+											"text": "jshepherd",
+											"name": "Jason Shepherd"
+										},
+										"bug_when": "2019-01-10 00:27:19 +0000",
+										"thetext": "Statement:\n\nCRI-O defaults to 'no_pivot' [1] being 'false', so it's not affected by this issue. Users should avoid setting 'no_pivot' to 'true' to prevent this flaw when using a vulnerable versions of runc with CRI-O.\n\nPodman is not affected by this issue as it doesn't use 'runc run --no-pivot'.\n\n[1] https://github.com/kubernetes-sigs/cri-o/blob/master/docs/crio.conf.5.md"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "12354769",
+										"comment_count": "11",
+										"who": {
+											"text": "dwalsh",
+											"name": "Daniel Walsh"
+										},
+										"bug_when": "2019-01-10 12:45:23 +0000",
+										"thetext": "Jason, if you run runc with a spec file that does not set a confined SELinux label or any at all, it runs as container_runtime_t.\n\nIf this was run by podman, CRI-O, Buildah or Docker, by default it would run as container_t, and escape would probably be prevented\nor at least controlled.  Since container_t is only able to read /usr and some of /etc, and only able to write to container_file_t.\n\nOf course if you run on an SELinux disabled machine or permissive, or you run your container engine with SELinux disabled then\nthe escalation would not be prevented by SELinux."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "12357056",
+										"comment_count": "12",
+										"who": {
+											"text": "jshepherd",
+											"name": "Jason Shepherd"
+										},
+										"bug_when": "2019-01-11 04:02:10 +0000",
+										"thetext": "Is is possible to make use of the '--no-pivot' option of runc when launching it via docker in RHEL? Trying to figure out if 'docker' on RHEL7 would be affected or not if running without SELinux enforcing."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "12357057",
+										"comment_count": "13",
+										"who": {
+											"text": "jshepherd",
+											"name": "Jason Shepherd"
+										},
+										"bug_when": "2019-01-11 04:02:12 +0000",
+										"thetext": "Mitigation:\n\nWith SELinux in enforcing mode, and a runc spec file that set a confined SELinux label the container would run with the container_t label and the escape would be prevented. Podman, CRI-O, Buildah or Docker, by default it would run as container_t, and escape would be prevented, since container_t is only able to read /usr and some of /etc, and only able to write to files labelled container_file_t."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "12361843",
+										"comment_count": "14",
+										"who": {
+											"text": "jshepherd",
+											"name": "Jason Shepherd"
+										},
+										"bug_when": "2019-01-13 22:58:29 +0000",
+										"thetext": "Upstream Git Pull Request: https://github.com/opencontainers/runc/pull/1962"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "12361847",
+										"comment_count": "15",
+										"who": {
+											"text": "jshepherd",
+											"name": "Jason Shepherd"
+										},
+										"bug_when": "2019-01-13 22:59:44 +0000",
+										"thetext": "Created runc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1665769]"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "12403013",
+										"comment_count": "17",
+										"who": {
+											"text": "sfowler",
+											"name": "Sam Fowler"
+										},
+										"bug_when": "2019-01-29 03:31:56 +0000",
+										"thetext": "Upstream pointed out that run's `--no-pivot` flag is already known to be insecure as it allows access to the host filesystem from the container. Thus, this particular bug does not warrant a CVE."
+									}
+								]
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "12379647",
+								"comment_count": "0",
+								"who": {
+									"text": "lsm5",
+									"name": "Lokesh Mandvekar"
+								},
+								"bug_when": "2019-01-19 06:14:28 +0000",
+								"thetext": "+++ This bug was initially created as a clone of Bug #1667622 +++\n\n+++ This bug was initially created as a clone of Bug #1665769 +++\n\n\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n--- Additional comment from Jason Shepherd on 2019-01-14 04:29:37 IST ---\n\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1663068,1665769\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new\n\n--- Additional comment from Fedora Update System on 2019-01-16 06:32:07 IST ---\n\nrunc-1.0.0-67.dev.git12f6a99.fc29 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2019-b4356521ba\n\n--- Additional comment from Fedora Update System on 2019-01-16 06:32:15 IST ---\n\nrunc-1.0.0-67.dev.git12f6a99.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2019-93b4b78e58\n\n--- Additional comment from Fedora Update System on 2019-01-17 07:41:18 IST ---\n\nrunc-1.0.0-67.dev.git12f6a99.fc29 has been pushed to the Fedora 29 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2019-b4356521ba\n\n--- Additional comment from Fedora Update System on 2019-01-17 08:20:24 IST ---\n\nrunc-1.0.0-67.dev.git12f6a99.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2019-93b4b78e58\n\n--- Additional comment from Fedora Update System on 2019-01-19 10:57:57 IST ---\n\ndocker-1.13.1-63.git1185cfd.fc29 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2019-a034423db8\n\n--- Additional comment from Fedora Update System on 2019-01-19 11:18:42 IST ---\n\ndocker-1.13.1-63.git1185cfd.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2019-901feba171"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12379683",
+								"comment_count": "1",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2019-01-19 07:14:04 +0000",
+								"thetext": "docker-latest-1.13.1-40.git1185cfd.fc29 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2019-f5b57646b7"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12379690",
+								"comment_count": "2",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2019-01-19 07:30:50 +0000",
+								"thetext": "docker-latest-1.13.1-40.git1185cfd.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2019-723711c645"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12380031",
+								"comment_count": "3",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2019-01-20 00:58:22 +0000",
+								"thetext": "docker-latest-1.13.1-40.git1185cfd.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2019-723711c645"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12380053",
+								"comment_count": "4",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2019-01-20 02:33:51 +0000",
+								"thetext": "docker-latest-1.13.1-40.git1185cfd.fc29 has been pushed to the Fedora 29 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2019-f5b57646b7"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12410152",
+								"comment_count": "5",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2019-01-31 02:11:28 +0000",
+								"thetext": "docker-latest-1.13.1-40.git1185cfd.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12410264",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2019-01-31 03:20:19 +0000",
+								"thetext": "docker-latest-1.13.1-40.git1185cfd.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "12379606",
+						"comment_count": "0",
+						"who": {
+							"text": "lsm5",
+							"name": "Lokesh Mandvekar"
+						},
+						"bug_when": "2019-01-19 04:00:10 +0000",
+						"thetext": "+++ This bug was initially created as a clone of Bug #1665769 +++\n\n\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n--- Additional comment from Jason Shepherd on 2019-01-14 04:29:37 IST ---\n\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1663068,1665769\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new\n\n--- Additional comment from Fedora Update System on 2019-01-16 06:32:07 IST ---\n\nrunc-1.0.0-67.dev.git12f6a99.fc29 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2019-b4356521ba\n\n--- Additional comment from Fedora Update System on 2019-01-16 06:32:15 IST ---\n\nrunc-1.0.0-67.dev.git12f6a99.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2019-93b4b78e58\n\n--- Additional comment from Fedora Update System on 2019-01-17 07:41:18 IST ---\n\nrunc-1.0.0-67.dev.git12f6a99.fc29 has been pushed to the Fedora 29 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2019-b4356521ba\n\n--- Additional comment from Fedora Update System on 2019-01-17 08:20:24 IST ---\n\nrunc-1.0.0-67.dev.git12f6a99.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2019-93b4b78e58"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12379637",
+						"comment_count": "1",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-01-19 05:27:57 +0000",
+						"thetext": "docker-1.13.1-63.git1185cfd.fc29 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2019-a034423db8"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12379642",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-01-19 05:48:42 +0000",
+						"thetext": "docker-1.13.1-63.git1185cfd.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2019-901feba171"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12380029",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-01-20 00:58:19 +0000",
+						"thetext": "docker-1.13.1-63.git1185cfd.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2019-901feba171"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12380051",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-01-20 02:33:49 +0000",
+						"thetext": "docker-1.13.1-63.git1185cfd.fc29 has been pushed to the Fedora 29 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2019-a034423db8"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12410150",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-01-31 02:11:21 +0000",
+						"thetext": "docker-1.13.1-63.git1185cfd.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12410262",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2019-01-31 03:20:13 +0000",
+						"thetext": "docker-1.13.1-63.git1185cfd.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 2,
+			"nvr": "docker-1.13.1-63.git1185cfd.fc28",
+			"release_id": 21,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "docker-zsh-completion",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "docker-logrotate",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "docker-vim",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "docker",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "docker-rhel-push-plugin",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "docker-novolume-plugin",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "docker-lvm-plugin",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "docker-lvm-plugin-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "docker-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "docker-rhel-push-plugin-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "docker-common",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "docker-unit-test-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "docker-fish-completion",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "docker-unit-test",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "docker-novolume-plugin-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "docker-debugsource",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "docker",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "docker-lvm-plugin",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "docker-zsh-completion",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "docker-lvm-plugin-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "docker-unit-test",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "docker-novolume-plugin",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "docker-logrotate",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "docker-fish-completion",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "docker-rhel-push-plugin",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "docker-common",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "docker-rhel-push-plugin-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "docker-novolume-plugin-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "docker-debugsource",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "docker-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "docker-unit-test-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "docker-vim",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "docker-zsh-completion",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "docker-rhel-push-plugin",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "docker",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "docker-unit-test",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "docker-lvm-plugin",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "docker-unit-test-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "docker-logrotate",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "docker-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "docker-rhel-push-plugin-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "docker-debugsource",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "docker-novolume-plugin",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "docker-novolume-plugin-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "docker-lvm-plugin-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "docker-vim",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "docker-common",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "docker-fish-completion",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "docker-devel",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "noarch"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "docker-logrotate",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "docker-zsh-completion",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "docker-lvm-plugin-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "docker-novolume-plugin",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "docker-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "docker-vim",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "docker-common",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "docker-rhel-push-plugin",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "docker-novolume-plugin-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "docker",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "docker-rhel-push-plugin-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "docker-lvm-plugin",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "docker-fish-completion",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "docker-debugsource",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "docker-unit-test-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "docker-unit-test",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "docker",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "docker-unit-test",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "docker-fish-completion",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "docker-logrotate",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "docker-novolume-plugin",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "docker-common",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "docker-vim",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "docker-zsh-completion",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "docker-rhel-push-plugin",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "docker-lvm-plugin",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "docker-debugsource",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "docker-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "docker-unit-test-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "docker-novolume-plugin-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "docker-rhel-push-plugin-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "docker-lvm-plugin-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "docker",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "docker-zsh-completion",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "docker-common",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "docker-debugsource",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "docker-rhel-push-plugin",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "docker-unit-test",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "docker-unit-test-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "docker-novolume-plugin",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "docker-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "docker-novolume-plugin-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "docker-rhel-push-plugin-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "docker-lvm-plugin-debuginfo",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "docker-logrotate",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "docker-vim",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "docker-fish-completion",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "docker-lvm-plugin",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "docker",
+						"epoch": 2,
+						"version": "1.13.1",
+						"release": "63.git1185cfd.fc28",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 886189,
+			"text": "This update has been submitted for testing by lsm5. ",
+			"timestamp": "2019-01-19 05:48:39",
+			"update_id": 130174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 886347,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2019-01-20 00:58:33",
+			"update_id": 130174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 888620,
+			"text": "This update has reached 7 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2019-01-27 06:00:24",
+			"update_id": 130174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 889673,
+			"text": "This update has been submitted for batched by lsm5. ",
+			"timestamp": "2019-01-30 08:32:51",
+			"update_id": 130174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 889674,
+			"text": "This update has been submitted for stable by lsm5. ",
+			"timestamp": "2019-01-30 08:33:02",
+			"update_id": 130174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 889897,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2019-01-31 02:12:00",
+			"update_id": 130174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2019-01-31 02:11:11",
+	"date_stable": "2019-01-31 02:11:11",
+	"date_submitted": "2019-01-19 05:48:39",
+	"date_testing": "2019-01-20 00:58:15",
+	"meets_testing_requirements": true,
+	"notes": "- Resolves: #1666565, #1666566 - CVE-2018-20699 \n- Resolves: #1663068, #1667622 - umount all procfs and sysfs with --no-pivot\n- built docker @projectatomic/docker-1.13.1 commit 1185cfd\n- built docker-runc @projectatomic/docker-1.13.1 commit e4ffe43",
+	"pushed": true,
+	"release": {
+		"branch": "f28",
+		"candidate_tag": "f28-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f28",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 28",
+		"mail_template": "fedora_errata_template",
+		"name": "F28",
+		"override_tag": "f28-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f28-signing-pending",
+		"pending_stable_tag": "f28-updates-pending",
+		"pending_testing_tag": "f28-updates-testing-pending",
+		"stable_tag": "f28-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f28-updates-testing",
+		"version": "28"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "medium",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "docker-1.13.1-63.git1185cfd.fc28",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2019-901feba171",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2019-901feba171",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/4b5bde9c967a26b9aef990c1474026db89794ea85aa1ad59d0790ef72604a9b0?s=24&d=retro",
+		"email": "lsm5@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "container-sig"
+			}
+		],
+		"id": 228,
+		"name": "lsm5",
+		"openid": "lsm5.id.fedoraproject.org"
+	},
+	"version_hash": "503d0015e4b8f14e19e3df0fa0fd36a2bef68318"
+}

@@ -1,0 +1,1383 @@
+{
+	"alias": "FEDORA-2022-6ec78b2586",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2123894,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2022-41973 device-mapper-multipath: Symlink attack multipathd operates insecurely, as root, in /dev/shm (a sticky, world-writable directory similar to /tmp)",
+			"bugzilla": {
+				"bug_id": "2123894",
+				"alias": "CVE-2022-41973",
+				"creation_ts": "2022-09-02 23:02:27 +0000",
+				"short_desc": "CVE-2022-41973 device-mapper-multipath: multipathd: insecure handling of files in /dev/shm leading to symlink attack",
+				"delta_ts": "2023-05-16 15:13:33 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"2133989",
+					"2133990",
+					"2137414"
+				],
+				"blocked": [
+					{
+						"bug_id": "2133535",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2023:2948",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "16607509",
+						"comment_count": "0",
+						"who": {
+							"text": "amctagga",
+							"name": "Sage McTaggart"
+						},
+						"bug_when": "2022-09-02 23:02:27 +0000",
+						"thetext": "Qualys Security Advisory\nhttps://www.qualys.com/2022/10/24/leeloo-multipath/leeloo-multipath.txt\nhttps://www.openwall.com/lists/oss-security/2022/10/24/2\n\nAuthorization bypass and symlink attack in multipathd\n(CVE-2022-AUTHZ and CVE-2022-SLINK)\n\n========================================================================\nContents\n========================================================================\n\nSummary\nCVE-2022-AUTHZ: Authorization bypass\nCVE-2022-SLINK: Symlink attack\nAcknowledgments\nTimeline\n\n\n========================================================================\nSummary\n========================================================================\n\nWe discovered two local vulnerabilities (an authorization bypass and a\nsymlink attack) in multipathd, a daemon that is running as root in the\ndefault installation of (for example) Ubuntu Server:\n\nhttps://ubuntu.com/server/docs/device-mapper-multipathing-introduction\nhttps://github.com/opensvc/multipath-tools\n\nWe combined these two vulnerabilities with a third vulnerability, in\nanother package that is also installed by default on Ubuntu Server, and\nobtained full root privileges on Ubuntu Server 22.04; other releases are\nprobably also exploitable. We will publish this third vulnerability, and\nthe complete details of this local privilege escalation, in an upcoming\nadvisory.\n\nThe authorization bypass (CVE-2022-AUTHZ) was introduced in February\n2017 (version 0.7.0) by commit 9acda0c (\"Perform socket client uid check\non IPC commands\"), but earlier versions perform no authorization checks\nat all: any unprivileged local user can issue any privileged command to\nmultipathd.\n\nThe symlink attack (CVE-2022-SLINK) was introduced in May 2018 (version\n0.7.7) by commit 65d0a63 (\"functions to indicate mapping failure in\n/dev/shm\"); the vulnerable code was hardened significantly in May 2020\n(version 0.8.5) by commit 40ee3ea (\"simplify failed wwid code\"), but it\nremains exploitable nonetheless.\n\n\n========================================================================\nCVE-2022-AUTHZ: Authorization bypass\n========================================================================\n\nThe multipathd daemon listens for client connections on an abstract Unix\nsocket (conveniently, the multipathd binary itself can act as a client,\nif executed with non-option arguments; we use this feature extensively\nin this advisory to connect and send commands to the multipathd daemon):\n\n------------------------------------------------------------------------\n$ ps -ef | grep 'multipath[d]'\nroot 377 1 0 13:55 ? 00:00:00 /sbin/multipathd -d -s\n\n$ ss -l -x | grep 'multipathd'\nu_str LISTEN 0 4096 @/org/kernel/linux/storage/multipathd 18105\n------------------------------------------------------------------------\n\nThe commands sent by a client to multipathd are composed of keywords,\nand internally, each keyword is identified by a different bit; for\nexample, \"list\" is 1 (1<<0), \"add\" is 2 (1<<1), and \"path\" (which\nrequires a parameter) is 65536 (1<<16):\n\n------------------------------------------------------------------------\n155 load_keys (void)\n...\n163 r += add_key(keys, \"list\", LIST, 0);\n164 r += add_key(keys, \"show\", LIST, 0);\n165 r += add_key(keys, \"add\", ADD, 0);\n...\n183 r += add_key(keys, \"path\", PATH, 1);\n------------------------------------------------------------------------\n53 #define LIST (1ULL << __LIST)\n54 #define ADD (1ULL << __ADD)\n..\n69 #define PATH (1ULL << __PATH)\n------------------------------------------------------------------------\n6 enum {\n7 __LIST, /* 0 */\n8 __ADD,\n..\n23 __PATH,\n------------------------------------------------------------------------\n\nIn turn, each command is associated with a handler (a C function) by its\nfingerprint -- the bitwise OR of its constituent keywords; for example,\nthe command \"list path PARAM\" is associated with cli_list_path() by the\nfingerprint 65537 (LIST+PATH=1+65536), and the command \"add path PARAM\"\nis associated with cli_add_path() by the fingerprint 65538\n(ADD+PATH=2+65536):\n\n------------------------------------------------------------------------\n1522 void init_handler_callbacks(void)\n....\n1527 set_handler_callback(LIST+PATH, cli_list_path);\n....\n1549 set_handler_callback(ADD+PATH, cli_add_path);\n------------------------------------------------------------------------\n321 static uint64_t\n322 fingerprint(const struct _vector *vec)\n...\n325 uint64_t fp = 0;\n...\n331 vector_foreach_slot(vec, kw, i)\n332 fp += kw->code;\n333\n334 return fp;\n------------------------------------------------------------------------\n89 static struct handler *\n90 find_handler (uint64_t fp)\n..\n95 vector_foreach_slot (handlers, h, i)\n96 if (h->fingerprint == fp)\n97 return h;\n98\n99 return NULL;\n------------------------------------------------------------------------\n\nWhen multipathd receives a command from a client, it first performs an\nauthentication check and an authorization check (both at line 491):\n\n------------------------------------------------------------------------\n431 static int client_state_machine(struct client *c, struct vectors *vecs,\n...\n485 case CLT_PARSE:\n486 c->error = parse_cmd(c);\n487 if (!c->error) {\n...\n491 if (!c->is_root && kw->code != LIST) {\n492 c->error = -EPERM;\n...\n495 }\n496 }\n497 if (c->error)\n...\n501 else\n502 set_client_state(c, CLT_WORK);\n...\n522 case CLT_WORK:\n523 c->error = execute_handler(c, vecs);\n------------------------------------------------------------------------\n\n- Authentication: if the client's UID (obtained from SO_PEERCRED) is 0\n(i.e., if is_root is true), then the client is privileged; otherwise,\nit is unprivileged.\n\n- Authorization: if the client is privileged, it is allowed to execute\nany commands; otherwise, only unprivileged LIST commands are allowed\n(i.e., commands whose first keyword is either \"list\" or \"show\").\n\nAttentive readers may have noticed that multipathd does not, in fact,\ncalculate the fingerprint of a command by bitwise-ORing its constituent\nkeywords, but by arithmetic-ADDing them (at line 332). While these two\noperations are equivalent if no keyword is repeated, we (attackers) can\nsend a seemingly unprivileged command (whose first keyword is \"list\")\nbut whose fingerprint matches a privileged command (by repeating the\n\"list\" keyword): we can exploit this flaw to bypass multipathd's\nauthorization check.\n\nFor example, we are not allowed to execute \"add path PARAM\" (whose\nfingerprint is 2+65536=65538) because the first keyword is not \"list\",\nbut we are allowed to execute the equivalent \"list list path PARAM\"\n(whose fingerprint is also 1+1+65536=65538, instead of 1|1|65536=65537)\nbecause the first keyword is \"list\" (the multipathd daemon below replies\n\"blacklisted\" because PARAM is an invalid path, not because the command\nis denied):\n\n------------------------------------------------------------------------\n$ multipathd add path PARAM\npermission deny: need to be root\n\n$ multipathd list list path PARAM\nblacklisted\n------------------------------------------------------------------------\n\nThis authorization bypass greatly enlarges the attack surface of\nmultipathd: 34 privileged command handlers become available to local\nattackers, in addition to the 23 unprivileged command handlers that are\nnormally available. We audited only a few of these command handlers,\nbecause we quickly discovered a low-hanging vulnerability (a symlink\nattack) in one of them.\n\n\n========================================================================\nCVE-2022-SLINK: Symlink attack\n========================================================================\n\nmultipathd operates insecurely, as root, in /dev/shm (a sticky,\nworld-writable directory similar to /tmp). The vulnerable code (in\nmark_failed_wwid()) may be executed during the normal lifetime of\nmultipathd, but a local attacker can force its execution by exploiting\nthe authorization bypass CVE-2022-AUTHZ; for example, by adding a\n\"whitelisted, unmonitored\" device to multipathd:\n\n------------------------------------------------------------------------\n$ multipathd list devices | grep 'whitelisted, unmonitored'\nsda1 devnode whitelisted, unmonitored\n...\n\n$ multipathd list list path sda1\nfail\n------------------------------------------------------------------------\n\nThis command, which is equivalent to \"add path sda1\", results in the\nfollowing system-call trace (strace) of the multipathd daemon:\n\n------------------------------------------------------------------------\n386 openat(AT_FDCWD, \"/dev/shm/multipath/failed_wwids\", O_RDONLY|O_DIRECTORY) = -1 ENOENT (No such file or directory)\n387 mkdir(\"/dev\", 0700) = -1 EEXIST (File exists)\n388 mkdir(\"/dev/shm\", 0700) = -1 EEXIST (File exists)\n389 mkdir(\"/dev/shm/multipath\", 0700) = 0\n390 mkdir(\"/dev/shm/multipath/failed_wwids\", 0700) = 0\n391 openat(AT_FDCWD, \"/dev/shm/multipath/failed_wwids\", O_RDONLY|O_DIRECTORY) = 12\n392 getpid() = 375\n393 openat(12, \"VBOX_HARDDISK_VB60265ca5-df119cb6.177\", O_RDONLY|O_CREAT|O_EXCL, 0400) = 13\n394 close(13) = 0\n395 linkat(12, \"VBOX_HARDDISK_VB60265ca5-df119cb6.177\", 12, \"VBOX_HARDDISK_VB60265ca5-df119cb6\", 0) = 0\n396 unlinkat(12, \"VBOX_HARDDISK_VB60265ca5-df119cb6.177\", 0) = 0\n397 close(12) = 0\n------------------------------------------------------------------------\n\n- at line 389, the directory \"/dev/shm/multipath\" is created, if it does\nnot exist already;\n\n- at line 390, the directory \"/dev/shm/multipath/failed_wwids\" is\ncreated, if it does not exist already;\n\n- at lines 391-397, the empty file\n\"/dev/shm/multipath/failed_wwids/VBOX_HARDDISK_VB60265ca5-df119cb6\" is\ncreated, if it does not exist already (its name is the \"World Wide ID\"\nof the added device).\n\nmultipathd is therefore vulnerable to two different symlink attacks:\n\n1/ if we (attackers) create an arbitrary symlink \"/dev/shm/multipath\",\nthen we can create a directory named \"failed_wwids\" (user root, group\nroot, mode 0700) anywhere in the filesystem;\n\n2/ if we create an arbitrary symlink \"/dev/shm/multipath/failed_wwids\",\nthen we can create a file named \"VBOX_HARDDISK_VB60265ca5-df119cb6\"\n(user root, group root, mode 0400, size 0) anywhere in the filesystem.\n\nThese two symlink attacks are very weak, because we do not control the\nname, user, group, mode, or contents of the directory or file that we\ncreate; only its location. Despite these limitations, we were able to\ncombine multipathd's vulnerabilities (authorization bypass and symlink\nattack) with a third vulnerability (in another package), and obtained\nfull root privileges on Ubuntu Server 22.04; we will publish this third\nvulnerability in an upcoming advisory.\n\nSide note: initially, we thought that the symlink attack 1/ would fail,\nbecause /dev/shm is a sticky world-writable directory, and the kernel's\nfs.protected_symlinks is 1 by default; to our great surprise, however,\nit succeeded. Eventually, we understood that only the final component of\na path is protected, not its intermediate components; for example, if\n/tmp/foo is a symlink, then an access to /tmp/foo itself is protected,\nbut an access to /tmp/foo/bar is not. Interestingly, this weakness was\nalready pointed out in 2017 by Solar Designer, and the original\nOpenwall, grsecurity, and Yama protections are not affected:\n\nhttps://www.openwall.com/lists/kernel-hardening/2017/06/06/74\n\n\n========================================================================\nAcknowledgments\n========================================================================\n\n\n========================================================================\nTimeline"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16644056",
+						"comment_count": "1",
+						"who": {
+							"text": "bmarzins",
+							"name": "Ben Marzinski"
+						},
+						"bug_when": "2022-09-16 20:44:33 +0000",
+						"thetext": "Is there a document on the CVE workflow? I was under the impression that bugs would also be created for the various releases of the device-mapper-multipath package, and those where what would be used to fix this issue.  But as far as I can see, no other bugs have been created.  I don't have access to Bug #2123895, whatever that is. With regards to what releases have these vulnerabilities, CVE-2022-AUTHZ exists in all supported versions of device-mapper-multipath. CVE-2022-SLINK exists in all versions of device-mapper-multipath starting with rhel-8.0."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16729274",
+						"comment_count": "8",
+						"who": {
+							"text": "gsuckevi",
+							"name": "Guilherme de Almeida Suckevicz"
+						},
+						"bug_when": "2022-10-24 20:02:30 +0000",
+						"thetext": "Created device-mapper-multipath tracking bugs for this issue:\n\nAffects: fedora-all [bug 2137414]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17257737",
+						"comment_count": "11",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2023-05-09 07:52:03 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 9\n\nVia RHSA-2023:2459 https://access.redhat.com/errata/RHSA-2023:2459"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17288289",
+						"comment_count": "12",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2023-05-16 08:32:46 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2023:2948 https://access.redhat.com/errata/RHSA-2023:2948"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17291301",
+						"comment_count": "13",
+						"who": {
+							"text": "prodsec-dev",
+							"name": "Product Security DevOps Team"
+						},
+						"bug_when": "2023-05-16 15:13:30 +0000",
+						"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2022-41973"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2133988,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2022-41974 device-mapper-multipath: Authorization bypass, multipathd daemon listens for client connections on an abstract Unix socket",
+			"bugzilla": {
+				"bug_id": "2133988",
+				"alias": "CVE-2022-41974",
+				"creation_ts": "2022-10-12 04:55:15 +0000",
+				"short_desc": "CVE-2022-41974 device-mapper-multipath: Authorization bypass, multipathd daemon listens for client connections on an abstract Unix socket",
+				"delta_ts": "2023-05-16 15:15:48 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "high",
+				"bug_severity": "high",
+				"depends_on": [
+					"2133991",
+					"2133992",
+					"2133993",
+					"2133994",
+					"2133995",
+					"2133996",
+					"2133997",
+					"2133998",
+					"2133999",
+					"2134905",
+					"2136434",
+					"2137416"
+				],
+				"blocked": [
+					{
+						"bug_id": "2133535",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2022:8598",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "16700474",
+						"comment_count": "0",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2022-10-12 04:55:15 +0000",
+						"thetext": "Qualys Security Advisory\nhttps://www.qualys.com/2022/10/24/leeloo-multipath/leeloo-multipath.txt\nhttps://www.openwall.com/lists/oss-security/2022/10/24/2\n\n========================================================================\nCVE-2022-41974: Authorization bypass\n========================================================================\n\nmultipath-tools 0.7.0 through 0.9.x before 0.9.2 allows local users to obtain root access, as exploited alone or in conjunction with CVE-2022-41973. Local users able to write to UNIX domain sockets can bypass access controls and manipulate the multipath setup. This can lead to local privilege escalation to root. This occurs because an attacker can repeat a keyword, which is mishandled because arithmetic ADD is used instead of bitwise OR."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16729279",
+						"comment_count": "7",
+						"who": {
+							"text": "gsuckevi",
+							"name": "Guilherme de Almeida Suckevicz"
+						},
+						"bug_when": "2022-10-24 20:02:41 +0000",
+						"thetext": "Created device-mapper-multipath tracking bugs for this issue:\n\nAffects: fedora-all [bug 2137416]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16732014",
+						"comment_count": "8",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2022-10-25 15:00:45 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 9\n\nVia RHSA-2022:7185 https://access.redhat.com/errata/RHSA-2022:7185"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16732034",
+						"comment_count": "9",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2022-10-25 15:04:24 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8.1 Update Services for SAP Solutions\n\nVia RHSA-2022:7187 https://access.redhat.com/errata/RHSA-2022:7187"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16732046",
+						"comment_count": "10",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2022-10-25 15:06:26 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8.2 Extended Update Support\n\nVia RHSA-2022:7188 https://access.redhat.com/errata/RHSA-2022:7188"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16732063",
+						"comment_count": "11",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2022-10-25 15:12:09 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2022:7186 https://access.redhat.com/errata/RHSA-2022:7186"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16732086",
+						"comment_count": "12",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2022-10-25 15:17:38 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2022:7192 https://access.redhat.com/errata/RHSA-2022:7192"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16736861",
+						"comment_count": "13",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2022-10-27 10:13:58 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8.4 Extended Update Support\n\nVia RHSA-2022:7191 https://access.redhat.com/errata/RHSA-2022:7191"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16809974",
+						"comment_count": "18",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2022-11-22 15:28:34 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Virtualization 4 for Red Hat Enterprise Linux 8\n\nVia RHSA-2022:8598 https://access.redhat.com/errata/RHSA-2022:8598"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17291325",
+						"comment_count": "19",
+						"who": {
+							"text": "prodsec-dev",
+							"name": "Product Security DevOps Team"
+						},
+						"bug_when": "2023-05-16 15:15:46 +0000",
+						"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2022-41974"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2137414,
+			"security": true,
+			"title": "CVE-2022-41973 device-mapper-multipath: Symlink attack multipathd operates insecurely, as root, in /dev/shm (a sticky, world-writable directory similar to /tmp) [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2137414",
+				"creation_ts": "2022-10-24 20:02:21 +0000",
+				"short_desc": "CVE-2022-41973 device-mapper-multipath: Symlink attack multipathd operates insecurely, as root, in /dev/shm (a sticky, world-writable directory similar to /tmp) [fedora-all]",
+				"delta_ts": "2022-11-10 16:18:05 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "2123894",
+						"alias": "CVE-2022-41973",
+						"creation_ts": "2022-09-02 23:02:27 +0000",
+						"short_desc": "CVE-2022-41973 device-mapper-multipath: multipathd: insecure handling of files in /dev/shm leading to symlink attack",
+						"delta_ts": "2023-05-16 15:13:33 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"2133989",
+							"2133990",
+							"2137414"
+						],
+						"blocked": [
+							{
+								"bug_id": "2133535",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2023:2948",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "16607509",
+								"comment_count": "0",
+								"who": {
+									"text": "amctagga",
+									"name": "Sage McTaggart"
+								},
+								"bug_when": "2022-09-02 23:02:27 +0000",
+								"thetext": "Qualys Security Advisory\nhttps://www.qualys.com/2022/10/24/leeloo-multipath/leeloo-multipath.txt\nhttps://www.openwall.com/lists/oss-security/2022/10/24/2\n\nAuthorization bypass and symlink attack in multipathd\n(CVE-2022-AUTHZ and CVE-2022-SLINK)\n\n========================================================================\nContents\n========================================================================\n\nSummary\nCVE-2022-AUTHZ: Authorization bypass\nCVE-2022-SLINK: Symlink attack\nAcknowledgments\nTimeline\n\n\n========================================================================\nSummary\n========================================================================\n\nWe discovered two local vulnerabilities (an authorization bypass and a\nsymlink attack) in multipathd, a daemon that is running as root in the\ndefault installation of (for example) Ubuntu Server:\n\nhttps://ubuntu.com/server/docs/device-mapper-multipathing-introduction\nhttps://github.com/opensvc/multipath-tools\n\nWe combined these two vulnerabilities with a third vulnerability, in\nanother package that is also installed by default on Ubuntu Server, and\nobtained full root privileges on Ubuntu Server 22.04; other releases are\nprobably also exploitable. We will publish this third vulnerability, and\nthe complete details of this local privilege escalation, in an upcoming\nadvisory.\n\nThe authorization bypass (CVE-2022-AUTHZ) was introduced in February\n2017 (version 0.7.0) by commit 9acda0c (\"Perform socket client uid check\non IPC commands\"), but earlier versions perform no authorization checks\nat all: any unprivileged local user can issue any privileged command to\nmultipathd.\n\nThe symlink attack (CVE-2022-SLINK) was introduced in May 2018 (version\n0.7.7) by commit 65d0a63 (\"functions to indicate mapping failure in\n/dev/shm\"); the vulnerable code was hardened significantly in May 2020\n(version 0.8.5) by commit 40ee3ea (\"simplify failed wwid code\"), but it\nremains exploitable nonetheless.\n\n\n========================================================================\nCVE-2022-AUTHZ: Authorization bypass\n========================================================================\n\nThe multipathd daemon listens for client connections on an abstract Unix\nsocket (conveniently, the multipathd binary itself can act as a client,\nif executed with non-option arguments; we use this feature extensively\nin this advisory to connect and send commands to the multipathd daemon):\n\n------------------------------------------------------------------------\n$ ps -ef | grep 'multipath[d]'\nroot 377 1 0 13:55 ? 00:00:00 /sbin/multipathd -d -s\n\n$ ss -l -x | grep 'multipathd'\nu_str LISTEN 0 4096 @/org/kernel/linux/storage/multipathd 18105\n------------------------------------------------------------------------\n\nThe commands sent by a client to multipathd are composed of keywords,\nand internally, each keyword is identified by a different bit; for\nexample, \"list\" is 1 (1<<0), \"add\" is 2 (1<<1), and \"path\" (which\nrequires a parameter) is 65536 (1<<16):\n\n------------------------------------------------------------------------\n155 load_keys (void)\n...\n163 r += add_key(keys, \"list\", LIST, 0);\n164 r += add_key(keys, \"show\", LIST, 0);\n165 r += add_key(keys, \"add\", ADD, 0);\n...\n183 r += add_key(keys, \"path\", PATH, 1);\n------------------------------------------------------------------------\n53 #define LIST (1ULL << __LIST)\n54 #define ADD (1ULL << __ADD)\n..\n69 #define PATH (1ULL << __PATH)\n------------------------------------------------------------------------\n6 enum {\n7 __LIST, /* 0 */\n8 __ADD,\n..\n23 __PATH,\n------------------------------------------------------------------------\n\nIn turn, each command is associated with a handler (a C function) by its\nfingerprint -- the bitwise OR of its constituent keywords; for example,\nthe command \"list path PARAM\" is associated with cli_list_path() by the\nfingerprint 65537 (LIST+PATH=1+65536), and the command \"add path PARAM\"\nis associated with cli_add_path() by the fingerprint 65538\n(ADD+PATH=2+65536):\n\n------------------------------------------------------------------------\n1522 void init_handler_callbacks(void)\n....\n1527 set_handler_callback(LIST+PATH, cli_list_path);\n....\n1549 set_handler_callback(ADD+PATH, cli_add_path);\n------------------------------------------------------------------------\n321 static uint64_t\n322 fingerprint(const struct _vector *vec)\n...\n325 uint64_t fp = 0;\n...\n331 vector_foreach_slot(vec, kw, i)\n332 fp += kw->code;\n333\n334 return fp;\n------------------------------------------------------------------------\n89 static struct handler *\n90 find_handler (uint64_t fp)\n..\n95 vector_foreach_slot (handlers, h, i)\n96 if (h->fingerprint == fp)\n97 return h;\n98\n99 return NULL;\n------------------------------------------------------------------------\n\nWhen multipathd receives a command from a client, it first performs an\nauthentication check and an authorization check (both at line 491):\n\n------------------------------------------------------------------------\n431 static int client_state_machine(struct client *c, struct vectors *vecs,\n...\n485 case CLT_PARSE:\n486 c->error = parse_cmd(c);\n487 if (!c->error) {\n...\n491 if (!c->is_root && kw->code != LIST) {\n492 c->error = -EPERM;\n...\n495 }\n496 }\n497 if (c->error)\n...\n501 else\n502 set_client_state(c, CLT_WORK);\n...\n522 case CLT_WORK:\n523 c->error = execute_handler(c, vecs);\n------------------------------------------------------------------------\n\n- Authentication: if the client's UID (obtained from SO_PEERCRED) is 0\n(i.e., if is_root is true), then the client is privileged; otherwise,\nit is unprivileged.\n\n- Authorization: if the client is privileged, it is allowed to execute\nany commands; otherwise, only unprivileged LIST commands are allowed\n(i.e., commands whose first keyword is either \"list\" or \"show\").\n\nAttentive readers may have noticed that multipathd does not, in fact,\ncalculate the fingerprint of a command by bitwise-ORing its constituent\nkeywords, but by arithmetic-ADDing them (at line 332). While these two\noperations are equivalent if no keyword is repeated, we (attackers) can\nsend a seemingly unprivileged command (whose first keyword is \"list\")\nbut whose fingerprint matches a privileged command (by repeating the\n\"list\" keyword): we can exploit this flaw to bypass multipathd's\nauthorization check.\n\nFor example, we are not allowed to execute \"add path PARAM\" (whose\nfingerprint is 2+65536=65538) because the first keyword is not \"list\",\nbut we are allowed to execute the equivalent \"list list path PARAM\"\n(whose fingerprint is also 1+1+65536=65538, instead of 1|1|65536=65537)\nbecause the first keyword is \"list\" (the multipathd daemon below replies\n\"blacklisted\" because PARAM is an invalid path, not because the command\nis denied):\n\n------------------------------------------------------------------------\n$ multipathd add path PARAM\npermission deny: need to be root\n\n$ multipathd list list path PARAM\nblacklisted\n------------------------------------------------------------------------\n\nThis authorization bypass greatly enlarges the attack surface of\nmultipathd: 34 privileged command handlers become available to local\nattackers, in addition to the 23 unprivileged command handlers that are\nnormally available. We audited only a few of these command handlers,\nbecause we quickly discovered a low-hanging vulnerability (a symlink\nattack) in one of them.\n\n\n========================================================================\nCVE-2022-SLINK: Symlink attack\n========================================================================\n\nmultipathd operates insecurely, as root, in /dev/shm (a sticky,\nworld-writable directory similar to /tmp). The vulnerable code (in\nmark_failed_wwid()) may be executed during the normal lifetime of\nmultipathd, but a local attacker can force its execution by exploiting\nthe authorization bypass CVE-2022-AUTHZ; for example, by adding a\n\"whitelisted, unmonitored\" device to multipathd:\n\n------------------------------------------------------------------------\n$ multipathd list devices | grep 'whitelisted, unmonitored'\nsda1 devnode whitelisted, unmonitored\n...\n\n$ multipathd list list path sda1\nfail\n------------------------------------------------------------------------\n\nThis command, which is equivalent to \"add path sda1\", results in the\nfollowing system-call trace (strace) of the multipathd daemon:\n\n------------------------------------------------------------------------\n386 openat(AT_FDCWD, \"/dev/shm/multipath/failed_wwids\", O_RDONLY|O_DIRECTORY) = -1 ENOENT (No such file or directory)\n387 mkdir(\"/dev\", 0700) = -1 EEXIST (File exists)\n388 mkdir(\"/dev/shm\", 0700) = -1 EEXIST (File exists)\n389 mkdir(\"/dev/shm/multipath\", 0700) = 0\n390 mkdir(\"/dev/shm/multipath/failed_wwids\", 0700) = 0\n391 openat(AT_FDCWD, \"/dev/shm/multipath/failed_wwids\", O_RDONLY|O_DIRECTORY) = 12\n392 getpid() = 375\n393 openat(12, \"VBOX_HARDDISK_VB60265ca5-df119cb6.177\", O_RDONLY|O_CREAT|O_EXCL, 0400) = 13\n394 close(13) = 0\n395 linkat(12, \"VBOX_HARDDISK_VB60265ca5-df119cb6.177\", 12, \"VBOX_HARDDISK_VB60265ca5-df119cb6\", 0) = 0\n396 unlinkat(12, \"VBOX_HARDDISK_VB60265ca5-df119cb6.177\", 0) = 0\n397 close(12) = 0\n------------------------------------------------------------------------\n\n- at line 389, the directory \"/dev/shm/multipath\" is created, if it does\nnot exist already;\n\n- at line 390, the directory \"/dev/shm/multipath/failed_wwids\" is\ncreated, if it does not exist already;\n\n- at lines 391-397, the empty file\n\"/dev/shm/multipath/failed_wwids/VBOX_HARDDISK_VB60265ca5-df119cb6\" is\ncreated, if it does not exist already (its name is the \"World Wide ID\"\nof the added device).\n\nmultipathd is therefore vulnerable to two different symlink attacks:\n\n1/ if we (attackers) create an arbitrary symlink \"/dev/shm/multipath\",\nthen we can create a directory named \"failed_wwids\" (user root, group\nroot, mode 0700) anywhere in the filesystem;\n\n2/ if we create an arbitrary symlink \"/dev/shm/multipath/failed_wwids\",\nthen we can create a file named \"VBOX_HARDDISK_VB60265ca5-df119cb6\"\n(user root, group root, mode 0400, size 0) anywhere in the filesystem.\n\nThese two symlink attacks are very weak, because we do not control the\nname, user, group, mode, or contents of the directory or file that we\ncreate; only its location. Despite these limitations, we were able to\ncombine multipathd's vulnerabilities (authorization bypass and symlink\nattack) with a third vulnerability (in another package), and obtained\nfull root privileges on Ubuntu Server 22.04; we will publish this third\nvulnerability in an upcoming advisory.\n\nSide note: initially, we thought that the symlink attack 1/ would fail,\nbecause /dev/shm is a sticky world-writable directory, and the kernel's\nfs.protected_symlinks is 1 by default; to our great surprise, however,\nit succeeded. Eventually, we understood that only the final component of\na path is protected, not its intermediate components; for example, if\n/tmp/foo is a symlink, then an access to /tmp/foo itself is protected,\nbut an access to /tmp/foo/bar is not. Interestingly, this weakness was\nalready pointed out in 2017 by Solar Designer, and the original\nOpenwall, grsecurity, and Yama protections are not affected:\n\nhttps://www.openwall.com/lists/kernel-hardening/2017/06/06/74\n\n\n========================================================================\nAcknowledgments\n========================================================================\n\n\n========================================================================\nTimeline"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "16644056",
+								"comment_count": "1",
+								"who": {
+									"text": "bmarzins",
+									"name": "Ben Marzinski"
+								},
+								"bug_when": "2022-09-16 20:44:33 +0000",
+								"thetext": "Is there a document on the CVE workflow? I was under the impression that bugs would also be created for the various releases of the device-mapper-multipath package, and those where what would be used to fix this issue.  But as far as I can see, no other bugs have been created.  I don't have access to Bug #2123895, whatever that is. With regards to what releases have these vulnerabilities, CVE-2022-AUTHZ exists in all supported versions of device-mapper-multipath. CVE-2022-SLINK exists in all versions of device-mapper-multipath starting with rhel-8.0."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "16729274",
+								"comment_count": "8",
+								"who": {
+									"text": "gsuckevi",
+									"name": "Guilherme de Almeida Suckevicz"
+								},
+								"bug_when": "2022-10-24 20:02:30 +0000",
+								"thetext": "Created device-mapper-multipath tracking bugs for this issue:\n\nAffects: fedora-all [bug 2137414]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17257737",
+								"comment_count": "11",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-05-09 07:52:03 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 9\n\nVia RHSA-2023:2459 https://access.redhat.com/errata/RHSA-2023:2459"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17288289",
+								"comment_count": "12",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-05-16 08:32:46 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2023:2948 https://access.redhat.com/errata/RHSA-2023:2948"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17291301",
+								"comment_count": "13",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2023-05-16 15:13:30 +0000",
+								"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2022-41973"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "16729272",
+						"comment_count": "0",
+						"who": {
+							"text": "gsuckevi",
+							"name": "Guilherme de Almeida Suckevicz"
+						},
+						"bug_when": "2022-10-24 20:02:21 +0000",
+						"thetext": "\nMore information about this security flaw is available in the following bug:\n\nhttp://bugzilla.redhat.com/show_bug.cgi?id=2123894\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16729273",
+						"comment_count": "1",
+						"who": {
+							"text": "gsuckevi",
+							"name": "Guilherme de Almeida Suckevicz"
+						},
+						"bug_when": "2022-10-24 20:02:24 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2123894,2137414\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16735505",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-10-26 19:01:27 +0000",
+						"thetext": "FEDORA-2022-6ec78b2586 has been submitted as an update to Fedora 36. https://bodhi.fedoraproject.org/updates/FEDORA-2022-6ec78b2586"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16737120",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-10-27 12:14:11 +0000",
+						"thetext": "FEDORA-2022-6ec78b2586 has been pushed to the Fedora 36 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --refresh --advisory=FEDORA-2022-6ec78b2586`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2022-6ec78b2586\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16774310",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-11-10 16:18:05 +0000",
+						"thetext": "FEDORA-2022-6ec78b2586 has been pushed to the Fedora 36 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2137416,
+			"security": true,
+			"title": "CVE-2022-41974 device-mapper-multipath: Authorization bypass, multipathd daemon listens for client connections on an abstract Unix socket [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2137416",
+				"creation_ts": "2022-10-24 20:02:30 +0000",
+				"short_desc": "CVE-2022-41974 device-mapper-multipath: Authorization bypass, multipathd daemon listens for client connections on an abstract Unix socket [fedora-all]",
+				"delta_ts": "2022-11-10 16:18:11 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "2133988",
+						"alias": "CVE-2022-41974",
+						"creation_ts": "2022-10-12 04:55:15 +0000",
+						"short_desc": "CVE-2022-41974 device-mapper-multipath: Authorization bypass, multipathd daemon listens for client connections on an abstract Unix socket",
+						"delta_ts": "2023-05-16 15:15:48 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"2133991",
+							"2133992",
+							"2133993",
+							"2133994",
+							"2133995",
+							"2133996",
+							"2133997",
+							"2133998",
+							"2133999",
+							"2134905",
+							"2136434",
+							"2137416"
+						],
+						"blocked": [
+							{
+								"bug_id": "2133535",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2022:8598",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "16700474",
+								"comment_count": "0",
+								"who": {
+									"text": "saroy",
+									"name": "Sandipan Roy"
+								},
+								"bug_when": "2022-10-12 04:55:15 +0000",
+								"thetext": "Qualys Security Advisory\nhttps://www.qualys.com/2022/10/24/leeloo-multipath/leeloo-multipath.txt\nhttps://www.openwall.com/lists/oss-security/2022/10/24/2\n\n========================================================================\nCVE-2022-41974: Authorization bypass\n========================================================================\n\nmultipath-tools 0.7.0 through 0.9.x before 0.9.2 allows local users to obtain root access, as exploited alone or in conjunction with CVE-2022-41973. Local users able to write to UNIX domain sockets can bypass access controls and manipulate the multipath setup. This can lead to local privilege escalation to root. This occurs because an attacker can repeat a keyword, which is mishandled because arithmetic ADD is used instead of bitwise OR."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "16729279",
+								"comment_count": "7",
+								"who": {
+									"text": "gsuckevi",
+									"name": "Guilherme de Almeida Suckevicz"
+								},
+								"bug_when": "2022-10-24 20:02:41 +0000",
+								"thetext": "Created device-mapper-multipath tracking bugs for this issue:\n\nAffects: fedora-all [bug 2137416]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "16732014",
+								"comment_count": "8",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2022-10-25 15:00:45 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 9\n\nVia RHSA-2022:7185 https://access.redhat.com/errata/RHSA-2022:7185"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "16732034",
+								"comment_count": "9",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2022-10-25 15:04:24 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8.1 Update Services for SAP Solutions\n\nVia RHSA-2022:7187 https://access.redhat.com/errata/RHSA-2022:7187"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "16732046",
+								"comment_count": "10",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2022-10-25 15:06:26 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8.2 Extended Update Support\n\nVia RHSA-2022:7188 https://access.redhat.com/errata/RHSA-2022:7188"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "16732063",
+								"comment_count": "11",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2022-10-25 15:12:09 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2022:7186 https://access.redhat.com/errata/RHSA-2022:7186"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "16732086",
+								"comment_count": "12",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2022-10-25 15:17:38 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2022:7192 https://access.redhat.com/errata/RHSA-2022:7192"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "16736861",
+								"comment_count": "13",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2022-10-27 10:13:58 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8.4 Extended Update Support\n\nVia RHSA-2022:7191 https://access.redhat.com/errata/RHSA-2022:7191"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "16809974",
+								"comment_count": "18",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2022-11-22 15:28:34 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Virtualization 4 for Red Hat Enterprise Linux 8\n\nVia RHSA-2022:8598 https://access.redhat.com/errata/RHSA-2022:8598"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17291325",
+								"comment_count": "19",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2023-05-16 15:15:46 +0000",
+								"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2022-41974"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "16729276",
+						"comment_count": "0",
+						"who": {
+							"text": "gsuckevi",
+							"name": "Guilherme de Almeida Suckevicz"
+						},
+						"bug_when": "2022-10-24 20:02:30 +0000",
+						"thetext": "\nMore information about this security flaw is available in the following bug:\n\nhttp://bugzilla.redhat.com/show_bug.cgi?id=2133988\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16729278",
+						"comment_count": "1",
+						"who": {
+							"text": "gsuckevi",
+							"name": "Guilherme de Almeida Suckevicz"
+						},
+						"bug_when": "2022-10-24 20:02:33 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=high\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2133988,2137416\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16735506",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-10-26 19:01:31 +0000",
+						"thetext": "FEDORA-2022-6ec78b2586 has been submitted as an update to Fedora 36. https://bodhi.fedoraproject.org/updates/FEDORA-2022-6ec78b2586"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16737122",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-10-27 12:14:12 +0000",
+						"thetext": "FEDORA-2022-6ec78b2586 has been pushed to the Fedora 36 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --refresh --advisory=FEDORA-2022-6ec78b2586`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2022-6ec78b2586\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16774313",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-11-10 16:18:11 +0000",
+						"thetext": "FEDORA-2022-6ec78b2586 has been pushed to the Fedora 36 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "device-mapper-multipath-0.8.7-9.fc36",
+			"release_id": 56,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "device-mapper-multipath-libs-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "aarch64"
+					},
+					{
+						"name": "kpartx-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "aarch64"
+					},
+					{
+						"name": "device-mapper-multipath-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "aarch64"
+					},
+					{
+						"name": "device-mapper-multipath-debugsource",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libdmmp-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "aarch64"
+					},
+					{
+						"name": "device-mapper-multipath",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libdmmp",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "aarch64"
+					},
+					{
+						"name": "device-mapper-multipath-libs",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "aarch64"
+					},
+					{
+						"name": "kpartx",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libdmmp-devel",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "aarch64"
+					},
+					{
+						"name": "device-mapper-multipath-devel",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "device-mapper-multipath-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "device-mapper-multipath-libs-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "device-mapper-multipath-debugsource",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "device-mapper-multipath-libs",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "device-mapper-multipath",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kpartx-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libdmmp-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libdmmp",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kpartx",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libdmmp-devel",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "device-mapper-multipath-devel",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "device-mapper-multipath-libs-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "i686"
+					},
+					{
+						"name": "device-mapper-multipath-debugsource",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "i686"
+					},
+					{
+						"name": "device-mapper-multipath-libs",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "i686"
+					},
+					{
+						"name": "device-mapper-multipath-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "i686"
+					},
+					{
+						"name": "device-mapper-multipath",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "i686"
+					},
+					{
+						"name": "kpartx-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "i686"
+					},
+					{
+						"name": "libdmmp",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "i686"
+					},
+					{
+						"name": "kpartx",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "i686"
+					},
+					{
+						"name": "libdmmp-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "i686"
+					},
+					{
+						"name": "libdmmp-devel",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "i686"
+					},
+					{
+						"name": "device-mapper-multipath-devel",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "device-mapper-multipath-libs-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "device-mapper-multipath-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "kpartx-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "device-mapper-multipath-debugsource",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "device-mapper-multipath",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libdmmp",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "device-mapper-multipath-libs",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "kpartx",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libdmmp-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libdmmp-devel",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "device-mapper-multipath-devel",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "device-mapper-multipath-libs-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "s390x"
+					},
+					{
+						"name": "device-mapper-multipath-libs",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "s390x"
+					},
+					{
+						"name": "device-mapper-multipath-debugsource",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "s390x"
+					},
+					{
+						"name": "device-mapper-multipath-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "s390x"
+					},
+					{
+						"name": "device-mapper-multipath",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "s390x"
+					},
+					{
+						"name": "kpartx-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "s390x"
+					},
+					{
+						"name": "libdmmp-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "s390x"
+					},
+					{
+						"name": "libdmmp",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "s390x"
+					},
+					{
+						"name": "kpartx",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "s390x"
+					},
+					{
+						"name": "libdmmp-devel",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "s390x"
+					},
+					{
+						"name": "device-mapper-multipath-devel",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "device-mapper-multipath",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "device-mapper-multipath-libs-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "x86_64"
+					},
+					{
+						"name": "device-mapper-multipath-devel",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libdmmp",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "x86_64"
+					},
+					{
+						"name": "device-mapper-multipath-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "x86_64"
+					},
+					{
+						"name": "device-mapper-multipath-debugsource",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kpartx-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libdmmp-devel",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libdmmp-debuginfo",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kpartx",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "x86_64"
+					},
+					{
+						"name": "device-mapper-multipath",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "x86_64"
+					},
+					{
+						"name": "device-mapper-multipath-libs",
+						"version": "0.8.7",
+						"release": "9.fc36",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 2764776,
+			"text": "This update has been submitted for testing by bmarzins. ",
+			"timestamp": "2022-10-26 19:01:23",
+			"update_id": 457116,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2764777,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2022-10-26 19:01:24",
+			"update_id": 457116,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2764824,
+			"text": "This update's test gating status has been changed to 'passed'.",
+			"timestamp": "2022-10-26 20:30:16",
+			"update_id": 457116,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2765326,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2022-10-27 12:14:26",
+			"update_id": 457116,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2774266,
+			"karma": 1,
+			"timestamp": "2022-11-05 01:10:01",
+			"update_id": 457116,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/5545678c86b7a87ee5d907a87573978f63c78b2d498edda166dac72f81003f73?s=24&d=retro",
+				"email": "geraldo.simiao.kutz@gmail.com",
+				"groups": [
+					{
+						"name": "qa"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "fedora-br"
+					},
+					{
+						"name": "advocates"
+					},
+					{
+						"name": "respins-sig"
+					}
+				],
+				"id": 5881,
+				"name": "geraldosimiao",
+				"openid": "geraldosimiao.id.fedoraproject.org"
+			},
+			"user_id": 5881
+		},
+		{
+			"id": 2776727,
+			"karma": 1,
+			"text": "no regressions noted",
+			"timestamp": "2022-11-07 19:29:48",
+			"update_id": 457116,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/d826994e83ce867281f73d85986dd475938841874b75a83a82cdb184f6af8749?s=24&d=retro",
+				"email": "rosset.filipe@gmail.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "l10n"
+					},
+					{
+						"name": "cvsl10n"
+					},
+					{
+						"name": "fedora-br"
+					}
+				],
+				"id": 124,
+				"name": "filiperosset",
+				"openid": "filiperosset.id.fedoraproject.org"
+			},
+			"user_id": 124
+		},
+		{
+			"id": 2776729,
+			"text": "This update can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2022-11-07 19:31:24",
+			"update_id": 457116,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2779588,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2022-11-10 12:14:36",
+			"update_id": 457116,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2779945,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2022-11-10 16:18:54",
+			"update_id": 457116,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2022-11-10 16:17:54",
+	"date_stable": "2022-11-10 16:17:54",
+	"date_submitted": "2022-10-26 19:01:23",
+	"date_testing": "2022-10-27 12:13:53",
+	"karma": 2,
+	"meets_testing_requirements": true,
+	"notes": "Security fix for CVE-2022-41973 and CVE-2022-41974",
+	"pushed": true,
+	"release": {
+		"branch": "f36",
+		"candidate_tag": "f36-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f36",
+		"eol": "2023-05-16",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 36",
+		"mail_template": "fedora_errata_template",
+		"name": "F36",
+		"override_tag": "f36-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f36-signing-pending",
+		"pending_stable_tag": "f36-updates-pending",
+		"pending_testing_tag": "f36-updates-testing-pending",
+		"stable_tag": "f36-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f36-updates-testing",
+		"version": "36"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "high",
+	"stable_days": 14,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_cases": [
+		{
+			"id": 430,
+			"name": "QA:Testcase multipath kpartx crash"
+		},
+		{
+			"id": 429,
+			"name": "QA:Testcase multipathd error status"
+		}
+	],
+	"test_gating_status": "passed",
+	"title": "device-mapper-multipath-0.8.7-9.fc36",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2022-6ec78b2586",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2022-6ec78b2586",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/d54f1dc321f0eeceaf9659b34790c70e57fbfbd5c88bffe9050f6838a1293d9f?s=24&d=retro",
+		"email": "bmarzins@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "gitlvm2"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "gitgnbd"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "gitrgmanager"
+			},
+			{
+				"name": "gitgfs1-utils"
+			},
+			{
+				"name": "gitfence-agents"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "gitgfs2-utils"
+			},
+			{
+				"name": "gitresource-agents"
+			},
+			{
+				"name": "cla_redhat"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "gitcluster"
+			},
+			{
+				"name": "gitdlm"
+			},
+			{
+				"name": "gitfence"
+			}
+		],
+		"id": 540,
+		"name": "bmarzins",
+		"openid": "bmarzins.id.fedoraproject.org"
+	},
+	"version_hash": "41a164ba3bdc960006f5a9e9695278e8fec081b7"
+}

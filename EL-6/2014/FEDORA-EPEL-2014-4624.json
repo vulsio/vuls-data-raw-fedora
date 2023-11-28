@@ -1,0 +1,440 @@
+{
+	"alias": "FEDORA-EPEL-2014-4624",
+	"bugs": [
+		{
+			"bug_id": 782621,
+			"security": true,
+			"title": "xrdp: predictable temporary files may lead to arbitrary file overwrite [epel-all]",
+			"bugzilla": {
+				"bug_id": "782621",
+				"creation_ts": "2012-01-17 23:22:40 +0000",
+				"short_desc": "xrdp: predictable temporary files may lead to arbitrary file overwrite [epel-all]",
+				"delta_ts": "2015-10-26 12:12:21 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "782619",
+						"creation_ts": "2012-01-17 23:21:31 +0000",
+						"short_desc": "xrdp: predictable temporary files may lead to arbitrary file overwrite",
+						"delta_ts": "2019-09-29 12:49:28 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"782620",
+							"782621"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "4370246",
+								"comment_count": "0",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2012-01-17 23:21:31 +0000",
+								"thetext": "A Debian bug report [1] noted that xrdp would create predictable files in /tmp.  Permission-wise these files are not awful (they follow the user's umask, so for users running xrdp the files are created 0775 and for root they're created 0755); when started as a system service, xrdp runs as root.\n\nsrwxr-xr-x 1 root root 0 Jan 11 13:06 /tmp/xrdp_00004bb9_listen_pro_done_event\nsrwxr-xr-x 1 root root 0 Jan 11 13:06 /tmp/xrdp_00004bb9_main_sync\nsrwxr-xr-x 1 root root 0 Jan 11 13:06 /tmp/xrdp_00004bb9_main_term\nsrwxr-xr-x 1 root root 0 Jan 11 13:06 /tmp/xrdp_sesman_00004bbd_main_sync\nsrwxr-xr-x 1 root root 0 Jan 11 13:06 /tmp/xrdp_sesman_00004bbd_main_term\n\nThe problem seems to lie in how these files are handled.  From what I can see of the code, there are no checks made to ensure the files do not exist already (which can lead to overwriting arbitrary files via symlink attacks) when they are created or removed.\n\nFor instance, in sesman/sessvc/sessvc.c:\n\n54 int APP_CC\n55 chansrv_cleanup(int pid)\n56 {\n57   char text[256];\n58\n59   g_snprintf(text, 255, \"/tmp/xrdp_chansrv_%8.8x_main_term\", pid);\n60   if (g_file_exist(text))\n61   {\n62     g_file_delete(text);\n63\n\nAlso, in common/os_calls.c, the g_create_wait_obj() function is used to create many of these files, but does not seem to check for any existing files when doing so:\n\n707   g_memset(&sa,0,sizeof(struct sockaddr_un));\n708\n709   sck = socket(PF_UNIX, SOCK_DGRAM, 0);\n...\n714   memset(&sa, 0, sizeof(sa));\n715   sa.sun_family = AF_UNIX;\n716   if ((name == 0) || (strlen(name) == 0))\n717   {\n718     g_random((char*)&i, sizeof(i));\n719     sprintf(sa.sun_path, \"/tmp/auto%8.8x\", i);\n720     while (g_file_exist(sa.sun_path))\n721     {\n722       g_random((char*)&i, sizeof(i));\n723       sprintf(sa.sun_path, \"/tmp/auto%8.8x\", i);\n724     }\n725   }\n726   else\n727   {\n728     sprintf(sa.sun_path, \"/tmp/%s\", name);\n729   }\n730   unlink(sa.sun_path);\n731   len = sizeof(sa);\n732   if (bind(sck, (struct sockaddr*)&sa, len) < 0)\n733   {\n734     close(sck);\n735     return 0;\n736   }\n737   obj = (tbus)sck;\n738   return obj;\n\nAlternatives might include using mkstemp() to create the files, or using something like /var/run/xdrp/ as a directory to store these files instead of /tmp (or using mkdtemp() to create a secure temporary directory (if running xdrp by a regular user is a valid use-case; I'm not sure if it is) in which the files can then be written.\n\n[1] http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=656210"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "4370249",
+								"comment_count": "1",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2012-01-17 23:22:46 +0000",
+								"thetext": "Created xrdp tracking bugs for this issue\n\nAffects: fedora-all [bug 782620]\nAffects: epel-all [bug 782621]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7631771",
+								"comment_count": "2",
+								"who": {
+									"text": "pj.pandit",
+									"name": "pjp"
+								},
+								"bug_when": "2014-11-01 09:52:22 +0000",
+								"thetext": "The issue seems to have been fixed long time back, might also need a CVE too.\n\nUpstream fixes:\n---------------\n  -> https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=656210#15\n\n  -> https://github.com/neutrinolabs/xrdp/commit/d8f9e8310dac362bb9578763d1024178f94f4ecc\n\n  -> https://github.com/neutrinolabs/xrdp/commit/cadad6e181d2a67698e5eb7cacd6b233ae29eb97"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "4370248",
+						"comment_count": "0",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2012-01-17 23:22:40 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected Fedora\nversions.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen creating a Bodhi update request, please include this bug ID and the\nbug IDs of this bug's parent bugs filed against the \"Security Response\"\nproduct (the top-level CVE bugs).  Please mention the CVE IDs being fixed\nin the RPM changelog when available.\n\nBodhi update submission link:\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=782619\n\nPlease note: this issue affects multiple supported versions of Fedora EPEL.\nOnly one tracking bug has been filed; please ensure that it is only closed\nwhen all affected versions are fixed.\n\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7631784",
+						"comment_count": "1",
+						"who": {
+							"text": "pj.pandit",
+							"name": "pjp"
+						},
+						"bug_when": "2014-11-01 09:58:02 +0000",
+						"thetext": "The upstream fixes seem to be available since long\n\n  -> https://bugzilla.redhat.com/show_bug.cgi?id=782619#c2\n\nCould you please have a look?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7670226",
+						"comment_count": "2",
+						"who": {
+							"text": "pj.pandit",
+							"name": "pjp"
+						},
+						"bug_when": "2014-11-13 14:30:10 +0000",
+						"thetext": "Hello Itamar, you plan to fix it?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7738025",
+						"comment_count": "3",
+						"who": {
+							"text": "orion",
+							"name": "Orion Poplawski"
+						},
+						"bug_when": "2014-12-05 17:23:09 +0000",
+						"thetext": "Bojan - perhaps you could push an epel update as well?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7749092",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 02:43:44 +0000",
+						"thetext": "xrdp-0.6.1-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/xrdp-0.6.1-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7749093",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 02:43:50 +0000",
+						"thetext": "xrdp-0.6.1-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/xrdp-0.6.1-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7753860",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-11 06:26:52 +0000",
+						"thetext": "Package xrdp-0.6.1-1.el5:\n* should fix your issue,\n* was pushed to the Fedora EPEL 5 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=epel-testing xrdp-0.6.1-1.el5'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2014-4527/xrdp-0.6.1-1.el5\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7816325",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-07 19:31:19 +0000",
+						"thetext": "xrdp-0.6.1-2.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7816340",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-07 19:32:11 +0000",
+						"thetext": "xrdp-0.6.1-2.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "xrdp-0.6.1-2.el6",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"i686": [
+					{
+						"name": "xrdp",
+						"version": "0.6.1",
+						"release": "2.el6",
+						"arch": "i686"
+					},
+					{
+						"name": "xrdp-debuginfo",
+						"version": "0.6.1",
+						"release": "2.el6",
+						"arch": "i686"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "xrdp-debuginfo",
+						"version": "0.6.1",
+						"release": "2.el6",
+						"arch": "ppc64"
+					},
+					{
+						"name": "xrdp",
+						"version": "0.6.1",
+						"release": "2.el6",
+						"arch": "ppc64"
+					}
+				],
+				"src": [
+					{
+						"name": "xrdp",
+						"version": "0.6.1",
+						"release": "2.el6",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "xrdp-debuginfo",
+						"version": "0.6.1",
+						"release": "2.el6",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xrdp",
+						"version": "0.6.1",
+						"release": "2.el6",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 266647,
+			"text": "This update has been submitted for testing by bojan. ",
+			"timestamp": "2014-12-10 02:44:10",
+			"update_id": 32478,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 266648,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 testing updates repository.",
+			"timestamp": "2014-12-11 03:35:56",
+			"update_id": 32478,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 266649,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-12-11 06:34:16",
+			"update_id": 32478,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 266650,
+			"text": "bojan has edited this update. New build(s): xrdp-0.6.1-2.el6. Removed build(s): xrdp-0.6.1-1.el6.",
+			"timestamp": "2014-12-22 07:53:24",
+			"update_id": 32478,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 266651,
+			"text": "This update has been submitted for testing by bojan. ",
+			"timestamp": "2014-12-22 07:53:37",
+			"update_id": 32478,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 266652,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 testing updates repository.",
+			"timestamp": "2014-12-23 05:46:24",
+			"update_id": 32478,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 266653,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-12-23 08:04:14",
+			"update_id": 32478,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 266654,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2015-01-06 10:24:04",
+			"update_id": 32478,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 266655,
+			"text": "This update has been submitted for stable by bojan. ",
+			"timestamp": "2015-01-06 21:13:44",
+			"update_id": 32478,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 266656,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 stable updates repository.",
+			"timestamp": "2015-01-07 17:43:04",
+			"update_id": 32478,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 266657,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-01-07 19:30:58",
+			"update_id": 32478,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2014-12-22 07:53:34",
+	"date_pushed": "2015-01-07 19:30:58",
+	"date_stable": "2015-01-07 19:30:58",
+	"date_submitted": "2014-12-10 02:44:06",
+	"date_testing": "2014-12-23 08:04:14",
+	"meets_testing_requirements": true,
+	"notes": "Close a security vulnerability in 0.5.0 and update to a known working release, 0.6.1. Add a delay loop for VNC back end.",
+	"pushed": true,
+	"release": {
+		"branch": "el6",
+		"candidate_tag": "dist-6E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "dist-6E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 6",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-6",
+		"override_tag": "dist-6E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-6E-epel",
+		"state": "archived",
+		"testing_tag": "dist-6E-epel-testing",
+		"version": "6"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "xrdp-0.6.1-2.el6",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2014-4624",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2014-4624",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/1a8afd83231ef5ba905344806ba95b39f2abd77b399b0ee217ec3e6fa30a4825?s=24&d=retro",
+		"email": "bojan@rexursive.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 198,
+		"name": "bojan",
+		"openid": "bojan.id.fedoraproject.org"
+	},
+	"version_hash": "b94a6b8c86d7cd1ad7b5ff65d3de76cf7a501dd5"
+}

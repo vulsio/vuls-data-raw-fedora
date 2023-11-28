@@ -1,0 +1,830 @@
+{
+	"alias": "FEDORA-2021-17bf9d14f8",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 1932066,
+			"title": "Cannot build with -Werror=stringop-truncation",
+			"bugzilla": {
+				"bug_id": "1932066",
+				"creation_ts": "2021-02-23 20:10:05 +0000",
+				"short_desc": "Cannot build with -Werror=stringop-truncation",
+				"delta_ts": "2021-09-24 20:10:09 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "14812345",
+						"comment_count": "0",
+						"who": {
+							"text": "code",
+							"name": "Ben Beasley"
+						},
+						"bug_when": "2021-02-23 20:10:05 +0000",
+						"thetext": "Created attachment 1758941\nComplete compiler diagnostic output\n\nDescription of problem:\n\nCannot build with -Werror=stringop-truncation, which is part of the usual hardening flags.\n\nVersion-Release number of selected component (if applicable):\n\nAll versions\n\nHow reproducible:\n\nSteps to Reproduce:\n1. Remove the line\n     export CFLAGS=\"${CFLAGS} -Wno-error=stringop-truncation\"\n   from the spec file.\n2. Build the RPM.\n3. Observe the RPM build fails with an error.\n\nActual results:\n\nCannot build with -Werror=stringop-truncation.\n\nExpected results:\n\nNothing in the code triggers these warnings.\n\nAdditional info:\n\nCurrently these warnings are still reported in the build, but are not treated as errors.\n\nThese warnings look like real problems, and should be reported upstream.\n\nThis bug is to track the problem, and any efforts to resolve it properly."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14814706",
+						"comment_count": "1",
+						"who": {
+							"text": "fedora-admin-xmlrpc",
+							"name": "Fedora Admin user for bugzilla script actions"
+						},
+						"bug_when": "2021-02-24 02:35:15 +0000",
+						"thetext": "This package has changed maintainer in Fedora. Reassigning to the new maintainer of this component."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14914223",
+						"comment_count": "2",
+						"who": {
+							"text": "code",
+							"name": "Ben Beasley"
+						},
+						"bug_when": "2021-03-27 13:52:29 +0000",
+						"thetext": "Here is an example of the warnings about strncpy().\n\n> In file included from /usr/include/string.h:519,\n>                  from isup.c:32:\n> In function 'strncpy',\n>     inlined from 'isup_set_calling' at isup.c:2879:4,\n>     inlined from 'isup_set_calling' at isup.c:2875:6:\n> /usr/include/bits/string_fortified.h:91:10: warning: 'strncpy' specified bound 64 equals destination size [-Wstringop-truncation]\n>    91 |   return __builtin___strncpy_chk (__dest, __src, __len, __bos (__dest));\n>       |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n> void isup_set_calling(struct isup_call *c, const char *calling, unsigned char calling_nai, unsigned char presentation_ind, unsigned char screening_ind)\n> {\n>         if ((calling && calling[0]) || presentation_ind == SS7_PRESENTATION_ADDR_NOT_AVAILABLE) {\n>                 if (calling) {\n>                         strncpy(c->calling_party_num, calling, sizeof(c->calling_party_num));\n>                 } else {\n>                         c->calling_party_num[0] = '\\0';\n>                 }\n>                 c->calling_nai = calling_nai;\n>                 c->presentation_ind = presentation_ind;\n>                 c->screening_ind = screening_ind;\n>         }\n> }\n\nThere are a number of similar warnings about strncpy() for other fields. In this case, the intent seems to be that the argument “calling” is copied into the struct field with null-termination, truncating any overlong string. But strncpy does not guarantee null-termination. It is likely that the code should have been something like:\n\n>                 if (calling) {\n>                         strncpy(c->calling_party_num, calling, sizeof(c->calling_party_num));\n>                         c->calling_party_num[sizeof(c->calling_party_num) - 1U] = '\\0';\n>                 } else {\n\n-----\n\nThe other category of strncpy() warnings is like this:\n\n> In function 'strncpy',\n>     inlined from 'isup_event_iam' at isup.c:4335:2:\n> /usr/include/bits/string_fortified.h:91:10: warning: 'strncpy' output may be truncated copying 50 bytes from a string of length 63 [-Wstringop-truncation]\n>    91 |   return __builtin___strncpy_chk (__dest, __src, __len, __bos (__dest));\n>       |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\nThat comes from\n\n> strncpy(e->iam.called_party_num, c->called_party_num, sizeof(e->iam.called_party_num));\n\nwhere e is an ss7_event discriminated union (from libss7.h), with the ss7_event_iam-type member active. That has “char called_party_num[50];”, which is indeed shorter than the called_party_num in “c”, which is a struct isup_call.\n\nWhat should be done in this case? Is truncation appropriate? It is already happening, only without null termination.\n\n-----\n\nI intend to consult the upstream developers on IRC (Freenode #asterisk-dev) to see what they think of these warnings."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14955110",
+						"comment_count": "3",
+						"who": {
+							"text": "code",
+							"name": "Ben Beasley"
+						},
+						"bug_when": "2021-04-12 13:09:43 +0000",
+						"thetext": "Upstream issue: https://issues.asterisk.org/jira/browse/SS7-64\n\nUpstream developers have been busy but plan to look at it when they can."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15372717",
+						"comment_count": "4",
+						"who": {
+							"text": "bcotton",
+							"name": "Ben Cotton"
+						},
+						"bug_when": "2021-08-10 12:52:49 +0000",
+						"thetext": "This bug appears to have been reported against 'rawhide' during the Fedora 35 development cycle.\nChanging version to 35."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430233",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 16:10:37 +0000",
+						"thetext": "FEDORA-2021-19406642b5 has been submitted as an update to Fedora 36. https://bodhi.fedoraproject.org/updates/FEDORA-2021-19406642b5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430237",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 16:12:15 +0000",
+						"thetext": "FEDORA-2021-19406642b5 has been pushed to the Fedora 36 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430280",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 16:28:40 +0000",
+						"thetext": "FEDORA-2021-17bf9d14f8 has been submitted as an update to Fedora 35. https://bodhi.fedoraproject.org/updates/FEDORA-2021-17bf9d14f8"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430357",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 16:38:27 +0000",
+						"thetext": "FEDORA-2021-c5b708f363 has been submitted as an update to Fedora 34. https://bodhi.fedoraproject.org/updates/FEDORA-2021-c5b708f363"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430434",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 17:10:00 +0000",
+						"thetext": "FEDORA-2021-91d42ce83e has been submitted as an update to Fedora 33. https://bodhi.fedoraproject.org/updates/FEDORA-2021-91d42ce83e"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430524",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 17:26:23 +0000",
+						"thetext": "FEDORA-2021-17bf9d14f8 has been pushed to the Fedora 35 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2021-17bf9d14f8`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2021-17bf9d14f8\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430535",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 17:29:59 +0000",
+						"thetext": "FEDORA-EPEL-2021-dd64ecd715 has been submitted as an update to Fedora EPEL 8. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2021-dd64ecd715"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430562",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 17:39:37 +0000",
+						"thetext": "FEDORA-EPEL-2021-37aab93b64 has been submitted as an update to Fedora EPEL 7. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2021-37aab93b64"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430806",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 18:59:07 +0000",
+						"thetext": "FEDORA-2021-91d42ce83e has been pushed to the Fedora 33 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2021-91d42ce83e`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2021-91d42ce83e\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430812",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 19:02:46 +0000",
+						"thetext": "FEDORA-EPEL-2021-dd64ecd715 has been pushed to the Fedora EPEL 8 testing repository.\n\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2021-dd64ecd715\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430825",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 19:09:06 +0000",
+						"thetext": "FEDORA-EPEL-2021-37aab93b64 has been pushed to the Fedora EPEL 7 testing repository.\n\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2021-37aab93b64\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430897",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 19:37:12 +0000",
+						"thetext": "FEDORA-2021-c5b708f363 has been pushed to the Fedora 34 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2021-c5b708f363`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2021-c5b708f363\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15460660",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-09-04 19:05:06 +0000",
+						"thetext": "FEDORA-EPEL-2021-dd64ecd715 has been pushed to the Fedora EPEL 8 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15460668",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-09-04 19:20:41 +0000",
+						"thetext": "FEDORA-EPEL-2021-37aab93b64 has been pushed to the Fedora EPEL 7 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15460682",
+						"comment_count": "19",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-09-04 19:31:51 +0000",
+						"thetext": "FEDORA-2021-c5b708f363 has been pushed to the Fedora 34 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15460694",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-09-04 19:35:24 +0000",
+						"thetext": "FEDORA-2021-91d42ce83e has been pushed to the Fedora 33 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15527924",
+						"comment_count": "21",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-09-24 20:10:09 +0000",
+						"thetext": "FEDORA-2021-17bf9d14f8 has been pushed to the Fedora 35 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1998578,
+			"title": "libss7-2.0.1 is available",
+			"bugzilla": {
+				"bug_id": "1998578",
+				"creation_ts": "2021-08-27 16:16:04 +0000",
+				"short_desc": "libss7-2.0.1 is available",
+				"delta_ts": "2021-09-24 20:10:11 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "FutureFeature, Triaged",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "15430243",
+						"comment_count": "0",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2021-08-27 16:16:04 +0000",
+						"thetext": "Latest upstream release: 2.0.1\nCurrent version/release in rawhide: 2.0.0-21.fc35\nURL: http://downloads.asterisk.org/pub/telephony/libss7/releases\n\nPlease consult the package updates policy before you issue an update to a stable branch: https://docs.fedoraproject.org/en-US/fesco/Updates_Policy/\n\n\nMore information about the service that created this bug can be found at: https://fedoraproject.org/wiki/Upstream_release_monitoring\n\n\nPlease keep in mind that with any upstream change, there may also be packaging changes that need to be made. Specifically, please remember that it is your responsibility to review the new version to ensure that the licensing is still correct and that no non-free or legally problematic items have been added upstream.\n\n\nBased on the information from anitya: https://release-monitoring.org/project/21690/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430286",
+						"comment_count": "1",
+						"who": {
+							"text": "code",
+							"name": "Ben Beasley"
+						},
+						"bug_when": "2021-08-27 16:30:33 +0000",
+						"thetext": "Already built for Rawhide. Updates will be created for all Fedoras and EPELs."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430289",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 16:31:30 +0000",
+						"thetext": "FEDORA-2021-17bf9d14f8 has been submitted as an update to Fedora 35. https://bodhi.fedoraproject.org/updates/FEDORA-2021-17bf9d14f8"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430358",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 16:38:30 +0000",
+						"thetext": "FEDORA-2021-c5b708f363 has been submitted as an update to Fedora 34. https://bodhi.fedoraproject.org/updates/FEDORA-2021-c5b708f363"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430435",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 17:10:04 +0000",
+						"thetext": "FEDORA-2021-91d42ce83e has been submitted as an update to Fedora 33. https://bodhi.fedoraproject.org/updates/FEDORA-2021-91d42ce83e"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430525",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 17:26:25 +0000",
+						"thetext": "FEDORA-2021-17bf9d14f8 has been pushed to the Fedora 35 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2021-17bf9d14f8`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2021-17bf9d14f8\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430536",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 17:30:02 +0000",
+						"thetext": "FEDORA-EPEL-2021-dd64ecd715 has been submitted as an update to Fedora EPEL 8. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2021-dd64ecd715"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430563",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 17:39:40 +0000",
+						"thetext": "FEDORA-EPEL-2021-37aab93b64 has been submitted as an update to Fedora EPEL 7. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2021-37aab93b64"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430807",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 18:59:10 +0000",
+						"thetext": "FEDORA-2021-91d42ce83e has been pushed to the Fedora 33 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2021-91d42ce83e`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2021-91d42ce83e\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430813",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 19:02:49 +0000",
+						"thetext": "FEDORA-EPEL-2021-dd64ecd715 has been pushed to the Fedora EPEL 8 testing repository.\n\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2021-dd64ecd715\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430827",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 19:09:08 +0000",
+						"thetext": "FEDORA-EPEL-2021-37aab93b64 has been pushed to the Fedora EPEL 7 testing repository.\n\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2021-37aab93b64\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15430898",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-08-27 19:37:14 +0000",
+						"thetext": "FEDORA-2021-c5b708f363 has been pushed to the Fedora 34 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2021-c5b708f363`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2021-c5b708f363\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15460661",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-09-04 19:05:08 +0000",
+						"thetext": "FEDORA-EPEL-2021-dd64ecd715 has been pushed to the Fedora EPEL 8 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15460669",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-09-04 19:20:43 +0000",
+						"thetext": "FEDORA-EPEL-2021-37aab93b64 has been pushed to the Fedora EPEL 7 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15460683",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-09-04 19:31:53 +0000",
+						"thetext": "FEDORA-2021-c5b708f363 has been pushed to the Fedora 34 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15460695",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-09-04 19:35:27 +0000",
+						"thetext": "FEDORA-2021-91d42ce83e has been pushed to the Fedora 33 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15527925",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-09-24 20:10:11 +0000",
+						"thetext": "FEDORA-2021-17bf9d14f8 has been pushed to the Fedora 35 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "libss7-2.0.1-1.fc35",
+			"release_id": 51,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "libss7-debuginfo",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libss7-devel",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libss7-debugsource",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libss7",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "libss7-debugsource",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libss7-debuginfo",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libss7-devel",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libss7",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "libss7",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "libss7-devel",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "libss7-debuginfo",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "libss7-debugsource",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "libss7-debugsource",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libss7-devel",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libss7",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libss7-debuginfo",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "libss7-debugsource",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "s390x"
+					},
+					{
+						"name": "libss7",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "s390x"
+					},
+					{
+						"name": "libss7-devel",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "s390x"
+					},
+					{
+						"name": "libss7-debuginfo",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "libss7",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "libss7-debuginfo",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libss7-devel",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libss7-debugsource",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libss7",
+						"version": "2.0.1",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 2186783,
+			"text": "This update has been submitted for testing by music. ",
+			"timestamp": "2021-08-27 16:28:36",
+			"update_id": 337405,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2186784,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2021-08-27 16:28:36",
+			"update_id": 337405,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2186785,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2021-08-27 16:28:36",
+			"update_id": 337405,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2186786,
+			"text": "music edited this update.",
+			"timestamp": "2021-08-27 16:31:26",
+			"update_id": 337405,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2186787,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2021-08-27 16:31:26",
+			"update_id": 337405,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2186884,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2021-08-27 17:26:29",
+			"update_id": 337405,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2190060,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2021-08-30 17:26:06",
+			"update_id": 337405,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2221140,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2021-09-24 20:33:25",
+			"update_id": 337405,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2021-08-27 16:31:26",
+	"date_pushed": "2021-09-24 20:04:10",
+	"date_stable": "2021-09-24 20:04:10",
+	"date_submitted": "2021-08-27 16:28:35",
+	"date_testing": "2021-08-27 17:25:14",
+	"meets_testing_requirements": true,
+	"notes": "Update to 2.0.1; fix RHBZ#1932066 (unsafe use of strncpy), fix RHBZ#1932066",
+	"pushed": true,
+	"release": {
+		"branch": "f35",
+		"candidate_tag": "f35-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f35",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 35",
+		"mail_template": "fedora_errata_template",
+		"name": "F35",
+		"override_tag": "f35-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f35-signing-pending",
+		"pending_stable_tag": "f35-updates-pending",
+		"pending_testing_tag": "f35-updates-testing-pending",
+		"stable_tag": "f35-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f35-updates-testing",
+		"version": "35"
+	},
+	"require_testcases": true,
+	"severity": "medium",
+	"stable_days": 3,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "libss7-2.0.1-1.fc35",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2021-17bf9d14f8",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2021-17bf9d14f8",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/30796d789ab4befafdec48a7b896ed471c9c78917b2e98852ffb42d4c9b7661c?s=24&d=retro",
+		"email": "code@musicinmybrain.net",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "python-sig"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "neuro-sig"
+			},
+			{
+				"name": "fesco"
+			},
+			{
+				"name": "python-packagers-sig"
+			}
+		],
+		"id": 5936,
+		"name": "music",
+		"openid": "music.id.fedoraproject.org"
+	},
+	"version_hash": "d2ebe3a86d423441aecc67b83bc2ea2d5e0f7a7a"
+}

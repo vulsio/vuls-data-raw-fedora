@@ -1,0 +1,852 @@
+{
+	"alias": "FEDORA-2020-bbd24dd0cf",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 654486,
+			"security": true,
+			"title": "CVE-2010-3798 xar: arbitrary code execution via crafted xar archive [fedora-all]",
+			"bugzilla": {
+				"bug_id": "654486",
+				"creation_ts": "2010-11-17 23:46:13 +0000",
+				"short_desc": "CVE-2010-3798 xar: arbitrary code execution via crafted xar archive [fedora-all]",
+				"delta_ts": "2020-02-07 01:50:39 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened, Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "654485",
+						"alias": "CVE-2010-3798",
+						"creation_ts": "2010-11-17 23:44:57 +0000",
+						"short_desc": "CVE-2010-3798 xar: arbitrary code execution via crafted xar archive",
+						"delta_ts": "2020-01-25 02:46:01 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "RAWHIDE",
+						"keywords": "Reopened, Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"654486"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "3357001",
+								"comment_count": "0",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2010-11-17 23:44:57 +0000",
+								"thetext": "Common Vulnerabilities and Exposures assigned an identifier CVE-2010-3798 to\nthe following vulnerability:\n\nName: CVE-2010-3798\nURL: http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2010-3798\nAssigned: 20101007\nReference: CONFIRM: http://support.apple.com/kb/HT4435 [Open URL]\nReference: APPLE:APPLE-SA-2010-11-10-1\nReference: URL: http://lists.apple.com/archives/security-announce/2010//Nov/msg00000.html\n\nHeap-based buffer overflow in xar in Apple Mac OS X 10.6.x before\n10.6.5 allows remote attackers to execute arbitrary code or cause a\ndenial of service (application crash) via a crafted xar archive.\n\n\nThis also affects xar on Fedora.  Information from Apple indicates that this is not exploitable on 32-bit architectures, but it is potentially exploitable on 64-bit architectures."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "3357004",
+								"comment_count": "1",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2010-11-17 23:46:17 +0000",
+								"thetext": "Created xar tracking bugs for this issue\n\nAffects: fedora-all [bug 654486]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "3357050",
+								"comment_count": "2",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2010-11-18 00:26:24 +0000",
+								"thetext": "Apple provided the following patch (sorry, it's inline; that's how it was provided to us and I suspect their client munged it somewhat):\n\nIndex: xar/lib/signature.c\n===================================================================\n--- xar/lib/signature.c (revision 115)\n+++ xar/lib/signature.c (working copy)\n@@ -279,7 +279,7 @@\n        const xmlChar *value = NULL;\n        const xmlChar *name = NULL;\n        int type;\n-       unsigned int outputLength;\n+       size_t outputLength = 0;\n\n        ret = malloc(sizeof(struct __xar_signature_t));\n\nIndex: xar/lib/b64.c\n===================================================================\n--- xar/lib/b64.c       (revision 114)\n+++ xar/lib/b64.c       (working copy)\n@@ -42,7 +42,7 @@\n's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2',\n'3', '4', '5', '6', '7', '8', '9', '+', '/' };\n\n-unsigned char* xar_to_base64(const unsigned char* input, int len)\n+unsigned char* xar_to_base64(const unsigned char* input, size_t len)\n{\n  unsigned char b6;\n  /*UNUSED unsigned char tmp; */\n@@ -50,6 +50,7 @@\n  int i=0;\n  unsigned char* output;\n  int outsize = (((float)len)*4/3)+5;\n+\n\n  output = malloc(outsize);\n  if( !output )\n@@ -149,17 +150,17 @@\n#define B64_INPUT_BLOCK_OFFSET  ((inputIndex - 1 - ignorableCharacterCount) % 4)\n\nstatic unsigned int raw_base64_decode(\n-  const unsigned char *input, unsigned char *output, int inLengthToDecode,\n-  unsigned int *outputDecodedLength)\n+  const unsigned char *input, unsigned char *output, size_t inLengthToDecode,\n+  size_t *outputDecodedLength)\n{\n  int currentBase64Value;\n        unsigned int inputIndex = 0;\n-       unsigned int *decodedCharacterCount;\n-       unsigned int dummyValue;\n        unsigned int ignorableCharacterCount = 0;\n        unsigned int i;\n  unsigned char decodedBuffer[3];\n        unsigned char currentInputBlockPaddingCharacterCount = 0;\n+       size_t *decodedCharacterCount;\n+       size_t dummyValue;\n\n        if (outputDecodedLength == NULL) {\n                // do this so that if caller passes in NULL for outputDecodedLength\n@@ -246,7 +247,7 @@\n  return B64_noError;\n}\n\n-unsigned char* xar_from_base64(const unsigned char* input, int inputLength, unsigned int *outputLength)\n+unsigned char* xar_from_base64(const unsigned char* input, size_t inputLength, size_t *outputLength)\n{\n  int err;\n  unsigned char *output;\nIndex: xar/lib/b64.h\n===================================================================\n--- xar/lib/b64.h       (revision 114)\n+++ xar/lib/b64.h       (working copy)\n@@ -7,7 +7,7 @@\n#ifndef _XAR_BASE64_H_\n#define _XAR_BASE64_H_\n\n-unsigned char* xar_to_base64(const unsigned char* input, int len);\n-unsigned char* xar_from_base64(const unsigned char* input, int inputLength, unsigned int *outputLength);\n+unsigned char* xar_to_base64(const unsigned char* input, size_t len);\n+unsigned char* xar_from_base64(const unsigned char* input, size_t inputLength, size_t *outputLength);\n\n#endif /* _XAR_BASE64_H_ */"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12826103",
+								"comment_count": "3",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2019-06-10 10:57:25 +0000",
+								"thetext": "This CVE Bugzilla entry is for community support informational purposes only as it does not affect a package in a commercially supported Red Hat product. Refer to the dependent bugs for status of those individual community products."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "13549474",
+								"comment_count": "4",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2020-01-25 02:09:34 +0000",
+								"thetext": "This CVE Bugzilla entry is for community support informational purposes only as it does not affect a package in a commercially supported Red Hat product. Refer to the dependent bugs for status of those individual community products."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "13549487",
+								"comment_count": "5",
+								"who": {
+									"text": "moceap",
+									"name": "Mosaab Alzoubi"
+								},
+								"bug_when": "2020-01-25 02:46:01 +0000",
+								"thetext": "Fixed in xar-1.8.0.417.1-1"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "3357003",
+						"comment_count": "0",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2010-11-17 23:46:13 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected Fedora\nversions.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen creating a Bodhi update request, please include the bug IDs of the\nrespective parent bugs filed against the \"Security Response\" product.\nPlease mention CVE ids in the RPM changelog when available.\n\nBodhi update submission link:\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=654485\n\nPlease note: this issue affects multiple supported versions of Fedora.\nOnly one tracking bug has been filed; please only close it when all\naffected versions are fixed.\n\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "4974022",
+						"comment_count": "1",
+						"who": {
+							"text": "bcotton",
+							"name": "Fedora End Of Life"
+						},
+						"bug_when": "2012-08-16 16:49:12 +0000",
+						"thetext": "This message is a notice that Fedora 14 is now at end of life. Fedora \nhas stopped maintaining and issuing updates for Fedora 14. It is \nFedora's policy to close all bug reports from releases that are no \nlonger maintained.  At this time, all open bugs with a Fedora 'version'\nof '14' have been closed as WONTFIX.\n\n(Please note: Our normal process is to give advanced warning of this \noccurring, but we forgot to do that. A thousand apologies.)\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, feel free to reopen \nthis bug and simply change the 'version' to a later Fedora version.\n\nBug Reporter: Thank you for reporting this issue and we are sorry that \nwe were unable to fix it before Fedora 14 reached end of life. If you \nwould still like to see this bug fixed and are able to reproduce it \nagainst a later version of Fedora, you are encouraged to click on \n\"Clone This Bug\" (top right of this page) and open it against that \nversion of Fedora.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events.  Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete.\n\nThe process we are following is described here: \nhttp://fedoraproject.org/wiki/BugZappers/HouseKeeping"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13549504",
+						"comment_count": "2",
+						"who": {
+							"text": "moceap",
+							"name": "Mosaab Alzoubi"
+						},
+						"bug_when": "2020-01-25 03:45:50 +0000",
+						"thetext": "Fixing:\n\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2020-edf53cd770\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2020-bbd24dd0cf"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13550320",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-01-26 01:52:05 +0000",
+						"thetext": "xar-1.8.0.417.1-1.fc30 has been pushed to the Fedora 30 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-bbd24dd0cf"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13563915",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-01-30 22:59:18 +0000",
+						"thetext": "xar-1.8.0.417.1-1.fc31 has been pushed to the Fedora 31 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-edf53cd770"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13569328",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-02-03 01:03:05 +0000",
+						"thetext": "xar-1.8.0.417.1-1.fc30 has been pushed to the Fedora 30 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13589268",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-02-07 01:50:39 +0000",
+						"thetext": "xar-1.8.0.417.1-1.fc31 has been pushed to the Fedora 31 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1470073,
+			"security": true,
+			"title": "CVE-2017-11124 CVE-2017-11125 xar: Multiple vulnerabilities [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1470073",
+				"creation_ts": "2017-07-12 11:27:59 +0000",
+				"short_desc": "CVE-2017-11124 CVE-2017-11125 xar: Multiple vulnerabilities [fedora-all]",
+				"delta_ts": "2020-02-07 01:50:41 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1470070",
+						"alias": "CVE-2017-11125",
+						"creation_ts": "2017-07-12 11:24:01 +0000",
+						"short_desc": "CVE-2017-11125 CVE-2017-11124 xar: Multiple vulnerabilities",
+						"delta_ts": "2020-01-25 02:48:06 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "RAWHIDE",
+						"keywords": "Reopened, Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1470073"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "10586894",
+								"comment_count": "0",
+								"who": {
+									"text": "anemec",
+									"name": "Andrej Nemec"
+								},
+								"bug_when": "2017-07-12 11:24:01 +0000",
+								"thetext": "It was found that libxar.so in xar 1.6.1 has a NULL pointer dereference in the xar_get_path function in util.c. A local attacker could cause the application to crash.\n\nReferences:\n\nhttps://blogs.gentoo.org/ago/2017/06/28/xar-null-pointer-dereference-in-xar_get_path-util-c/"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10586905",
+								"comment_count": "1",
+								"who": {
+									"text": "anemec",
+									"name": "Andrej Nemec"
+								},
+								"bug_when": "2017-07-12 11:27:08 +0000",
+								"thetext": "It was found that libxar.so in xar 1.6.1 has a NULL pointer dereference in the xar_unserialize function in archive.c. A local attacker could cause the application to crash.\n\nReferences:\n\nhttps://blogs.gentoo.org/ago/2017/06/28/xar-null-pointer-dereference-in-xar_unserialize-archive-c/"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10586912",
+								"comment_count": "2",
+								"who": {
+									"text": "anemec",
+									"name": "Andrej Nemec"
+								},
+								"bug_when": "2017-07-12 11:28:07 +0000",
+								"thetext": "Created xar tracking bugs for this issue:\n\nAffects: fedora-all [bug 1470073]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12822737",
+								"comment_count": "3",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2019-06-08 03:16:18 +0000",
+								"thetext": "This CVE Bugzilla entry is for community support informational purposes only as it does not affect a package in a commercially supported Red Hat product. Refer to the dependent bugs for status of those individual community products."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "13549472",
+								"comment_count": "4",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2020-01-25 02:09:31 +0000",
+								"thetext": "This CVE Bugzilla entry is for community support informational purposes only as it does not affect a package in a commercially supported Red Hat product. Refer to the dependent bugs for status of those individual community products."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "13549491",
+								"comment_count": "5",
+								"who": {
+									"text": "moceap",
+									"name": "Mosaab Alzoubi"
+								},
+								"bug_when": "2020-01-25 02:48:06 +0000",
+								"thetext": "Fixed in xar-1.8.0.417.1-1"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10586910",
+						"comment_count": "0",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-07-12 11:27:59 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10586911",
+						"comment_count": "1",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-07-12 11:28:04 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1470070\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11001868",
+						"comment_count": "2",
+						"who": {
+							"text": "bcotton",
+							"name": "Fedora End Of Life"
+						},
+						"bug_when": "2017-11-16 19:20:02 +0000",
+						"thetext": "This message is a reminder that Fedora 25 is nearing its end of life.\nApproximately 4 (four) weeks from now Fedora will stop maintaining\nand issuing updates for Fedora 25. It is Fedora's policy to close all\nbug reports from releases that are no longer maintained. At that time\nthis bug will be closed as EOL if it remains open with a Fedora  'version'\nof '25'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version'\nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not\nable to fix it before Fedora 25 is end of life. If you would still like\nto see this bug fixed and are able to reproduce it against a later version\nof Fedora, you are encouraged  change the 'version' to a later Fedora\nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's\nlifetime, sometimes those efforts are overtaken by events. Often a\nmore recent Fedora release includes newer upstream software that fixes\nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11658781",
+						"comment_count": "3",
+						"who": {
+							"text": "jkurik",
+							"name": "Jan Kurik"
+						},
+						"bug_when": "2018-05-31 07:44:14 +0000",
+						"thetext": "This bug has been reported against a Fedora version which is already unsuported.\nIn compliance with FESCo decision how to handle EOL of Security issues [1],\nI am changing the version to '27', the latest supported release.\n\nPlease check whether this bug is still an issue on the '27' release.\nIf you find this bug not being applicable on this release, please close it.\n\n[1] https://pagure.io/fesco/issue/1736"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12242768",
+						"comment_count": "4",
+						"who": {
+							"text": "bcotton",
+							"name": "Ben Cotton"
+						},
+						"bug_when": "2018-11-27 15:22:40 +0000",
+						"thetext": "This message is a reminder that Fedora 27 is nearing its end of life.\nOn 2018-Nov-30  Fedora will stop maintaining and issuing updates for\nFedora 27. It is Fedora's policy to close all bug reports from releases\nthat are no longer maintained. At that time this bug will be closed as\nEOL if it remains open with a Fedora  'version' of '27'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora 27 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora, you are encouraged  change the 'version' to a later Fedora \nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13549506",
+						"comment_count": "5",
+						"who": {
+							"text": "moceap",
+							"name": "Mosaab Alzoubi"
+						},
+						"bug_when": "2020-01-25 03:46:13 +0000",
+						"thetext": "Fixing:\n\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2020-edf53cd770\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2020-bbd24dd0cf"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13550321",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-01-26 01:52:06 +0000",
+						"thetext": "xar-1.8.0.417.1-1.fc30 has been pushed to the Fedora 30 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-bbd24dd0cf"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13563917",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-01-30 22:59:20 +0000",
+						"thetext": "xar-1.8.0.417.1-1.fc31 has been pushed to the Fedora 31 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-edf53cd770"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13569329",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-02-03 01:03:07 +0000",
+						"thetext": "xar-1.8.0.417.1-1.fc30 has been pushed to the Fedora 30 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13589270",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-02-07 01:50:41 +0000",
+						"thetext": "xar-1.8.0.417.1-1.fc31 has been pushed to the Fedora 31 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1629651,
+			"security": true,
+			"title": "CVE-2018-17093 CVE-2018-17094 xar: Two NULL pointer dereference issues [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1629651",
+				"creation_ts": "2018-09-17 09:08:59 +0000",
+				"short_desc": "CVE-2018-17093 CVE-2018-17094 xar: Two NULL pointer dereference issues [fedora-all]",
+				"delta_ts": "2020-02-07 01:50:40 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1629650",
+						"alias": "CVE-2018-17094",
+						"creation_ts": "2018-09-17 09:08:08 +0000",
+						"short_desc": "CVE-2018-17093 CVE-2018-17094 xar: Two NULL pointer dereference issues",
+						"delta_ts": "2020-01-25 02:47:24 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "RAWHIDE",
+						"keywords": "Reopened, Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1629651"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "12021704",
+								"comment_count": "0",
+								"who": {
+									"text": "anemec",
+									"name": "Andrej Nemec"
+								},
+								"bug_when": "2018-09-17 09:08:08 +0000",
+								"thetext": "\nCVE-2018-17093\n\nAn issue has been discovered in mackyle xar 1.6.1. There is a NULL pointer dereference in xar_get_path in lib/util.c.\n\nhttps://github.com/mackyle/xar/issues/19\n\nCVE-2018-17094\n\nAn issue has been discovered in mackyle xar 1.6.1. There is a NULL pointer dereference in xar_unserialize in lib/archive.c.\n\nhttps://github.com/mackyle/xar/issues/20"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12021708",
+								"comment_count": "1",
+								"who": {
+									"text": "anemec",
+									"name": "Andrej Nemec"
+								},
+								"bug_when": "2018-09-17 09:09:04 +0000",
+								"thetext": "Created xar tracking bugs for this issue:\n\nAffects: fedora-all [bug 1629651]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12825700",
+								"comment_count": "2",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2019-06-10 10:37:55 +0000",
+								"thetext": "This CVE Bugzilla entry is for community support informational purposes only as it does not affect a package in a commercially supported Red Hat product. Refer to the dependent bugs for status of those individual community products."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "13549473",
+								"comment_count": "3",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2020-01-25 02:09:33 +0000",
+								"thetext": "This CVE Bugzilla entry is for community support informational purposes only as it does not affect a package in a commercially supported Red Hat product. Refer to the dependent bugs for status of those individual community products."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "13549490",
+								"comment_count": "4",
+								"who": {
+									"text": "moceap",
+									"name": "Mosaab Alzoubi"
+								},
+								"bug_when": "2020-01-25 02:47:24 +0000",
+								"thetext": "Fixed in xar-1.8.0.417.1-1"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "12021705",
+						"comment_count": "0",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2018-09-17 09:08:59 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12021707",
+						"comment_count": "1",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2018-09-17 09:09:02 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1629650,1629651\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12693379",
+						"comment_count": "2",
+						"who": {
+							"text": "bcotton",
+							"name": "Ben Cotton"
+						},
+						"bug_when": "2019-05-02 20:55:28 +0000",
+						"thetext": "This message is a reminder that Fedora 28 is nearing its end of life.\nOn 2019-May-28 Fedora will stop maintaining and issuing updates for\nFedora 28. It is Fedora's policy to close all bug reports from releases\nthat are no longer maintained. At that time this bug will be closed as\nEOL if it remains open with a Fedora 'version' of '28'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora 28 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora, you are encouraged  change the 'version' to a later Fedora \nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13549505",
+						"comment_count": "3",
+						"who": {
+							"text": "moceap",
+							"name": "Mosaab Alzoubi"
+						},
+						"bug_when": "2020-01-25 03:46:01 +0000",
+						"thetext": "Fixing:\n\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2020-edf53cd770\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2020-bbd24dd0cf"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13550322",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-01-26 01:52:07 +0000",
+						"thetext": "xar-1.8.0.417.1-1.fc30 has been pushed to the Fedora 30 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-bbd24dd0cf"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13563916",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-01-30 22:59:19 +0000",
+						"thetext": "xar-1.8.0.417.1-1.fc31 has been pushed to the Fedora 31 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-edf53cd770"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13569330",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-02-03 01:03:08 +0000",
+						"thetext": "xar-1.8.0.417.1-1.fc30 has been pushed to the Fedora 30 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13589269",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-02-07 01:50:40 +0000",
+						"thetext": "xar-1.8.0.417.1-1.fc31 has been pushed to the Fedora 31 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "xar-1.8.0.417.1-1.fc30",
+			"release_id": 28,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "xar",
+						"version": "1.8.0.417.1",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xar-devel",
+						"version": "1.8.0.417.1",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xar-debugsource",
+						"version": "1.8.0.417.1",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "xar-debuginfo",
+						"version": "1.8.0.417.1",
+						"release": "1.fc30",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "xar-devel",
+						"version": "1.8.0.417.1",
+						"release": "1.fc30",
+						"arch": "i686"
+					},
+					{
+						"name": "xar-debuginfo",
+						"version": "1.8.0.417.1",
+						"release": "1.fc30",
+						"arch": "i686"
+					},
+					{
+						"name": "xar",
+						"version": "1.8.0.417.1",
+						"release": "1.fc30",
+						"arch": "i686"
+					},
+					{
+						"name": "xar-debugsource",
+						"version": "1.8.0.417.1",
+						"release": "1.fc30",
+						"arch": "i686"
+					}
+				],
+				"s390x": [
+					{
+						"name": "xar",
+						"version": "1.8.0.417.1",
+						"release": "1.fc30",
+						"arch": "s390x"
+					},
+					{
+						"name": "xar-debuginfo",
+						"version": "1.8.0.417.1",
+						"release": "1.fc30",
+						"arch": "s390x"
+					},
+					{
+						"name": "xar-devel",
+						"version": "1.8.0.417.1",
+						"release": "1.fc30",
+						"arch": "s390x"
+					},
+					{
+						"name": "xar-debugsource",
+						"version": "1.8.0.417.1",
+						"release": "1.fc30",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "xar",
+						"version": "1.8.0.417.1",
+						"release": "1.fc30",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "xar",
+						"version": "1.8.0.417.1",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xar-devel",
+						"version": "1.8.0.417.1",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xar-debugsource",
+						"version": "1.8.0.417.1",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xar-debuginfo",
+						"version": "1.8.0.417.1",
+						"release": "1.fc30",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 1208233,
+			"text": "This update has been submitted for testing by moceap. ",
+			"timestamp": "2020-01-25 02:52:51",
+			"update_id": 180405,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1208235,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2020-01-25 03:02:41",
+			"update_id": 180405,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1208856,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2020-01-26 01:52:25",
+			"update_id": 180405,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1216680,
+			"text": "This update can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2020-02-02 01:54:15",
+			"update_id": 180405,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1216681,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2020-02-02 01:54:16",
+			"update_id": 180405,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1217606,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2020-02-03 01:03:25",
+			"update_id": 180405,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2020-02-03 01:02:24",
+	"date_stable": "2020-02-03 01:02:24",
+	"date_submitted": "2020-01-25 02:52:51",
+	"date_testing": "2020-01-26 01:51:44",
+	"meets_testing_requirements": true,
+	"notes": "- Use Apple upstream instead of non-fresh Github one\n- New upstream in 1.8 dev branch with 417.1 subversion\n- Close CVE-2018-17093\n- Close CVE-2018-17094\n- Close CVE-2017-11124\n- Close CVE-2017-11125\n- Close CVE-2010-3798\n- Use license macro\n- Add OpenSSL To Configuration",
+	"pushed": true,
+	"release": {
+		"branch": "f30",
+		"candidate_tag": "f30-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f30",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 30",
+		"mail_template": "fedora_errata_template",
+		"name": "F30",
+		"override_tag": "f30-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f30-signing-pending",
+		"pending_stable_tag": "f30-updates-pending",
+		"pending_testing_tag": "f30-updates-testing-pending",
+		"stable_tag": "f30-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f30-updates-testing",
+		"version": "30"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "medium",
+	"stable_days": 7,
+	"stable_karma": 1,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "xar-1.8.0.417.1-1.fc30",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2020-bbd24dd0cf",
+	"unstable_karma": -2,
+	"updateid": "FEDORA-2020-bbd24dd0cf",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/360e1873c56312ea5866123f5ffaf4e07d419570b03af7f475c0d20c7501db06?s=24&d=retro",
+		"email": "moceap@hotmail.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 708,
+		"name": "moceap",
+		"openid": "moceap.id.fedoraproject.org"
+	},
+	"version_hash": "4522dc131d47c3baa2ae9841ccec379966bce180"
+}

@@ -1,0 +1,774 @@
+{
+	"alias": "FEDORA-2018-5142d70592",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1575027,
+			"title": "Cannot start exited container if disabled : false for oci-register-machine",
+			"bugzilla": {
+				"bug_id": "1575027",
+				"creation_ts": "2018-05-04 14:57:01 +0000",
+				"short_desc": "Cannot start exited container if disabled : false for oci-register-machine",
+				"delta_ts": "2018-07-03 14:11:04 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11563791",
+						"comment_count": "0",
+						"who": {
+							"text": "ascanio.alba7",
+							"name": "aalba6675"
+						},
+						"bug_when": "2018-05-04 14:57:01 +0000",
+						"thetext": "Description of problem:\npodman cannot start an exited container if oci-register-machine is enabled\n\nVersion-Release number of selected component (if applicable):\npodman-0.4.1-1.gitb51d327.fc28.x86_64\n\nHow reproducible:\n\nAlways\nSteps to Reproduce:\n0. cat /etc/oci-register-machine.conf \n# Disable oci-register-machine by setting the disabled field to true\ndisabled : false\n1. podman run --detach --name alice_gold --entrypoint /sbin/init fedora:28\n2. podman stop alice_gold\n3. podman start alice_gold\n\nActual results:\nunable to start container \"e8686e0e54f1\": container create failed: container_linux.go:348: st\narting container process caused \"process_linux.go:402: container init caused \\\"process_linux.\ngo:385: running prestart hook 0 caused \\\\\\\"error running hook: exit status 1, stdout: , stder\nr: \\\\\\\"\\\"\"           \n: internal libpod error\n\nExpected results:\ncontainer starts successfully\n\nAdditional info:\nSet disable: true and it works\n\nausearch -m avc --start recent\n----\ntime->Fri May  4 22:49:10 2018\ntype=AVC msg=audit(1525445350.985:629): avc:  denied  { syslog_read } for  pid=8930 comm=\"dmesg\" scontext=system_u:system_r:container_t:s0:c282,c976 tcontext=system_u:system_r:kernel_t:s0 tclass=system permissive=0\n----\ntime->Fri May  4 22:49:10 2018\ntype=AVC msg=audit(1525445350.985:630): avc:  denied  { syslog_read } for  pid=8930 comm=\"dmesg\" scontext=system_u:system_r:container_t:s0:c282,c976 tcontext=system_u:system_r:kernel_t:s0 tclass=system permissive=0\n\n# audit2allow -al\n\n\n#============= container_t ==============\nallow container_t kernel_t:system syslog_read;\n\n#============= systemd_machined_t ==============\nallow systemd_machined_t systemd_unit_file_t:service stop;"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11564371",
+						"comment_count": "1",
+						"who": {
+							"text": "dwalsh",
+							"name": "Daniel Walsh"
+						},
+						"bug_when": "2018-05-04 17:56:53 +0000",
+						"thetext": "Any information in the journal?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11565323",
+						"comment_count": "2",
+						"who": {
+							"text": "ascanio.alba7",
+							"name": "aalba6675"
+						},
+						"bug_when": "2018-05-05 02:59:37 +0000",
+						"thetext": "Enable register machine - encountered a different problem. Some podman actions kill the whole desktop session\n\n1. Run container: podman run --name alice_gold --entrypoint /sbin/init fedora:28\n2. Stop gracefully: podman stop alice_gold\n\n3. Now start again\n\npodman start alice_gold\nor even\npodman rm alice_gold\n\nWow - this can actually kill the whole Wayland desktop; in fact some random podman actions like podman rm kill the whole session. It's like something is confused between the real desktop user session and the podman session.\n\nThis killed Wayland and sent me back to gdm. In a root console session, this can happen to and dump me back to the login prompt.\n\nThese session deaths don't happen if register machine is off\n\n\nMay 05 10:48:59 localhost.localdomain oci-register-machine[11004]: 2018/05/05 10:48:59 Register machine: poststop 330018251ce5deafe9480f2d17885a4636c>\nMay 05 10:48:59 localhost.localdomain systemd[1]: Stopping User Manager for UID 1050...\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopping Virtual filesystem service - GNOME Online Accounts monitor...\nMay 05 10:48:59 localhost.localdomain systemd[3258]: dbus.service: Failed to kill control group /user.slice/user-1050.slice/user@1050.service/dbus.se>\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopping D-Bus User Message Bus...\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopping Virtual filesystem service - digital camera monitor...\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopping Tracker metadata database store and lookup manager...\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopped target Default.\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopping Evolution address book service...\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopping Virtual filesystem metadata service...\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopping sandboxed app permission store...\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopping Sound Service...\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopping Virtual filesystem service - Media Transfer Protocol monitor...\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopping Virtual filesystem service...\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopping Evolution source registry...\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopping Virtual filesystem service - Apple File Conduit monitor...\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopping Virtual filesystem service - disk device monitor...\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopping Accessibility services bus...\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopping Evolution calendar service...\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopped Virtual filesystem metadata service.\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopped Virtual filesystem service - GNOME Online Accounts monitor.\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopped Virtual filesystem service - Media Transfer Protocol monitor.\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopped sandboxed app permission store.\nMay 05 10:48:59 localhost.localdomain systemd[3258]: Stopped Virtual filesystem service - digital camera monitor.\nMay 05 10:48:59 localhost.localdomain gnome-session[3287]: gnome-session-binary[3287]: WARNING: Lost name on bus: org.gnome.SessionManager\nMay 05 10:48:59 localhost.localdomain gnome-session-binary[3287]: WARNING: Lost name on bus: org.gnome.SessionManager"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11565329",
+						"comment_count": "3",
+						"who": {
+							"text": "ascanio.alba7",
+							"name": "aalba6675"
+						},
+						"bug_when": "2018-05-05 03:01:46 +0000",
+						"thetext": "oci-register-machine \n\ndisable: false \n\nseems to be badly broken :("
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11566947",
+						"comment_count": "4",
+						"who": {
+							"text": "dwalsh",
+							"name": "Daniel Walsh"
+						},
+						"bug_when": "2018-05-06 10:50:38 +0000",
+						"thetext": "Yes I saw the same thing.  A couple of problems I am seeing.  \n\nThe failure of the runing of oci-register-machine the second time is caused because for some reason, when you do a podman stop, it looks like runc is not calling the poststop branch of oci-register-machine to remove the enter in machinectl.  Then when you run podman start, oci-register-machine tries to register the container a second time, and fails to realize it is already registered.\n\nIf you then run the machine in permissive mode after the failure, runc does call the post install script.  This reveals a second problem in oci-register-machine's running, it is not running inside the containers cgroup, it is running in the users cgroup, and systemd tries to kill all processes in the users cgroup when it calls poststop.\n\nFor now we need to keep oci-register-machine disabled when running podman.  This is pretty broken, and oci-register-machine does not add much value at this time."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11733154",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-22 21:19:15 +0000",
+						"thetext": "podman-0.6.4-1.gitd5beb2f.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-5142d70592"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11733157",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-22 21:19:33 +0000",
+						"thetext": "podman-0.6.4-1.gitd5beb2f.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-2b96ea9fec"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11733991",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-23 18:55:55 +0000",
+						"thetext": "podman-0.6.4-1.gitd5beb2f.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-5142d70592"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11734168",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-23 21:21:47 +0000",
+						"thetext": "podman-0.6.4-1.gitd5beb2f.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-2b96ea9fec"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11752259",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-28 14:08:43 +0000",
+						"thetext": "podman-0.6.4-1.gitd5beb2f.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11764117",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-07-03 14:11:04 +0000",
+						"thetext": "podman-0.6.4-1.gitd5beb2f.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1592167,
+			"security": true,
+			"title": "CVE-2018-10856 podman: Containers run as non-root users do not drop capabilities [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1592167",
+				"creation_ts": "2018-06-18 00:39:41 +0000",
+				"short_desc": "CVE-2018-10856 podman: Containers run as non-root users do not drop capabilities [fedora-all]",
+				"delta_ts": "2018-07-03 14:11:02 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1592166",
+						"alias": "CVE-2018-10856",
+						"creation_ts": "2018-06-18 00:39:22 +0000",
+						"short_desc": "CVE-2018-10856 podman: Containers run as non-root users do not drop capabilities",
+						"delta_ts": "2019-09-29 14:42:21 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1584429",
+							"1592167",
+							"1594309"
+						],
+						"blocked": [
+							{
+								"bug_id": "1592169",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2018:2037",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "11711735",
+								"comment_count": "0",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2018-06-18 00:39:22 +0000",
+								"thetext": "Podman before version 0.6.1 does not drop capabilities when executing a container as a non-root user. This results in unnecessary privileges being granted to the container."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11711738",
+								"comment_count": "1",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2018-06-18 00:39:46 +0000",
+								"thetext": "Created podman tracking bugs for this issue:\n\nAffects: fedora-all [bug 1592167]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11732047",
+								"comment_count": "3",
+								"who": {
+									"text": "rschiron",
+									"name": "Riccardo Schirone"
+								},
+								"bug_when": "2018-06-22 15:31:02 +0000",
+								"thetext": "Patch:\nhttps://github.com/projectatomic/libpod/commit/bae80a0b663925ec751ad2784ca32989403cdc24"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11743031",
+								"comment_count": "5",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2018-06-26 18:40:19 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7 Extras\n\nVia RHSA-2018:2037 https://access.redhat.com/errata/RHSA-2018:2037"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11711736",
+						"comment_count": "0",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-06-18 00:39:41 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11711737",
+						"comment_count": "1",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-06-18 00:39:44 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1592166,1592167\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11733153",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-22 21:19:10 +0000",
+						"thetext": "podman-0.6.4-1.gitd5beb2f.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-5142d70592"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11733156",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-22 21:19:29 +0000",
+						"thetext": "podman-0.6.4-1.gitd5beb2f.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-2b96ea9fec"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11733990",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-23 18:55:53 +0000",
+						"thetext": "podman-0.6.4-1.gitd5beb2f.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-5142d70592"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11734167",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-23 21:21:45 +0000",
+						"thetext": "podman-0.6.4-1.gitd5beb2f.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-2b96ea9fec"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11752257",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-28 14:08:35 +0000",
+						"thetext": "podman-0.6.4-1.gitd5beb2f.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11764116",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-07-03 14:11:02 +0000",
+						"thetext": "podman-0.6.4-1.gitd5beb2f.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1592489,
+			"title": "unable to run containers; fork/exec /usr/sbin/iptables: permission denied",
+			"bugzilla": {
+				"bug_id": "1592489",
+				"creation_ts": "2018-06-18 16:05:22 +0000",
+				"short_desc": "unable to run containers; fork/exec /usr/sbin/iptables: permission denied",
+				"delta_ts": "2018-07-03 14:11:08 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11713891",
+						"comment_count": "0",
+						"who": {
+							"text": "miabbott",
+							"name": "Micah Abbott"
+						},
+						"bug_when": "2018-06-18 16:05:22 +0000",
+						"thetext": "Using the latest Fedora Rawhide Atomic Host, I am unable to run containers using `podman`.  The `run` appears to fail due to an SELinux denial:\n\n# rpm-ostree status\nState: idle; auto updates disabled\nDeployments:\n● ostree://rawhide:fedora/rawhide/x86_64/atomic-host\n                   Version: Rawhide.20180616.n.0 (2018-06-16 09:30:08)\n                    Commit: 1055dea1f99991fb56d5ae9e29cc6ff52fa01970555f82fcc8e929c7f717907f\n\n# rpm -q container-selinux podman runc selinux-policy\ncontainer-selinux-2.64-1.gitdfaf8fd.fc29.noarch\npodman-0.6.4-1.gitb43677c.fc29.x86_64\nrunc-1.0.0-36.gitad0f525.fc29.x86_64\nselinux-policy-3.14.2-25.fc29.noarch\n\n# podman run -it --rm registry.fedoraproject.org/fedora echo 'hello'                                                                                                                  \nTrying to pull registry.fedoraproject.org/fedora...Getting image source signatures\nCopying blob sha256:bd02462c6d09de67de291323a7b926313b0e0838b423ea51563ef2293c67ff2d\n 85.56 MB / 85.56 MB [=====================================================] 10s\nCopying config sha256:75aeb7f897fdff7569c8bf1bc33c32823eb6c5baad9ac7dfa501ce284d795116\n 1.27 KB / 1.27 KB [========================================================] 0s\nWriting manifest to image destination\nStoring signatures\nERRO[0023] `iptables -t filter -D FORWARD -s 10.88.0.2 ! -o 10.88.0.2 -j ACCEPT` failed:   (fork/exec /usr/sbin/iptables: permission denied)                               \n\n# journalctl -b | grep 'avc:  denied'\nJun 18 15:59:11 micah-f28ah-vm0618a audit[1453]: AVC avc:  denied  { read write } for  pid=1453 comm=\"echo\" path=\"/dev/pts/0\" dev=\"devpts\" ino=3 scontext=system_u:system_r:container_t:s0:c134,c903 tcontext=system_u:object_r:container_file_t:s0:c134,c903 tclass=chr_file permissive=0\nJun 18 15:59:11 micah-f28ah-vm0618a audit[1453]: AVC avc:  denied  { read write } for  pid=1453 comm=\"echo\" path=\"/dev/pts/0\" dev=\"devpts\" ino=3 scontext=system_u:system_r:container_t:s0:c134,c903 tcontext=system_u:object_r:container_file_t:s0:c134,c903 tclass=chr_file permissive=0\nJun 18 15:59:11 micah-f28ah-vm0618a audit[1453]: AVC avc:  denied  { read write } for  pid=1453 comm=\"echo\" path=\"/dev/pts/0\" dev=\"devpts\" ino=3 scontext=system_u:system_r:container_t:s0:c134,c903 tcontext=system_u:object_r:container_file_t:s0:c134,c903 tclass=chr_file permissive=0\nJun 18 15:59:11 micah-f28ah-vm0618a audit[1453]: AVC avc:  denied  { read write } for  pid=1453 comm=\"echo\" path=\"/dev/pts/0\" dev=\"devpts\" ino=3 scontext=system_u:system_r:container_t:s0:c134,c903 tcontext=system_u:object_r:container_file_t:s0:c134,c903 tclass=chr_file permissive=0\nJun 18 15:59:11 micah-f28ah-vm0618a audit[1453]: AVC avc:  denied  { map } for  pid=1453 comm=\"echo\" path=\"/usr/bin/coreutils\" dev=\"dm-0\" ino=29003 scontext=system_u:system_r:container_t:s0:c134,c903 tcontext=unconfined_u:object_r:var_lib_t:s0 tclass=file permissive=0\nJun 18 15:59:12 micah-f28ah-vm0618a audit[1476]: AVC avc:  denied  { entrypoint } for  pid=1476 comm=\"podman\" path=\"/usr/sbin/xtables-multi\" dev=\"dm-0\" ino=46410208 scontext=unconfined_u:unconfined_r:unconfined_t:s0 tcontext=system_u:object_r:iptables_exec_t:s0 tclass=file permissive=0\n\n\nCould be the same as RHBZ#1592488"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11733155",
+						"comment_count": "1",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-22 21:19:22 +0000",
+						"thetext": "podman-0.6.4-1.gitd5beb2f.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-5142d70592"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11733158",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-22 21:19:38 +0000",
+						"thetext": "podman-0.6.4-1.gitd5beb2f.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-2b96ea9fec"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11733992",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-23 18:55:59 +0000",
+						"thetext": "podman-0.6.4-1.gitd5beb2f.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-5142d70592"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11734169",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-23 21:21:51 +0000",
+						"thetext": "podman-0.6.4-1.gitd5beb2f.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-2b96ea9fec"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11737978",
+						"comment_count": "5",
+						"who": {
+							"text": "miabbott",
+							"name": "Micah Abbott"
+						},
+						"bug_when": "2018-06-25 16:05:32 +0000",
+						"thetext": "VERIFIED with podman-0.6.4-1.gitd5beb2f.fc28"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11752260",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-06-28 14:08:46 +0000",
+						"thetext": "podman-0.6.4-1.gitd5beb2f.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11764118",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-07-03 14:11:08 +0000",
+						"thetext": "podman-0.6.4-1.gitd5beb2f.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "podman-0.6.4-1.gitd5beb2f.fc27",
+			"release_id": 17,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "podman-debuginfo",
+						"version": "0.6.4",
+						"release": "1.gitd5beb2f.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "podman-debugsource",
+						"version": "0.6.4",
+						"release": "1.gitd5beb2f.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "podman",
+						"version": "0.6.4",
+						"release": "1.gitd5beb2f.fc27",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "podman-debugsource",
+						"version": "0.6.4",
+						"release": "1.gitd5beb2f.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "podman",
+						"version": "0.6.4",
+						"release": "1.gitd5beb2f.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "podman-debuginfo",
+						"version": "0.6.4",
+						"release": "1.gitd5beb2f.fc27",
+						"arch": "armv7hl"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "podman-debugsource",
+						"version": "0.6.4",
+						"release": "1.gitd5beb2f.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "podman",
+						"version": "0.6.4",
+						"release": "1.gitd5beb2f.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "podman-debuginfo",
+						"version": "0.6.4",
+						"release": "1.gitd5beb2f.fc27",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "podman",
+						"version": "0.6.4",
+						"release": "1.gitd5beb2f.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "podman-debugsource",
+						"version": "0.6.4",
+						"release": "1.gitd5beb2f.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "podman-debuginfo",
+						"version": "0.6.4",
+						"release": "1.gitd5beb2f.fc27",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "podman",
+						"version": "0.6.4",
+						"release": "1.gitd5beb2f.fc27",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "podman-debugsource",
+						"version": "0.6.4",
+						"release": "1.gitd5beb2f.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "podman",
+						"version": "0.6.4",
+						"release": "1.gitd5beb2f.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "podman-debuginfo",
+						"version": "0.6.4",
+						"release": "1.gitd5beb2f.fc27",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 802600,
+			"text": "This update has been submitted for testing by dwalsh. ",
+			"timestamp": "2018-06-22 21:19:05",
+			"update_id": 117981,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 802613,
+			"karma": 1,
+			"text": "LGTM",
+			"timestamp": "2018-06-22 23:58:22",
+			"update_id": 117981,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/a36d09c67058c7ffadb3a3c4d6ec56ad39545e1824e4c67018b6125f04b19f94?s=24&d=retro",
+				"email": "bbaude@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					}
+				],
+				"id": 666,
+				"name": "baude",
+				"openid": "baude.id.fedoraproject.org"
+			},
+			"user_id": 666
+		},
+		{
+			"id": 802810,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2018-06-23 18:56:28",
+			"update_id": 117981,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 803645,
+			"karma": 1,
+			"text": "A soft +1. I ran into an issue with the initial baseline test that I was not able to repo.\n\nhttps://github.com/projectatomic/libpod/issues/990\n",
+			"timestamp": "2018-06-25 16:17:45",
+			"update_id": 117981,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/36f2eb8581b7b5cd7cb67bc24309c9efaafba5a5c6cd4f10d3ecfa591e4ae67e?s=24&d=retro",
+				"email": "tsweeney@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					}
+				],
+				"id": 3753,
+				"name": "tomsweeneyredhat",
+				"openid": "tomsweeneyredhat.id.fedoraproject.org"
+			},
+			"user_id": 3753
+		},
+		{
+			"id": 805538,
+			"text": "This update has reached 7 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2018-07-01 00:00:34",
+			"update_id": 117981,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 806238,
+			"karma": 1,
+			"text": "LGTM",
+			"timestamp": "2018-07-02 14:03:32",
+			"update_id": 117981,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/b3d612819598487738ad51cb9bd899cf4c6fd25d603b50eed865a032689f1921?s=24&d=retro",
+				"email": "umohnani@redhat.com",
+				"id": 4263,
+				"name": "umohnani",
+				"openid": "umohnani.id.fedoraproject.org"
+			},
+			"user_id": 4263
+		},
+		{
+			"id": 806239,
+			"text": "This update has been submitted for batched by bodhi. ",
+			"timestamp": "2018-07-02 14:03:33",
+			"update_id": 117981,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 806354,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2018-07-03 03:00:15",
+			"update_id": 117981,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 806504,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2018-07-03 14:11:52",
+			"update_id": 117981,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2018-07-03 14:10:23",
+	"date_stable": "2018-07-03 14:10:23",
+	"date_submitted": "2018-06-22 21:19:05",
+	"date_testing": "2018-06-23 18:55:00",
+	"karma": 3,
+	"meets_testing_requirements": true,
+	"notes": "Weekly release",
+	"pushed": true,
+	"release": {
+		"branch": "f27",
+		"candidate_tag": "f27-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f27",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 27",
+		"mail_template": "fedora_errata_template",
+		"name": "F27",
+		"override_tag": "f27-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f27-signing-pending",
+		"pending_stable_tag": "f27-updates-pending",
+		"pending_testing_tag": "f27-updates-testing-pending",
+		"stable_tag": "f27-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f27-updates-testing",
+		"version": "27"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "podman-0.6.4-1.gitd5beb2f.fc27",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2018-5142d70592",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2018-5142d70592",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/b01c7cb03756dc7b421ecdd7dee4e6ddf0e2e754084d53e1da7ad7c9f7f1a353?s=24&d=retro",
+		"email": "dwalsh@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "cvspolicycoreutils"
+			},
+			{
+				"name": "gitsetroubleshoot"
+			},
+			{
+				"name": "hgsetroubleshoot"
+			},
+			{
+				"name": "container-sig"
+			},
+			{
+				"name": "summer-coding"
+			},
+			{
+				"name": "gitsystem-config-selinux"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "cla_redhat"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "gitselinux-policy"
+			}
+		],
+		"id": 1643,
+		"name": "dwalsh",
+		"openid": "dwalsh.id.fedoraproject.org"
+	},
+	"version_hash": "efe53ff4d9caa076377dfeecd6e158a5d55dfa9a"
+}

@@ -1,0 +1,626 @@
+{
+	"alias": "FEDORA-2015-11441",
+	"bugs": [
+		{
+			"bug_id": 1241905,
+			"parent": true,
+			"security": true,
+			"title": "hostapd and wpa_supplicant: Incomplete WPS and P2P NFC NDEF record payload length validation",
+			"bugzilla": {
+				"bug_id": "1241905",
+				"alias": "CVE-2015-8041",
+				"creation_ts": "2015-07-10 12:03:24 +0000",
+				"short_desc": "CVE-2015-8041 hostapd and wpa_supplicant: Incomplete WPS and P2P NFC NDEF record payload length validation",
+				"delta_ts": "2021-02-17 05:09:22 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "NOTABUG",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1241906",
+					"1241907",
+					"1241908"
+				],
+				"blocked": [
+					{
+						"bug_id": "1241914",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8427327",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-07-10 12:03:24 +0000",
+						"thetext": "Quoting from the hostapd/wpa_supplicant 2015-5 advisory:\n\nA vulnerability was found in NDEF record parsing implementation in\nhostapd and wpa_supplicant. This code is used when an NFC Tag or NFC\nconnection handover is used to trigger WPS or P2P operations. The parser\ndid include bounds checking for the NDEF record payload length, but due\nto insufficient integer size, it was possible to trigger integer\noverflow that would result in bypassing the validation step with some\nmalformed NDEF records.\n\nThis could result in denial of service due to hostapd/wpa_supplicant\nprocess termination (buffer read overflow) or infinite loop. The issue\ncan be triggered only if the NFC stack on the device does not perform\nrequired validation steps for received NFC messages before sending the\nreceived message to hostapd/wpa_supplicant for processing.\n\nIt was possible for the 32-bit record->total_length value to end up\nwrapping around due to integer overflow if the longer form of payload\nlength field is used and record->payload_length gets a value close to\n2^32. This could result in ndef_parse_record() accepting a too large\npayload length value and the record type filter reading up to about 20\nbytes beyond the end of the buffer and potentially killing the process.\nThis could also result in an attempt to allocate close to 2^32 bytes of\nheap memory and if that were to succeed, a buffer read overflow of the\nsame length which would most likely result in the process termination.\nIn case of record->total_length ending up getting the value 0, there\nwould be no buffer read overflow, but record parsing would result in an\ninfinite loop in ndef_parse_records().\n\nAny of these error cases could potentially be used for denial of service\nattacks over NFC by using a malformed NDEF record on an NFC Tag or\nsending them during NFC connection handover if the application providing\nthe NDEF message to hostapd/wpa_supplicant did no validation of the\nreceived NDEF records. While such validation is likely done in the NFC\nstack that needs to parse the NFC messages before further processing,\nhostapd/wpa_supplicant should have (re)confirmed NDEF message validity\nproperly.\n\n\nVulnerable versions/configurations\n\nhostapd v0.7.0-v2.4 with CONFIG_WPS_NFC=y in the build configuration\n(hostapd/.config) and NFC NDEF records passed to hostapd by the NFC\nstack without validation.\n\nwpa_supplicant v0.7.0-v2.4 with CONFIG_WPS_NFC=y in the build\nconfiguration (wpa_supplicant/.config) and NFC NDEF records passed to\nwpa_supplicant by the NFC stack without validation.\n\nNote: No NFC stack implementation has yet been identified with\ncapability to pass the malformed NDEF record to\nhostapd/wpa_supplicant. As such, it is not known whether this issue can\nbe triggered in practice.\n\nAlternatively to an actual NFC operation trigger, the malformed NDEF\nrecords could be provided by other applications running on the same\ndevice if access to the hostapd/wpa_supplicant control interface is\navailable to untrusted components or users.\n\n\nUpstream patch:\n\nhttp://w1.fi/security/2015-5/0001-NFC-Fix-payload-length-validation-in-NDEF-record-par.patch\n\nExternal References:\n\nhttp://w1.fi/security/2015-5/incomplete-wps-and-p2p-nfc-ndef-record-payload-length-validation.txt"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8427336",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-07-10 12:04:54 +0000",
+						"thetext": "\nCreated hostapd tracking bugs for this issue:\n\nAffects: fedora-all [bug 1241906]\nAffects: epel-all [bug 1241908]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8427339",
+						"comment_count": "2",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-07-10 12:04:56 +0000",
+						"thetext": "\nCreated wpa_supplicant tracking bugs for this issue:\n\nAffects: fedora-all [bug 1241907]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8449133",
+						"comment_count": "3",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-07-16 13:49:15 +0000",
+						"thetext": "The wpa_supplicant packages in Red Hat Enterprise Linux 5 and earlier are not affected, as they do not include vulnerable code.\n\nThe wpa_supplicant packages in Red Hat Enterprise Linux 6 and 7 are also not affected, as the vulnerable code is not compiled in (packages are not built with the CONFIG_WPS_NFC build option).\n\nThe wpa_supplicant and hostapd packages in Fedora and Fedora EPEL are also built without affected code / without CONFIG_WPS_NFC, and are unaffected.\n\nStatement:\n\nNot vulnerable. This issue did not affect the versions of wpa_supplicant as shipped with Red Hat Enterprise Linux 5, 6 and 7."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8449163",
+						"comment_count": "4",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-07-16 13:55:38 +0000",
+						"thetext": "Upstream commit:\n\nhttp://w1.fi/cgit/hostap/commit/?id=df9079e72760ceb7ebe7fb11538200c516bdd886"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8472878",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-23 08:59:35 +0000",
+						"thetext": "hostapd-2.4-3.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8472883",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-23 08:59:55 +0000",
+						"thetext": "hostapd-2.4-3.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8494147",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-30 05:03:45 +0000",
+						"thetext": "hostapd-2.4-3.el7 has been pushed to the Fedora EPEL 7 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1241906,
+			"security": true,
+			"title": "hostapd: hostapd and wpa_supplicant: Incomplete WPS and P2P NFC NDEF record payload length validation [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1241906",
+				"creation_ts": "2015-07-10 12:04:36 +0000",
+				"short_desc": "CVE-2015-8041 hostapd: hostapd and wpa_supplicant: Incomplete WPS and P2P NFC NDEF record payload length validation [fedora-all]",
+				"delta_ts": "2015-11-03 08:18:50 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1241905",
+						"alias": "CVE-2015-8041",
+						"creation_ts": "2015-07-10 12:03:24 +0000",
+						"short_desc": "CVE-2015-8041 hostapd and wpa_supplicant: Incomplete WPS and P2P NFC NDEF record payload length validation",
+						"delta_ts": "2021-02-17 05:09:22 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "NOTABUG",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1241906",
+							"1241907",
+							"1241908"
+						],
+						"blocked": [
+							{
+								"bug_id": "1241914",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "8427327",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-07-10 12:03:24 +0000",
+								"thetext": "Quoting from the hostapd/wpa_supplicant 2015-5 advisory:\n\nA vulnerability was found in NDEF record parsing implementation in\nhostapd and wpa_supplicant. This code is used when an NFC Tag or NFC\nconnection handover is used to trigger WPS or P2P operations. The parser\ndid include bounds checking for the NDEF record payload length, but due\nto insufficient integer size, it was possible to trigger integer\noverflow that would result in bypassing the validation step with some\nmalformed NDEF records.\n\nThis could result in denial of service due to hostapd/wpa_supplicant\nprocess termination (buffer read overflow) or infinite loop. The issue\ncan be triggered only if the NFC stack on the device does not perform\nrequired validation steps for received NFC messages before sending the\nreceived message to hostapd/wpa_supplicant for processing.\n\nIt was possible for the 32-bit record->total_length value to end up\nwrapping around due to integer overflow if the longer form of payload\nlength field is used and record->payload_length gets a value close to\n2^32. This could result in ndef_parse_record() accepting a too large\npayload length value and the record type filter reading up to about 20\nbytes beyond the end of the buffer and potentially killing the process.\nThis could also result in an attempt to allocate close to 2^32 bytes of\nheap memory and if that were to succeed, a buffer read overflow of the\nsame length which would most likely result in the process termination.\nIn case of record->total_length ending up getting the value 0, there\nwould be no buffer read overflow, but record parsing would result in an\ninfinite loop in ndef_parse_records().\n\nAny of these error cases could potentially be used for denial of service\nattacks over NFC by using a malformed NDEF record on an NFC Tag or\nsending them during NFC connection handover if the application providing\nthe NDEF message to hostapd/wpa_supplicant did no validation of the\nreceived NDEF records. While such validation is likely done in the NFC\nstack that needs to parse the NFC messages before further processing,\nhostapd/wpa_supplicant should have (re)confirmed NDEF message validity\nproperly.\n\n\nVulnerable versions/configurations\n\nhostapd v0.7.0-v2.4 with CONFIG_WPS_NFC=y in the build configuration\n(hostapd/.config) and NFC NDEF records passed to hostapd by the NFC\nstack without validation.\n\nwpa_supplicant v0.7.0-v2.4 with CONFIG_WPS_NFC=y in the build\nconfiguration (wpa_supplicant/.config) and NFC NDEF records passed to\nwpa_supplicant by the NFC stack without validation.\n\nNote: No NFC stack implementation has yet been identified with\ncapability to pass the malformed NDEF record to\nhostapd/wpa_supplicant. As such, it is not known whether this issue can\nbe triggered in practice.\n\nAlternatively to an actual NFC operation trigger, the malformed NDEF\nrecords could be provided by other applications running on the same\ndevice if access to the hostapd/wpa_supplicant control interface is\navailable to untrusted components or users.\n\n\nUpstream patch:\n\nhttp://w1.fi/security/2015-5/0001-NFC-Fix-payload-length-validation-in-NDEF-record-par.patch\n\nExternal References:\n\nhttp://w1.fi/security/2015-5/incomplete-wps-and-p2p-nfc-ndef-record-payload-length-validation.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8427336",
+								"comment_count": "1",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-07-10 12:04:54 +0000",
+								"thetext": "\nCreated hostapd tracking bugs for this issue:\n\nAffects: fedora-all [bug 1241906]\nAffects: epel-all [bug 1241908]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8427339",
+								"comment_count": "2",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-07-10 12:04:56 +0000",
+								"thetext": "\nCreated wpa_supplicant tracking bugs for this issue:\n\nAffects: fedora-all [bug 1241907]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8449133",
+								"comment_count": "3",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-07-16 13:49:15 +0000",
+								"thetext": "The wpa_supplicant packages in Red Hat Enterprise Linux 5 and earlier are not affected, as they do not include vulnerable code.\n\nThe wpa_supplicant packages in Red Hat Enterprise Linux 6 and 7 are also not affected, as the vulnerable code is not compiled in (packages are not built with the CONFIG_WPS_NFC build option).\n\nThe wpa_supplicant and hostapd packages in Fedora and Fedora EPEL are also built without affected code / without CONFIG_WPS_NFC, and are unaffected.\n\nStatement:\n\nNot vulnerable. This issue did not affect the versions of wpa_supplicant as shipped with Red Hat Enterprise Linux 5, 6 and 7."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8449163",
+								"comment_count": "4",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-07-16 13:55:38 +0000",
+								"thetext": "Upstream commit:\n\nhttp://w1.fi/cgit/hostap/commit/?id=df9079e72760ceb7ebe7fb11538200c516bdd886"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8472878",
+								"comment_count": "5",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-07-23 08:59:35 +0000",
+								"thetext": "hostapd-2.4-3.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8472883",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-07-23 08:59:55 +0000",
+								"thetext": "hostapd-2.4-3.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8494147",
+								"comment_count": "7",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-07-30 05:03:45 +0000",
+								"thetext": "hostapd-2.4-3.el7 has been pushed to the Fedora EPEL 7 stable repository.  If problems still persist, please make note of it in this bug report."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8427329",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-07-10 12:04:36 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8427330",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-07-10 12:04:40 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1241905,1241906\n\n# Description of your update\nnotes=Security fix for \n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1241905,1241906"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8428400",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-10 18:15:06 +0000",
+						"thetext": "hostapd-2.4-3.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/hostapd-2.4-3.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8428425",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-10 18:27:02 +0000",
+						"thetext": "hostapd-2.4-3.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/hostapd-2.4-3.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8434474",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-13 19:06:29 +0000",
+						"thetext": "Package hostapd-2.4-3.fc22:\n* should fix your issue,\n* was pushed to the Fedora 22 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing hostapd-2.4-3.fc22'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-11374/hostapd-2.4-3.fc22\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8472879",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-23 08:59:38 +0000",
+						"thetext": "hostapd-2.4-3.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8472881",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-23 08:59:51 +0000",
+						"thetext": "hostapd-2.4-3.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "hostapd-2.4-3.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "hostapd",
+						"version": "2.4",
+						"release": "3.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "hostapd-logwatch",
+						"version": "2.4",
+						"release": "3.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "hostapd-debuginfo",
+						"version": "2.4",
+						"release": "3.fc21",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "hostapd",
+						"version": "2.4",
+						"release": "3.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "hostapd-logwatch",
+						"version": "2.4",
+						"release": "3.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "hostapd-debuginfo",
+						"version": "2.4",
+						"release": "3.fc21",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "hostapd",
+						"version": "2.4",
+						"release": "3.fc21",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "hostapd-logwatch",
+						"version": "2.4",
+						"release": "3.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "hostapd-debuginfo",
+						"version": "2.4",
+						"release": "3.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "hostapd",
+						"version": "2.4",
+						"release": "3.fc21",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 87315,
+			"text": "This update has been submitted for testing by linville. ",
+			"timestamp": "2015-07-10 18:27:04",
+			"update_id": 12057,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 87316,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/104944/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-07-10 18:33:56",
+			"update_id": 12057,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 87317,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/104947/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-07-10 18:47:01",
+			"update_id": 12057,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 87318,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2015-07-10 21:19:20",
+			"update_id": 12057,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 87319,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-07-13 19:15:48",
+			"update_id": 12057,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 87320,
+			"text": "This update has reached 7 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2015-07-20 22:20:55",
+			"update_id": 12057,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 87321,
+			"text": "This update has been submitted for stable by linville. ",
+			"timestamp": "2015-07-21 13:59:08",
+			"update_id": 12057,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 87322,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/108126/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-07-21 14:15:10",
+			"update_id": 12057,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 87323,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2015-07-21 14:26:44",
+			"update_id": 12057,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 87324,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-07-23 08:59:37",
+			"update_id": 12057,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2015-07-23 08:59:37",
+	"date_stable": "2015-07-23 08:59:37",
+	"date_submitted": "2015-07-10 18:26:59",
+	"date_testing": "2015-07-13 19:15:48",
+	"meets_testing_requirements": true,
+	"notes": "apply fix for NDEF record payload length checking",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "hostapd-2.4-3.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-11441",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-11441",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/df02ca0ce6119bc48e2e021a1d8001f21d52ff809f4a45b4571017c567c12166?s=24&d=retro",
+		"email": "linville@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "gitkernel"
+			},
+			{
+				"name": "ols-submissions"
+			}
+		],
+		"id": 259,
+		"name": "linville",
+		"openid": "linville.id.fedoraproject.org"
+	},
+	"version_hash": "39f77bce6f8bca71c670ebe5d57eadb75b6028e7"
+}

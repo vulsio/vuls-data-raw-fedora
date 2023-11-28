@@ -1,0 +1,2245 @@
+{
+	"alias": "FEDORA-2015-10677",
+	"bugs": [
+		{
+			"bug_id": 1212230,
+			"title": "three finger tap doesn't work with 4.1.x pre rc rawhide kernels.",
+			"bugzilla": {
+				"bug_id": "1212230",
+				"creation_ts": "2015-04-16 00:02:26 +0000",
+				"short_desc": "three finger tap doesn't work with 4.1.x pre rc rawhide kernels.",
+				"delta_ts": "2015-07-18 09:40:43 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8146047",
+						"comment_count": "0",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2015-04-16 00:02:26 +0000",
+						"thetext": "With: kernel-4.1.0-0.rc0.git1.1.fc23.x86_64 or kernel-4.1.0-0.rc0.git2.1.fc23.x86_64\n3 finger tapping no longer works. \n\nWorks with kernel-4.0.0-1.fc23.x86_64"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8146053",
+						"comment_count": "1",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-04-16 00:12:42 +0000",
+						"thetext": "Created attachment 1014953\n3fg-tap evemu recording\n\nEvemu recording showing the issue (from Bug 1209151, see also attachment 1014925).\n\nWith the new kernel tracking, the touchpad now claims it has 3 slots instead of 2 (hw only does 2). In the second frame, the kernel opens another slot for the jumping touch when the third finger is down, but closes slot 1. So we now have two slots active, but BTN_TOOL_TRIPLETAP is set.\n\nWhat libinput sees is one touch disappearing and another one starting in the same frame, i.e. you go from 2 touches to 2 touches. libinput ignores BTN_TOOL_* for any number less than num_slots.\n\nThat's a regression in the kernel IMO, we always relied on the BTN_TOOL_* only to be set when the matching number of slots is open too (where supported by the HW). Synaptics would likely break with this too.\n\nWe can't work around the event sequence either, we must handle the above behaviour on clickpads where users may lift the index finger in the same frame as they are putting their thumb down to physically click. synaptics used to have a bug where it would wrongly trigger a two-finger click in that case. So now we have the code counting only active touches at SYN_REPORT time.\n\nBenjamin already has a good idea on how to fix this in the kernel though."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8151306",
+						"comment_count": "2",
+						"who": {
+							"text": "btissoir",
+							"name": "Benjamin Tissoires"
+						},
+						"bug_when": "2015-04-16 17:18:18 +0000",
+						"thetext": "Created attachment 1015305\n0001-Input-synaptics-pin-3-touches-when-the-firmware-repo.patch\n\nProposed patch to fix the issue.\n\nI am not a pro of the tap to click, so I'd like to get some more feedback before submitting this upstream. You can find a scratch build here with the patch applied:\nhttp://koji.fedoraproject.org/koji/taskinfo?taskID=9494204"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8151327",
+						"comment_count": "3",
+						"who": {
+							"text": "btissoir",
+							"name": "Benjamin Tissoires"
+						},
+						"bug_when": "2015-04-16 17:26:40 +0000",
+						"thetext": "Grmbl... I messed up with the arches for the scratch build. The new one:\nhttp://koji.fedoraproject.org/koji/taskinfo?taskID=9494269"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8151719",
+						"comment_count": "4",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2015-04-16 19:31:18 +0000",
+						"thetext": "3 finger tap works again with that scratch built kernel. :) \n\nthanks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8154224",
+						"comment_count": "5",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-04-17 13:31:49 +0000",
+						"thetext": "Patch added to 4.1.0-0.rc0.git7.1.fc23.  Thanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8169252",
+						"comment_count": "6",
+						"who": {
+							"text": "btissoir",
+							"name": "Benjamin Tissoires"
+						},
+						"bug_when": "2015-04-22 15:48:12 +0000",
+						"thetext": "FWIW, patch submitted upstream: https://patchwork.kernel.org/patch/6256771/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8223478",
+						"comment_count": "7",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2015-05-12 02:58:50 +0000",
+						"thetext": "This seems to be back with 4.1.0-0.rc3.git0.1.fc23.x86_64.\n\n:( Happy to provide more info..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8225883",
+						"comment_count": "8",
+						"who": {
+							"text": "btissoir",
+							"name": "Benjamin Tissoires"
+						},
+						"bug_when": "2015-05-12 15:37:04 +0000",
+						"thetext": "(In reply to Kevin Fenzi from comment #7)\n> This seems to be back with 4.1.0-0.rc3.git0.1.fc23.x86_64.\n\nThat is weird. The patch that fixes this is still in this particular kernel, so either there is something else in the kernel which prevents the triple tap to be seen or libinput failed to recognize it.\n\nCan you attach a new evemu-recording of the misrecognized gesture with the updated kernel?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8226776",
+						"comment_count": "9",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Fenzi"
+						},
+						"bug_when": "2015-05-12 19:44:36 +0000",
+						"thetext": "ok. I swear it wasn't working, but rebooted to the latest kernel and now it is. :( \n\nSorry for the noise."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8328344",
+						"comment_count": "10",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-06-11 18:47:30 +0000",
+						"thetext": "I've added the various patches for this issue to the f21 and f22 trees now as well."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8365627",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-23 20:22:41 +0000",
+						"thetext": "kernel-4.0.6-300.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/kernel-4.0.6-300.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8365632",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-23 20:23:11 +0000",
+						"thetext": "kernel-4.0.6-200.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-4.0.6-200.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8377269",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-27 12:39:21 +0000",
+						"thetext": "kernel-4.0.6-300.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8394009",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-30 20:12:40 +0000",
+						"thetext": "kernel-4.0.6-200.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8399937",
+						"comment_count": "15",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-07-02 05:40:56 +0000",
+						"thetext": "sigh, Josh, please revert the three patches, they trigger a regression, see bug 1236540.\n\nIf the fingers are close together, the touchpad still sends two touches but the ABS_MT_SLOT event is missing now. Can be reproduced quite easily on a T440s.\nActual trigger is the first patch, but I'll let Benjamin figure out what to do with the other two.\n\nThe patches are\nPatch26238: Input-Revert-Revert-synaptics-use-dmax-in-input_mt_a.patch\nPatch26239: Input-synaptics-allocate-3-slots-to-keep-stability-i.patch\nPatch26240: Input-synaptics-pin-3-touches-when-the-firmware-repo.patch\n\nThanks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8399941",
+						"comment_count": "16",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-07-02 05:42:00 +0000",
+						"thetext": "*** Bug 1236540 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8413561",
+						"comment_count": "17",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-07-06 21:48:51 +0000",
+						"thetext": "*** Bug 1236642 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8416027",
+						"comment_count": "18",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-07-07 13:04:33 +0000",
+						"thetext": "(In reply to Peter Hutterer from comment #15)\n> sigh, Josh, please revert the three patches, they trigger a regression, see\n> bug 1236540.\n> \n> If the fingers are close together, the touchpad still sends two touches but\n> the ABS_MT_SLOT event is missing now. Can be reproduced quite easily on a\n> T440s.\n> Actual trigger is the first patch, but I'll let Benjamin figure out what to\n> do with the other two.\n> \n> The patches are\n> Patch26238: Input-Revert-Revert-synaptics-use-dmax-in-input_mt_a.patch\n> Patch26239: Input-synaptics-allocate-3-slots-to-keep-stability-i.patch\n> Patch26240: Input-synaptics-pin-3-touches-when-the-firmware-repo.patch\n\nI've commented them out in the spec so they are no longer applied.  If there are alternative patches, we can add those."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8425719",
+						"comment_count": "19",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-07-09 21:56:35 +0000",
+						"thetext": "*** Bug 1241685 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8429102",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-11 01:05:57 +0000",
+						"thetext": "kernel-4.0.8-200.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-4.0.8-200.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8438546",
+						"comment_count": "21",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-14 15:45:33 +0000",
+						"thetext": "Package kernel-4.0.8-200.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-4.0.8-200.fc21'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-11589/kernel-4.0.8-200.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8450413",
+						"comment_count": "22",
+						"who": {
+							"text": "btissoir",
+							"name": "Benjamin Tissoires"
+						},
+						"bug_when": "2015-07-16 21:59:40 +0000",
+						"thetext": "*** Bug 1236425 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8453724",
+						"comment_count": "23",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-18 01:54:47 +0000",
+						"thetext": "kernel-4.0.8-200.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8454034",
+						"comment_count": "24",
+						"who": {
+							"text": "FokinMY",
+							"name": "Mikhail Fokin"
+						},
+						"bug_when": "2015-07-18 09:40:43 +0000",
+						"thetext": "On my Lenovo T440 with Fedora 22, problem solved.\nThank you."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1217191,
+			"title": "btrfs balance is broken on 4.0 kernel",
+			"bugzilla": {
+				"bug_id": "1217191",
+				"creation_ts": "2015-04-29 17:56:05 +0000",
+				"short_desc": "btrfs balance is broken on 4.0 kernel",
+				"delta_ts": "2015-06-30 20:12:37 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8192423",
+						"comment_count": "0",
+						"who": {
+							"text": "devin",
+							"name": "Devin Henderson"
+						},
+						"bug_when": "2015-04-29 17:56:05 +0000",
+						"thetext": "Description of problem:\n\n\nI've run\n\nbtrfs balance start -dconvert=raid1 -mconvert=raid1 /mnt\n\ntwice now on my btrfs mount (2tb data, 2x5tb drives). It takes 10+ hours, seems to be working, but when its done nothing has changed. The btrfs mount is still data=single, metadata=DUP.\n\nThis appears to be a bug in the 4.0 kernel. See here:\n\nhttps://patchwork.kernel.org/patch/6238111/\n\nand here:\n\nhttp://article.gmane.org/gmane.comp.file-systems.btrfs/44696"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8237400",
+						"comment_count": "1",
+						"who": {
+							"text": "bugzilla",
+							"name": "Chris Murphy"
+						},
+						"bug_when": "2015-05-15 00:41:02 +0000",
+						"thetext": "Known regression.\n\nOriginal revert message 19.Apr\nhttp://thread.gmane.org/gmane.comp.file-systems.btrfs/44477\nChris Mason working on a tested fix 29.Apr\nhttp://thread.gmane.org/gmane.comp.file-systems.btrfs/44477\n\nkernel-4.1.0.rc3 this is still a bug."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8237409",
+						"comment_count": "2",
+						"who": {
+							"text": "bugzilla",
+							"name": "Chris Murphy"
+						},
+						"bug_when": "2015-05-15 00:46:17 +0000",
+						"thetext": "Bad paste\n\nChris Mason working on tested fix:\nhttp://article.gmane.org/gmane.comp.file-systems.btrfs/44801"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8261051",
+						"comment_count": "3",
+						"who": {
+							"text": "bugzilla",
+							"name": "Chris Murphy"
+						},
+						"bug_when": "2015-05-23 01:56:24 +0000",
+						"thetext": "https://git.kernel.org/cgit/linux/kernel/git/mason/linux-btrfs.git/commit/?h=for-linus-4.1&id=153c35b6cccc0c72de9fae06c8e2c8b2c47d79d4"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8327703",
+						"comment_count": "4",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-06-11 16:34:12 +0000",
+						"thetext": "A bunch of patches finally got submitted for 4.0.y stable today.  I'll look at bringing them in."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8328270",
+						"comment_count": "5",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-06-11 18:35:48 +0000",
+						"thetext": "Patches applied.  They'll be in the next build."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8328444",
+						"comment_count": "6",
+						"who": {
+							"text": "devin",
+							"name": "Devin Henderson"
+						},
+						"bug_when": "2015-06-11 18:58:53 +0000",
+						"thetext": "Niiice. Thanks Josh!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8362332",
+						"comment_count": "7",
+						"who": {
+							"text": "devin",
+							"name": "Devin Henderson"
+						},
+						"bug_when": "2015-06-23 06:49:46 +0000",
+						"thetext": "It looks like this was finally fixed upstream, in 4.0.6:\n\nhttps://www.kernel.org/pub/linux/kernel/v4.x/ChangeLog-4.0.6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8365626",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-23 20:22:39 +0000",
+						"thetext": "kernel-4.0.6-300.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/kernel-4.0.6-300.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8365631",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-23 20:23:10 +0000",
+						"thetext": "kernel-4.0.6-200.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-4.0.6-200.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8370562",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-25 08:18:44 +0000",
+						"thetext": "Package kernel-4.0.6-300.fc22:\n* should fix your issue,\n* was pushed to the Fedora 22 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-4.0.6-300.fc22'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-10677/kernel-4.0.6-300.fc22\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8371292",
+						"comment_count": "11",
+						"who": {
+							"text": "devin",
+							"name": "Devin Henderson"
+						},
+						"bug_when": "2015-06-25 11:47:58 +0000",
+						"thetext": "I created a btrfs volume using two loopback devices and I was able to balance the volume to raid1 successfully using kernel-4.0.6-300. I've added positive karma to the package.\n\nThanks everyone!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8377268",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-27 12:39:18 +0000",
+						"thetext": "kernel-4.0.6-300.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8394008",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-30 20:12:37 +0000",
+						"thetext": "kernel-4.0.6-200.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1223051,
+			"title": "Lenovo Thinkpad S540 range is incorrect",
+			"bugzilla": {
+				"bug_id": "1223051",
+				"creation_ts": "2015-05-19 17:01:07 +0000",
+				"short_desc": "Lenovo Thinkpad S540 range is incorrect",
+				"delta_ts": "2015-06-30 20:12:35 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8248824",
+						"comment_count": "0",
+						"who": {
+							"text": "tommy.gagnes",
+							"name": "Tommy"
+						},
+						"bug_when": "2015-05-19 17:01:07 +0000",
+						"thetext": "Description of problem:\n2015 Lenovo Thinkpad yoga 15 not in hwdb, and also wrongly in synaptics topbuttonpad_pnp_ids\n\ncat /sys/devices/platform/i8042/serio1/firmware_id\nPNP: LEN002d PNP0f13\n\n(You can also add /* S540 */ behind LEN2000 in topbuttonpad_pnp_ids, as I have this one too)\n\nVersion-Release number of selected component (if applicable):\n\n\nHow reproducible:\n\n\nSteps to Reproduce:\n1.\n2.\n3.\n\nActual results:\n\n\nExpected results:\n\n\nAdditional info:"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8254085",
+						"comment_count": "1",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-05-21 03:07:08 +0000",
+						"thetext": "Please run the touchpad-edge-detector on the S540 and paste the output here, thanks. Is that one an Oct 2014 model or the first revision one?\n\nAs for the hwdb for the 2015 generation - we don't actually need that entry anymore, the kernel is now re-routing the buttons for us. I'll drop this from the upstream hwdb soon."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8256708",
+						"comment_count": "2",
+						"who": {
+							"text": "tommy.gagnes",
+							"name": "Tommy"
+						},
+						"bug_when": "2015-05-21 17:25:44 +0000",
+						"thetext": "Hi again, My S540 (PNPID LEN2000) must be a 1st gen. one, as it was purchased sometime Q1 2014. Here's the touchpad-edge-detector output for that laptop:\n\nsudo touchpad-edge-detector /dev/input/event6\nTouchpad SynPS/2 Synaptics TouchPad on /dev/input/event6\nMove one finger around the touchpad to detect the actual edges\nKernel says:\tx [1024..5112], y [1024..3834]\nTouchpad sends:\tx [1024..5113], y [2021..4831] /\nTouchpad sends:\tx [1024..5113], y [2021..4832] |\nTouchpad sends:\tx [1024..5113], y [2021..4832] \\\nTouchpad sends:\tx [1024..5113], y [2021..4832] \\\nTouchpad sends:\tx [1024..5113], y [2021..4832] /\n\nThe Thinkpad Yoga 15 (PNPID LEN002D) has the following values:\n\nsudo touchpad-edge-detector /dev/input/event6\nTouchpad AlpsPS/2 ALPS DualPoint TouchPad on /dev/input/event6\nMove one finger around the touchpad to detect the actual edges\nKernel says:\tx [0..4095], y [0..2047]\nTouchpad sends:\tx [118..3970], y [110..1963] \\\nTouchpad sends:\tx [115..3970], y [100..1963] /\nTouchpad sends:\tx [111..3970], y [100..1963] /\nTouchpad sends:\tx [101..3971], y [100..1963] -\nTouchpad sends:\tx [101..3971], y [100..1963] \\\n\nDoes the PNPID for this (LEN002D) need to be removed from the topbuttonpad_pnp_ids list?\n\nThanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8257043",
+						"comment_count": "3",
+						"who": {
+							"text": "tommy.gagnes",
+							"name": "Tommy"
+						},
+						"bug_when": "2015-05-21 18:56:26 +0000",
+						"thetext": "I am seeing the same behaviour as described here on my S540 on F22 beta:\nhttps://bugzilla.redhat.com/show_bug.cgi?id=1089689"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8258212",
+						"comment_count": "4",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-05-22 07:06:30 +0000",
+						"thetext": "(In reply to Tommy from comment #2)\n> Hi again, My S540 (PNPID LEN2000) must be a 1st gen. one, as it was\n> purchased sometime Q1 2014. Here's the touchpad-edge-detector output for\n> that laptop:\n> \n> sudo touchpad-edge-detector /dev/input/event6\n> Touchpad SynPS/2 Synaptics TouchPad on /dev/input/event6\n> Move one finger around the touchpad to detect the actual edges\n> Kernel says:\tx [1024..5112], y [1024..3834]\n> Touchpad sends:\tx [1024..5113], y [2021..4831] /\n> Touchpad sends:\tx [1024..5113], y [2021..4832] |\n> Touchpad sends:\tx [1024..5113], y [2021..4832] \\\n> Touchpad sends:\tx [1024..5113], y [2021..4832] \\\n> Touchpad sends:\tx [1024..5113], y [2021..4832] /\n\nThere's a scratch build running now with the fix, please give it a try.\nrawhide: http://koji.fedoraproject.org/koji/taskinfo?taskID=9825561\nF22: http://koji.fedoraproject.org/koji/taskinfo?taskID=9825924\n \n> The Thinkpad Yoga 15 (PNPID LEN002D) has the following values:\n>\n> sudo touchpad-edge-detector /dev/input/event6\n> Touchpad AlpsPS/2 ALPS DualPoint TouchPad on /dev/input/event6\n> Move one finger around the touchpad to detect the actual edges\n> Kernel says:\tx [0..4095], y [0..2047]\n> Touchpad sends:\tx [118..3970], y [110..1963] \\\n> Touchpad sends:\tx [115..3970], y [100..1963] /\n> Touchpad sends:\tx [111..3970], y [100..1963] /\n> Touchpad sends:\tx [101..3971], y [100..1963] -\n> Touchpad sends:\tx [101..3971], y [100..1963] \\\n> \n> Does the PNPID for this (LEN002D) need to be removed from the\n> topbuttonpad_pnp_ids list?\n\nshouldn't be needed, if the device isn't a synaptics pad this code doesn't go into effect anyway."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8258387",
+						"comment_count": "5",
+						"who": {
+							"text": "tommy.gagnes",
+							"name": "Tommy"
+						},
+						"bug_when": "2015-05-22 08:14:12 +0000",
+						"thetext": "Hi, installed the kernel an rebooted: \nuname -a\nLinux localhost.localdomain 4.0.4-301.bz1223051.fc22.x86_64 #1 SMP Fri May 22 05:15:27 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux\n\nI'm seeing no difference in the touchpad behaviour on my S540. \nI guess I should have described the problems I am seeing a little earlier, sorry for that. But anyway:\n\nIf I start movement on the touchpad in the bottom half area, the mouse pointer does not move. If I start from the top half area, I can move all the way down to the bottom of the touchpad.\n\nRight clicking is only possible in the bottom right quadrant of the touchpad.\n\nTwo finger clicks does not give a right click, except for the bottom half quadrant.\n\nTwo finger scroll is ok when starting in top half. \n\nTap to click ok in top half.\n\nI am able to do middle button clicks in the entire bottom half of the touchpad.\n\nSo i have a feeling that I am seeing button areas which cover the bottom 50%  of my touchpad, instead of just the lowest area."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8261840",
+						"comment_count": "6",
+						"who": {
+							"text": "tommy.gagnes",
+							"name": "Tommy"
+						},
+						"bug_when": "2015-05-24 17:51:56 +0000",
+						"thetext": "In comment #5\n\n\"If I start movement on the touchpad in the bottom half area, the mouse pointer does not move.\"\n\nshould be \n\n\"If I start movement on the touchpad in the bottom half area, the mouse pointer does not move until my finger moves into the upper half of the touchpad area.\""
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8264524",
+						"comment_count": "7",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-05-26 03:04:22 +0000",
+						"thetext": "Can you run xinput list-props <device name> please and post the output here. I'm wondering if you're somehow running the wrong driver or something.\n\n(In reply to Tommy from comment #5)\n> Right clicking is only possible in the bottom right quadrant of the touchpad.\n> \n> Two finger clicks does not give a right click, except for the bottom half\n> quadrant.\n\nyeah, that's intentional and can be changed by changing:\ngsettings set org.gnome.desktop.peripherals.touchpad click-method \"fingers\"\nthe default is on \"areas\" for your touchpad.\n \n> Two finger scroll is ok when starting in top half. \n> \n> Tap to click ok in top half.\n> \n> I am able to do middle button clicks in the entire bottom half of the\n> touchpad.\n> \n> So i have a feeling that I am seeing button areas which cover the bottom 50%\n> of my touchpad, instead of just the lowest area.\n\nThe buttons should cover about 10mm on the bottom edge of the touchpad. When the buttons are that big, usually the range is incorrect. The kernel patch was supposed to fix this though. Can you run the touchpad-edge-detector again please with the kernel I provided?\n\nthat also affects the movement detection, if you start within the button zone the cursor won't move (this is intentional, it avoids cursor movements when a button is triggered). so afaict right now the real issue is that the button ranges are out of whack for some reason."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8267173",
+						"comment_count": "8",
+						"who": {
+							"text": "tommy.gagnes",
+							"name": "Tommy"
+						},
+						"bug_when": "2015-05-26 17:17:48 +0000",
+						"thetext": "Hi, I agree that the area is the problem here. The button area is approx. 4 cm up from the bottom (y-axis).\n\nHere are the results of the commands you asked for:\n\nxinput\n⎡ Virtual core pointer                    \tid=2\t[master pointer  (3)]\n⎜   ↳ Virtual core XTEST pointer              \tid=4\t[slave  pointer  (2)]\n⎜   ↳ SYNAPTICS Synaptics Large Touch Screen  \tid=10\t[slave  pointer  (2)]\n⎜   ↳ SynPS/2 Synaptics TouchPad              \tid=13\t[slave  pointer  (2)]\n⎜   ↳ TPPS/2 IBM TrackPoint                   \tid=14\t[slave  pointer  (2)]\n⎣ Virtual core keyboard                   \tid=3\t[master keyboard (2)]\n    ↳ Virtual core XTEST keyboard             \tid=5\t[slave  keyboard (3)]\n    ↳ Power Button                            \tid=6\t[slave  keyboard (3)]\n    ↳ Video Bus                               \tid=7\t[slave  keyboard (3)]\n    ↳ Video Bus                               \tid=8\t[slave  keyboard (3)]\n    ↳ Power Button                            \tid=9\t[slave  keyboard (3)]\n    ↳ Integrated Camera                       \tid=11\t[slave  keyboard (3)]\n    ↳ AT Translated Set 2 keyboard            \tid=12\t[slave  keyboard (3)]\n    ↳ ThinkPad Extra Buttons                  \tid=15\t[slave  keyboard (3)]\n\nxinput list-props 13\nDevice 'SynPS/2 Synaptics TouchPad':\n\tDevice Enabled (140):\t1\n\tCoordinate Transformation Matrix (142):\t1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000\n\tlibinput Tapping Enabled (279):\t1\n\tlibinput Tapping Enabled Default (280):\t0\n\tlibinput Accel Speed (281):\t0.000000\n\tlibinput Accel Speed Default (282):\t0.000000\n\tlibinput Natural Scrolling Enabled (283):\t1\n\tlibinput Natural Scrolling Enabled Default (284):\t0\n\tlibinput Send Events Modes Available (260):\t1, 1\n\tlibinput Send Events Mode Enabled (261):\t0, 0\n\tlibinput Send Events Mode Enabled Default (262):\t0, 0\n\tlibinput Left Handed Enabled (285):\t0\n\tlibinput Left Handed Enabled Default (286):\t0\n\tlibinput Scroll Methods Available (287):\t1, 0, 0\n\tlibinput Scroll Method Enabled (288):\t1, 0, 0\n\tlibinput Scroll Method Enabled Default (289):\t1, 0, 0\n\tlibinput Click Methods Available (290):\t1, 1\n\tlibinput Click Method Enabled (291):\t1, 0\n\tlibinput Click Method Enabled Default (292):\t1, 0\n\tDevice Node (263):\t\"/dev/input/event6\"\n\tDevice Product ID (264):\t2, 7\n\nuname -a\nLinux localhost.localdomain 4.0.4-301.bz1223051.fc22.x86_64 #1 SMP Fri May 22 05:15:27 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux\n\nsudo touchpad-edge-detector /dev/input/event6\nTouchpad SynPS/2 Synaptics TouchPad on /dev/input/event6\nMove one finger around the touchpad to detect the actual edges\nKernel says:\tx [1024..5112], y [1024..3834]\nTouchpad sends:\tx [1025..5112], y [2022..4832] |\nTouchpad sends:\tx [1024..5113], y [2021..4832] |\nTouchpad sends:\tx [1024..5113], y [2021..4832] \\"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8267195",
+						"comment_count": "9",
+						"who": {
+							"text": "tommy.gagnes",
+							"name": "Tommy"
+						},
+						"bug_when": "2015-05-26 17:22:12 +0000",
+						"thetext": "I should perhaps mention that I installed only kernel, kernel-core, and kernel-modules packages from you build. Is this perhaps insufficient?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8268093",
+						"comment_count": "10",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-05-27 00:10:43 +0000",
+						"thetext": "oops, sorry. the patch wasn't actually applied to the source.\n\nfwiw, this line is what matters: Kernel says:\tx [1024..5112], y [1024..3834]\nbut since the y coordinate you can actually produce are 2022-4832 you have an offset of where libinput thinks the buttons are. once the patch takes effect, the kernel should say the right coordinates here.\nthese things have a resolution of ~42 units/mm, so an offset of 1000 is ca 24mm. And that's why the buttons are so high up on your touchpad.\n\nnew scratch build started here:\nhttp://koji.fedoraproject.org/koji/taskinfo?taskID=9854684"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8268281",
+						"comment_count": "11",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-05-27 02:06:17 +0000",
+						"thetext": "renaming to reflect the actual bug, as said in comment #1 the pnpid doesn't need to be added anymore."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8271790",
+						"comment_count": "12",
+						"who": {
+							"text": "tommy.gagnes",
+							"name": "Tommy"
+						},
+						"bug_when": "2015-05-27 18:27:29 +0000",
+						"thetext": "Works perfectly now.\n\nsudo touchpad-edge-detector /dev/input/event6\nTouchpad SynPS/2 Synaptics TouchPad on /dev/input/event6\nMove one finger around the touchpad to detect the actual edges\nKernel says:\tx [1024..5113], y [2021..4832]\nTouchpad sends:\tx [1025..5113], y [2024..4831] -\nTouchpad sends:\tx [1024..5113], y [2021..4831] /\nTouchpad sends:\tx [1024..5113], y [2021..4832] |\nTouchpad sends:\tx [1024..5113], y [2021..4832] /\nTouchpad sends:\tx [1024..5113], y [2021..4832] \\^C"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8271817",
+						"comment_count": "13",
+						"who": {
+							"text": "tommy.gagnes",
+							"name": "Tommy"
+						},
+						"bug_when": "2015-05-27 18:37:53 +0000",
+						"thetext": "As for the Thinkpad yoga 15, the \"areas\" mode works fine. However, I am seeing some strange behavior in the lower 1 cm of the touchpad when in \"fingers\" mode. I am able to right-click by pressing a single finger across the whole \"button area\" at the bottom, and all the way at the bottom, there is a tiny band of left-click again.\n\nThere is a slight offset here as well.\n\nsudo touchpad-edge-detector /dev/input/event6\nTouchpad AlpsPS/2 ALPS DualPoint TouchPad on /dev/input/event6\nMove one finger around the touchpad to detect the actual edges\nKernel says:\tx [0..4095], y [0..2047]\nTouchpad sends:\tx [111..3968], y [99..1963] |\\\nTouchpad sends:\tx [109..3970], y [96..1963] -\nTouchpad sends:\tx [106..3970], y [96..1963] |\nTouchpad sends:\tx [105..3974], y [96..1963] /\nTouchpad sends:\tx [105..3974], y [96..1963] |\nTouchpad sends:\tx [105..3974], y [96..1963] \\^C\n\nShould I file a new bug for this, or are these known issues?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8275151",
+						"comment_count": "14",
+						"who": {
+							"text": "tommy.gagnes",
+							"name": "Tommy"
+						},
+						"bug_when": "2015-05-28 14:58:30 +0000",
+						"thetext": "Created a new bug for the Thinkpad yoga 15: https://bugzilla.redhat.com/show_bug.cgi?id=1225967"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8314181",
+						"comment_count": "15",
+						"who": {
+							"text": "tommy.gagnes",
+							"name": "Tommy"
+						},
+						"bug_when": "2015-06-08 11:43:18 +0000",
+						"thetext": "Hi, do you know which kernel version will have the fix?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8316305",
+						"comment_count": "16",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-06-08 23:42:24 +0000",
+						"thetext": "reassigning to kernel. Bug summary: S540 needs the min/max quirk as the other *40 laptops. Commit is upstream in Dmitry's branch:\n\nhttps://git.kernel.org/cgit/linux/kernel/git/dtor/input.git/commit/?h=for-linus&id=7f2ca8b55aeff1fe51ed3570200ef88a96060917\n\nCan we pull that into the Fedoras please?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8319528",
+						"comment_count": "17",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-06-09 17:37:21 +0000",
+						"thetext": "(In reply to Peter Hutterer from comment #16)\n> reassigning to kernel. Bug summary: S540 needs the min/max quirk as the\n> other *40 laptops. Commit is upstream in Dmitry's branch:\n> \n> https://git.kernel.org/cgit/linux/kernel/git/dtor/input.git/commit/?h=for-\n> linus&id=7f2ca8b55aeff1fe51ed3570200ef88a96060917\n> \n> Can we pull that into the Fedoras please?\n\nAdded on all branches.  Thanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8365624",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-23 20:22:37 +0000",
+						"thetext": "kernel-4.0.6-300.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/kernel-4.0.6-300.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8365630",
+						"comment_count": "19",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-23 20:23:08 +0000",
+						"thetext": "kernel-4.0.6-200.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-4.0.6-200.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8370561",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-25 08:18:42 +0000",
+						"thetext": "Package kernel-4.0.6-300.fc22:\n* should fix your issue,\n* was pushed to the Fedora 22 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-4.0.6-300.fc22'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-10677/kernel-4.0.6-300.fc22\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8377267",
+						"comment_count": "21",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-27 12:39:11 +0000",
+						"thetext": "kernel-4.0.6-300.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8394007",
+						"comment_count": "22",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-30 20:12:35 +0000",
+						"thetext": "kernel-4.0.6-200.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1227891,
+			"title": "Mouse Left and Right Clicks don't register, however can drag windows?",
+			"bugzilla": {
+				"bug_id": "1227891",
+				"creation_ts": "2015-06-03 17:59:13 +0000",
+				"short_desc": "Mouse Left and Right Clicks don't register, however can drag windows?",
+				"delta_ts": "2015-06-30 20:12:44 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "urgent",
+				"external_bugs": {
+					"text": "90356",
+					"name": "FreeDesktop.org"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8301944",
+						"comment_count": "0",
+						"who": {
+							"text": "mariogd"
+						},
+						"bug_when": "2015-06-03 17:59:13 +0000",
+						"thetext": "Description of problem:\nLeft and Right Mouseclicks on Razer Laptop don't register,\nhowever you can click to drag and it appears as though that works?\nAlso the touchscreen is working as well so i'm wondering if maybe\nits confused as to its input sources?\n\n\nVersion-Release number of selected component (if applicable):\n\n\nHow reproducible:\nInstall fedora 22 on razer\n\nSteps to Reproduce:\n1.Install Fedora\n2.Update\n3. Still not working\n\nActual results:\n\n\nExpected results:\n\n\nAdditional info:"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8308236",
+						"comment_count": "1",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-06-05 06:29:41 +0000",
+						"thetext": "Pls record the clicks with evemu-record and attach the file here, should be fairly straightforward to check."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8310036",
+						"comment_count": "2",
+						"who": {
+							"text": "mariogd"
+						},
+						"bug_when": "2015-06-05 14:58:07 +0000",
+						"thetext": "what command switches would you like me to add to evemu-record? And what steps would you like me to perform after its run? Just try right and left click and then post the results?\n-m"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8316339",
+						"comment_count": "3",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-06-09 00:01:26 +0000",
+						"thetext": "sudo evemu-record > touchpad.evemu\n\nthen select your touchpad from the list that shows up. do a left click and a right click (or whatever sequence doesn't work), then ctrl+c and attach the file here."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8322706",
+						"comment_count": "4",
+						"who": {
+							"text": "mariogd"
+						},
+						"bug_when": "2015-06-10 14:21:06 +0000",
+						"thetext": "Available devices:\n/dev/input/event0:\tPower Button\n/dev/input/event1:\tLid Switch\n/dev/input/event2:\tPower Button\n/dev/input/event3:\tAT Translated Set 2 keyboard\n/dev/input/event4:\tVideo Bus\n/dev/input/event5:\tVideo Bus\n/dev/input/event6:\tELAN Touchscreen\n/dev/input/event7:\tHDA Intel HDMI HDMI/DP,pcm=3\n/dev/input/event8:\tHDA Intel HDMI HDMI/DP,pcm=7\n/dev/input/event9:\tHDA Intel HDMI HDMI/DP,pcm=8\n/dev/input/event10:\tUSB Camera\n/dev/input/event11:\tHDA Intel PCH Mic\n/dev/input/event12:\tHDA Intel PCH Front Headphone\n/dev/input/event13:\tRazer Razer Blade\n/dev/input/event14:\tRazer Razer Blade\n/dev/input/event15:\tRazer Razer Blade\n/dev/input/event16:\tRazer Razer Blade\n\nthat is the output list of devices,\nwhich one should i select?\n\n-m"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8324173",
+						"comment_count": "5",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-06-10 21:35:04 +0000",
+						"thetext": "whoah, interesting. Try all the Razer devices, one of them will have the touchpad events coming out. That's the one to record. There's nothing you can damage here, evemu merely reads the events directly from the kernel device so it's safe to try all of them.\n\nOnly thing to watch out for: an evemu recording of a keyboard includes all key strokes in plain text during that recording. So maybe don't attach one of them if you care for password secrecy :) But that's not an issue if you record the touchpad device anyway."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8326707",
+						"comment_count": "6",
+						"who": {
+							"text": "mariogd"
+						},
+						"bug_when": "2015-06-11 13:43:23 +0000",
+						"thetext": "FOR DEVICE 11:\n# EVEMU 1.2\n# Input device name: \"Razer Razer Blade\"\n# Input device ID: bus 0x03 vendor 0x1532 product 0x11d version 0x111\n# Supported events:\n#   Event type 0 (EV_SYN)\n#     Event code 0 (SYN_REPORT)\n#     Event code 1 (SYN_CONFIG)\n#     Event code 2 (SYN_MT_REPORT)\n#     Event code 3 (SYN_DROPPED)\n#     Event code 4 ((null))\n#     Event code 5 ((null))\n#     Event code 6 ((null))\n#     Event code 7 ((null))\n#     Event code 8 ((null))\n#     Event code 9 ((null))\n#     Event code 10 ((null))\n#     Event code 11 ((null))\n#     Event code 12 ((null))\n#     Event code 13 ((null))\n#     Event code 14 ((null))\n#   Event type 1 (EV_KEY)\n#     Event code 272 (BTN_LEFT)\n#     Event code 273 (BTN_RIGHT)\n#     Event code 325 (BTN_TOOL_FINGER)\n#     Event code 328 (BTN_TOOL_QUINTTAP)\n#     Event code 330 (BTN_TOUCH)\n#     Event code 333 (BTN_TOOL_DOUBLETAP)\n#     Event code 334 (BTN_TOOL_TRIPLETAP)\n#     Event code 335 (BTN_TOOL_QUADTAP)\n#   Event type 3 (EV_ABS)\n#     Event code 0 (ABS_X)\n#       Value   1840\n#       Min        1\n#       Max     4064\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 1 (ABS_Y)\n#       Value   1203\n#       Min        1\n#       Max     2405\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 24 (ABS_PRESSURE)\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 47 (ABS_MT_SLOT)\n#       Value      0\n#       Min        0\n#       Max        4\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 48 (ABS_MT_TOUCH_MAJOR)\n#       Value      0\n#       Min        0\n#       Max       15\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 49 (ABS_MT_TOUCH_MINOR)\n#       Value      0\n#       Min        0\n#       Max       15\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 52 (ABS_MT_ORIENTATION)\n#       Value      0\n#       Min        0\n#       Max        1\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 53 (ABS_MT_POSITION_X)\n#       Value      0\n#       Min        1\n#       Max     4064\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 54 (ABS_MT_POSITION_Y)\n#       Value      0\n#       Min        1\n#       Max     2405\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 57 (ABS_MT_TRACKING_ID)\n#       Value      0\n#       Min        0\n#       Max    65535\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 58 (ABS_MT_PRESSURE)\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#   Event type 4 (EV_MSC)\n#     Event code 4 (MSC_SCAN)\n# Properties:\n#   Property  type 0 (INPUT_PROP_POINTER)\n#   Property  type 2 (INPUT_PROP_BUTTONPAD)\nN: Razer Razer Blade\nI: 0003 1532 011d 0111\nP: 05 00 00 00 00 00 00 00\nB: 00 0b 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 03 00 00 00 00 00\nB: 01 20 e5 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 02 00 00 00 00 00 00 00 00\nB: 03 03 00 00 01 00 80 73 06\nB: 04 10 00 00 00 00 00 00 00\nB: 05 00 00 00 00 00 00 00 00\nB: 11 00 00 00 00 00 00 00 00\nB: 12 00 00 00 00 00 00 00 00\nB: 14 00 00 00 00 00 00 00 00\nB: 15 00 00 00 00 00 00 00 00\nB: 15 00 00 00 00 00 00 00 00\nA: 00 1 4064 0 0 0\nA: 01 1 2405 0 0 0\nA: 18 0 255 0 0 0\nA: 2f 0 4 0 0 0\nA: 30 0 15 0 0 0\nA: 31 0 15 0 0 0\nA: 34 0 1 0 0 0\nA: 35 1 4064 0 0 0\nA: 36 1 2405 0 0 0\nA: 39 0 65535 0 0 0\nA: 3a 0 255 0 0 0\n################################\n#      Waiting for events      #\n################################\nE: 0.000000 0004 0004 589825\t# EV_MSC / MSC_SCAN             589825\nE: 0.000000 0001 0110 0001\t# EV_KEY / BTN_LEFT             1\nE: 0.000000 0000 0000 0000\t# ------------ SYN_REPORT (0) ----------\nE: 0.120000 0004 0004 589825\t# EV_MSC / MSC_SCAN             589825\nE: 0.120000 0001 0110 0000\t# EV_KEY / BTN_LEFT             0\nE: 0.120000 0000 0000 0000\t# ------------ SYN_REPORT (0) ----------\nE: 0.652008 0004 0004 589826\t# EV_MSC / MSC_SCAN             589826\nE: 0.652008 0001 0111 0001\t# EV_KEY / BTN_RIGHT            1\nE: 0.652008 0000 0000 0000\t# ------------ SYN_REPORT (0) ----------\nE: 0.782007 0004 0004 589826\t# EV_MSC / MSC_SCAN             589826\nE: 0.782007 0001 0111 0000\t# EV_KEY / BTN_RIGHT            0\nE: 0.782007 0000 0000 0000\t# ------------ SYN_REPORT (0) ----------\n\nFOR DEVICE 14:\n# EVEMU 1.2\n# Input device name: \"Razer Razer Blade\"\n# Input device ID: bus 0x03 vendor 0x1532 product 0x11d version 0x111\n# Supported events:\n#   Event type 0 (EV_SYN)\n#     Event code 0 (SYN_REPORT)\n#     Event code 1 (SYN_CONFIG)\n#     Event code 2 (SYN_MT_REPORT)\n#     Event code 3 (SYN_DROPPED)\n#     Event code 4 ((null))\n#     Event code 5 ((null))\n#     Event code 6 ((null))\n#     Event code 7 ((null))\n#     Event code 8 ((null))\n#     Event code 9 ((null))\n#     Event code 10 ((null))\n#     Event code 11 ((null))\n#     Event code 12 ((null))\n#     Event code 13 ((null))\n#     Event code 14 ((null))\n#   Event type 1 (EV_KEY)\n#     Event code 1 (KEY_ESC)\n#     Event code 2 (KEY_1)\n#     Event code 3 (KEY_2)\n#     Event code 4 (KEY_3)\n#     Event code 5 (KEY_4)\n#     Event code 6 (KEY_5)\n#     Event code 7 (KEY_6)\n#     Event code 8 (KEY_7)\n#     Event code 9 (KEY_8)\n#     Event code 10 (KEY_9)\n#     Event code 11 (KEY_0)\n#     Event code 12 (KEY_MINUS)\n#     Event code 13 (KEY_EQUAL)\n#     Event code 14 (KEY_BACKSPACE)\n#     Event code 15 (KEY_TAB)\n#     Event code 16 (KEY_Q)\n#     Event code 17 (KEY_W)\n#     Event code 18 (KEY_E)\n#     Event code 19 (KEY_R)\n#     Event code 20 (KEY_T)\n#     Event code 21 (KEY_Y)\n#     Event code 22 (KEY_U)\n#     Event code 23 (KEY_I)\n#     Event code 24 (KEY_O)\n#     Event code 25 (KEY_P)\n#     Event code 26 (KEY_LEFTBRACE)\n#     Event code 27 (KEY_RIGHTBRACE)\n#     Event code 28 (KEY_ENTER)\n#     Event code 29 (KEY_LEFTCTRL)\n#     Event code 30 (KEY_A)\n#     Event code 31 (KEY_S)\n#     Event code 32 (KEY_D)\n#     Event code 33 (KEY_F)\n#     Event code 34 (KEY_G)\n#     Event code 35 (KEY_H)\n#     Event code 36 (KEY_J)\n#     Event code 37 (KEY_K)\n#     Event code 38 (KEY_L)\n#     Event code 39 (KEY_SEMICOLON)\n#     Event code 40 (KEY_APOSTROPHE)\n#     Event code 41 (KEY_GRAVE)\n#     Event code 42 (KEY_LEFTSHIFT)\n#     Event code 43 (KEY_BACKSLASH)\n#     Event code 44 (KEY_Z)\n#     Event code 45 (KEY_X)\n#     Event code 46 (KEY_C)\n#     Event code 47 (KEY_V)\n#     Event code 48 (KEY_B)\n#     Event code 49 (KEY_N)\n#     Event code 50 (KEY_M)\n#     Event code 51 (KEY_COMMA)\n#     Event code 52 (KEY_DOT)\n#     Event code 53 (KEY_SLASH)\n#     Event code 54 (KEY_RIGHTSHIFT)\n#     Event code 55 (KEY_KPASTERISK)\n#     Event code 56 (KEY_LEFTALT)\n#     Event code 57 (KEY_SPACE)\n#     Event code 58 (KEY_CAPSLOCK)\n#     Event code 59 (KEY_F1)\n#     Event code 60 (KEY_F2)\n#     Event code 61 (KEY_F3)\n#     Event code 62 (KEY_F4)\n#     Event code 63 (KEY_F5)\n#     Event code 64 (KEY_F6)\n#     Event code 65 (KEY_F7)\n#     Event code 66 (KEY_F8)\n#     Event code 67 (KEY_F9)\n#     Event code 68 (KEY_F10)\n#     Event code 69 (KEY_NUMLOCK)\n#     Event code 70 (KEY_SCROLLLOCK)\n#     Event code 71 (KEY_KP7)\n#     Event code 72 (KEY_KP8)\n#     Event code 73 (KEY_KP9)\n#     Event code 74 (KEY_KPMINUS)\n#     Event code 75 (KEY_KP4)\n#     Event code 76 (KEY_KP5)\n#     Event code 77 (KEY_KP6)\n#     Event code 78 (KEY_KPPLUS)\n#     Event code 79 (KEY_KP1)\n#     Event code 80 (KEY_KP2)\n#     Event code 81 (KEY_KP3)\n#     Event code 82 (KEY_KP0)\n#     Event code 83 (KEY_KPDOT)\n#     Event code 85 (KEY_ZENKAKUHANKAKU)\n#     Event code 86 (KEY_102ND)\n#     Event code 87 (KEY_F11)\n#     Event code 88 (KEY_F12)\n#     Event code 89 (KEY_RO)\n#     Event code 90 (KEY_KATAKANA)\n#     Event code 91 (KEY_HIRAGANA)\n#     Event code 92 (KEY_HENKAN)\n#     Event code 93 (KEY_KATAKANAHIRAGANA)\n#     Event code 94 (KEY_MUHENKAN)\n#     Event code 95 (KEY_KPJPCOMMA)\n#     Event code 96 (KEY_KPENTER)\n#     Event code 97 (KEY_RIGHTCTRL)\n#     Event code 98 (KEY_KPSLASH)\n#     Event code 99 (KEY_SYSRQ)\n#     Event code 100 (KEY_RIGHTALT)\n#     Event code 102 (KEY_HOME)\n#     Event code 103 (KEY_UP)\n#     Event code 104 (KEY_PAGEUP)\n#     Event code 105 (KEY_LEFT)\n#     Event code 106 (KEY_RIGHT)\n#     Event code 107 (KEY_END)\n#     Event code 108 (KEY_DOWN)\n#     Event code 109 (KEY_PAGEDOWN)\n#     Event code 110 (KEY_INSERT)\n#     Event code 111 (KEY_DELETE)\n#     Event code 113 (KEY_MUTE)\n#     Event code 114 (KEY_VOLUMEDOWN)\n#     Event code 115 (KEY_VOLUMEUP)\n#     Event code 116 (KEY_POWER)\n#     Event code 117 (KEY_KPEQUAL)\n#     Event code 119 (KEY_PAUSE)\n#     Event code 121 (KEY_KPCOMMA)\n#     Event code 122 (KEY_HANGEUL)\n#     Event code 123 (KEY_HANJA)\n#     Event code 124 (KEY_YEN)\n#     Event code 125 (KEY_LEFTMETA)\n#     Event code 126 (KEY_RIGHTMETA)\n#     Event code 127 (KEY_COMPOSE)\n#     Event code 128 (KEY_STOP)\n#     Event code 129 (KEY_AGAIN)\n#     Event code 130 (KEY_PROPS)\n#     Event code 131 (KEY_UNDO)\n#     Event code 132 (KEY_FRONT)\n#     Event code 133 (KEY_COPY)\n#     Event code 134 (KEY_OPEN)\n#     Event code 135 (KEY_PASTE)\n#     Event code 136 (KEY_FIND)\n#     Event code 137 (KEY_CUT)\n#     Event code 138 (KEY_HELP)\n#     Event code 139 (KEY_MENU)\n#     Event code 140 (KEY_CALC)\n#     Event code 142 (KEY_SLEEP)\n#     Event code 143 (KEY_WAKEUP)\n#     Event code 144 (KEY_FILE)\n#     Event code 150 (KEY_WWW)\n#     Event code 152 (KEY_COFFEE)\n#     Event code 155 (KEY_MAIL)\n#     Event code 156 (KEY_BOOKMARKS)\n#     Event code 158 (KEY_BACK)\n#     Event code 159 (KEY_FORWARD)\n#     Event code 161 (KEY_EJECTCD)\n#     Event code 163 (KEY_NEXTSONG)\n#     Event code 164 (KEY_PLAYPAUSE)\n#     Event code 165 (KEY_PREVIOUSSONG)\n#     Event code 166 (KEY_STOPCD)\n#     Event code 167 (KEY_RECORD)\n#     Event code 168 (KEY_REWIND)\n#     Event code 169 (KEY_PHONE)\n#     Event code 171 (KEY_CONFIG)\n#     Event code 172 (KEY_HOMEPAGE)\n#     Event code 173 (KEY_REFRESH)\n#     Event code 174 (KEY_EXIT)\n#     Event code 176 (KEY_EDIT)\n#     Event code 177 (KEY_SCROLLUP)\n#     Event code 178 (KEY_SCROLLDOWN)\n#     Event code 179 (KEY_KPLEFTPAREN)\n#     Event code 180 (KEY_KPRIGHTPAREN)\n#     Event code 181 (KEY_NEW)\n#     Event code 182 (KEY_REDO)\n#     Event code 183 (KEY_F13)\n#     Event code 184 (KEY_F14)\n#     Event code 185 (KEY_F15)\n#     Event code 186 (KEY_F16)\n#     Event code 187 (KEY_F17)\n#     Event code 188 (KEY_F18)\n#     Event code 189 (KEY_F19)\n#     Event code 190 (KEY_F20)\n#     Event code 191 (KEY_F21)\n#     Event code 192 (KEY_F22)\n#     Event code 193 (KEY_F23)\n#     Event code 194 (KEY_F24)\n#     Event code 206 (KEY_CLOSE)\n#     Event code 207 (KEY_PLAY)\n#     Event code 208 (KEY_FASTFORWARD)\n#     Event code 209 (KEY_BASSBOOST)\n#     Event code 210 (KEY_PRINT)\n#     Event code 212 (KEY_CAMERA)\n#     Event code 216 (KEY_CHAT)\n#     Event code 217 (KEY_SEARCH)\n#     Event code 219 (KEY_FINANCE)\n#     Event code 223 (KEY_CANCEL)\n#     Event code 224 (KEY_BRIGHTNESSDOWN)\n#     Event code 225 (KEY_BRIGHTNESSUP)\n#     Event code 228 (KEY_KBDILLUMTOGGLE)\n#     Event code 231 (KEY_SEND)\n#     Event code 232 (KEY_REPLY)\n#     Event code 233 (KEY_FORWARDMAIL)\n#     Event code 234 (KEY_SAVE)\n#     Event code 235 (KEY_DOCUMENTS)\n#     Event code 240 (KEY_UNKNOWN)\n#     Event code 241 (KEY_VIDEO_NEXT)\n#     Event code 244 (KEY_BRIGHTNESS_AUTO)\n#     Event code 256 (BTN_0)\n#     Event code 353 (KEY_SELECT)\n#     Event code 354 (KEY_GOTO)\n#     Event code 358 (KEY_INFO)\n#     Event code 362 (KEY_PROGRAM)\n#     Event code 366 (KEY_PVR)\n#     Event code 370 (KEY_SUBTITLE)\n#     Event code 372 (KEY_ZOOM)\n#     Event code 374 (KEY_KEYBOARD)\n#     Event code 376 (KEY_PC)\n#     Event code 377 (KEY_TV)\n#     Event code 378 (KEY_TV2)\n#     Event code 379 (KEY_VCR)\n#     Event code 380 (KEY_VCR2)\n#     Event code 381 (KEY_SAT)\n#     Event code 383 (KEY_CD)\n#     Event code 384 (KEY_TAPE)\n#     Event code 386 (KEY_TUNER)\n#     Event code 387 (KEY_PLAYER)\n#     Event code 389 (KEY_DVD)\n#     Event code 392 (KEY_AUDIO)\n#     Event code 393 (KEY_VIDEO)\n#     Event code 396 (KEY_MEMO)\n#     Event code 397 (KEY_CALENDAR)\n#     Event code 398 (KEY_RED)\n#     Event code 399 (KEY_GREEN)\n#     Event code 400 (KEY_YELLOW)\n#     Event code 401 (KEY_BLUE)\n#     Event code 402 (KEY_CHANNELUP)\n#     Event code 403 (KEY_CHANNELDOWN)\n#     Event code 405 (KEY_LAST)\n#     Event code 407 (KEY_NEXT)\n#     Event code 408 (KEY_RESTART)\n#     Event code 409 (KEY_SLOW)\n#     Event code 410 (KEY_SHUFFLE)\n#     Event code 412 (KEY_PREVIOUS)\n#     Event code 416 (KEY_VIDEOPHONE)\n#     Event code 417 (KEY_GAMES)\n#     Event code 418 (KEY_ZOOMIN)\n#     Event code 419 (KEY_ZOOMOUT)\n#     Event code 420 (KEY_ZOOMRESET)\n#     Event code 421 (KEY_WORDPROCESSOR)\n#     Event code 422 (KEY_EDITOR)\n#     Event code 423 (KEY_SPREADSHEET)\n#     Event code 424 (KEY_GRAPHICSEDITOR)\n#     Event code 425 (KEY_PRESENTATION)\n#     Event code 426 (KEY_DATABASE)\n#     Event code 427 (KEY_NEWS)\n#     Event code 428 (KEY_VOICEMAIL)\n#     Event code 429 (KEY_ADDRESSBOOK)\n#     Event code 430 (KEY_MESSENGER)\n#     Event code 431 (KEY_DISPLAYTOGGLE)\n#     Event code 432 (KEY_SPELLCHECK)\n#     Event code 433 (KEY_LOGOFF)\n#     Event code 439 (KEY_MEDIA_REPEAT)\n#     Event code 442 (KEY_IMAGES)\n#     Event code 576 (KEY_BUTTONCONFIG)\n#     Event code 577 (KEY_TASKMANAGER)\n#     Event code 578 (KEY_JOURNAL)\n#     Event code 579 (KEY_CONTROLPANEL)\n#     Event code 580 (KEY_APPSELECT)\n#     Event code 581 (KEY_SCREENSAVER)\n#     Event code 582 (KEY_VOICECOMMAND)\n#     Event code 592 (KEY_BRIGHTNESS_MIN)\n#     Event code 593 (KEY_BRIGHTNESS_MAX)\n#     Event code 608 (KEY_KBDINPUTASSIST_PREV)\n#     Event code 609 (KEY_KBDINPUTASSIST_NEXT)\n#     Event code 610 (KEY_KBDINPUTASSIST_PREVGROUP)\n#     Event code 611 (KEY_KBDINPUTASSIST_NEXTGROUP)\n#     Event code 612 (KEY_KBDINPUTASSIST_ACCEPT)\n#     Event code 613 (KEY_KBDINPUTASSIST_CANCEL)\n#   Event type 2 (EV_REL)\n#     Event code 6 (REL_HWHEEL)\n#   Event type 3 (EV_ABS)\n#     Event code 32 (ABS_VOLUME)\n#       Value      0\n#       Min        0\n#       Max     1023\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 40 (ABS_MISC)\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 41 ((null))\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 42 ((null))\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 43 ((null))\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 44 ((null))\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 45 ((null))\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 46 ((null))\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 47 (ABS_MT_SLOT)\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 48 (ABS_MT_TOUCH_MAJOR)\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 49 (ABS_MT_TOUCH_MINOR)\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 50 (ABS_MT_WIDTH_MAJOR)\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 51 (ABS_MT_WIDTH_MINOR)\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 52 (ABS_MT_ORIENTATION)\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 53 (ABS_MT_POSITION_X)\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 54 (ABS_MT_POSITION_Y)\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 55 (ABS_MT_TOOL_TYPE)\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 56 (ABS_MT_BLOB_ID)\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 57 (ABS_MT_TRACKING_ID)\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 58 (ABS_MT_PRESSURE)\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 59 (ABS_MT_DISTANCE)\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 60 (ABS_MT_TOOL_X)\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#     Event code 61 (ABS_MT_TOOL_Y)\n#       Value      0\n#       Min        0\n#       Max      255\n#       Fuzz       0\n#       Flat       0\n#       Resolution 0\n#   Event type 4 (EV_MSC)\n#     Event code 4 (MSC_SCAN)\n#   Event type 20 (EV_REP)\n#     Event code 0 (REP_DELAY)\n# Properties:\nN: Razer Razer Blade\nI: 0003 1532 011d 0111\nP: 00 00 00 00 00 00 00 00\nB: 00 0b 00 00 00 00 00 00 00\nB: 01 fe ff ff ff ff ff ff ff\nB: 01 ff ff ef ff df ff be fe\nB: 01 ff df 41 d9 fa 7b ff ff\nB: 01 07 c0 17 8b 93 0f 13 00\nB: 01 01 00 00 00 00 00 00 00\nB: 01 00 00 00 00 46 44 54 bf\nB: 01 2d f3 af 17 ff ff 83 04\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 7f 00 03 00 3f 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 02 40 00 00 00 00 00 00 00\nB: 03 00 00 00 00 01 ff ff 3f\nB: 04 10 00 00 00 00 00 00 00\nB: 05 00 00 00 00 00 00 00 00\nB: 11 00 00 00 00 00 00 00 00\nB: 12 00 00 00 00 00 00 00 00\nB: 14 01 00 00 00 00 00 00 00\nB: 15 00 00 00 00 00 00 00 00\nB: 15 00 00 00 00 00 00 00 00\nA: 20 0 1023 0 0 0\nA: 28 0 255 0 0 0\nA: 29 0 255 0 0 0\nA: 2a 0 255 0 0 0\nA: 2b 0 255 0 0 0\nA: 2c 0 255 0 0 0\nA: 2d 0 255 0 0 0\nA: 2e 0 255 0 0 0\nA: 2f 0 255 0 0 0\nA: 30 0 255 0 0 0\nA: 31 0 255 0 0 0\nA: 32 0 255 0 0 0\nA: 33 0 255 0 0 0\nA: 34 0 255 0 0 0\nA: 35 0 255 0 0 0\nA: 36 0 255 0 0 0\nA: 37 0 255 0 0 0\nA: 38 0 255 0 0 0\nA: 39 0 255 0 0 0\nA: 3a 0 255 0 0 0\nA: 3b 0 255 0 0 0\nA: 3c 0 255 0 0 0\nA: 3d 0 255 0 0 0\n################################\n#      Waiting for events      #\n################################\nE: 0.000000 0004 0004 458792\t# EV_MSC / MSC_SCAN             458792\nE: 0.000000 0001 001c 0000\t# EV_KEY / KEY_ENTER            0\nE: 0.000000 0000 0000 0000\t# ------------ SYN_REPORT (0) ----------\nE: 2.187022 0004 0004 458976\t# EV_MSC / MSC_SCAN             458976\nE: 2.187022 0001 001d 0001\t# EV_KEY / KEY_LEFTCTRL         1\nE: 2.187022 0000 0000 0000\t# ------------ SYN_REPORT (0) ----------\nE: 2.436459 0001 001d 0002\t# EV_KEY / KEY_LEFTCTRL         2\nE: 2.436459 0000 0000 0001\t# ------------ SYN_REPORT (1) ----------\nE: 2.469456 0001 001d 0002\t# EV_KEY / KEY_LEFTCTRL         2\nE: 2.469456 0000 0000 0001\t# ------------ SYN_REPORT (1) ----------\nE: 2.489023 0004 0004 458758\t# EV_MSC / MSC_SCAN             458758\nE: 2.489023 0001 002e 0001\t# EV_KEY / KEY_C                1\nE: 2.489023 0000 0000 0000\t# ------------ SYN_REPORT (0) ----------\n\nFOR DEVICE 15:\n# EVEMU 1.2\n# Input device name: \"Razer Razer Blade\"\n# Input device ID: bus 0x03 vendor 0x1532 product 0x11d version 0x111\n# Supported events:\n#   Event type 0 (EV_SYN)\n#     Event code 0 (SYN_REPORT)\n#     Event code 1 (SYN_CONFIG)\n#     Event code 2 (SYN_MT_REPORT)\n#     Event code 3 (SYN_DROPPED)\n#     Event code 4 ((null))\n#     Event code 5 ((null))\n#     Event code 6 ((null))\n#     Event code 7 ((null))\n#     Event code 8 ((null))\n#     Event code 9 ((null))\n#     Event code 10 ((null))\n#     Event code 11 ((null))\n#     Event code 12 ((null))\n#     Event code 13 ((null))\n#     Event code 14 ((null))\n#   Event type 1 (EV_KEY)\n#     Event code 1 (KEY_ESC)\n#     Event code 2 (KEY_1)\n#     Event code 3 (KEY_2)\n#     Event code 4 (KEY_3)\n#     Event code 5 (KEY_4)\n#     Event code 6 (KEY_5)\n#     Event code 7 (KEY_6)\n#     Event code 8 (KEY_7)\n#     Event code 9 (KEY_8)\n#     Event code 10 (KEY_9)\n#     Event code 11 (KEY_0)\n#     Event code 12 (KEY_MINUS)\n#     Event code 13 (KEY_EQUAL)\n#     Event code 14 (KEY_BACKSPACE)\n#     Event code 15 (KEY_TAB)\n#     Event code 16 (KEY_Q)\n#     Event code 17 (KEY_W)\n#     Event code 18 (KEY_E)\n#     Event code 19 (KEY_R)\n#     Event code 20 (KEY_T)\n#     Event code 21 (KEY_Y)\n#     Event code 22 (KEY_U)\n#     Event code 23 (KEY_I)\n#     Event code 24 (KEY_O)\n#     Event code 25 (KEY_P)\n#     Event code 26 (KEY_LEFTBRACE)\n#     Event code 27 (KEY_RIGHTBRACE)\n#     Event code 28 (KEY_ENTER)\n#     Event code 29 (KEY_LEFTCTRL)\n#     Event code 30 (KEY_A)\n#     Event code 31 (KEY_S)\n#     Event code 32 (KEY_D)\n#     Event code 33 (KEY_F)\n#     Event code 34 (KEY_G)\n#     Event code 35 (KEY_H)\n#     Event code 36 (KEY_J)\n#     Event code 37 (KEY_K)\n#     Event code 38 (KEY_L)\n#     Event code 39 (KEY_SEMICOLON)\n#     Event code 40 (KEY_APOSTROPHE)\n#     Event code 41 (KEY_GRAVE)\n#     Event code 42 (KEY_LEFTSHIFT)\n#     Event code 43 (KEY_BACKSLASH)\n#     Event code 44 (KEY_Z)\n#     Event code 45 (KEY_X)\n#     Event code 46 (KEY_C)\n#     Event code 47 (KEY_V)\n#     Event code 48 (KEY_B)\n#     Event code 49 (KEY_N)\n#     Event code 50 (KEY_M)\n#     Event code 51 (KEY_COMMA)\n#     Event code 52 (KEY_DOT)\n#     Event code 53 (KEY_SLASH)\n#     Event code 54 (KEY_RIGHTSHIFT)\n#     Event code 55 (KEY_KPASTERISK)\n#     Event code 56 (KEY_LEFTALT)\n#     Event code 57 (KEY_SPACE)\n#     Event code 58 (KEY_CAPSLOCK)\n#     Event code 59 (KEY_F1)\n#     Event code 60 (KEY_F2)\n#     Event code 61 (KEY_F3)\n#     Event code 62 (KEY_F4)\n#     Event code 63 (KEY_F5)\n#     Event code 64 (KEY_F6)\n#     Event code 65 (KEY_F7)\n#     Event code 66 (KEY_F8)\n#     Event code 67 (KEY_F9)\n#     Event code 68 (KEY_F10)\n#     Event code 69 (KEY_NUMLOCK)\n#     Event code 70 (KEY_SCROLLLOCK)\n#     Event code 71 (KEY_KP7)\n#     Event code 72 (KEY_KP8)\n#     Event code 73 (KEY_KP9)\n#     Event code 74 (KEY_KPMINUS)\n#     Event code 75 (KEY_KP4)\n#     Event code 76 (KEY_KP5)\n#     Event code 77 (KEY_KP6)\n#     Event code 78 (KEY_KPPLUS)\n#     Event code 79 (KEY_KP1)\n#     Event code 80 (KEY_KP2)\n#     Event code 81 (KEY_KP3)\n#     Event code 82 (KEY_KP0)\n#     Event code 83 (KEY_KPDOT)\n#     Event code 85 (KEY_ZENKAKUHANKAKU)\n#     Event code 86 (KEY_102ND)\n#     Event code 87 (KEY_F11)\n#     Event code 88 (KEY_F12)\n#     Event code 89 (KEY_RO)\n#     Event code 90 (KEY_KATAKANA)\n#     Event code 91 (KEY_HIRAGANA)\n#     Event code 92 (KEY_HENKAN)\n#     Event code 93 (KEY_KATAKANAHIRAGANA)\n#     Event code 94 (KEY_MUHENKAN)\n#     Event code 95 (KEY_KPJPCOMMA)\n#     Event code 96 (KEY_KPENTER)\n#     Event code 97 (KEY_RIGHTCTRL)\n#     Event code 98 (KEY_KPSLASH)\n#     Event code 99 (KEY_SYSRQ)\n#     Event code 100 (KEY_RIGHTALT)\n#     Event code 102 (KEY_HOME)\n#     Event code 103 (KEY_UP)\n#     Event code 104 (KEY_PAGEUP)\n#     Event code 105 (KEY_LEFT)\n#     Event code 106 (KEY_RIGHT)\n#     Event code 107 (KEY_END)\n#     Event code 108 (KEY_DOWN)\n#     Event code 109 (KEY_PAGEDOWN)\n#     Event code 110 (KEY_INSERT)\n#     Event code 111 (KEY_DELETE)\n#     Event code 113 (KEY_MUTE)\n#     Event code 114 (KEY_VOLUMEDOWN)\n#     Event code 115 (KEY_VOLUMEUP)\n#     Event code 116 (KEY_POWER)\n#     Event code 117 (KEY_KPEQUAL)\n#     Event code 119 (KEY_PAUSE)\n#     Event code 121 (KEY_KPCOMMA)\n#     Event code 122 (KEY_HANGEUL)\n#     Event code 123 (KEY_HANJA)\n#     Event code 124 (KEY_YEN)\n#     Event code 125 (KEY_LEFTMETA)\n#     Event code 126 (KEY_RIGHTMETA)\n#     Event code 127 (KEY_COMPOSE)\n#     Event code 128 (KEY_STOP)\n#     Event code 129 (KEY_AGAIN)\n#     Event code 130 (KEY_PROPS)\n#     Event code 131 (KEY_UNDO)\n#     Event code 132 (KEY_FRONT)\n#     Event code 133 (KEY_COPY)\n#     Event code 134 (KEY_OPEN)\n#     Event code 135 (KEY_PASTE)\n#     Event code 136 (KEY_FIND)\n#     Event code 137 (KEY_CUT)\n#     Event code 138 (KEY_HELP)\n#     Event code 140 (KEY_CALC)\n#     Event code 142 (KEY_SLEEP)\n#     Event code 150 (KEY_WWW)\n#     Event code 152 (KEY_COFFEE)\n#     Event code 158 (KEY_BACK)\n#     Event code 159 (KEY_FORWARD)\n#     Event code 161 (KEY_EJECTCD)\n#     Event code 163 (KEY_NEXTSONG)\n#     Event code 164 (KEY_PLAYPAUSE)\n#     Event code 165 (KEY_PREVIOUSSONG)\n#     Event code 166 (KEY_STOPCD)\n#     Event code 173 (KEY_REFRESH)\n#     Event code 176 (KEY_EDIT)\n#     Event code 177 (KEY_SCROLLUP)\n#     Event code 178 (KEY_SCROLLDOWN)\n#     Event code 179 (KEY_KPLEFTPAREN)\n#     Event code 180 (KEY_KPRIGHTPAREN)\n#     Event code 183 (KEY_F13)\n#     Event code 184 (KEY_F14)\n#     Event code 185 (KEY_F15)\n#     Event code 186 (KEY_F16)\n#     Event code 187 (KEY_F17)\n#     Event code 188 (KEY_F18)\n#     Event code 189 (KEY_F19)\n#     Event code 190 (KEY_F20)\n#     Event code 191 (KEY_F21)\n#     Event code 192 (KEY_F22)\n#     Event code 193 (KEY_F23)\n#     Event code 194 (KEY_F24)\n#     Event code 240 (KEY_UNKNOWN)\n#   Event type 4 (EV_MSC)\n#     Event code 4 (MSC_SCAN)\n#   Event type 17 (EV_LED)\n#     Event code 0 (LED_NUML)\n#     Event code 1 (LED_CAPSL)\n#     Event code 2 (LED_SCROLLL)\n#   Event type 20 (EV_REP)\n#     Event code 0 (REP_DELAY)\n# Properties:\nN: Razer Razer Blade\nI: 0003 1532 011d 0111\nP: 00 00 00 00 00 00 00 00\nB: 00 0b 00 00 00 00 00 00 00\nB: 01 fe ff ff ff ff ff ff ff\nB: 01 ff ff ef ff df ff be fe\nB: 01 ff 57 40 c1 7a 20 9f ff\nB: 01 07 00 00 00 00 00 01 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 02 00 00 00 00 00 00 00 00\nB: 03 00 00 00 00 00 00 00 00\nB: 04 10 00 00 00 00 00 00 00\nB: 05 00 00 00 00 00 00 00 00\nB: 11 07 00 00 00 00 00 00 00\nB: 12 00 00 00 00 00 00 00 00\nB: 14 01 00 00 00 00 00 00 00\nB: 15 00 00 00 00 00 00 00 00\nB: 15 00 00 00 00 00 00 00 00\n################################\n#      Waiting for events      #\n################################\n\nFOR DEVICE 16:\n# EVEMU 1.2\n# Input device name: \"Razer Razer Blade\"\n# Input device ID: bus 0x03 vendor 0x1532 product 0x11d version 0x111\n# Supported events:\n#   Event type 0 (EV_SYN)\n#     Event code 0 (SYN_REPORT)\n#     Event code 1 (SYN_CONFIG)\n#     Event code 2 (SYN_MT_REPORT)\n#     Event code 3 (SYN_DROPPED)\n#     Event code 4 ((null))\n#     Event code 5 ((null))\n#     Event code 6 ((null))\n#     Event code 7 ((null))\n#     Event code 8 ((null))\n#     Event code 9 ((null))\n#     Event code 10 ((null))\n#     Event code 11 ((null))\n#     Event code 12 ((null))\n#     Event code 13 ((null))\n#     Event code 14 ((null))\n#   Event type 1 (EV_KEY)\n#     Event code 272 (BTN_LEFT)\n#     Event code 273 (BTN_RIGHT)\n#     Event code 274 (BTN_MIDDLE)\n#   Event type 2 (EV_REL)\n#     Event code 0 (REL_X)\n#     Event code 1 (REL_Y)\n#     Event code 8 (REL_WHEEL)\n#   Event type 4 (EV_MSC)\n#     Event code 4 (MSC_SCAN)\n# Properties:\nN: Razer Razer Blade\nI: 0003 1532 011d 0111\nP: 00 00 00 00 00 00 00 00\nB: 00 0b 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 07 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 01 00 00 00 00 00 00 00 00\nB: 02 03 01 00 00 00 00 00 00\nB: 03 00 00 00 00 00 00 00 00\nB: 04 10 00 00 00 00 00 00 00\nB: 05 00 00 00 00 00 00 00 00\nB: 11 00 00 00 00 00 00 00 00\nB: 12 00 00 00 00 00 00 00 00\nB: 14 00 00 00 00 00 00 00 00\nB: 15 00 00 00 00 00 00 00 00\nB: 15 00 00 00 00 00 00 00 00\n################################\n#      Waiting for events      #\n################################"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8329263",
+						"comment_count": "7",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-06-12 02:47:29 +0000",
+						"thetext": "can you attach your dmesg please, this looks to be a kernel bug. The touchpad is labelled as BUTTONPAD but still has a left and right button.\n\nquick google shows that the touchpad has physical buttons, so the property is incorrect."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8331290",
+						"comment_count": "8",
+						"who": {
+							"text": "mariogd"
+						},
+						"bug_when": "2015-06-12 14:55:37 +0000",
+						"thetext": "i tried but it says:\nComments cannot be longer than 65535 characters.\n\ncan i attach my dmesg anywhere?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8331320",
+						"comment_count": "9",
+						"who": {
+							"text": "mariogd"
+						},
+						"bug_when": "2015-06-12 15:02:53 +0000",
+						"thetext": "Created attachment 1038098\nDmesg Output\n\nDmesg Output"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8331326",
+						"comment_count": "10",
+						"who": {
+							"text": "mariogd"
+						},
+						"bug_when": "2015-06-12 15:03:39 +0000",
+						"thetext": "Disregard, Dmesg attatched."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8333829",
+						"comment_count": "11",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-06-14 23:38:17 +0000",
+						"thetext": "hid-rmi, punting to benjamin"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8336659",
+						"comment_count": "12",
+						"who": {
+							"text": "btissoir",
+							"name": "Benjamin Tissoires"
+						},
+						"bug_when": "2015-06-15 15:00:21 +0000",
+						"thetext": "Adding the fdo bug #90356 as a cross reference, even if this is a kernel bug.\nI'll do my best to look into it."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8343368",
+						"comment_count": "13",
+						"who": {
+							"text": "btissoir",
+							"name": "Benjamin Tissoires"
+						},
+						"bug_when": "2015-06-16 22:11:11 +0000",
+						"thetext": "Fix available in Jiri's tree:\nhttps://git.kernel.org/cgit/linux/kernel/git/jikos/hid.git/commit/?h=for-4.2/rmi&id=10e87dc42a086c256b25334b6c1c89214feba9a7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8351751",
+						"comment_count": "14",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-06-18 23:21:13 +0000",
+						"thetext": "I've added this to rawhide, f22, and f21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8365629",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-23 20:22:45 +0000",
+						"thetext": "kernel-4.0.6-300.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/kernel-4.0.6-300.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8365634",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-23 20:23:16 +0000",
+						"thetext": "kernel-4.0.6-200.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-4.0.6-200.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8370565",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-25 08:18:51 +0000",
+						"thetext": "Package kernel-4.0.6-300.fc22:\n* should fix your issue,\n* was pushed to the Fedora 22 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-4.0.6-300.fc22'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-10677/kernel-4.0.6-300.fc22\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8377271",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-27 12:39:31 +0000",
+						"thetext": "kernel-4.0.6-300.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8393943",
+						"comment_count": "19",
+						"who": {
+							"text": "mariogd"
+						},
+						"bug_when": "2015-06-30 19:58:08 +0000",
+						"thetext": "BUG FIXED! :-)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8394011",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-30 20:12:44 +0000",
+						"thetext": "kernel-4.0.6-200.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1230770,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-4692 kernel: kvm x86: NULL pointer dereference in kvm_apic_has_events function",
+			"bugzilla": {
+				"bug_id": "1230770",
+				"alias": "CVE-2015-4692",
+				"creation_ts": "2015-06-11 14:04:03 +0000",
+				"short_desc": "CVE-2015-4692 kernel: kvm x86: NULL pointer dereference in kvm_apic_has_events function",
+				"delta_ts": "2021-02-17 05:13:21 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "WONTFIX",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1230774"
+				],
+				"blocked": [
+					{
+						"bug_id": "1230771",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8326813",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-06-11 14:04:03 +0000",
+						"thetext": "Linux kernel built for the x86 architecture, with the KVM virtualisation support(CONFIG_KVM) is vulnerable to a NULL pointer dereference flaw. It could occur while doing KVM's Virtual CPU ioctl(2) call, in Linux kernel's kvm_apic_has_events() function.\n\nAn unprivileged user able to access \"/dev/kvm\" device, could use this flaw to crash the system kernel resulting in DoS.\n\nUpstream fix:\n-------------\n  -> https://lkml.org/lkml/2015/6/4/163\n\nReference:\n----------\n  -> http://seclists.org/oss-sec/2015/q2/680"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8326849",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-06-11 14:08:41 +0000",
+						"thetext": "\nCreated kernel tracking bugs for this issue:\n\nAffects: fedora-all [bug 1230774]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8349375",
+						"comment_count": "2",
+						"who": {
+							"text": "ppandit",
+							"name": "Prasad Pandit"
+						},
+						"bug_when": "2015-06-18 11:12:24 +0000",
+						"thetext": "Statement:\n\nThis issue does not affect the versions of Linux kernel as shipped with\nRed Hat Enterprise Linux 5, 6 and Red Hat Enterprise MRG 2.\n\nThis issue affects the version of the kernel package as shipped with\nRed Hat Enterprise Linux 7."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8349380",
+						"comment_count": "3",
+						"who": {
+							"text": "ppandit",
+							"name": "Prasad Pandit"
+						},
+						"bug_when": "2015-06-18 11:13:59 +0000",
+						"thetext": "This has been rated as having Moderate security impact and is not currently\nplanned to be addressed in future updates. For additional information, refer\nto the Red Hat Enterprise Linux Life Cycle:\n\n -> https://access.redhat.com/support/policy/updates/errata/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8377272",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-27 12:39:42 +0000",
+						"thetext": "kernel-4.0.6-300.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8394012",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-30 20:12:47 +0000",
+						"thetext": "kernel-4.0.6-200.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9031784",
+						"comment_count": "7",
+						"who": {
+							"text": "vvs",
+							"name": "Vasily Averin"
+						},
+						"bug_when": "2016-02-03 09:43:54 +0000",
+						"thetext": "Please update description, seems it was fixed in RHEL7.2\nhttps://access.redhat.com/labs/psb/versions/kernel-3.10.0-327.el7/patches/kvm-x86-fix-kvm_apic_has_events-to-check-for-NULL-pointer"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1230774,
+			"security": true,
+			"title": "kernel: kvm x86: NULL pointer dereference in kvm_apic_has_events function [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1230774",
+				"creation_ts": "2015-06-11 14:08:34 +0000",
+				"short_desc": "kernel: kvm x86: NULL pointer dereference in kvm_apic_has_events function [fedora-all]",
+				"delta_ts": "2015-06-30 20:12:42 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1230770",
+						"alias": "CVE-2015-4692",
+						"creation_ts": "2015-06-11 14:04:03 +0000",
+						"short_desc": "CVE-2015-4692 kernel: kvm x86: NULL pointer dereference in kvm_apic_has_events function",
+						"delta_ts": "2021-02-17 05:13:21 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "WONTFIX",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1230774"
+						],
+						"blocked": [
+							{
+								"bug_id": "1230771",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "8326813",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-06-11 14:04:03 +0000",
+								"thetext": "Linux kernel built for the x86 architecture, with the KVM virtualisation support(CONFIG_KVM) is vulnerable to a NULL pointer dereference flaw. It could occur while doing KVM's Virtual CPU ioctl(2) call, in Linux kernel's kvm_apic_has_events() function.\n\nAn unprivileged user able to access \"/dev/kvm\" device, could use this flaw to crash the system kernel resulting in DoS.\n\nUpstream fix:\n-------------\n  -> https://lkml.org/lkml/2015/6/4/163\n\nReference:\n----------\n  -> http://seclists.org/oss-sec/2015/q2/680"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8326849",
+								"comment_count": "1",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-06-11 14:08:41 +0000",
+								"thetext": "\nCreated kernel tracking bugs for this issue:\n\nAffects: fedora-all [bug 1230774]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8349375",
+								"comment_count": "2",
+								"who": {
+									"text": "ppandit",
+									"name": "Prasad Pandit"
+								},
+								"bug_when": "2015-06-18 11:12:24 +0000",
+								"thetext": "Statement:\n\nThis issue does not affect the versions of Linux kernel as shipped with\nRed Hat Enterprise Linux 5, 6 and Red Hat Enterprise MRG 2.\n\nThis issue affects the version of the kernel package as shipped with\nRed Hat Enterprise Linux 7."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8349380",
+								"comment_count": "3",
+								"who": {
+									"text": "ppandit",
+									"name": "Prasad Pandit"
+								},
+								"bug_when": "2015-06-18 11:13:59 +0000",
+								"thetext": "This has been rated as having Moderate security impact and is not currently\nplanned to be addressed in future updates. For additional information, refer\nto the Red Hat Enterprise Linux Life Cycle:\n\n -> https://access.redhat.com/support/policy/updates/errata/"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8377272",
+								"comment_count": "5",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-06-27 12:39:42 +0000",
+								"thetext": "kernel-4.0.6-300.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8394012",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-06-30 20:12:47 +0000",
+								"thetext": "kernel-4.0.6-200.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9031784",
+								"comment_count": "7",
+								"who": {
+									"text": "vvs",
+									"name": "Vasily Averin"
+								},
+								"bug_when": "2016-02-03 09:43:54 +0000",
+								"thetext": "Please update description, seems it was fixed in RHEL7.2\nhttps://access.redhat.com/labs/psb/versions/kernel-3.10.0-327.el7/patches/kvm-x86-fix-kvm_apic_has_events-to-check-for-NULL-pointer"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8326846",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-06-11 14:08:34 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\nReproducers, if any, will remain confidential and never be made public, unless done so by the security team.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8326848",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-06-11 14:08:39 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1230770,1230774\n\n# Description of your update\nnotes=Security fix for \n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1230770,1230774"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8331186",
+						"comment_count": "2",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-06-12 14:23:18 +0000",
+						"thetext": "Fixed in Fedora git."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8365628",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-23 20:22:43 +0000",
+						"thetext": "kernel-4.0.6-300.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/kernel-4.0.6-300.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8365633",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-23 20:23:14 +0000",
+						"thetext": "kernel-4.0.6-200.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-4.0.6-200.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8370564",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-25 08:18:48 +0000",
+						"thetext": "Package kernel-4.0.6-300.fc22:\n* should fix your issue,\n* was pushed to the Fedora 22 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-4.0.6-300.fc22'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-10677/kernel-4.0.6-300.fc22\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8377270",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-27 12:39:24 +0000",
+						"thetext": "kernel-4.0.6-300.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8394010",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-30 20:12:42 +0000",
+						"thetext": "kernel-4.0.6-200.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "kernel-4.0.6-300.fc22",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "perf-debuginfo",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-devel",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-core",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-tools-libs-devel",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-modules",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "python-perf-debuginfo",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-core",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-debuginfo-common-armv7hl",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "python-perf",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-modules-extra",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-tools",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-debuginfo",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "perf",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-tools-debuginfo",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-tools-libs",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-modules-extra",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "kernel-tools-debuginfo",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-debuginfo",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debuginfo-common-i686",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-core",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-devel",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-tools-libs",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-devel",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-modules",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-tools-libs-devel",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "perf-debuginfo",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "perf",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "python-perf",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-modules-extra",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-modules",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-devel",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-modules-extra",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-core",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-core",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "python-perf-debuginfo",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-modules",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-modules-extra",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-core",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-debuginfo",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-debuginfo",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-tools",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-modules-extra",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "kernel",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "kernel-debug-modules",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-core",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-devel",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-tools-libs",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-tools",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-modules-extra",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "perf",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-tools-debuginfo",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-tools-libs-devel",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python-perf-debuginfo",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-modules-extra",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-debuginfo",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python-perf",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "perf-debuginfo",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-core",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debuginfo-common-x86_64",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel",
+						"version": "4.0.6",
+						"release": "300.fc22",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 300074,
+			"text": "This update has been submitted for testing by jforbes. ",
+			"timestamp": "2015-06-23 20:22:49",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 300075,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/100329/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-06-23 20:28:49",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 300076,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/100329/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-06-23 20:28:54",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 300077,
+			"text": "This update is currently being pushed to the Fedora 22 testing updates repository.",
+			"timestamp": "2015-06-24 22:06:14",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 300078,
+			"karma": 1,
+			"text": "Personal LAMP and mail server running GNOME. All OK.",
+			"timestamp": "2015-06-25 02:37:38",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/ab0d8944c3805cda6dbba16a896382cf7bbde084fa926e1c20bc5ad2fa41d0cb?s=24&d=retro",
+				"email": "watsonbrad@comcast.net",
+				"id": 196,
+				"name": "bradw",
+				"openid": "bradw.id.fedoraproject.org"
+			},
+			"user_id": 196
+		},
+		{
+			"id": 300079,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-06-25 08:18:52",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 300080,
+			"karma": 1,
+			"text": "Can confirm that `btrfs balance` now works. Thanks!",
+			"timestamp": "2015-06-25 11:45:37",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/818afc75e8b2ebc2dab6de36f28f3edf6c1e71d8d17bfac11960486b996ef6e9?s=24&d=retro",
+				"email": "devin@six19.com",
+				"groups": [
+					{}
+				],
+				"id": 729,
+				"name": "devhen",
+				"openid": "devhen.id.fedoraproject.org"
+			},
+			"user_id": 729
+		},
+		{
+			"id": 300081,
+			"text": "Critical path update approved",
+			"timestamp": "2015-06-25 11:45:41",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 300082,
+			"karma": 1,
+			"text": "Works on x86_64 and i686.",
+			"timestamp": "2015-06-25 13:38:43",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/1a8afd83231ef5ba905344806ba95b39f2abd77b399b0ee217ec3e6fa30a4825?s=24&d=retro",
+				"email": "bojan@rexursive.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 198,
+				"name": "bojan",
+				"openid": "bojan.id.fedoraproject.org"
+			},
+			"user_id": 198
+		},
+		{
+			"id": 300083,
+			"karma": 1,
+			"text": "Lenovo Thinkpad S540 touchpad works fine.",
+			"timestamp": "2015-06-25 18:27:14",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/b347ce5752281d46bbc1866b17d5e89317459dcb1bd85961192793664873cb9f?s=24&d=retro",
+				"id": 2114,
+				"name": "tommyg",
+				"openid": "tommyg.id.fedoraproject.org"
+			},
+			"user_id": 2114
+		},
+		{
+			"id": 300084,
+			"karma": 1,
+			"text": "works fine",
+			"timestamp": "2015-06-26 12:05:00",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/86811274ad4182d3bcfe18f4ab4d57bbe290d0eca4bd25905decdf5b614716ca?s=24&d=retro",
+				"email": "mstevens@imt-systems.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 203,
+				"name": "mstevens",
+				"openid": "mstevens.id.fedoraproject.org"
+			},
+			"user_id": 203
+		},
+		{
+			"id": 300085,
+			"karma": 1,
+			"text": "Works well.",
+			"timestamp": "2015-06-26 14:23:22",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/6881b6a39a95f691dac8dcb5cdc5a8530efd957c71ff7d57cc334b2fccb4592d?s=24&d=retro",
+				"email": "simon.gerhards@gmail.com",
+				"id": 1266,
+				"name": "simger",
+				"openid": "simger.id.fedoraproject.org"
+			},
+			"user_id": 1266
+		},
+		{
+			"id": 300086,
+			"karma": 1,
+			"text": "seems to work fine",
+			"timestamp": "2015-06-26 17:10:47",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/054959f4db5d1ad8f22cae1ba73e26ebfd3edd6690c21cc7ee00608f294ff22a?s=24&d=retro",
+				"email": "cserpentis@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 739,
+				"name": "cserpentis",
+				"openid": "cserpentis.id.fedoraproject.org"
+			},
+			"user_id": 739
+		},
+		{
+			"id": 300087,
+			"karma": 1,
+			"text": "Correct for me",
+			"timestamp": "2015-06-26 18:32:00",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/18a0ed8e439e9913c577f9c4d260a917530f0021fefb8d47a6788f2a10545202?s=24&d=retro",
+				"email": "cacouret.renault@gmail.com",
+				"groups": [
+					{
+						"name": "qa"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "l10n"
+					},
+					{
+						"name": "cvsl10n"
+					},
+					{
+						"name": "l10n-commits"
+					},
+					{
+						"name": "gitmuffin"
+					}
+				],
+				"id": 208,
+				"name": "renault",
+				"openid": "renault.id.fedoraproject.org"
+			},
+			"user_id": 208
+		},
+		{
+			"id": 300088,
+			"karma": 1,
+			"text": "This seems to fix the 'btrfs balance' bug for me.",
+			"timestamp": "2015-06-26 19:25:10",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/ac7f1cc852feee32d7590aee75da7ce166648cb9b9c88f2fafbc50d80a712788?s=24&d=retro",
+				"id": 2115,
+				"name": "amcnabb",
+				"openid": "amcnabb.id.fedoraproject.org"
+			},
+			"user_id": 2115
+		},
+		{
+			"id": 300089,
+			"text": "This update has been submitted for stable by jforbes. ",
+			"timestamp": "2015-06-26 21:14:43",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 300090,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/101381/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-06-26 21:26:46",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 300091,
+			"text": "This update is currently being pushed to the Fedora 22 stable updates repository.",
+			"timestamp": "2015-06-27 02:35:13",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 300092,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-06-27 12:39:45",
+			"update_id": 35702,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2015-06-27 12:39:45",
+	"date_stable": "2015-06-27 12:39:45",
+	"date_submitted": "2015-06-23 20:22:28",
+	"date_testing": "2015-06-25 08:18:52",
+	"karma": 9,
+	"meets_testing_requirements": true,
+	"notes": "The 4.0.6 stable update contains a number of important fixes across the tree.",
+	"pushed": true,
+	"release": {
+		"branch": "f22",
+		"candidate_tag": "f22-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f22",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 22",
+		"mail_template": "fedora_errata_template",
+		"name": "F22",
+		"override_tag": "f22-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f22-updates-pending",
+		"pending_testing_tag": "f22-updates-testing-pending",
+		"stable_tag": "f22-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f22-updates-testing",
+		"version": "22"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_cases": [
+		{
+			"id": 372,
+			"name": "QA:Testcase kernel regression"
+		}
+	],
+	"title": "kernel-4.0.6-300.fc22",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-10677",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-10677",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/03ead14065750aad5e4eb5ee42f7c60fb1e50ea2f5ba2dc9a89639bc381796da?s=24&d=retro",
+		"email": "jforbes@redhat.com",
+		"groups": [
+			{
+				"name": "proventesters"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "gitkernel-tests"
+			},
+			{
+				"name": "hosted-content"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "gitqemu-kvm-fedora"
+			},
+			{
+				"name": "sysadmin-kernel"
+			},
+			{
+				"name": "cla_redhat"
+			},
+			{
+				"name": "security-team"
+			}
+		],
+		"id": 910,
+		"name": "jforbes",
+		"openid": "jforbes.id.fedoraproject.org"
+	},
+	"version_hash": "386424605655bb8181e5e475a5a203a4307c9f0c"
+}

@@ -1,0 +1,498 @@
+{
+	"alias": "FEDORA-2022-84fd87f7eb",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2035273,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2020-16156 perl-CPAN: Bypass of verification of signatures in CHECKSUMS files",
+			"bugzilla": {
+				"bug_id": "2035273",
+				"alias": "CVE-2020-16156",
+				"creation_ts": "2021-12-23 12:51:33 +0000",
+				"short_desc": "CVE-2020-16156 perl-CPAN: Bypass of verification of signatures in CHECKSUMS files",
+				"delta_ts": "2023-09-26 18:40:03 +0000",
+				"bug_status": "NEW",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"2035274",
+					"2037211",
+					"2038304",
+					"2038305",
+					"2038306",
+					"2038307"
+				],
+				"blocked": [
+					{
+						"bug_id": "2035276",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "15797796",
+						"comment_count": "0",
+						"who": {
+							"text": "mrehak",
+							"name": "Marian Rehak"
+						},
+						"bug_when": "2021-12-23 12:51:33 +0000",
+						"thetext": "It was found that cpan and cpanm are vulnerable to a signature verification bypass. Additionally, CPAN::Checksums (used by PAUSE) does not uniquely identify packages in the signed CHECKSUMS file, enabling a supply chain attack.\n\nReference:\n\nhttps://blog.hackeriet.no/cpan-signature-verification-vulnerabilities/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15797799",
+						"comment_count": "1",
+						"who": {
+							"text": "mrehak",
+							"name": "Marian Rehak"
+						},
+						"bug_when": "2021-12-23 12:51:47 +0000",
+						"thetext": "Created perl-CPAN tracking bugs for this issue:\n\nAffects: fedora-all [bug 2035274]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15812322",
+						"comment_count": "2",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2022-01-05 09:13:20 +0000",
+						"thetext": "The report covers two separate methods to bypass verification of signatures stored in CHECKSUMS files:\n\n1) The first problem is an implementation error found in both perl-CPAN / CPAN.pm and perl-App-cpanminus modules.  Those modules did not correctly handle return value of Module::Signature::_verify() and handled CANNOT_VERIFY error return value as equivalent to SIGNATURE_OK return value, i.e. assuming that signature was correctly verified while verification failed or could not have been performed.  In perl-CPAN, this problem was fixed in the following commit applied in version 2.29:\n\nhttps://github.com/andk/cpanpm/commit/b27c51adf0fda25dee84cb72cb2b1bf7d832148c\n\n2) The second problem is related to the design of the CHECKSUMS file format. The file only contained file names inside of the CPAN author's directory, without indicating in any way which author the CHECKSUMS file is for.  As all CHECKSUMS files get signed by the same PAUSE ([Perl programming] Authors Upload Server) key, a CHECKSUMS file generated for one author could be used in a directory for a different author without clients being able to detect that.  This problem was fixed by extending CHECKSUMS file format to introduce an additional attribute cpan_path that indicates which author directory the CHECKSUMS file is for.  perl-CPAN was enhanced to check this attribute via this commit also applied in version 2.29:\n\nhttps://github.com/andk/cpanpm/commit/bcbf6d608e48d25306ecfd273118b4d6ba1c5df6\n\nRelated CVE-2020-16155 was assigned for the CPAN::Checksums module that is used to generate CHECKSUMS files.  The CVE covers the lack of information to indicate specific CPAN author directory in CHECKSUMS files.\n\nBoth of these issues could be exploited by malicious or compromised mirrors if used by users, or a man-in-the-middle attacker in case plain text HTTP connection was used to download packages instead of using encrypted HTTPS.  The exploitation of the second vulnerability additionally requires attacker to have a valid CPAN author account to be able to get malicious CHECKSUMS file to be generated and signed by CPAN / PAUSE.  Therefore, a recommended mitigation is to only configure CPAN clients to download packages from trusted CPAN mirrors (www.cpan.org and cpan.metacpan.org) and always use HTTPS.\n\nNote that both CPAN.pm and cpanminus defaulted to not checking signatures in the CHECKSUMS file unless explicitly configured to do so.  Therefore, this issue was not relevant to users using the default configuration that did not enable signature verification.\n\nAdditional details about these issues can be found in the following blog post:\n\nhttp://blogs.perl.org/users/neilb/2021/11/addressing-cpan-vulnerabilities-related-to-checksums.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15813580",
+						"comment_count": "4",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2022-01-05 15:06:19 +0000",
+						"thetext": "Note that the Module::Signature module that is used by both perl-CPAN and perl-App-cpanminus to perform verification of signatures from the CHECKSUMS files is not shipped with Red Hat Enterprise Linux 8.  It is shipped with Red Hat Enterprise Linux 7, but is not installed as a dependency when installing perl-CPAN, it is only required by perl-App-cpanminus.\n\nWhen Module::Signature is not installed, both cpan and cpanm skip signature verification and continue with package installation without verification even when configured to performed verification (using check_sigs configuration option for cpan, or --verify command line option for cpanm)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15814558",
+						"comment_count": "5",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2022-01-05 20:12:37 +0000",
+						"thetext": "There is another fix needed to properly fix the first attack vector in addition to the commit already linked in comment 2 above:\n\nhttps://github.com/andk/cpanpm/commit/46fe910becd5746adca92e18660567c9e8d37eb5\nhttps://github.com/andk/cpanpm/commit/7f9e5e8c52f535c1c13e177595a5ef4710c72058\nhttps://github.com/andk/cpanpm/commit/c03257dbebccd4deeff1987d5efd98113643f717\n\nThese commits are also included in 2.29."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15827317",
+						"comment_count": "9",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2022-01-10 09:57:25 +0000",
+						"thetext": "The mitigation recommended by upstream is to ensure that users are only using trusted CPAN mirrors (www.cpan.org or cpan.metacpan.org) and always use HTTPS when downloading packages.  If you already have a cpan configured, the list of configured mirrors can be viewed by running the `cpan` command without any argument and entering the following command on the cpan command's prompt:\n\n  o conf urllist\n\nEnsure that the URL list only includes trusted mirrors and that https:// scheme is used for all URLs.  A different set of mirrors can be configured using the following commands (these examples show how to configure one or more mirrors, only one of the commands should be used):\n\n  o conf urllist https://www.cpan.org\n  o conf urllist https://www.cpan.org https://cpan.metacpan.org\n\nAfter changing configuration, the following command must be used to save the configuration:\n\n  o conf commit"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15838491",
+						"comment_count": "10",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2022-01-12 21:27:05 +0000",
+						"thetext": "Two additional small corrective fixes amending fixes linked from comment 5 above:\n\nhttps://github.com/andk/cpanpm/commit/7d4d5e32bcd9b75f7bf70a395938a48ca4a06d25\nhttps://github.com/andk/cpanpm/commit/89b13baf1d46e4fb10023af30ef305efec4fd603\n\nThese are not included in version 2.29."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2035274,
+			"security": true,
+			"title": "CVE-2020-16156 perl-CPAN: Bypass of verification of signatures in CHECKSUMS files [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2035274",
+				"creation_ts": "2021-12-23 12:51:39 +0000",
+				"short_desc": "CVE-2020-16156 perl-CPAN: Bypass of verification of signatures in CHECKSUMS files [fedora-all]",
+				"delta_ts": "2022-01-12 01:23:10 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "2035273",
+						"alias": "CVE-2020-16156",
+						"creation_ts": "2021-12-23 12:51:33 +0000",
+						"short_desc": "CVE-2020-16156 perl-CPAN: Bypass of verification of signatures in CHECKSUMS files",
+						"delta_ts": "2023-09-26 18:40:03 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"2035274",
+							"2037211",
+							"2038304",
+							"2038305",
+							"2038306",
+							"2038307"
+						],
+						"blocked": [
+							{
+								"bug_id": "2035276",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "15797796",
+								"comment_count": "0",
+								"who": {
+									"text": "mrehak",
+									"name": "Marian Rehak"
+								},
+								"bug_when": "2021-12-23 12:51:33 +0000",
+								"thetext": "It was found that cpan and cpanm are vulnerable to a signature verification bypass. Additionally, CPAN::Checksums (used by PAUSE) does not uniquely identify packages in the signed CHECKSUMS file, enabling a supply chain attack.\n\nReference:\n\nhttps://blog.hackeriet.no/cpan-signature-verification-vulnerabilities/"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15797799",
+								"comment_count": "1",
+								"who": {
+									"text": "mrehak",
+									"name": "Marian Rehak"
+								},
+								"bug_when": "2021-12-23 12:51:47 +0000",
+								"thetext": "Created perl-CPAN tracking bugs for this issue:\n\nAffects: fedora-all [bug 2035274]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15812322",
+								"comment_count": "2",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2022-01-05 09:13:20 +0000",
+								"thetext": "The report covers two separate methods to bypass verification of signatures stored in CHECKSUMS files:\n\n1) The first problem is an implementation error found in both perl-CPAN / CPAN.pm and perl-App-cpanminus modules.  Those modules did not correctly handle return value of Module::Signature::_verify() and handled CANNOT_VERIFY error return value as equivalent to SIGNATURE_OK return value, i.e. assuming that signature was correctly verified while verification failed or could not have been performed.  In perl-CPAN, this problem was fixed in the following commit applied in version 2.29:\n\nhttps://github.com/andk/cpanpm/commit/b27c51adf0fda25dee84cb72cb2b1bf7d832148c\n\n2) The second problem is related to the design of the CHECKSUMS file format. The file only contained file names inside of the CPAN author's directory, without indicating in any way which author the CHECKSUMS file is for.  As all CHECKSUMS files get signed by the same PAUSE ([Perl programming] Authors Upload Server) key, a CHECKSUMS file generated for one author could be used in a directory for a different author without clients being able to detect that.  This problem was fixed by extending CHECKSUMS file format to introduce an additional attribute cpan_path that indicates which author directory the CHECKSUMS file is for.  perl-CPAN was enhanced to check this attribute via this commit also applied in version 2.29:\n\nhttps://github.com/andk/cpanpm/commit/bcbf6d608e48d25306ecfd273118b4d6ba1c5df6\n\nRelated CVE-2020-16155 was assigned for the CPAN::Checksums module that is used to generate CHECKSUMS files.  The CVE covers the lack of information to indicate specific CPAN author directory in CHECKSUMS files.\n\nBoth of these issues could be exploited by malicious or compromised mirrors if used by users, or a man-in-the-middle attacker in case plain text HTTP connection was used to download packages instead of using encrypted HTTPS.  The exploitation of the second vulnerability additionally requires attacker to have a valid CPAN author account to be able to get malicious CHECKSUMS file to be generated and signed by CPAN / PAUSE.  Therefore, a recommended mitigation is to only configure CPAN clients to download packages from trusted CPAN mirrors (www.cpan.org and cpan.metacpan.org) and always use HTTPS.\n\nNote that both CPAN.pm and cpanminus defaulted to not checking signatures in the CHECKSUMS file unless explicitly configured to do so.  Therefore, this issue was not relevant to users using the default configuration that did not enable signature verification.\n\nAdditional details about these issues can be found in the following blog post:\n\nhttp://blogs.perl.org/users/neilb/2021/11/addressing-cpan-vulnerabilities-related-to-checksums.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15813580",
+								"comment_count": "4",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2022-01-05 15:06:19 +0000",
+								"thetext": "Note that the Module::Signature module that is used by both perl-CPAN and perl-App-cpanminus to perform verification of signatures from the CHECKSUMS files is not shipped with Red Hat Enterprise Linux 8.  It is shipped with Red Hat Enterprise Linux 7, but is not installed as a dependency when installing perl-CPAN, it is only required by perl-App-cpanminus.\n\nWhen Module::Signature is not installed, both cpan and cpanm skip signature verification and continue with package installation without verification even when configured to performed verification (using check_sigs configuration option for cpan, or --verify command line option for cpanm)."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15814558",
+								"comment_count": "5",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2022-01-05 20:12:37 +0000",
+								"thetext": "There is another fix needed to properly fix the first attack vector in addition to the commit already linked in comment 2 above:\n\nhttps://github.com/andk/cpanpm/commit/46fe910becd5746adca92e18660567c9e8d37eb5\nhttps://github.com/andk/cpanpm/commit/7f9e5e8c52f535c1c13e177595a5ef4710c72058\nhttps://github.com/andk/cpanpm/commit/c03257dbebccd4deeff1987d5efd98113643f717\n\nThese commits are also included in 2.29."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15827317",
+								"comment_count": "9",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2022-01-10 09:57:25 +0000",
+								"thetext": "The mitigation recommended by upstream is to ensure that users are only using trusted CPAN mirrors (www.cpan.org or cpan.metacpan.org) and always use HTTPS when downloading packages.  If you already have a cpan configured, the list of configured mirrors can be viewed by running the `cpan` command without any argument and entering the following command on the cpan command's prompt:\n\n  o conf urllist\n\nEnsure that the URL list only includes trusted mirrors and that https:// scheme is used for all URLs.  A different set of mirrors can be configured using the following commands (these examples show how to configure one or more mirrors, only one of the commands should be used):\n\n  o conf urllist https://www.cpan.org\n  o conf urllist https://www.cpan.org https://cpan.metacpan.org\n\nAfter changing configuration, the following command must be used to save the configuration:\n\n  o conf commit"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15838491",
+								"comment_count": "10",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2022-01-12 21:27:05 +0000",
+								"thetext": "Two additional small corrective fixes amending fixes linked from comment 5 above:\n\nhttps://github.com/andk/cpanpm/commit/7d4d5e32bcd9b75f7bf70a395938a48ca4a06d25\nhttps://github.com/andk/cpanpm/commit/89b13baf1d46e4fb10023af30ef305efec4fd603\n\nThese are not included in version 2.29."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "15797797",
+						"comment_count": "0",
+						"who": {
+							"text": "mrehak",
+							"name": "Marian Rehak"
+						},
+						"bug_when": "2021-12-23 12:51:39 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15797798",
+						"comment_count": "1",
+						"who": {
+							"text": "mrehak",
+							"name": "Marian Rehak"
+						},
+						"bug_when": "2021-12-23 12:51:41 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2035273,2035274\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15807190",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-01-03 14:26:20 +0000",
+						"thetext": "FEDORA-2022-21e8372c42 has been submitted as an update to Fedora 35. https://bodhi.fedoraproject.org/updates/FEDORA-2022-21e8372c42"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15807191",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-01-03 14:26:23 +0000",
+						"thetext": "FEDORA-2022-84fd87f7eb has been submitted as an update to Fedora 34. https://bodhi.fedoraproject.org/updates/FEDORA-2022-84fd87f7eb"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15808142",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-01-04 01:04:10 +0000",
+						"thetext": "FEDORA-2022-84fd87f7eb has been pushed to the Fedora 34 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2022-84fd87f7eb`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2022-84fd87f7eb\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15808158",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-01-04 01:11:39 +0000",
+						"thetext": "FEDORA-2022-21e8372c42 has been pushed to the Fedora 35 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2022-21e8372c42`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2022-21e8372c42\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15833770",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-01-12 01:15:47 +0000",
+						"thetext": "FEDORA-2022-84fd87f7eb has been pushed to the Fedora 34 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15833798",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-01-12 01:23:10 +0000",
+						"thetext": "FEDORA-2022-21e8372c42 has been pushed to the Fedora 35 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "perl-CPAN-2.29-1.fc34",
+			"release_id": 47,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "perl-CPAN",
+						"version": "2.29",
+						"release": "1.fc34",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "perl-CPAN",
+						"version": "2.29",
+						"release": "1.fc34",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 2329064,
+			"text": "This update has been submitted for testing by jplesnik. ",
+			"timestamp": "2022-01-03 14:26:16",
+			"update_id": 363594,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2329065,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2022-01-03 14:26:17",
+			"update_id": 363594,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2329477,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2022-01-04 01:04:24",
+			"update_id": 363594,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2342637,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2022-01-11 01:06:11",
+			"update_id": 363594,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2343852,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2022-01-12 01:16:08",
+			"update_id": 363594,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2022-01-12 01:15:26",
+	"date_stable": "2022-01-12 01:15:26",
+	"date_submitted": "2022-01-03 14:26:16",
+	"date_testing": "2022-01-04 01:04:03",
+	"meets_testing_requirements": true,
+	"notes": "Security fix for CVE-2020-16156",
+	"pushed": true,
+	"release": {
+		"branch": "f34",
+		"candidate_tag": "f34-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f34",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 34",
+		"mail_template": "fedora_errata_template",
+		"name": "F34",
+		"override_tag": "f34-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f34-signing-pending",
+		"pending_stable_tag": "f34-updates-pending",
+		"pending_testing_tag": "f34-updates-testing-pending",
+		"stable_tag": "f34-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f34-updates-testing",
+		"version": "34"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "medium",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "perl-CPAN-2.29-1.fc34",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2022-84fd87f7eb",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2022-84fd87f7eb",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/c33f815822f28c1a9d9be528b22c77574c39c57e35526324b7d4f479627e0196?s=24&d=retro",
+		"email": "jplesnik@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "perl-maint-sig"
+			}
+		],
+		"id": 628,
+		"name": "jplesnik",
+		"openid": "jplesnik.id.fedoraproject.org"
+	},
+	"version_hash": "145b3152a5835b42f2088b38ec07ed81dcdf37dd"
+}

@@ -1,0 +1,2198 @@
+{
+	"alias": "FEDORA-2015-7623",
+	"bugs": [
+		{
+			"bug_id": 1161232,
+			"title": "NetworkManager split dns with DNSMasq not working with VPN",
+			"bugzilla": {
+				"bug_id": "1161232",
+				"creation_ts": "2014-11-06 17:19:45 +0000",
+				"short_desc": "NetworkManager split dns with DNSMasq not working with VPN",
+				"delta_ts": "2015-05-17 06:42:22 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"external_bugs": {
+					"text": "728342",
+					"name": "GNOME Bugzilla"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7648319",
+						"comment_count": "0",
+						"who": {
+							"text": "jmontleo",
+							"name": "Jason Montleon"
+						},
+						"bug_when": "2014-11-06 17:19:45 +0000",
+						"thetext": "Description of problem:\nI have dns=dnsmasq set in /etc/NetworkManager/NetworkManager.conf\n\nWhen I am connected to my local network and not VPN I see a dnsmasq process running, as I would expect:\nusr/sbin/dnsmasq --no-resolv --keep-in-foreground --no-hosts --bind-interfaces --pid-file=/var/run/NetworkManager/dnsmasq.pid --listen-address=127.0.0.1 --conf-file=/var/run/NetworkManager/dnsmasq.conf --cache-size=400 --proxy-dnssec --conf-dir=/etc/NetworkManager/dnsmasq.d\n\nI also see my name server in /etc/resolv.conf set to 127.0.0.1\n\nThe problem is that when I establish my VPN connection my /etc/resolv.conf is updated with the nameservers provided by the openvpn server rather than updating the dnsmasq config and there is no longer the above process or one like it running.\n\nIn /var/log/messages I see:\nNov  6 12:09:34 acer dnsmasq[1182]: reading /etc/resolv.conf\nNov  6 12:09:34 acer dnsmasq[1182]: using nameserver 127.0.0.1#53\nNov  6 12:09:34 acer NetworkManager[7558]: <info> VPN connection 'Red Hat PHX2 OVPN' (IP Config Get) complete.\nNov  6 12:09:34 acer NetworkManager[7558]: <info> VPN plugin state changed: started (4)\nNov  6 12:09:34 acer dnsmasq[7739]: exiting on receipt of SIGTERM\nNov  6 12:09:34 acer NetworkManager[7558]: <info> DNS: starting dnsmasq...\nNov  6 12:09:34 acer NetworkManager: dnsmasq: failed to create listening socket for 127.0.0.1: Address already in use\nNov  6 12:09:34 acer dnsmasq[7825]: failed to create listening socket for 127.0.0.1: Address already in use\nNov  6 12:09:34 acer dnsmasq[7825]: FAILED to start up\n\nVersion-Release number of selected component (if applicable):\nNetworkManager-0.9.10.0-12.git20140704.fc21.x86_64\nNetworkManager-openvpn-0.9.9.0-3.git20140128.fc21.x86_64\ndnsmasq-2.72-3.fc21.x86_64\n\nHow reproducible:\nAlways\n\nSteps to Reproduce:\n1. Install Fedora 21\n2. Enable dnsmasq DNS in NetworkManager.conf\n3. Set up a VPN connection and connect.\n\nActual results:\nConnecting to VPN kills dnsmasq and overwrites your resolv.conf\n\nExpected results:\nAs with in Fedora 20 it should update the dnsmasq config and continue using the dnsmasq process listening on 127.0.0.1\n\nAdditional info:"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7648502",
+						"comment_count": "1",
+						"who": {
+							"text": "psimerda",
+							"name": "Pavel Šimerda (pavlix)"
+						},
+						"bug_when": "2014-11-06 18:28:25 +0000",
+						"thetext": "You probably already have a DNS daemon on your system which prevents dnsmasq from running. You can check that using 'netstat -tulpn'."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7648570",
+						"comment_count": "2",
+						"who": {
+							"text": "jmontleo",
+							"name": "Jason Montleon"
+						},
+						"bug_when": "2014-11-06 18:40:32 +0000",
+						"thetext": "I don't think so. I do when the system starts, as I said, I see this started by NetworkManager\nusr/sbin/dnsmasq --no-resolv --keep-in-foreground --no-hosts --bind-interfaces --pid-file=/var/run/NetworkManager/dnsmasq.pid --listen-address=127.0.0.1 --conf-file=/var/run/NetworkManager/dnsmasq.conf --cache-size=400 --proxy-dnssec --conf-dir=/etc/NetworkManager/dnsmasq.d\n\nWhen I connect to the VPN, I no longer have such a process. The only dnsmasq instance is the one for libvirt listening on the libvirt interface:\ntcp        0      0 192.168.122.1:53        0.0.0.0:*               LISTEN      -   \nudp        0      0 192.168.122.1:53        0.0.0.0:*                           -\nudp6       0      0 fe80::5054:ff:fede:c:53 :::*                                -\n\nThere is nothing listening on 127.0.0.1:53\n\nI would guess maybe NetworkManager isn't waiting long enough for its process to exit before starting a new one. Looking at the logs:\nNov  6 12:09:34 acer NetworkManager[7558]: <info> VPN plugin state changed: started (4)\nNov  6 12:09:34 acer dnsmasq[7739]: exiting on receipt of SIGTERM\nNov  6 12:09:34 acer NetworkManager[7558]: <info> DNS: starting dnsmasq...\nNov  6 12:09:34 acer NetworkManager: dnsmasq: failed to create listening socket for 127.0.0.1: Address already in use\n\nFull netstat -tulpn output when connect to VPN:\nnetstat -tulpn\n(Not all processes could be identified, non-owned process info\n will not be shown, you would have to be root to see it all.)\nActive Internet connections (only servers)\nProto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    \ntcp        0      0 0.0.0.0:17500           0.0.0.0:*               LISTEN      2496/dropbox        \ntcp        0      0 127.0.0.1:1194          0.0.0.0:*               LISTEN      -                   \ntcp        0      0 0.0.0.0:111             0.0.0.0:*               LISTEN      -                   \ntcp        0      0 0.0.0.0:1234            0.0.0.0:*               LISTEN      -                   \ntcp        0      0 192.168.122.1:53        0.0.0.0:*               LISTEN      -                   \ntcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      -                   \ntcp6       0      0 :::111                  :::*                    LISTEN      -                   \ntcp6       0      0 fe80::5054:ff:fede:c:53 :::*                    LISTEN      -                   \ntcp6       0      0 :::22                   :::*                    LISTEN      -                   \nudp        0      0 0.0.0.0:48947           0.0.0.0:*                           -                   \nudp        0      0 192.168.122.1:53        0.0.0.0:*                           -                   \nudp        0      0 0.0.0.0:67              0.0.0.0:*                           -                   \nudp        0      0 0.0.0.0:68              0.0.0.0:*                           -                   \nudp        0      0 0.0.0.0:111             0.0.0.0:*                           -                   \nudp        0      0 0.0.0.0:123             0.0.0.0:*                           -                   \nudp        0      0 127.0.0.1:323           0.0.0.0:*                           -                   \nudp        0      0 0.0.0.0:655             0.0.0.0:*                           -                   \nudp        0      0 0.0.0.0:8936            0.0.0.0:*                           -                   \nudp        0      0 0.0.0.0:17500           0.0.0.0:*                           2496/dropbox        \nudp        0      0 0.0.0.0:5353            0.0.0.0:*                           -                   \nudp        0      0 0.0.0.0:50436           0.0.0.0:*                           -                   \nudp6       0      0 fe80::5054:ff:fede:c:53 :::*                                -                   \nudp6       0      0 :::111                  :::*                                -                   \nudp6       0      0 :::123                  :::*                                -                   \nudp6       0      0 ::1:323                 :::*                                -                   \nudp6       0      0 :::655                  :::*                                -                   \nudp6       0      0 :::9077                 :::*                                -"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7648621",
+						"comment_count": "3",
+						"who": {
+							"text": "psimerda",
+							"name": "Pavel Šimerda (pavlix)"
+						},
+						"bug_when": "2014-11-06 19:00:02 +0000",
+						"thetext": "OK, that was just a first guess."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7667095",
+						"comment_count": "4",
+						"who": {
+							"text": "jmontleo",
+							"name": "Jason Montleon"
+						},
+						"bug_when": "2014-11-12 20:00:03 +0000",
+						"thetext": "Also, if I kill the NetworkManager dnsmasq process before connecting to the VPN it works as expected."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7667163",
+						"comment_count": "5",
+						"who": {
+							"text": "jmontleo",
+							"name": "Jason Montleon"
+						},
+						"bug_when": "2014-11-12 20:27:15 +0000",
+						"thetext": "Putting sleep(2); in NetworkManager-0.9.10.0/src/dns-manager/nm-dns-plugin.c at line 177 above cmdline = g_strjoinv (\" \", (char **) argv);, building, and reinstalling seems to get it working as expected."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7668158",
+						"comment_count": "6",
+						"who": {
+							"text": "danielkza2",
+							"name": "Daniel Miranda"
+						},
+						"bug_when": "2014-11-13 04:39:42 +0000",
+						"thetext": "I'm seeing the same issue just by having my Wi-fi start up. This is quite annoying for me since I have a bit of an unusual setup: I have NetworkManager's dnsmasq forwarding to two other local dnsmasq instances, one for libvirt and one for Ethernet. When NM's dnsmasq goes down so do host name lookups for the other servers.\n\nSeems there is a similar bug being tracked upstream (https://bugzilla.gnome.org/show_bug.cgi?id=728342)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7845676",
+						"comment_count": "7",
+						"who": {
+							"text": "abokovoy",
+							"name": "Alexander Bokovoy"
+						},
+						"bug_when": "2015-01-14 20:50:46 +0000",
+						"thetext": "I have the split-dns setup working on Fedora 21, both with dnsmasq exclusively provided by NetworkManager and with a double-dnsmasq setup where a second dnsmasq is run by libvirtd.\n\nThe configuration works fine if I put \n$ cat /etc/NetworkManager/dnsmasq.d/interfaces \nlisten-address=127.0.0.1\nexcept-interface=enp0s25\nexcept-interface=wlp3s0\nexcept-interface=virbr0\nexcept-interface=virbr0-nic\n\nI.e. my NetworkManager-provided dnsmasq ignores actual networking interfaces _and_ virtual network interfaces from libvirtd.\n\nAnd for serving specific VPN-provided DNS views I have\n$ cat /etc/NetworkManager/dnsmasq.d/vpndns\ncache-size=2500\nservers-file=/etc/dnsmasq.vpndns\n\nwhere /etc/dnsmasq.vpndns contains series of lines\n\nserver=/vpn.domain/IP.ADDRESS\n\nto cover appropriate DNS configurations for private networks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7845782",
+						"comment_count": "8",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2015-01-14 21:40:16 +0000",
+						"thetext": "it's working in Rawhide for me (last time I checked, at least) so something's fixed it between 0.9.10 and 1.0, I guess..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7845907",
+						"comment_count": "9",
+						"who": {
+							"text": "dcbw",
+							"name": "Dan Williams"
+						},
+						"bug_when": "2015-01-14 22:41:15 +0000",
+						"thetext": "(In reply to Adam Williamson (Red Hat) from comment #8)\n> it's working in Rawhide for me (last time I checked, at least) so\n> something's fixed it between 0.9.10 and 1.0, I guess...\n\nActually I think you're just getting lucky.  Patch submitted upstream."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7912066",
+						"comment_count": "10",
+						"who": {
+							"text": "ipilcher",
+							"name": "Ian Pilcher"
+						},
+						"bug_when": "2015-02-05 15:39:17 +0000",
+						"thetext": "(In reply to Dan Williams from comment #9)\n> Actually I think you're just getting lucky.  Patch submitted upstream.\n\nIs this patch included in NetworkManager-0.9.10.1-2.fc21?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7956013",
+						"comment_count": "11",
+						"who": {
+							"text": "ipilcher",
+							"name": "Ian Pilcher"
+						},
+						"bug_when": "2015-02-18 15:49:26 +0000",
+						"thetext": "Hello?\n\nThis is bug is a massive PITA for those of us who travel a lot.  Can we please get some sort of build?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8206160",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-05 13:13:34 +0000",
+						"thetext": "NetworkManager-1.0.2-1.fc22,network-manager-applet-1.0.2-1.fc22,NetworkManager-openconnect-1.0.2-1.fc22,NetworkManager-openvpn-1.0.2-1.fc22,NetworkManager-vpnc-1.0.2-1.fc22,NetworkManager-openswan-1.0.2-1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/NetworkManager-1.0.2-1.fc22,network-manager-applet-1.0.2-1.fc22,NetworkManager-openconnect-1.0.2-1.fc22,NetworkManager-openvpn-1.0.2-1.fc22,NetworkManager-vpnc-1.0.2-1.fc22,NetworkManager-openswan-1.0.2-1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8209341",
+						"comment_count": "13",
+						"who": {
+							"text": "lrintel",
+							"name": "Lubomir Rintel"
+						},
+						"bug_when": "2015-05-06 10:16:20 +0000",
+						"thetext": "Triggered a scratch build for Fedora 21:\nhttp://koji.fedoraproject.org/koji/taskinfo?taskID=9665431"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8210464",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-06 14:58:50 +0000",
+						"thetext": "NetworkManager-0.9.10.2-4.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-7623/NetworkManager-0.9.10.2-4.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8219486",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-10 23:50:28 +0000",
+						"thetext": "Package NetworkManager-1.0.2-1.fc22, NetworkManager-openconnect-1.0.2-1.fc22, NetworkManager-vpnc-1.0.2-1.fc22, network-manager-applet-1.0.2-1.fc22, NetworkManager-openvpn-1.0.2-1.fc22, NetworkManager-openswan-1.0.2-1.fc22:\n* should fix your issue,\n* was pushed to the Fedora 22 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing NetworkManager-1.0.2-1.fc22 NetworkManager-openconnect-1.0.2-1.fc22 NetworkManager-vpnc-1.0.2-1.fc22 network-manager-applet-1.0.2-1.fc22 NetworkManager-openvpn-1.0.2-1.fc22 NetworkManager-openswan-1.0.2-1.fc22'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-7767/NetworkManager-1.0.2-1.fc22,network-manager-applet-1.0.2-1.fc22,NetworkManager-openconnect-1.0.2-1.fc22,NetworkManager-openvpn-1.0.2-1.fc22,NetworkManager-vpnc-1.0.2-1.fc22,NetworkManager-openswan-1.0.2-1.fc22\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8222350",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-11 19:04:21 +0000",
+						"thetext": "NetworkManager-1.0.2-1.fc22, NetworkManager-openconnect-1.0.2-1.fc22, NetworkManager-vpnc-1.0.2-1.fc22, network-manager-applet-1.0.2-1.fc22, NetworkManager-openvpn-1.0.2-1.fc22, NetworkManager-openswan-1.0.2-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8241313",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-17 06:42:22 +0000",
+						"thetext": "NetworkManager-0.9.10.2-5.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1168573,
+			"title": "nmcli doesn't indicate when Wi-Fi plugin is missing",
+			"bugzilla": {
+				"bug_id": "1168573",
+				"creation_ts": "2014-11-27 10:32:26 +0000",
+				"short_desc": "nmcli doesn't indicate when Wi-Fi plugin is missing",
+				"delta_ts": "2015-06-01 13:02:15 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7713413",
+						"comment_count": "0",
+						"who": {
+							"text": "ssssam",
+							"name": "Sam Thursfield"
+						},
+						"bug_when": "2014-11-27 10:32:26 +0000",
+						"thetext": "Description of problem:\n\nnmcli refuses to bring up my wireless device in Fedora 21 beta.\n\nI can't test with the NetworkManager applet due to a video driver issue that causes GNOME to not work.\n\nVersion-Release number of selected component (if applicable):\n\n$ nmcli --version\nnmcli tool, version 0.9.10.0-10.git20140704.fc21\n\nHow reproducible: always\n\nSteps to Reproduce:\n\n$ nmcli device\nDEVICE  TYPE      STATE      CONNECTION \nem1     ethernet  connected  enp2s1     \nlo      loopback  unmanaged  --         \nwlp2s2  wifi      unmanaged  --         \n\n$ nmcli device wifi list ifname wlp2s2\nError: Device 'wlp2s2' is not a Wi-Fi device.\n\nExpected results: wlp2s2 clearly is a Wi-Fi device and worked fine in Fedora 19\n\n\nAdditional info:\n\n$ lspci |grep Network\n02:02.0 Network controller: Intel Corporation PRO/Wireless 2200BG [Calexico2] Network Connection (rev 05)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7713422",
+						"comment_count": "1",
+						"who": {
+							"text": "ssssam",
+							"name": "Sam Thursfield"
+						},
+						"bug_when": "2014-11-27 10:35:08 +0000",
+						"thetext": "Note the device had a different name in Fedora 19, I forget what it was though."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7713999",
+						"comment_count": "2",
+						"who": {
+							"text": "jklimes",
+							"name": "Jirka Klimes"
+						},
+						"bug_when": "2014-11-27 13:36:22 +0000",
+						"thetext": "This might be due to missing NetworkManager-wifi package. Please check if it is installed (and install if it is not).\n\n$ rpm -q NetworkManager-wifi"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7717788",
+						"comment_count": "3",
+						"who": {
+							"text": "ssssam",
+							"name": "Sam Thursfield"
+						},
+						"bug_when": "2014-11-29 12:26:08 +0000",
+						"thetext": "Installing NetworkManager-wifi has fixed the issue! (I had some package conflict and had to swap NetworkManager-14.git20140704.fc21 for NetworkManager-13.git20140704.fc21 before I could install it). Thanks for your help!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8140343",
+						"comment_count": "4",
+						"who": {
+							"text": "jklimes",
+							"name": "Jirka Klimes"
+						},
+						"bug_when": "2015-04-14 13:44:48 +0000",
+						"thetext": "Re-opening the bug for better indication in nmcli of the possible not-installed-wifi-plugin problem.\n\nSee a patch in http://cgit.freedesktop.org/NetworkManager/NetworkManager/commit/?h=jk/nm-plugin-missing&id=0cefe02acbb2e3e945308309e65ce86c7e2caeb9\n\nThe problem of missing Wi-Fi plugin may occur, for example, when installing minimal Fedora installation on ARM, that doesn't install NetworkManager-wifi by default."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8159126",
+						"comment_count": "5",
+						"who": {
+							"text": "jklimes",
+							"name": "Jirka Klimes"
+						},
+						"bug_when": "2015-04-20 09:52:35 +0000",
+						"thetext": "The patch has been committed upstream:\ne304f04 cli: better indicate when a Wi-Fi plugin might not be available (rh #1168573) - nm-0-9-10\n70f375b cli: better indicate when a Wi-Fi plugin might not be available (rh #1168573) - nm-1-0\n823df33 cli: better indicate when a Wi-Fi plugin might not be available (rh #1168573) - master"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8206158",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-05 13:13:32 +0000",
+						"thetext": "NetworkManager-1.0.2-1.fc22,network-manager-applet-1.0.2-1.fc22,NetworkManager-openconnect-1.0.2-1.fc22,NetworkManager-openvpn-1.0.2-1.fc22,NetworkManager-vpnc-1.0.2-1.fc22,NetworkManager-openswan-1.0.2-1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/NetworkManager-1.0.2-1.fc22,network-manager-applet-1.0.2-1.fc22,NetworkManager-openconnect-1.0.2-1.fc22,NetworkManager-openvpn-1.0.2-1.fc22,NetworkManager-vpnc-1.0.2-1.fc22,NetworkManager-openswan-1.0.2-1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8210465",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-06 14:58:52 +0000",
+						"thetext": "NetworkManager-0.9.10.2-4.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-7623/NetworkManager-0.9.10.2-4.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8219485",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-10 23:50:22 +0000",
+						"thetext": "Package NetworkManager-1.0.2-1.fc22, NetworkManager-openconnect-1.0.2-1.fc22, NetworkManager-vpnc-1.0.2-1.fc22, network-manager-applet-1.0.2-1.fc22, NetworkManager-openvpn-1.0.2-1.fc22, NetworkManager-openswan-1.0.2-1.fc22:\n* should fix your issue,\n* was pushed to the Fedora 22 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing NetworkManager-1.0.2-1.fc22 NetworkManager-openconnect-1.0.2-1.fc22 NetworkManager-vpnc-1.0.2-1.fc22 network-manager-applet-1.0.2-1.fc22 NetworkManager-openvpn-1.0.2-1.fc22 NetworkManager-openswan-1.0.2-1.fc22'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-7767/NetworkManager-1.0.2-1.fc22,network-manager-applet-1.0.2-1.fc22,NetworkManager-openconnect-1.0.2-1.fc22,NetworkManager-openvpn-1.0.2-1.fc22,NetworkManager-vpnc-1.0.2-1.fc22,NetworkManager-openswan-1.0.2-1.fc22\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8222349",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-11 19:04:19 +0000",
+						"thetext": "NetworkManager-1.0.2-1.fc22, NetworkManager-openconnect-1.0.2-1.fc22, NetworkManager-vpnc-1.0.2-1.fc22, network-manager-applet-1.0.2-1.fc22, NetworkManager-openvpn-1.0.2-1.fc22, NetworkManager-openswan-1.0.2-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8241310",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-17 06:42:17 +0000",
+						"thetext": "NetworkManager-0.9.10.2-5.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8292779",
+						"comment_count": "11",
+						"who": {
+							"text": "jklimes",
+							"name": "Jirka Klimes"
+						},
+						"bug_when": "2015-06-01 13:02:15 +0000",
+						"thetext": "*** Bug 1195792 has been marked as a duplicate of this bug. ***"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1202729,
+			"title": "NetworkManager dbus-glib broken dependency in Fedora 21",
+			"bugzilla": {
+				"bug_id": "1202729",
+				"creation_ts": "2015-03-17 10:31:16 +0000",
+				"short_desc": "NetworkManager dbus-glib broken dependency in Fedora 21",
+				"delta_ts": "2015-05-22 12:21:54 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "CURRENTRELEASE",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8049330",
+						"comment_count": "0",
+						"who": {
+							"text": "stefw",
+							"name": "Stef Walter"
+						},
+						"bug_when": "2015-03-17 10:31:16 +0000",
+						"thetext": "Description of problem:\n\nAfter updating NetworkManager on Fedora 21, there is a runtime linker error.\n\n/usr/sbin/NetworkManager: symbol lookup error: /usr/sbin/NetworkManager: undefined symbol: dbus_g_method_invocation_get_g_connection\n\ndbus-glib version 0.102 or later is required.\n\nBrought to you by Cockpit CI.\n\nVersion-Release number of selected component (if applicable):\n\nNetworkManager 0.9.10 or later\n\nHow reproducible:\n\nUpdate NetworkManager without updating dbus-glib. dbus-glib is \n\nSteps to Reproduce:\n1. yum update NetworkManager\n\nActual results:\n\n/usr/sbin/NetworkManager: symbol lookup error: /usr/sbin/NetworkManager: undefined symbol: dbus_g_method_invocation_get_g_connection\n\nExpected results:\n\nNetworkManager starts and the system gets an IP address"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8049343",
+						"comment_count": "1",
+						"who": {
+							"text": "stefw",
+							"name": "Stef Walter"
+						},
+						"bug_when": "2015-03-17 10:33:25 +0000",
+						"thetext": "Created attachment 1002751\nNetworkManager: dbus-glib dependency"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8049351",
+						"comment_count": "2",
+						"who": {
+							"text": "stefw",
+							"name": "Stef Walter"
+						},
+						"bug_when": "2015-03-17 10:35:11 +0000",
+						"thetext": "Created attachment 1002752\nNetworkManager: dbus-glib dependency"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8201219",
+						"comment_count": "3",
+						"who": {
+							"text": "jklimes",
+							"name": "Jirka Klimes"
+						},
+						"bug_when": "2015-05-04 09:03:45 +0000",
+						"thetext": "Committed to dist-git. Thanks Stef."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8201467",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-04 10:10:52 +0000",
+						"thetext": "NetworkManager-0.9.10.2-3.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/NetworkManager-0.9.10.2-3.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8241312",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-17 06:42:20 +0000",
+						"thetext": "NetworkManager-0.9.10.2-5.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1203904,
+			"title": "NetworkManager-openvpn uses 100% CPU",
+			"bugzilla": {
+				"bug_id": "1203904",
+				"creation_ts": "2015-03-19 22:37:29 +0000",
+				"short_desc": "NetworkManager-openvpn uses 100% CPU",
+				"delta_ts": "2015-08-25 13:44:01 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8065599",
+						"comment_count": "0",
+						"who": {
+							"text": "generalpenguin89",
+							"name": "Patrick MacArthur"
+						},
+						"bug_when": "2015-03-19 22:37:29 +0000",
+						"thetext": "Description of problem:\n\nWhen connecting to a VPN that pushes a moderately complex set of routes to the client, the connection succeeds but uses 100% CPU and spams the logs with the same message over and over again.  This issue does not occur when connecting to a VPN which pushes only a single default route.\n\nVersion-Release number of selected component (if applicable):\n\nNetworkManager-0.9.10.1-3.20150219git.fc21.x86_64\nNetworkManager-openvpn-1.0.0-1.fc21.1.x86_64\n\nHow reproducible:\n\nConnect to an openvpn server which pushes something like the following two routes:\n0.0.0.0/1 -> gateway\n128.0.0.0/1 -> gateway\n\nSteps to Reproduce:\n1. Set up VPN in NetworkManager client configuration.\n2. Connect to VPN.\n3. Examine CPU usage with something like top.\n\nActual results:\n\nNetworkManager indicates that the VPN is up, but does not print out all expected log messages to the systemd journal, and spams the journal with the following message over and over again:\n\nMar 19 14:57:18 lancelot NetworkManager[9062]: <error> [1426802238.475451] [devices/nm-device.c:1750] nm_device_generate_connection(): (tap0): Generated connection does not verify: ipv4.routes: 1. route is invalid\n\nExpected results:\nNetworkManager indicates that the VPN is up and prints messages into the systemd journal concluding with \"Activation (tap0) successful, device activated.\"\n\n\nAdditional info:"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8067581",
+						"comment_count": "1",
+						"who": {
+							"text": "jklimes",
+							"name": "Jirka Klimes"
+						},
+						"bug_when": "2015-03-20 14:00:13 +0000",
+						"thetext": "I reproduced that by setting up testing OpenVPN server using sample files from \n/usr/share/doc/openvpn/sample/...\nand adding\npush \"route remote_host 255.255.255.255 net_gateway\"\npush \"route 0.0.0.0 128.0.0.0 10.8.0.5\"\npush \"route 128.0.0.0 128.0.0.0 10.8.0.5\"\nto server.conf\n\nThe problem is that 0.0.0.0/1 is denied in libnm-util verify() as invalid.\n\nThe NM 1.0 and master seems fine. It uses libnm instead and there might be other fixes as well.\n\nTest scratch build with a fix:\nhttp://koji.fedoraproject.org/koji/taskinfo?taskID=9279924"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8067588",
+						"comment_count": "2",
+						"who": {
+							"text": "jklimes",
+							"name": "Jirka Klimes"
+						},
+						"bug_when": "2015-03-20 14:01:58 +0000",
+						"thetext": "Created attachment 1004532\n[PATCH] fix loop in NM on 0.0.0.0/1 route\n\nAllow 0.0.0.0/1 route in libnm-util:verify()"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8067681",
+						"comment_count": "3",
+						"who": {
+							"text": "thaller",
+							"name": "Thomas Haller"
+						},
+						"bug_when": "2015-03-20 14:28:00 +0000",
+						"thetext": "(In reply to Jirka Klimes from comment #2)\n> Created attachment 1004532 [details]\n> [PATCH] fix loop in NM on 0.0.0.0/1 route\n> \n> Allow 0.0.0.0/1 route in libnm-util:verify()\n\nthis looks right.\n\n\nThe loop of regenerating and failing a connection would also need fixing, right?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8067703",
+						"comment_count": "4",
+						"who": {
+							"text": "thaller",
+							"name": "Thomas Haller"
+						},
+						"bug_when": "2015-03-20 14:32:14 +0000",
+						"thetext": "Shouldn't we also verify the routes in libnm-util/nm-setting-ip6-config.c?\n\n\nand actually, it should be\n\n-         if (!nm_ip4_route_get_dest (route)) {\n+         if (prefix == 0) {\n\n\nwe want to reject here default routes -- which is a route with prefix==0."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8068203",
+						"comment_count": "5",
+						"who": {
+							"text": "generalpenguin89",
+							"name": "Patrick MacArthur"
+						},
+						"bug_when": "2015-03-20 16:34:40 +0000",
+						"thetext": "(In reply to Jirka Klimes from comment #1)\n> I reproduced that by setting up testing OpenVPN server using sample files\n> from \n> /usr/share/doc/openvpn/sample/...\n> and adding\n> push \"route remote_host 255.255.255.255 net_gateway\"\n> push \"route 0.0.0.0 128.0.0.0 10.8.0.5\"\n> push \"route 128.0.0.0 128.0.0.0 10.8.0.5\"\n> to server.conf\n> \n> The problem is that 0.0.0.0/1 is denied in libnm-util verify() as invalid.\n> \n> The NM 1.0 and master seems fine. It uses libnm instead and there might be\n> other fixes as well.\n> \n> Test scratch build with a fix:\n> http://koji.fedoraproject.org/koji/taskinfo?taskID=9279924\n\nThe scratch build fixed the issue for me."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8072351",
+						"comment_count": "6",
+						"who": {
+							"text": "jklimes",
+							"name": "Jirka Klimes"
+						},
+						"bug_when": "2015-03-23 08:26:09 +0000",
+						"thetext": "Created attachment 1005246\n[PATCH] fix loop in NM on 0.0.0.0/1 route\n\nActually, we can just remove the 'if (!nm_ip4_route_get_dest (route)' check.\nThere's no such check for IPv6 routes."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8072373",
+						"comment_count": "7",
+						"who": {
+							"text": "thaller",
+							"name": "Thomas Haller"
+						},
+						"bug_when": "2015-03-23 08:33:01 +0000",
+						"thetext": "(In reply to Jirka Klimes from comment #6)\n> Created attachment 1005246 [details]\n> [PATCH] fix loop in NM on 0.0.0.0/1 route\n> \n> Actually, we can just remove the 'if (!nm_ip4_route_get_dest (route)' check.\n> There's no such check for IPv6 routes.\n\nyes, the !prefix check below is enough.\n\nI think ipv6 should validate the routes too, as it does for ipv4.\n\n\n\nit still needs fixing of the loop when the generated connection does not verify."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8072433",
+						"comment_count": "8",
+						"who": {
+							"text": "jklimes",
+							"name": "Jirka Klimes"
+						},
+						"bug_when": "2015-03-23 08:55:19 +0000",
+						"thetext": "(In reply to Thomas Haller from comment #7)\n> (In reply to Jirka Klimes from comment #6)\n> > Created attachment 1005246 [details]\n> > [PATCH] fix loop in NM on 0.0.0.0/1 route\n> > \n> > Actually, we can just remove the 'if (!nm_ip4_route_get_dest (route)' check.\n> > There's no such check for IPv6 routes.\n> \n> yes, the !prefix check below is enough.\n> \n> I think ipv6 should validate the routes too, as it does for ipv4.\n>\nIn the next patch iteraction.\n\n> \n> it still needs fixing of the loop when the generated connection does not\n> verify.\nYes, we should look into it. But actually it is independent of the routes verification and can be done separately later."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8072435",
+						"comment_count": "9",
+						"who": {
+							"text": "jklimes",
+							"name": "Jirka Klimes"
+						},
+						"bug_when": "2015-03-23 08:55:46 +0000",
+						"thetext": "Created attachment 1005251\n[PATCH] fix loop in NM on 0.0.0.0/1 route"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8074756",
+						"comment_count": "10",
+						"who": {
+							"text": "dcbw",
+							"name": "Dan Williams"
+						},
+						"bug_when": "2015-03-23 17:00:35 +0000",
+						"thetext": "Looks fine to me.  On 1.0+ Thomas did some work to allow 0.0.0.0 routes in the settings specifically, which is why they work OK.  0.9.10 doesn't have those enhancements so the best we can do is work around it for situations like this."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8077424",
+						"comment_count": "11",
+						"who": {
+							"text": "jklimes",
+							"name": "Jirka Klimes"
+						},
+						"bug_when": "2015-03-24 11:36:19 +0000",
+						"thetext": "Committed upstream:\nba35c63 libnm-util: allow 0.0.0.0/1 route in verify() (rh #1203904) - master\ncd5c904 libnm-util: allow 0.0.0.0/1 route in verify() (rh #1203904) - nm-1-0\n5a09a12 libnm-util: allow 0.0.0.0/1 route in verify() (rh #1203904) - nm-0-9-10"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8077512",
+						"comment_count": "12",
+						"who": {
+							"text": "thaller",
+							"name": "Thomas Haller"
+						},
+						"bug_when": "2015-03-24 11:56:33 +0000",
+						"thetext": "(In reply to Jirka Klimes from comment #8)\n> (In reply to Thomas Haller from comment #7)\n> > it still needs fixing of the loop when the generated connection does not\n> > verify.\n> Yes, we should look into it. But actually it is independent of the routes\n> verification and can be done separately later.\n\nleaving bug in NEW to fix ^^^ :)\n\nThe larger bug is IMO that hell breaks loose if we generate an invalid connection."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8201468",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-04 10:10:53 +0000",
+						"thetext": "NetworkManager-0.9.10.2-3.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/NetworkManager-0.9.10.2-3.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8206161",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-05 13:13:37 +0000",
+						"thetext": "NetworkManager-1.0.2-1.fc22,network-manager-applet-1.0.2-1.fc22,NetworkManager-openconnect-1.0.2-1.fc22,NetworkManager-openvpn-1.0.2-1.fc22,NetworkManager-vpnc-1.0.2-1.fc22,NetworkManager-openswan-1.0.2-1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/NetworkManager-1.0.2-1.fc22,network-manager-applet-1.0.2-1.fc22,NetworkManager-openconnect-1.0.2-1.fc22,NetworkManager-openvpn-1.0.2-1.fc22,NetworkManager-vpnc-1.0.2-1.fc22,NetworkManager-openswan-1.0.2-1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8218516",
+						"comment_count": "15",
+						"who": {
+							"text": "generalpenguin89",
+							"name": "Patrick MacArthur"
+						},
+						"bug_when": "2015-05-09 21:36:50 +0000",
+						"thetext": "I can confirm that the issue is no longer present with NetworkManager-0.9.10.2-3.fc21."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8219487",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-10 23:50:33 +0000",
+						"thetext": "Package NetworkManager-1.0.2-1.fc22, NetworkManager-openconnect-1.0.2-1.fc22, NetworkManager-vpnc-1.0.2-1.fc22, network-manager-applet-1.0.2-1.fc22, NetworkManager-openvpn-1.0.2-1.fc22, NetworkManager-openswan-1.0.2-1.fc22:\n* should fix your issue,\n* was pushed to the Fedora 22 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing NetworkManager-1.0.2-1.fc22 NetworkManager-openconnect-1.0.2-1.fc22 NetworkManager-vpnc-1.0.2-1.fc22 network-manager-applet-1.0.2-1.fc22 NetworkManager-openvpn-1.0.2-1.fc22 NetworkManager-openswan-1.0.2-1.fc22'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-7767/NetworkManager-1.0.2-1.fc22,network-manager-applet-1.0.2-1.fc22,NetworkManager-openconnect-1.0.2-1.fc22,NetworkManager-openvpn-1.0.2-1.fc22,NetworkManager-vpnc-1.0.2-1.fc22,NetworkManager-openswan-1.0.2-1.fc22\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8222351",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-11 19:04:23 +0000",
+						"thetext": "NetworkManager-1.0.2-1.fc22, NetworkManager-openconnect-1.0.2-1.fc22, NetworkManager-vpnc-1.0.2-1.fc22, network-manager-applet-1.0.2-1.fc22, NetworkManager-openvpn-1.0.2-1.fc22, NetworkManager-openswan-1.0.2-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8241309",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-17 06:42:14 +0000",
+						"thetext": "NetworkManager-0.9.10.2-5.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8573254",
+						"comment_count": "19",
+						"who": {
+							"text": "sukhamayganguly",
+							"name": "sukhamay"
+						},
+						"bug_when": "2015-08-25 13:44:01 +0000",
+						"thetext": "fedora not take update"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1205195,
+			"title": "_nl_get_vtable: assertion 'vtable.handle' failed",
+			"bugzilla": {
+				"bug_id": "1205195",
+				"creation_ts": "2015-03-24 12:40:04 +0000",
+				"short_desc": "_nl_get_vtable: assertion 'vtable.handle' failed",
+				"delta_ts": "2015-05-17 06:42:29 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1211859",
+						"creation_ts": "2015-04-15 06:23:42 +0000",
+						"short_desc": "_nl_get_vtable: assertion 'vtable.handle' failed",
+						"delta_ts": "2019-07-11 08:56:36 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1205195"
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:2315",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "8142581",
+								"comment_count": "0",
+								"who": {
+									"text": "qzhang",
+									"name": "Qunfang Zhang"
+								},
+								"bug_when": "2015-04-15 06:23:42 +0000",
+								"thetext": "Also hit this bug for rhel7.1-z kernel:\nkernel-3.10.0-229.2.1.el7\n\n\n+++ This bug was initially created as a clone of Bug #1205195 +++\n\nDescription of problem:\nNetworkManager displays following error when starting:\n\n_nl_get_vtable: assertion 'vtable.handle' failed\n\n\n[root@localhost ~]# systemctl -n 200 -l status NetworkManager\n● NetworkManager.service - Network Manager\n   Loaded: loaded (/usr/lib/systemd/system/NetworkManager.service; enabled; vendor preset: enabled)\n   Active: active (running) since Tue 2015-03-24 12:25:34 CET; 47min ago\n Main PID: 559 (NetworkManager)\n   CGroup: /system.slice/NetworkManager.service\n           ├─559 /usr/sbin/NetworkManager --no-daemon\n           └─882 /sbin/dhclient -d -q -sf /usr/libexec/nm-dhcp-helper -pf /var/run/dhclient-ens3.pid -lf /var/lib/NetworkManager/dhclient-8cfa7efd-e8a8-4020-9fe2-2b6896dd208c-ens3.lease -cf /var/lib/NetworkManager/dhclient-ens3.conf ens3\n\nMar 24 12:25:34 localhost.localdomain systemd[1]: Starting Network Manager...\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  NetworkManager (version 1.0.0-8.fc22) is starting...\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  Read config: /etc/NetworkManager/NetworkManager.conf\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  WEXT support is enabled\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  Acquired D-Bus service com.redhat.ifcfgrh1\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  Loaded plugin ifcfg-rh: (c) 2007 - 2013 Red Hat, Inc.  To report bugs please use the NetworkManager mailing list.\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  Loaded plugin keyfile: (c) 2007 - 2013 Red Hat, Inc.  To report bugs please use the NetworkManager mailing list.\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  parsing /etc/sysconfig/network-scripts/ifcfg-lo ...\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  parsing /etc/sysconfig/network-scripts/ifcfg-ens3 ...\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>      read connection 'ens3'\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  monitoring kernel firmware directory '/lib/firmware'.\nMar 24 12:25:34 localhost.localdomain systemd[1]: Started Network Manager.\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  WiFi enabled by radio killswitch; enabled by state file\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  WWAN enabled by radio killswitch; enabled by state file\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  WiMAX enabled by radio killswitch; enabled by state file\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  Networking is enabled by state file\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (lo): link connected\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (lo): carrier is ON\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (lo): new Generic device (driver: 'unknown' ifindex: 1)\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (lo): exported as /org/freedesktop/NetworkManager/Devices/0\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): carrier is OFF\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): new Ethernet device (driver: '8139cp' ifindex: 2)\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): exported as /org/freedesktop/NetworkManager/Devices/1\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): device state change: unmanaged -> unavailable (reason 'managed') [10 20 2]\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): link connected\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): preparing device\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): device state change: unavailable -> disconnected (reason 'none') [20 30 0]\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  Auto-activating connection 'ens3'.\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: starting connection 'ens3'\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 1 of 5 (Device Prepare) scheduled...\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 1 of 5 (Device Prepare) started...\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): device state change: disconnected -> prepare (reason 'none') [30 40 0]\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  NetworkManager state is now CONNECTING\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 2 of 5 (Device Configure) scheduled...\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 1 of 5 (Device Prepare) complete.\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 2 of 5 (Device Configure) starting...\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): device state change: prepare -> config (reason 'none') [40 50 0]\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 2 of 5 (Device Configure) successful.\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 2 of 5 (Device Configure) complete.\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 3 of 5 (IP Configure Start) scheduled.\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 3 of 5 (IP Configure Start) started...\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): device state change: config -> ip-config (reason 'none') [50 70 0]\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  Activation (ens3) Beginning DHCPv4 transaction (timeout in 45 seconds)\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  dhclient started with pid 882\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 3 of 5 (IP Configure Start) complete.\nMar 24 12:25:35 localhost.localdomain dhclient[882]: DHCPREQUEST on ens3 to 255.255.255.255 port 67 (xid=0x1a292852)\nMar 24 12:25:35 localhost.localdomain dhclient[882]: DHCPACK from 192.168.122.1 (xid=0x1a292852)\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>    address 192.168.122.201\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>    plen 24 (255.255.255.0)\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>    gateway 192.168.122.1\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>    server identifier 192.168.122.1\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>    lease time 3600\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>    nameserver '192.168.122.1'\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): DHCPv4 state changed unknown -> bound\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 5 of 5 (IPv4 Configure Commit) scheduled...\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 5 of 5 (IPv4 Commit) started...\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: _nl_get_vtable: assertion 'vtable.handle' failed\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): device state change: ip-config -> ip-check (reason 'none') [70 80 0]\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 5 of 5 (IPv4 Commit) complete.\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): device state change: ip-check -> secondaries (reason 'none') [80 90 0]\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): device state change: secondaries -> activated (reason 'none') [90 100 0]\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  NetworkManager state is now CONNECTED_LOCAL\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  NetworkManager state is now CONNECTED_GLOBAL\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  Policy set 'ens3' (ens3) as default for IPv4 routing and DNS.\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: successful, device activated.\nMar 24 12:25:35 localhost.localdomain dhclient[882]: bound to 192.168.122.201 -- renewal in 1390 seconds.\nMar 24 12:25:40 localhost.localdomain NetworkManager[559]: <info>  startup complete\nMar 24 12:26:07 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 4 of 5 (IPv6 Configure Timeout) scheduled...\nMar 24 12:26:07 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 4 of 5 (IPv6 Configure Timeout) started...\nMar 24 12:26:07 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 4 of 5 (IPv6 Configure Timeout) complete.\nMar 24 12:48:45 localhost.localdomain dhclient[882]: DHCPREQUEST on ens3 to 192.168.122.1 port 67 (xid=0x1a292852)\nMar 24 12:48:45 localhost.localdomain dhclient[882]: DHCPACK from 192.168.122.1 (xid=0x1a292852)\nMar 24 12:48:45 localhost.localdomain NetworkManager[559]: <info>    address 192.168.122.201\nMar 24 12:48:45 localhost.localdomain NetworkManager[559]: <info>    plen 24 (255.255.255.0)\nMar 24 12:48:45 localhost.localdomain NetworkManager[559]: <info>    gateway 192.168.122.1\nMar 24 12:48:45 localhost.localdomain NetworkManager[559]: <info>    server identifier 192.168.122.1\nMar 24 12:48:45 localhost.localdomain NetworkManager[559]: <info>    lease time 3600\nMar 24 12:48:45 localhost.localdomain NetworkManager[559]: <info>    nameserver '192.168.122.1'\nMar 24 12:48:45 localhost.localdomain NetworkManager[559]: <info>  (ens3): DHCPv4 state changed bound -> bound\nMar 24 12:48:45 localhost.localdomain dhclient[882]: bound to 192.168.122.201 -- renewal in 1639 seconds.\n\nVersion-Release number of selected component (if applicable):\nNetworkManager-1.0.0-8.fc22\n\nHow reproducible:\nalways\n\nSteps to Reproduce:\n1. Install F22 and reboot\n2. run \"journalctl -b\" and search for \"_nl_get_vtable\"\n\nActual results:\n_nl_get_vtable: assertion 'vtable.handle' failed\n\nExpected results:\nno error\n\n--- Additional comment from Jirka Klimes on 2015-03-25 10:38:54 EDT ---\n\nlibnl-3.so link is only present when libnl3-devel is installed.\n\n--- Additional comment from Dan Williams on 2015-03-27 18:01:16 EDT ---\n\nLooks OK to me, but obviously this will now break when libnl bumps it's major soname.  I guess at that point it's a major ABI break so we'll have to change NM too, but I wonder if there's a way to make sure we don't forget this bit.  Anyway, not a blocker for me right now.\n\n--- Additional comment from Jirka Klimes on 2015-03-30 05:48:07 EDT ---\n\nCommitted to upstream master:\nd767fb1 platform: load libnl-3.so.200, not libnl-3.so (rh #1205195)\n\n(In reply to Dan Williams from comment #2)\n> Looks OK to me, but obviously this will now break when libnl bumps it's\n> major soname.  I guess at that point it's a major ABI break so we'll have to\n> change NM too, but I wonder if there's a way to make sure we don't forget\n> this bit.\n\nlibnl doesn't apparently change major soname often. But, of course, it would be nice to have an automatic check. Some configure.ac magic, perhaps?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8226006",
+								"comment_count": "2",
+								"who": {
+									"text": "thaller",
+									"name": "Thomas Haller"
+								},
+								"bug_when": "2015-05-12 16:03:25 +0000",
+								"thetext": "Upstream fix is http://cgit.freedesktop.org/NetworkManager/NetworkManager/commit/?id=d767fb160c36bd9dc339e343ebac58274204ad4f"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8237975",
+								"comment_count": "3",
+								"who": {
+									"text": "thaller",
+									"name": "Thomas Haller"
+								},
+								"bug_when": "2015-05-15 08:09:09 +0000",
+								"thetext": "*** Bug 1221744 has been marked as a duplicate of this bug. ***"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8628395",
+								"comment_count": "5",
+								"who": {
+									"text": "vbenes",
+									"name": "Vladimir Benes"
+								},
+								"bug_when": "2015-09-11 14:32:16 +0000",
+								"thetext": "no errors in journal, link is libnl-3.so.200 is opened instead of libnl-3.so which was just present in libnl3-devel package. Both libnl-3.so and libnl-3.so.200 point to libnl-3.so.200.16.1."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8838896",
+								"comment_count": "6",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-11-19 11:01:40 +0000",
+								"thetext": "Since the problem described in this bug report should be\nresolved in a recent advisory, it has been closed with a\nresolution of ERRATA.\n\nFor information on the advisory, and where to find the updated\nfiles, follow the link below.\n\nIf the solution does not work for you, open a new bug report.\n\nhttps://rhn.redhat.com/errata/RHSA-2015-2315.html"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8077675",
+						"comment_count": "0",
+						"who": {
+							"text": "jstodola",
+							"name": "Jan Stodola"
+						},
+						"bug_when": "2015-03-24 12:40:04 +0000",
+						"thetext": "Description of problem:\nNetworkManager displays following error when starting:\n\n_nl_get_vtable: assertion 'vtable.handle' failed\n\n\n[root@localhost ~]# systemctl -n 200 -l status NetworkManager\n● NetworkManager.service - Network Manager\n   Loaded: loaded (/usr/lib/systemd/system/NetworkManager.service; enabled; vendor preset: enabled)\n   Active: active (running) since Tue 2015-03-24 12:25:34 CET; 47min ago\n Main PID: 559 (NetworkManager)\n   CGroup: /system.slice/NetworkManager.service\n           ├─559 /usr/sbin/NetworkManager --no-daemon\n           └─882 /sbin/dhclient -d -q -sf /usr/libexec/nm-dhcp-helper -pf /var/run/dhclient-ens3.pid -lf /var/lib/NetworkManager/dhclient-8cfa7efd-e8a8-4020-9fe2-2b6896dd208c-ens3.lease -cf /var/lib/NetworkManager/dhclient-ens3.conf ens3\n\nMar 24 12:25:34 localhost.localdomain systemd[1]: Starting Network Manager...\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  NetworkManager (version 1.0.0-8.fc22) is starting...\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  Read config: /etc/NetworkManager/NetworkManager.conf\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  WEXT support is enabled\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  Acquired D-Bus service com.redhat.ifcfgrh1\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  Loaded plugin ifcfg-rh: (c) 2007 - 2013 Red Hat, Inc.  To report bugs please use the NetworkManager mailing list.\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  Loaded plugin keyfile: (c) 2007 - 2013 Red Hat, Inc.  To report bugs please use the NetworkManager mailing list.\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  parsing /etc/sysconfig/network-scripts/ifcfg-lo ...\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  parsing /etc/sysconfig/network-scripts/ifcfg-ens3 ...\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>      read connection 'ens3'\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  monitoring kernel firmware directory '/lib/firmware'.\nMar 24 12:25:34 localhost.localdomain systemd[1]: Started Network Manager.\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  WiFi enabled by radio killswitch; enabled by state file\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  WWAN enabled by radio killswitch; enabled by state file\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  WiMAX enabled by radio killswitch; enabled by state file\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  Networking is enabled by state file\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (lo): link connected\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (lo): carrier is ON\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (lo): new Generic device (driver: 'unknown' ifindex: 1)\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (lo): exported as /org/freedesktop/NetworkManager/Devices/0\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): carrier is OFF\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): new Ethernet device (driver: '8139cp' ifindex: 2)\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): exported as /org/freedesktop/NetworkManager/Devices/1\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): device state change: unmanaged -> unavailable (reason 'managed') [10 20 2]\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): link connected\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): preparing device\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): device state change: unavailable -> disconnected (reason 'none') [20 30 0]\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  Auto-activating connection 'ens3'.\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: starting connection 'ens3'\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 1 of 5 (Device Prepare) scheduled...\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 1 of 5 (Device Prepare) started...\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): device state change: disconnected -> prepare (reason 'none') [30 40 0]\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  NetworkManager state is now CONNECTING\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 2 of 5 (Device Configure) scheduled...\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 1 of 5 (Device Prepare) complete.\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 2 of 5 (Device Configure) starting...\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): device state change: prepare -> config (reason 'none') [40 50 0]\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 2 of 5 (Device Configure) successful.\nMar 24 12:25:34 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 2 of 5 (Device Configure) complete.\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 3 of 5 (IP Configure Start) scheduled.\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 3 of 5 (IP Configure Start) started...\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): device state change: config -> ip-config (reason 'none') [50 70 0]\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  Activation (ens3) Beginning DHCPv4 transaction (timeout in 45 seconds)\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  dhclient started with pid 882\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 3 of 5 (IP Configure Start) complete.\nMar 24 12:25:35 localhost.localdomain dhclient[882]: DHCPREQUEST on ens3 to 255.255.255.255 port 67 (xid=0x1a292852)\nMar 24 12:25:35 localhost.localdomain dhclient[882]: DHCPACK from 192.168.122.1 (xid=0x1a292852)\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>    address 192.168.122.201\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>    plen 24 (255.255.255.0)\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>    gateway 192.168.122.1\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>    server identifier 192.168.122.1\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>    lease time 3600\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>    nameserver '192.168.122.1'\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): DHCPv4 state changed unknown -> bound\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 5 of 5 (IPv4 Configure Commit) scheduled...\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 5 of 5 (IPv4 Commit) started...\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: _nl_get_vtable: assertion 'vtable.handle' failed\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): device state change: ip-config -> ip-check (reason 'none') [70 80 0]\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 5 of 5 (IPv4 Commit) complete.\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): device state change: ip-check -> secondaries (reason 'none') [80 90 0]\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): device state change: secondaries -> activated (reason 'none') [90 100 0]\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  NetworkManager state is now CONNECTED_LOCAL\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  NetworkManager state is now CONNECTED_GLOBAL\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  Policy set 'ens3' (ens3) as default for IPv4 routing and DNS.\nMar 24 12:25:35 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: successful, device activated.\nMar 24 12:25:35 localhost.localdomain dhclient[882]: bound to 192.168.122.201 -- renewal in 1390 seconds.\nMar 24 12:25:40 localhost.localdomain NetworkManager[559]: <info>  startup complete\nMar 24 12:26:07 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 4 of 5 (IPv6 Configure Timeout) scheduled...\nMar 24 12:26:07 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 4 of 5 (IPv6 Configure Timeout) started...\nMar 24 12:26:07 localhost.localdomain NetworkManager[559]: <info>  (ens3): Activation: Stage 4 of 5 (IPv6 Configure Timeout) complete.\nMar 24 12:48:45 localhost.localdomain dhclient[882]: DHCPREQUEST on ens3 to 192.168.122.1 port 67 (xid=0x1a292852)\nMar 24 12:48:45 localhost.localdomain dhclient[882]: DHCPACK from 192.168.122.1 (xid=0x1a292852)\nMar 24 12:48:45 localhost.localdomain NetworkManager[559]: <info>    address 192.168.122.201\nMar 24 12:48:45 localhost.localdomain NetworkManager[559]: <info>    plen 24 (255.255.255.0)\nMar 24 12:48:45 localhost.localdomain NetworkManager[559]: <info>    gateway 192.168.122.1\nMar 24 12:48:45 localhost.localdomain NetworkManager[559]: <info>    server identifier 192.168.122.1\nMar 24 12:48:45 localhost.localdomain NetworkManager[559]: <info>    lease time 3600\nMar 24 12:48:45 localhost.localdomain NetworkManager[559]: <info>    nameserver '192.168.122.1'\nMar 24 12:48:45 localhost.localdomain NetworkManager[559]: <info>  (ens3): DHCPv4 state changed bound -> bound\nMar 24 12:48:45 localhost.localdomain dhclient[882]: bound to 192.168.122.201 -- renewal in 1639 seconds.\n\nVersion-Release number of selected component (if applicable):\nNetworkManager-1.0.0-8.fc22\n\nHow reproducible:\nalways\n\nSteps to Reproduce:\n1. Install F22 and reboot\n2. run \"journalctl -b\" and search for \"_nl_get_vtable\"\n\nActual results:\n_nl_get_vtable: assertion 'vtable.handle' failed\n\nExpected results:\nno error"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8082601",
+						"comment_count": "1",
+						"who": {
+							"text": "jklimes",
+							"name": "Jirka Klimes"
+						},
+						"bug_when": "2015-03-25 14:38:54 +0000",
+						"thetext": "Created attachment 1006344\n[PATCH] fix dlopen-ing libnl3\n\nlibnl-3.so link is only present when libnl3-devel is installed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8092948",
+						"comment_count": "2",
+						"who": {
+							"text": "dcbw",
+							"name": "Dan Williams"
+						},
+						"bug_when": "2015-03-27 22:01:16 +0000",
+						"thetext": "Looks OK to me, but obviously this will now break when libnl bumps it's major soname.  I guess at that point it's a major ABI break so we'll have to change NM too, but I wonder if there's a way to make sure we don't forget this bit.  Anyway, not a blocker for me right now."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8096298",
+						"comment_count": "3",
+						"who": {
+							"text": "jklimes",
+							"name": "Jirka Klimes"
+						},
+						"bug_when": "2015-03-30 09:48:07 +0000",
+						"thetext": "Committed to upstream master:\nd767fb1 platform: load libnl-3.so.200, not libnl-3.so (rh #1205195)\n\n(In reply to Dan Williams from comment #2)\n> Looks OK to me, but obviously this will now break when libnl bumps it's\n> major soname.  I guess at that point it's a major ABI break so we'll have to\n> change NM too, but I wonder if there's a way to make sure we don't forget\n> this bit.\n\nlibnl doesn't apparently change major soname often. But, of course, it would be nice to have an automatic check. Some configure.ac magic, perhaps?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8206154",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-05 13:13:28 +0000",
+						"thetext": "NetworkManager-1.0.2-1.fc22,network-manager-applet-1.0.2-1.fc22,NetworkManager-openconnect-1.0.2-1.fc22,NetworkManager-openvpn-1.0.2-1.fc22,NetworkManager-vpnc-1.0.2-1.fc22,NetworkManager-openswan-1.0.2-1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/NetworkManager-1.0.2-1.fc22,network-manager-applet-1.0.2-1.fc22,NetworkManager-openconnect-1.0.2-1.fc22,NetworkManager-openvpn-1.0.2-1.fc22,NetworkManager-vpnc-1.0.2-1.fc22,NetworkManager-openswan-1.0.2-1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8210467",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-06 14:58:56 +0000",
+						"thetext": "NetworkManager-0.9.10.2-4.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-7623/NetworkManager-0.9.10.2-4.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8219483",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-10 23:50:16 +0000",
+						"thetext": "Package NetworkManager-1.0.2-1.fc22, NetworkManager-openconnect-1.0.2-1.fc22, NetworkManager-vpnc-1.0.2-1.fc22, network-manager-applet-1.0.2-1.fc22, NetworkManager-openvpn-1.0.2-1.fc22, NetworkManager-openswan-1.0.2-1.fc22:\n* should fix your issue,\n* was pushed to the Fedora 22 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing NetworkManager-1.0.2-1.fc22 NetworkManager-openconnect-1.0.2-1.fc22 NetworkManager-vpnc-1.0.2-1.fc22 network-manager-applet-1.0.2-1.fc22 NetworkManager-openvpn-1.0.2-1.fc22 NetworkManager-openswan-1.0.2-1.fc22'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-7767/NetworkManager-1.0.2-1.fc22,network-manager-applet-1.0.2-1.fc22,NetworkManager-openconnect-1.0.2-1.fc22,NetworkManager-openvpn-1.0.2-1.fc22,NetworkManager-vpnc-1.0.2-1.fc22,NetworkManager-openswan-1.0.2-1.fc22\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8222347",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-11 19:04:12 +0000",
+						"thetext": "NetworkManager-1.0.2-1.fc22, NetworkManager-openconnect-1.0.2-1.fc22, NetworkManager-vpnc-1.0.2-1.fc22, network-manager-applet-1.0.2-1.fc22, NetworkManager-openvpn-1.0.2-1.fc22, NetworkManager-openswan-1.0.2-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8241315",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-17 06:42:29 +0000",
+						"thetext": "NetworkManager-0.9.10.2-5.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1209902,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-2924 NetworkManager: denial of service (DoS) attack against IPv6 network stacks due to improper handling of Router Advertisements",
+			"bugzilla": {
+				"bug_id": "1209902",
+				"alias": "CVE-2015-2924",
+				"creation_ts": "2015-04-08 12:39:48 +0000",
+				"short_desc": "CVE-2015-2924 NetworkManager: denial of service (DoS) attack against IPv6 network stacks due to improper handling of Router Advertisements",
+				"delta_ts": "2019-09-29 13:31:09 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened, Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1209903",
+					"1217090"
+				],
+				"blocked": [
+					{
+						"bug_id": "1209904",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1210268",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2015:2315",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8123200",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-04-08 12:39:48 +0000",
+						"thetext": "This issue is similar to CVE-2015-2922 (bug 1203712).\nThis might refer to the code below:\n\nhttp://cgit.freedesktop.org/NetworkManager/NetworkManager/tree/src/rdisc/nm-lndp-rdisc.c\n...\n  hop_limit = ndp_msgra_curhoplimit (msgra);\n  if (rdisc->hop_limit != hop_limit) {\n          rdisc->hop_limit = hop_limit;\n          changed |= NM_RDISC_CONFIG_HOP_LIMIT;\n...\n\nCVE was assigned here: http://seclists.org/oss-sec/2015/q2/46"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8123204",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-04-08 12:40:17 +0000",
+						"thetext": "\nCreated NetworkManager tracking bugs for this issue:\n\nAffects: fedora-all [bug 1209903]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8124202",
+						"comment_count": "3",
+						"who": {
+							"text": "thaller",
+							"name": "Thomas Haller"
+						},
+						"bug_when": "2015-04-08 15:58:34 +0000",
+						"thetext": "Created attachment 1012277\npatch only to increase (not decrease) the hop-limit"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8168942",
+						"comment_count": "4",
+						"who": {
+							"text": "lrintel",
+							"name": "Lubomir Rintel"
+						},
+						"bug_when": "2015-04-22 14:26:38 +0000",
+						"thetext": "-\t/* don't allow unreasonable small values */\n+\t/* don't allow unreasonably small values */\n\nLGTM"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8190052",
+						"comment_count": "5",
+						"who": {
+							"text": "bgalvani",
+							"name": "Beniamino Galvani"
+						},
+						"bug_when": "2015-04-29 09:56:29 +0000",
+						"thetext": "On current master the patch needs to be rebased after 2316d233e36d, anyway looks OK to me."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8190579",
+						"comment_count": "6",
+						"who": {
+							"text": "thaller",
+							"name": "Thomas Haller"
+						},
+						"bug_when": "2015-04-29 12:30:15 +0000",
+						"thetext": "merged to\n\nmaster: http://cgit.freedesktop.org/NetworkManager/NetworkManager/commit/?id=bdaaf9849b0cacf131b71fa2ae168f5db796874f\n\nnm-1-0: http://cgit.freedesktop.org/NetworkManager/NetworkManager/commit/?id=6e8c5b51b16c6a60a533ce753bcc54b7e2e703ca"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8191469",
+						"comment_count": "8",
+						"who": {
+							"text": "thaller",
+							"name": "Thomas Haller"
+						},
+						"bug_when": "2015-04-29 14:16:16 +0000",
+						"thetext": "(In reply to Thomas Haller from comment #6)\n> merged to\n> \n> master:\n> http://cgit.freedesktop.org/NetworkManager/NetworkManager/commit/\n> ?id=bdaaf9849b0cacf131b71fa2ae168f5db796874f\n> \n> nm-1-0:\n> http://cgit.freedesktop.org/NetworkManager/NetworkManager/commit/\n> ?id=6e8c5b51b16c6a60a533ce753bcc54b7e2e703ca\n\nand nm-0-9-10: http://cgit.freedesktop.org/NetworkManager/NetworkManager/commit/?id=d195edb95a543f7eebbd0a164e8ff3bef599370a\n\n\nThis issue doesn't affect NetworkManager on RHEL-6, as NM on RHEL-6 doesn't do RA/SLAAC in userspace."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8222355",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-11 19:04:31 +0000",
+						"thetext": "NetworkManager-1.0.2-1.fc22, NetworkManager-openconnect-1.0.2-1.fc22, NetworkManager-vpnc-1.0.2-1.fc22, network-manager-applet-1.0.2-1.fc22, NetworkManager-openvpn-1.0.2-1.fc22, NetworkManager-openswan-1.0.2-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8241314",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-17 06:42:26 +0000",
+						"thetext": "NetworkManager-0.9.10.2-5.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8769221",
+						"comment_count": "11",
+						"who": {
+							"text": "dcbw",
+							"name": "Dan Williams"
+						},
+						"bug_when": "2015-10-30 14:52:42 +0000",
+						"thetext": "*** Bug 1199276 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8838894",
+						"comment_count": "12",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-11-19 11:01:24 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:2315 https://rhn.redhat.com/errata/RHSA-2015-2315.html"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1209903,
+			"security": true,
+			"title": "CVE-2015-2924 NetworkManager: denial of service (DoS) attack against IPv6 network stacks due to improper handling of Router Advertisements [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1209903",
+				"creation_ts": "2015-04-08 12:40:12 +0000",
+				"short_desc": "CVE-2015-2924 NetworkManager: denial of service (DoS) attack against IPv6 network stacks due to improper handling of Router Advertisements [fedora-all]",
+				"delta_ts": "2015-05-17 06:42:19 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1209902",
+						"alias": "CVE-2015-2924",
+						"creation_ts": "2015-04-08 12:39:48 +0000",
+						"short_desc": "CVE-2015-2924 NetworkManager: denial of service (DoS) attack against IPv6 network stacks due to improper handling of Router Advertisements",
+						"delta_ts": "2019-09-29 13:31:09 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Reopened, Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1209903",
+							"1217090"
+						],
+						"blocked": [
+							{
+								"bug_id": "1209904",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1210268",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:2315",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "8123200",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-04-08 12:39:48 +0000",
+								"thetext": "This issue is similar to CVE-2015-2922 (bug 1203712).\nThis might refer to the code below:\n\nhttp://cgit.freedesktop.org/NetworkManager/NetworkManager/tree/src/rdisc/nm-lndp-rdisc.c\n...\n  hop_limit = ndp_msgra_curhoplimit (msgra);\n  if (rdisc->hop_limit != hop_limit) {\n          rdisc->hop_limit = hop_limit;\n          changed |= NM_RDISC_CONFIG_HOP_LIMIT;\n...\n\nCVE was assigned here: http://seclists.org/oss-sec/2015/q2/46"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8123204",
+								"comment_count": "1",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-04-08 12:40:17 +0000",
+								"thetext": "\nCreated NetworkManager tracking bugs for this issue:\n\nAffects: fedora-all [bug 1209903]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8124202",
+								"comment_count": "3",
+								"who": {
+									"text": "thaller",
+									"name": "Thomas Haller"
+								},
+								"bug_when": "2015-04-08 15:58:34 +0000",
+								"thetext": "Created attachment 1012277\npatch only to increase (not decrease) the hop-limit"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8168942",
+								"comment_count": "4",
+								"who": {
+									"text": "lrintel",
+									"name": "Lubomir Rintel"
+								},
+								"bug_when": "2015-04-22 14:26:38 +0000",
+								"thetext": "-\t/* don't allow unreasonable small values */\n+\t/* don't allow unreasonably small values */\n\nLGTM"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8190052",
+								"comment_count": "5",
+								"who": {
+									"text": "bgalvani",
+									"name": "Beniamino Galvani"
+								},
+								"bug_when": "2015-04-29 09:56:29 +0000",
+								"thetext": "On current master the patch needs to be rebased after 2316d233e36d, anyway looks OK to me."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8190579",
+								"comment_count": "6",
+								"who": {
+									"text": "thaller",
+									"name": "Thomas Haller"
+								},
+								"bug_when": "2015-04-29 12:30:15 +0000",
+								"thetext": "merged to\n\nmaster: http://cgit.freedesktop.org/NetworkManager/NetworkManager/commit/?id=bdaaf9849b0cacf131b71fa2ae168f5db796874f\n\nnm-1-0: http://cgit.freedesktop.org/NetworkManager/NetworkManager/commit/?id=6e8c5b51b16c6a60a533ce753bcc54b7e2e703ca"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8191469",
+								"comment_count": "8",
+								"who": {
+									"text": "thaller",
+									"name": "Thomas Haller"
+								},
+								"bug_when": "2015-04-29 14:16:16 +0000",
+								"thetext": "(In reply to Thomas Haller from comment #6)\n> merged to\n> \n> master:\n> http://cgit.freedesktop.org/NetworkManager/NetworkManager/commit/\n> ?id=bdaaf9849b0cacf131b71fa2ae168f5db796874f\n> \n> nm-1-0:\n> http://cgit.freedesktop.org/NetworkManager/NetworkManager/commit/\n> ?id=6e8c5b51b16c6a60a533ce753bcc54b7e2e703ca\n\nand nm-0-9-10: http://cgit.freedesktop.org/NetworkManager/NetworkManager/commit/?id=d195edb95a543f7eebbd0a164e8ff3bef599370a\n\n\nThis issue doesn't affect NetworkManager on RHEL-6, as NM on RHEL-6 doesn't do RA/SLAAC in userspace."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8222355",
+								"comment_count": "9",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-05-11 19:04:31 +0000",
+								"thetext": "NetworkManager-1.0.2-1.fc22, NetworkManager-openconnect-1.0.2-1.fc22, NetworkManager-vpnc-1.0.2-1.fc22, network-manager-applet-1.0.2-1.fc22, NetworkManager-openvpn-1.0.2-1.fc22, NetworkManager-openswan-1.0.2-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8241314",
+								"comment_count": "10",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-05-17 06:42:26 +0000",
+								"thetext": "NetworkManager-0.9.10.2-5.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8769221",
+								"comment_count": "11",
+								"who": {
+									"text": "dcbw",
+									"name": "Dan Williams"
+								},
+								"bug_when": "2015-10-30 14:52:42 +0000",
+								"thetext": "*** Bug 1199276 has been marked as a duplicate of this bug. ***"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8838894",
+								"comment_count": "12",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-11-19 11:01:24 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:2315 https://rhn.redhat.com/errata/RHSA-2015-2315.html"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8123202",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-04-08 12:40:12 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8123203",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-04-08 12:40:16 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1209902,1209903\n\n# Description of your update\nnotes=Security fix for CVE-2015-2924\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1209902,1209903"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8206155",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-05 13:13:30 +0000",
+						"thetext": "NetworkManager-1.0.2-1.fc22,network-manager-applet-1.0.2-1.fc22,NetworkManager-openconnect-1.0.2-1.fc22,NetworkManager-openvpn-1.0.2-1.fc22,NetworkManager-vpnc-1.0.2-1.fc22,NetworkManager-openswan-1.0.2-1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/NetworkManager-1.0.2-1.fc22,network-manager-applet-1.0.2-1.fc22,NetworkManager-openconnect-1.0.2-1.fc22,NetworkManager-openvpn-1.0.2-1.fc22,NetworkManager-vpnc-1.0.2-1.fc22,NetworkManager-openswan-1.0.2-1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8210466",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-06 14:58:55 +0000",
+						"thetext": "NetworkManager-0.9.10.2-4.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-7623/NetworkManager-0.9.10.2-4.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8219484",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-10 23:50:20 +0000",
+						"thetext": "Package NetworkManager-1.0.2-1.fc22, NetworkManager-openconnect-1.0.2-1.fc22, NetworkManager-vpnc-1.0.2-1.fc22, network-manager-applet-1.0.2-1.fc22, NetworkManager-openvpn-1.0.2-1.fc22, NetworkManager-openswan-1.0.2-1.fc22:\n* should fix your issue,\n* was pushed to the Fedora 22 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing NetworkManager-1.0.2-1.fc22 NetworkManager-openconnect-1.0.2-1.fc22 NetworkManager-vpnc-1.0.2-1.fc22 network-manager-applet-1.0.2-1.fc22 NetworkManager-openvpn-1.0.2-1.fc22 NetworkManager-openswan-1.0.2-1.fc22'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-7767/NetworkManager-1.0.2-1.fc22,network-manager-applet-1.0.2-1.fc22,NetworkManager-openconnect-1.0.2-1.fc22,NetworkManager-openvpn-1.0.2-1.fc22,NetworkManager-vpnc-1.0.2-1.fc22,NetworkManager-openswan-1.0.2-1.fc22\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8222348",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-11 19:04:16 +0000",
+						"thetext": "NetworkManager-1.0.2-1.fc22, NetworkManager-openconnect-1.0.2-1.fc22, NetworkManager-vpnc-1.0.2-1.fc22, network-manager-applet-1.0.2-1.fc22, NetworkManager-openvpn-1.0.2-1.fc22, NetworkManager-openswan-1.0.2-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8241311",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-17 06:42:19 +0000",
+						"thetext": "NetworkManager-0.9.10.2-5.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "NetworkManager-0.9.10.2-5.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "NetworkManager-debuginfo",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "NetworkManager-glib-devel",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "NetworkManager-devel",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "NetworkManager-glib",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "NetworkManager-config-connectivity-fedora",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "NetworkManager-wifi",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "NetworkManager-config-server",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "NetworkManager-adsl",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "NetworkManager",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "NetworkManager-wwan",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "NetworkManager-tui",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "NetworkManager-bluetooth",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "NetworkManager-config-server",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "NetworkManager-wifi",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "NetworkManager-wwan",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "NetworkManager-glib-devel",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "NetworkManager-glib",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "NetworkManager-bluetooth",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "NetworkManager-devel",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "NetworkManager-tui",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "NetworkManager-debuginfo",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "NetworkManager-config-connectivity-fedora",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "NetworkManager",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "NetworkManager-adsl",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "NetworkManager",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "NetworkManager-tui",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "NetworkManager-glib",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "NetworkManager-adsl",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "NetworkManager-config-connectivity-fedora",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "NetworkManager",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "NetworkManager-devel",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "NetworkManager-glib-devel",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "NetworkManager-bluetooth",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "NetworkManager-config-server",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "NetworkManager-wifi",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "NetworkManager-wwan",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "NetworkManager-debuginfo",
+						"epoch": 1,
+						"version": "0.9.10.2",
+						"release": "5.fc21",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 296134,
+			"text": "This update has been submitted for testing by jklimes. ",
+			"timestamp": "2015-05-04 10:10:56",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296135,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/66800/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-05-04 10:27:12",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 296136,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/66800/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-05-04 10:27:42",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 296137,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2015-05-05 12:18:26",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296138,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2015-05-05 12:30:17",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296139,
+			"karma": 1,
+			"timestamp": "2015-05-06 09:25:16",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/2159e6118f51fc375f527c5a9ff84a1004ea894b6420dff2d79222ff1f407a81?s=24&d=retro",
+				"email": "lkundrak@v3.sk",
+				"groups": [
+					{
+						"name": "security_respons"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "svnsystem-config-rootpassword"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "svnkf"
+					},
+					{
+						"name": "cvsl10n"
+					},
+					{
+						"name": "cvsredhat-config-keyboard"
+					},
+					{
+						"name": "cvssystem-config-keyboard"
+					},
+					{
+						"name": "gitperl-rpm2"
+					},
+					{
+						"name": "cvsfedora"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "gitastronomy"
+					},
+					{
+						"name": "svnsystem-config-keyboard"
+					},
+					{
+						"name": "gitsystem-config-kdump"
+					},
+					{
+						"name": "network-manager-maint"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "qa"
+					}
+				],
+				"id": 231,
+				"name": "lkundrak",
+				"openid": "lkundrak.id.fedoraproject.org"
+			},
+			"user_id": 231
+		},
+		{
+			"id": 296140,
+			"text": "lkundrak has edited this update. New build(s): NetworkManager-0.9.10.2-4.fc21. Removed build(s): NetworkManager-0.9.10.2-3.fc21.",
+			"timestamp": "2015-05-06 14:57:33",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296141,
+			"text": "This update has been submitted for testing by lkundrak. ",
+			"timestamp": "2015-05-06 14:59:00",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296142,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/67757/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-05-06 15:12:00",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 296143,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/67757/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-05-06 15:14:23",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 296144,
+			"karma": 1,
+			"timestamp": "2015-05-08 11:27:19",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/11c0c655ac86d42a77ec9b0e1bc2b8d40dc866fed523b2992c02d79fe007808b?s=24&d=retro",
+				"email": "dan.dim@seznam.cz",
+				"groups": [
+					{}
+				],
+				"id": 202,
+				"name": "dandim",
+				"openid": "dandim.id.fedoraproject.org"
+			},
+			"user_id": 202
+		},
+		{
+			"id": 296145,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2015-05-09 07:10:16",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296146,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2015-05-09 07:20:26",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296147,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-05-11 00:07:33",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296148,
+			"text": "lkundrak has edited this update. New build(s): NetworkManager-0.9.10.2-5.fc21. Removed build(s): NetworkManager-0.9.10.2-4.fc21.",
+			"timestamp": "2015-05-11 09:37:32",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296149,
+			"text": "This update has been submitted for testing by lkundrak. ",
+			"timestamp": "2015-05-11 09:37:54",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296150,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/69129/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-05-11 19:32:13",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 296151,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/69129/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-05-11 19:34:38",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 296152,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2015-05-12 00:20:36",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296153,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-05-12 20:39:19",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296154,
+			"karma": 1,
+			"timestamp": "2015-05-13 04:12:19",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/2087ddb84fdf1774c00fc96323f629621c9046b99eee2aa497044f598f3979d4?s=24&d=retro",
+				"email": "yuwatana@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					}
+				],
+				"id": 125,
+				"name": "yuwata",
+				"openid": "yuwata.id.fedoraproject.org"
+			},
+			"user_id": 125
+		},
+		{
+			"id": 296155,
+			"karma": 1,
+			"timestamp": "2015-05-15 15:34:03",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/2159e6118f51fc375f527c5a9ff84a1004ea894b6420dff2d79222ff1f407a81?s=24&d=retro",
+				"email": "lkundrak@v3.sk",
+				"groups": [
+					{
+						"name": "security_respons"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "svnsystem-config-rootpassword"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "svnkf"
+					},
+					{
+						"name": "cvsl10n"
+					},
+					{
+						"name": "cvsredhat-config-keyboard"
+					},
+					{
+						"name": "cvssystem-config-keyboard"
+					},
+					{
+						"name": "gitperl-rpm2"
+					},
+					{
+						"name": "cvsfedora"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "gitastronomy"
+					},
+					{
+						"name": "svnsystem-config-keyboard"
+					},
+					{
+						"name": "gitsystem-config-kdump"
+					},
+					{
+						"name": "network-manager-maint"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "qa"
+					}
+				],
+				"id": 231,
+				"name": "lkundrak",
+				"openid": "lkundrak.id.fedoraproject.org"
+			},
+			"user_id": 231
+		},
+		{
+			"id": 296156,
+			"text": "Critical path update approved",
+			"timestamp": "2015-05-15 15:34:07",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296157,
+			"text": "This update has reached the stable karma threshold and will be pushed to the stable updates repository",
+			"timestamp": "2015-05-15 15:34:12",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296158,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/70467/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-05-15 15:42:21",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 296159,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2015-05-16 16:40:30",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 296160,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-05-17 06:42:30",
+			"update_id": 35336,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_modified": "2015-05-11 09:37:48",
+	"date_pushed": "2015-05-17 06:42:30",
+	"date_stable": "2015-05-17 06:42:30",
+	"date_submitted": "2015-05-04 10:10:44",
+	"date_testing": "2015-05-12 20:39:19",
+	"karma": 2,
+	"meets_testing_requirements": true,
+	"notes": "This update for NetworkManager fixes a number of bugs and a low-impact security issue for IPv6.",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_cases": [
+		{
+			"id": 93,
+			"name": "QA/TestCases/NM Mobile Broadband"
+		},
+		{
+			"id": 92,
+			"name": "QA/TestCases/NM VPN OpenVPN"
+		},
+		{
+			"id": 94,
+			"name": "QA/TestCases/NM VPN vpnc"
+		},
+		{
+			"id": 95,
+			"name": "QA/TestCases/NM WEP"
+		},
+		{
+			"id": 97,
+			"name": "QA/TestCases/NM WPA"
+		},
+		{
+			"id": 96,
+			"name": "QA/TestCases/NM Wifi"
+		},
+		{
+			"id": 98,
+			"name": "QA:Testcase DNS-over-SSL"
+		},
+		{
+			"id": 99,
+			"name": "QA:Testcase DNSSEC-trigger"
+		},
+		{
+			"id": 284,
+			"name": "QA:Testcase NM Bonding"
+		},
+		{
+			"id": 285,
+			"name": "QA:Testcase NM Ethernet"
+		},
+		{
+			"id": 286,
+			"name": "QA:Testcase NM Gnome Hotspot"
+		},
+		{
+			"id": 287,
+			"name": "QA:Testcase NM KDE Hotspot"
+		},
+		{
+			"id": 289,
+			"name": "QA:Testcase NM Wireless"
+		},
+		{
+			"id": 288,
+			"name": "QA:Testcase NM nmcli"
+		},
+		{
+			"id": 100,
+			"name": "QA:Testcase NetworkManager assume"
+		},
+		{
+			"id": 101,
+			"name": "QA:Testcase NetworkManager bt pan"
+		},
+		{
+			"id": 282,
+			"name": "QA:Testcase NetworkManager celldata"
+		},
+		{
+			"id": 283,
+			"name": "QA:Testcase NetworkManager ipv6"
+		}
+	],
+	"title": "NetworkManager-0.9.10.2-5.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-7623",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-7623",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/6fc4f36dfaf253abca8322075e2d22cbdb017c68f8be3716583c8bc804af08d1?s=24&d=retro",
+		"email": "blueowl@centrum.cz",
+		"groups": [
+			{
+				"name": "packager"
+			}
+		],
+		"id": 963,
+		"name": "jklimes",
+		"openid": "jklimes.id.fedoraproject.org"
+	},
+	"version_hash": "0ac358f8f2cf19710101e521d61a3541f970e482"
+}

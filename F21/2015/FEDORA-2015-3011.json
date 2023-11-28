@@ -1,0 +1,4178 @@
+{
+	"alias": "FEDORA-2015-3011",
+	"bugs": [
+		{
+			"bug_id": 1188439,
+			"title": "Dell XPS 13 9343 (2015) touchpad freeze",
+			"bugzilla": {
+				"bug_id": "1188439",
+				"creation_ts": "2015-02-02 22:04:29 +0000",
+				"short_desc": "Dell XPS 13 9343 (2015) touchpad freeze",
+				"delta_ts": "2017-10-26 15:34:03 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7901547",
+						"comment_count": "0",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-02 22:04:29 +0000",
+						"thetext": "I've installed Fedora 21 on a Dell XPS 13 9343 (2015 model) and I'm seeing some peculiar trackpad freezes.  I can use the trackpad for a good while but then it will refuse to move around the screen any longer.  Clicks (left, right, and middle) seem to work but the pointer is locked in place.\n\nIf I use 'evtest' to monitor the device, I see constant X/Y and button input when I use trackpad (even when the pointer freezes on screen).  However, if I use 'xinput --test' with the device, I do not see any X/Y input (only clicks) in the terminal.  If I keep mashing the touchpad with different finger combinations, the device will eventually start working again.\n\nCould this be a possible problem in the X driver for synaptics since the kernel still sees activity with evtest?\n\nThis happens under kernels 3.17.4, 3.18.3, and 3.18.5.  I've tried xorg-x11-drv-synaptics-1.8.1-2.fc21 from updatest-testing but it has no impact.\n\n$ xinput --list\n⎡ Virtual core pointer                    \tid=2\t[master pointer  (3)]\n⎜   ↳ Virtual core XTEST pointer              \tid=4\t[slave  pointer  (2)]\n⎜   ↳ Logitech Unifying Device. Wireless PID:101a\tid=12\t[slave  pointer  (2)]\n⎜   ↳ ELAN Touchscreen                        \tid=13\t[slave  pointer  (2)]\n⎜   ↳ DLL0665:01 06CB:76AD UNKNOWN            \tid=15\t[slave  pointer  (2)]\n⎜   ↳ SynPS/2 Synaptics TouchPad              \tid=17\t[slave  pointer  (2)]\n⎣ Virtual core keyboard                   \tid=3\t[master keyboard (2)]\n    ↳ Virtual core XTEST keyboard             \tid=5\t[slave  keyboard (3)]\n    ↳ Power Button                            \tid=6\t[slave  keyboard (3)]\n    ↳ Video Bus                               \tid=7\t[slave  keyboard (3)]\n    ↳ Power Button                            \tid=8\t[slave  keyboard (3)]\n    ↳ Sleep Button                            \tid=9\t[slave  keyboard (3)]\n    ↳ Apple Inc. Apple Keyboard               \tid=10\t[slave  keyboard (3)]\n    ↳ Apple Inc. Apple Keyboard               \tid=11\t[slave  keyboard (3)]\n    ↳ Integrated_Webcam_HD                    \tid=14\t[slave  keyboard (3)]\n    ↳ AT Translated Set 2 keyboard            \tid=16\t[slave  keyboard (3)]\n    ↳ Dell WMI hotkeys                        \tid=18\t[slave  keyboard (3)]\n\n$ lsmod | grep hid\nhid_rmi                17521  0 \nhid_multitouch         17419  0 \ni2c_hid                18719  0 \nhid_logitech_dj        18447  0"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7901602",
+						"comment_count": "1",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-02 22:40:06 +0000",
+						"thetext": "If I load the i2c_hid module with debug=1, I see tons of debug output from the i2c_hid module in the system journal even with X shows the pointer as frozen."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7905768",
+						"comment_count": "2",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-02-04 00:28:35 +0000",
+						"thetext": "compile this little test program here and run it when the touchpad is frozen:\nhttp://people.freedesktop.org/~whot/grabtest.c\nthat should tell you if there's a frozen grab or if it's stuck elsewhere.\n\ndid you spot any pattern yet by any chance? e.g. tends to freeze after a click, a tap, or something? If so you may be able to reproduce it reliably, at which point you can hopefully get an evemu recording off it.\n\nIf not, run evemu-record anyway to get a recording of when it happens. Restart evemu frequently so that when it hits the recording is (hopefully) only of the last couple of seconds rather than a 30 minute recording. when you have a recording, reply it locally to see if you can reproduce the issue with the recording - from then on it should be fairly simple to fix."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7906000",
+						"comment_count": "3",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-04 03:14:39 +0000",
+						"thetext": "Created attachment 987906\nevemu-record output\n\nI ran evemu-record and tried to reproduce the freeze.  It seems to happen when I apply two fingers to the trackpad for a right-click tap or click or for a two finger vertical scroll.  If I try to do a vertical scroll with two fingers, it's like the touchpad gets stuck in scrolling mode and won't let me move the pointer again -- even if I remove all fingers from the touchpad for several seconds.\n\nOften times if I use two ringers to do a right click, the touchpad will freeze.  The only way to release is to wildly click with one or two fingers until the pointer starts moving again or the touchpad gets into a horrible state and I have to modprobe -r hid_multitouch to bring it back. ;)\n\nHowever, I did find that if I *always* use only one finger, the touchpad doesn't freeze.  Two or three finger clicks/gestures cause it to freeze almost immediately.\n\nI did find it unusual that evemu reported that the touchpad has a BTN_LEFT event but no BTN_RIGHT:\n\n#   Event type 1 (EV_KEY)\n#     Event code 272 (BTN_LEFT)\n#     Event code 325 (BTN_TOOL_FINGER)\n#     Event code 330 (BTN_TOUCH)\n#     Event code 333 (BTN_TOOL_DOUBLETAP)\n#     Event code 334 (BTN_TOOL_TRIPLETAP)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7906001",
+						"comment_count": "4",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-04 03:16:08 +0000",
+						"thetext": "Xorg logs also report the touchpad as a \"catchall touchpad\".  Should I be placing an xorg config file into /etc/X11/xorg.conf.d/ to force the touchpad to use a certain driver?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7906121",
+						"comment_count": "5",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-02-04 04:32:57 +0000",
+						"thetext": "(In reply to Major Hayden from comment #3)\n> I did find it unusual that evemu reported that the touchpad has a BTN_LEFT\n> event but no BTN_RIGHT:\n\nthat's normal these days, most touchpads don't have a right button anymore, it's all software-emulated.\n\n(In reply to Major Hayden from comment #4)\n> Xorg logs also report the touchpad as a \"catchall touchpad\".  Should I be\n> placing an xorg config file into /etc/X11/xorg.conf.d/ to force the touchpad\n> to use a certain driver?\n\nnope, that's fine, it assigns the synaptics driver as should happen. Attach your Xorg.log anyway please"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7906139",
+						"comment_count": "6",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-02-04 04:46:23 +0000",
+						"thetext": "did this recording reproduce the bug? I'm running it here and I can see a right click and some moving around but no freeze.\n\nCan you reproduce it with this recording yourself? sudo evemu-play /dev/input/eventX < recordings-file, with X being your touchpad. If that reproduces it, try replaying it through a uinput device, i.e.\nsudo evemu-device recordings-file\nprints an event node, replay through that event node. Does that reproduce the freeze?\n\nThe event sequence itself looks normal, from what I can tell."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7907633",
+						"comment_count": "7",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-04 13:08:11 +0000",
+						"thetext": "Hey Peter -- I apologize for not being as detailed last night as I should have been.  I left out a bunch! :)\n\nI ran your grabtest script in a loop while I was using the touchpad and it showed success even through two touchpad \"freezes\" in GNOME.  I never saw it say anything other than \"success\" in a 4-5 minute road test.\n\nI tested the evemu output from last night with evemu-play this morning and the movements all look normal.  I didn't see any lockups or freezes on screen when I replayed the data from last night.  However, the touchpad was in its usual frozen state AFTER the playback was done.\n\nAfter going back over the evemu-record output, it seems that this sequence makes the touchpad freeze:\n\nE: 1.050649 0001 0145 0000\t# EV_KEY / BTN_TOOL_FINGER      0\nE: 1.050649 0001 014d 0001\t# EV_KEY / BTN_TOOL_DOUBLETAP   1\n\nThis normally shows up if I apply more than one finger to the pad for vertical scrolling or a right-click.  I'm unable to do two-finger or three-finger taps on the pad -- they don't register in X.  Only single finger taps have any effect.\n\nI'll get you the Xorg logs this evening.  Let me know if there's anything else to test in the meantime."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7907894",
+						"comment_count": "8",
+						"who": {
+							"text": "darkbasic",
+							"name": "Niccolò Belli"
+						},
+						"bug_when": "2015-02-04 14:16:20 +0000",
+						"thetext": "Hi Major, just for curiosity: did you try with xf86-input-libinput instead of evdev/synaptics?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7907997",
+						"comment_count": "9",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-04 14:39:30 +0000",
+						"thetext": "Niccolò: I did.  However, I couldn't get the configuration file structured correctly in /etc/X11/xorg.conf.d/.  I tried quite a few different variations but X wouldn't start.  Do you have a sample config I could try?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7908041",
+						"comment_count": "10",
+						"who": {
+							"text": "darkbasic",
+							"name": "Niccolò Belli"
+						},
+						"bug_when": "2015-02-04 14:50:01 +0000",
+						"thetext": "Unfortunately not, libinput is on my to-do list but I will try it when I will receive my XPS 13 (next week, max two weeks from now). In the meantime I pinged peoples in the xf86-input-libinput gentoo bug report, I will let you know if someone actually succeeded."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7908839",
+						"comment_count": "11",
+						"who": {
+							"text": "darkbasic",
+							"name": "Niccolò Belli"
+						},
+						"bug_when": "2015-02-04 17:28:34 +0000",
+						"thetext": "Major: Here it is:\nhttp://cgit.freedesktop.org/xorg/driver/xf86-input-libinput/tree/conf/99-libinput.conf"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7909005",
+						"comment_count": "12",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-04 18:49:23 +0000",
+						"thetext": "That looks easy enough, Niccolò! I'll try it this evening."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7909670",
+						"comment_count": "13",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-05 00:20:26 +0000",
+						"thetext": "Created attachment 988341\nunmodified F21 xorg logs from 2015-02-04\n\nHere's the Xorg logs from the laptop.  I haven't modified any Xorg configs.  They're the F21 defaults."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7909691",
+						"comment_count": "14",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-05 00:36:24 +0000",
+						"thetext": "I did find this backtrace in the log that looks interesting:\n\n(EE) Backtrace:\n(EE) 0: /usr/lib64/xorg/modules/input/synaptics_drv.so (_init+0x2bbf) [\n(EE) 1: /usr/lib64/xorg/modules/input/synaptics_drv.so (_init+0x4f42) [\n(EE) 2: /usr/libexec/Xorg.bin (DPMSSupported+0xe8) [0x4774c8]\n(EE) 3: /usr/libexec/Xorg.bin (xf86SerialModemClearBits+0x277) [0x4a1ec7]\n(EE) 4: /lib64/libc.so.6 (__restore_rt+0x0) [0x7f30162f894f]\n(EE) 5: /lib64/libc.so.6 (__select_nocancel+0x2a) [0x7f30163bb04a]\n(EE) 6: /usr/libexec/Xorg.bin (WaitForSomething+0x1b4) [0x595904]\n(EE) 7: /usr/libexec/Xorg.bin (SendErrorToClient+0x111) [0x438fd1]\n(EE) 8: /usr/libexec/Xorg.bin (remove_fs_handlers+0x416) [0x43d316]\n(EE) 9: /lib64/libc.so.6 (__libc_start_main+0xf0) [0x7f30162e3fe0]\n(EE) 10: /usr/libexec/Xorg.bin (_start+0x29) [0x4276ee]\n(EE) 11: ? (?+0x29) [0x29]\n(EE)\n(EE) [dix] DLL0665:01 06CB:76AD UNKNOWN: unable to find touch point 1\n(EE) BUG: triggered 'if (priv->num_active_touches > priv->num_slots)'\n(EE) BUG: synaptics.c:2969 in UpdateTouchState()\n\nIt was repeated two or three times.\n\nAlso, I did test libinput tonight.  The touchpad still locked up with more than one finger on the pad."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7909692",
+						"comment_count": "15",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-05 00:38:23 +0000",
+						"thetext": "It seems like this condition happened before: https://bugzilla.redhat.com/show_bug.cgi?id=877464"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7910640",
+						"comment_count": "16",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-02-05 09:46:20 +0000",
+						"thetext": "(In reply to Major Hayden from comment #7)\n> After going back over the evemu-record output, it seems that this sequence\n> makes the touchpad freeze:\n> \n> E: 1.050649 0001 0145 0000\t# EV_KEY / BTN_TOOL_FINGER      0\n> E: 1.050649 0001 014d 0001\t# EV_KEY / BTN_TOOL_DOUBLETAP   1\n\nthat's expected behaviour. FINGER, DOUBLETAP, TRIPLETAP, etc. are the markers for one, two, three, etc. fingers on the touchpad. Not all touchpads support proper multitouch but some can tell when there's more than one finger on the touchpad, hence the special keys.\n\nnothing interesting in the log, but the BUG message is a hint, that usually happens when the touchpoint count is wrong. The trick is getting an evemu recording that reproduces it, without it it's a lot of guesswork.\nGenerally once you get the message once all bets are off and you need to restart X, it can only get worse. (there was a very common bug that triggered this after suspend but that has been fixed since, so I doubt anything you find in bugzilla is a duplicate)\n\nAlso, if libinput suffers from the same issue it's almost certainly some issue with the kernel event sequence.\n\nFinal note: the sequence you attached leaves one touchpoint on the device. If you replay that through your normal touchpad device, the touch count will be off after that. That'll give you false positives. Replay it through a uinput device to be safe, or record a sequence that ends with you releasing all fingers."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7910662",
+						"comment_count": "17",
+						"who": {
+							"text": "Jan.Henke",
+							"name": "Jan Henke"
+						},
+						"bug_when": "2015-02-05 09:51:50 +0000",
+						"thetext": "On my device I noticed this bug just happens with kernels 3.17 and newer. I am currently using kernel 3.16 and the trackpad works just fine. Switching to kernel 3.18 on the other hand shows exactly the described bug.\nSo it seems there is some change in the 3.17 kernel which somehow introduced this behaviour, maybe the event ordering you mentioned?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7910708",
+						"comment_count": "18",
+						"who": {
+							"text": "darkbasic",
+							"name": "Niccolò Belli"
+						},
+						"bug_when": "2015-02-05 10:06:57 +0000",
+						"thetext": "Major, can you bisect between 3.16 and 3.17?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7911127",
+						"comment_count": "19",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-05 13:09:18 +0000",
+						"thetext": "Oof, well I guess I know the path ahead of me now. :/\n\nSo if I'm understanding the thread correctly, we're thinking that X isn't where the bug resides since the evemu-record playback causes the mouse pointer to move in the way we expect?\n\nI'll have to hold off on the bisecting until the weekend.  I can get access to a box with a bunch of cores to do a bunch of kernel builds on it. ;)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7912947",
+						"comment_count": "20",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-02-05 21:55:24 +0000",
+						"thetext": "the problem is that it's almost certainly a userspace bug but apparently triggered by some event sequence that changed in the kernel. If you can see evtest/evemu events from the kernel even when the touchpad is frozen that guarantees the lockup is in the xorg driver.\n\nIt's pin-pointing the exact sequence that's the issue.\n\nYou can also try grabbing libinput from git and using the tools/event-debug tool, then reproduce the bug (i.e. use two-finger until the event output stops). libinput is a lot easier to put printf statements everywhere to track down where things are going wrong. I think this should narrow down the sequence that triggers it, from that we may be able to get to the kernel bug too.\n\nHaving said that, if you can bisect the kernel that would of course be ideal ;)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7912955",
+						"comment_count": "21",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-05 21:59:52 +0000",
+						"thetext": "I'll see if I can tinker with libinput and bisect the kernel. ;)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7913316",
+						"comment_count": "22",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-06 03:11:26 +0000",
+						"thetext": "Kernel bisect underway. The touchpad doesn't freeze under 3.16.x (already tried multiple kernels in the 3.16 tree) but it shows up as a PS/2 mouse every time.  GNOME sees it as a plain mouse and you can't use two or three finger clicks.  Your only option would be to define certain areas on the pad to be left or right click areas -- not the result we're looking for.\n\nCurrently bisecting the 3.17 kernel tree."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7914492",
+						"comment_count": "23",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-06 13:51:21 +0000",
+						"thetext": "Small breakthrough.  Kernel 3.17.0 works perfectly.  The trackpad shows up on the I2C bus with i2c_hid and hid_multitouch and it handles one/two/three finger clicks *and taps* without any problems.  Vertical scrolling works flawlessly.\n\nI'm going to adjust the bisect to test kernels between 3.17 and 3.18 since 3.17.0 works fine."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7915716",
+						"comment_count": "24",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-06 22:12:45 +0000",
+						"thetext": "59 patches left in the bisect (started with ~ 6500): https://gist.github.com/major/c3b7c576af32093f39b5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7915964",
+						"comment_count": "25",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-07 04:49:10 +0000",
+						"thetext": "Alrighty, here's the problematic patch: https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=d1c7e29e8d276c669e8790bb8be9f505ddc48888\n\nIf I build the kernel at the revision just prior to this patch, the touchpad works flawlessly.  There are no freezes and the tapping works.  Add in this patch and this happens:\n\n1) Only single finger taps work\n2) Multi-finger taps and vertical scrolling will cause a freeze\n3) Two-finger clicks will often freeze the touchpad\n\n------------------------------------------------------\n\nFrom d1c7e29e8d276c669e8790bb8be9f505ddc48888 Mon Sep 17 00:00:00 2001\nFrom: Gwendal Grignou <gwendal@chromium.org>\nDate: Thu, 11 Dec 2014 16:02:45 -0800\nSubject: HID: i2c-hid: prevent buffer overflow in early IRQ\n\nBefore ->start() is called, bufsize size is set to HID_MIN_BUFFER_SIZE,\n64 bytes. While processing the IRQ, we were asking to receive up to\nwMaxInputLength bytes, which can be bigger than 64 bytes.\n\nLater, when ->start is run, a proper bufsize will be calculated.\n\nGiven wMaxInputLength is said to be unreliable in other part of the\ncode, set to receive only what we can even if it results in truncated\nreports.\n\nSigned-off-by: Gwendal Grignou <gwendal@chromium.org>\nReviewed-by: Benjamin Tissoires <benjamin.tissoires@redhat.com>\nCc: stable@vger.kernel.org\nSigned-off-by: Jiri Kosina <jkosina@suse.cz>\n\ndiff --git a/drivers/hid/i2c-hid/i2c-hid.c b/drivers/hid/i2c-hid/i2c-hid.c\nindex 747d544..9c014803b4 100644\n--- a/drivers/hid/i2c-hid/i2c-hid.c\n+++ b/drivers/hid/i2c-hid/i2c-hid.c\n@@ -369,7 +369,7 @@ static int i2c_hid_hwreset(struct i2c_client *client)\n static void i2c_hid_get_input(struct i2c_hid *ihid)\n {\n \tint ret, ret_size;\n-\tint size = le16_to_cpu(ihid->hdesc.wMaxInputLength);\n+\tint size = ihid->bufsize;\n \n \tret = i2c_master_recv(ihid->client, ihid->inbuf, size);\n \tif (ret != size) {\n-- \n\n------------------------------------------------------\n\nI'm not entirely sure what to do with this patch other than remove it.  I emailed Benjamin a few days ago for his opinion and he might know a bit more about this particular patch."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7916242",
+						"comment_count": "26",
+						"who": {
+							"text": "ryanplusplus",
+							"name": "Ryan Hartlage"
+						},
+						"bug_when": "2015-02-07 13:57:18 +0000",
+						"thetext": "Would it make sense to simply increase the size of the input buffer?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7917266",
+						"comment_count": "27",
+						"who": {
+							"text": "peter.hutterer",
+							"name": "Peter Hutterer"
+						},
+						"bug_when": "2015-02-08 21:34:42 +0000",
+						"thetext": "/me lobs it over to Benjamin's court"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7917645",
+						"comment_count": "28",
+						"who": {
+							"text": "ryanplusplus",
+							"name": "Ryan Hartlage"
+						},
+						"bug_when": "2015-02-08 22:19:54 +0000",
+						"thetext": "I just got an update to xorg-x11-drv-synaptics and the trackpad is no longer freezing on Fedora 21 with kernel 3.18.5.  Major -- are you seeing the same thing?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7917653",
+						"comment_count": "29",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-08 22:34:17 +0000",
+						"thetext": "Ryan, I'm still seeing freezes with 3.18.5 and xorg-x11-drv-synaptics-1.8.1-2.fc21.  Tapping doesn't work and once I apply more than one finger to the pad a few times, it freezes up."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7917682",
+						"comment_count": "30",
+						"who": {
+							"text": "ryanplusplus",
+							"name": "Ryan Hartlage"
+						},
+						"bug_when": "2015-02-08 22:59:27 +0000",
+						"thetext": "Major -- I should have specified, I'm using xorg-x11-drv-synaptics-1.8.1-3.fc21.  I haven't gotten the cursor to freeze yet since the update, but I am seeing that if I lift my finger and put it back on the trackpad it will almost always move the cursor.  I will test some more and report back."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7920033",
+						"comment_count": "31",
+						"who": {
+							"text": "btissoir",
+							"name": "Benjamin Tissoires"
+						},
+						"bug_when": "2015-02-09 15:25:22 +0000",
+						"thetext": "(In reply to Major Hayden from comment #25)\n> Alrighty, here's the problematic patch:\n> https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/\n> ?id=d1c7e29e8d276c669e8790bb8be9f505ddc48888\n> \n\nThis patch should not freeze the touchpad... unless there is a problem in the FW. And apparently there is :(\n\nI will need 2 things:\n- a full dmesg output with \"i2c_hid.debug=1 log_buf_len=1M\" appended to the command line\n- a hid-recorder [1] trace of the events when there is a freeze.\n\nIf ihid->hdesc.wMaxInputLength is greater than ihid->bufsize, it shouldn't be difficult to fix that. If it is not, then it's going to be a little bit more tricky.\n\n[1] http://bentiss.github.io/hid-replay-docs/Fedora.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7922437",
+						"comment_count": "32",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-10 02:27:00 +0000",
+						"thetext": "Created attachment 989916\ndmesg output with i2c debug"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7922439",
+						"comment_count": "33",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-10 02:27:26 +0000",
+						"thetext": "Created attachment 989917\nhid-recorder output"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7922442",
+						"comment_count": "34",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-10 02:30:58 +0000",
+						"thetext": "Thanks, Benjamin.  The files you requested are attached.  The trackpad freeze happened shortly after the 20 second mark and then un-froze around the 30 second mark.\n\nWhat's odd is that when I did a hid-replay, I saw the pointer get stuck from about the 20 to 30 second mark.  I didn't see that same result with evemu-record and evemu-replay.  With evemu, the pointer kept moving during the replay when it was stuck during the recording (hopefully that makes sense)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7922444",
+						"comment_count": "35",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-10 02:32:29 +0000",
+						"thetext": "Created attachment 989918\nFull dmesg including hid-record test\n\nThe previous dmesg didn't include the i2c_hid debug output from the hid-record test.  Sorry about that.  You might want to look at this one instead."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7924622",
+						"comment_count": "36",
+						"who": {
+							"text": "btissoir",
+							"name": "Benjamin Tissoires"
+						},
+						"bug_when": "2015-02-10 17:43:26 +0000",
+						"thetext": "Created attachment 990188\n0001-HID-multitouch-force-release-of-touches-when-i2c-com.patch\n\nThanks for the logs.\n\nWe seem to lose some reports from time to time. It is not a problem most of the time, but when you see a freeze, that's because we missed one touch release from the touchpad.\n\nFrom what I can see, ihid->hdesc.wMaxInputLength is 0x3c, while the computed length should be 0x3d. So the one byte off might explain why we are missing some reports here and there. Though it's going tricky to fix that at the i2c_hid level without breaking other devices.\n\nI think I can fix that in hid-multitouch. See the attached patch. It might not work in 100% of the cases (especially in the \"tap\" settings), but it should be good enough with a touchpad."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7924699",
+						"comment_count": "37",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-10 18:09:27 +0000",
+						"thetext": "Thanks, Benjamin.  I'll test out that patch tonight and report back."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7925292",
+						"comment_count": "38",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-10 23:00:28 +0000",
+						"thetext": "I added the patch to 3.19-rc7 and it does eliminate the touchpad freeze!  Hooray!  One, two and three finger *clicks* work anywhere on the touchpad and there are no freezes after using the touchpad for about 5-10 minutes.  (I was consistently able to get a freeze in 15-20 seconds previously).\n\nHowever, as you said, the tapping isn't working properly.  I'm able to tap with one finger but if I use more than one finger, the cursor seems to jump around as if it's trying to move the pointer to accommodate the first and then the second finger.  Three finger taps don't work either.\n\nIf I revert d1c7e29e8d276c669e8790bb8be9f505ddc48888, taps work properly.  Do you know if an additional patch could bring back the tapping?  Or, should that be in a new bug ticket?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7933764",
+						"comment_count": "39",
+						"who": {
+							"text": "me"
+						},
+						"bug_when": "2015-02-12 18:58:32 +0000",
+						"thetext": "Benjamin - I've tried the patch provided by you on the latest stable release 3.19.0 and after 25 minutes without any problem the freezes started again.\nThough what I \"discovered\" while building a new kernel (obviously the cpu-load was very high) there aren't any freezes at all! (At the time discovering this, I already had your patch applied)\n\nThe arch-wiki says:\n\"If you use CPU frequency scaling, avoid using the \"ondemand\" governor and use the \"performance\" governor when possible, as the touchpad may lose sync when the CPU frequency changes.\"\n\nDon't know if this information does help in any way, shape or form but I thought I provide it anyway."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7952278",
+						"comment_count": "40",
+						"who": {
+							"text": "mhayden",
+							"name": "Major Hayden 🤠"
+						},
+						"bug_when": "2015-02-17 21:25:56 +0000",
+						"thetext": "Benjamin -- Any more ideas on how to restore tapping to the pad?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7952605",
+						"comment_count": "41",
+						"who": {
+							"text": "btissoir",
+							"name": "Benjamin Tissoires"
+						},
+						"bug_when": "2015-02-17 23:27:19 +0000",
+						"thetext": "(In reply to Major Hayden from comment #40)\n> Benjamin -- Any more ideas on how to restore tapping to the pad?\n\nBesides partially reverting the faulty patch (which is required, otherwise we may write outside of an allocated memory), I have no more smart ideas.\nI can't recall exactly which device had a faulty wMaxInputLength, but I might have seen one on a pre-production device at least. I might hack up a small hack around it, but I have not a good sight on what would be the effects on other devices :("
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7956442",
+						"comment_count": "42",
+						"who": {
+							"text": "darkbasic",
+							"name": "Niccolò Belli"
+						},
+						"bug_when": "2015-02-18 17:46:37 +0000",
+						"thetext": ":(\n\nDo you think it's a thing which Dell might fix with a firmware update?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7963224",
+						"comment_count": "43",
+						"who": {
+							"text": "seth",
+							"name": "Seth Forshee"
+						},
+						"bug_when": "2015-02-20 16:14:17 +0000",
+						"thetext": "Benjamin: Why not do the following? I'm not familiar with what the issues are with wMaxInputLength for some devices, but this approach does continue to prevent buffer overruns. I'm seeing much improved touchpad behavior with this change.\n\n\ndiff --git a/drivers/hid/i2c-hid/i2c-hid.c b/drivers/hid/i2c-hid/i2c-hid.c\nindex d43e967..5e72fc2 100644\n--- a/drivers/hid/i2c-hid/i2c-hid.c\n+++ b/drivers/hid/i2c-hid/i2c-hid.c\n@@ -370,7 +370,10 @@ static int i2c_hid_hwreset(struct i2c_client *client)\n static void i2c_hid_get_input(struct i2c_hid *ihid)\n {\n        int ret, ret_size;\n-       int size = ihid->bufsize;\n+       int size = le16_to_cpu(ihid->hdesc.wMaxInputLength);\n+\n+       if (size > ihid->bufsize)\n+               size = ihid->bufsize;\n \n        ret = i2c_master_recv(ihid->client, ihid->inbuf, size);\n        if (ret != size) {"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7963462",
+						"comment_count": "44",
+						"who": {
+							"text": "btissoir",
+							"name": "Benjamin Tissoires"
+						},
+						"bug_when": "2015-02-20 17:11:44 +0000",
+						"thetext": "(In reply to Seth Forshee from comment #43)\n> Benjamin: Why not do the following? I'm not familiar with what the issues\n> are with wMaxInputLength for some devices, but this approach does continue\n> to prevent buffer overruns. I'm seeing much improved touchpad behavior with\n> this change.\n\nIIRC, the issue was that some devices used 0 as maxInputLength (which is obviously wrong) and others might have used a smaller length that the actual max input length (which is the case here, but the HW bugs without the advertised length).\n\nGiven that your patch addresses the former issue and that the latter seems a hardware bug, we could try with your patch.\n\nPlease submit it upstream and I'll add my Rev-by."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7963784",
+						"comment_count": "45",
+						"who": {
+							"text": "seth",
+							"name": "Seth Forshee"
+						},
+						"bug_when": "2015-02-20 19:27:18 +0000",
+						"thetext": "(In reply to Benjamin Tissoires from comment #44)\n> (In reply to Seth Forshee from comment #43)\n> > Benjamin: Why not do the following? I'm not familiar with what the issues\n> > are with wMaxInputLength for some devices, but this approach does continue\n> > to prevent buffer overruns. I'm seeing much improved touchpad behavior with\n> > this change.\n\nBased on the history in git the size was only changed to address the buffer overrun, and there's no indication that it fixed any other issues, though I suppose some devices could have been fixed by accident.\n\n> IIRC, the issue was that some devices used 0 as maxInputLength (which is\n> obviously wrong) and others might have used a smaller length that the actual\n> max input length (which is the case here, but the HW bugs without the\n> advertised length).\n> \n> Given that your patch addresses the former issue and that the latter seems a\n> hardware bug, we could try with your patch.\n> \n> Please submit it upstream and I'll add my Rev-by.\n\nDone.\n\nhttp://lkml.kernel.org/r/1424454311-70750-1-git-send-email-seth.forshee@canonical.com"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7968474",
+						"comment_count": "46",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-02-23 20:15:34 +0000",
+						"thetext": "I've added the patch from Seth to F20-rawhide.  Thanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7975874",
+						"comment_count": "47",
+						"who": {
+							"text": "darrellpf",
+							"name": "darrell pfeifer"
+						},
+						"bug_when": "2015-02-25 15:52:26 +0000",
+						"thetext": "Using rawhide and the xorg libinput driver. Also have acpi_osi=\"!Windows 2013\" and psmouse.resetafter=0 on the kernel command line.\n\nFeb 25 07:43:13 localhost.localdomain kernel: psmouse serio1: TouchPad at isa0060/serio1/input0 lost synchronization, th\nFeb 25 07:43:14 localhost.localdomain kernel: psmouse serio1: resync failed, issuing reconnect request\nFeb 25 07:44:45 localhost.localdomain kernel: psmouse serio1: TouchPad at isa0060/serio1/input0 lost synchronization, th\nFeb 25 07:44:45 localhost.localdomain kernel: psmouse serio1: resync failed, issuing reconnect request\nFeb 25 07:44:50 localhost.localdomain kernel: psmouse serio1: TouchPad at isa0060/serio1/input0 lost sync at byte 4\nFeb 25 07:44:50 localhost.localdomain kernel: psmouse serio1: TouchPad at isa0060/serio1/input0 lost sync at byte 1\nFeb 25 07:44:50 localhost.localdomain kernel: psmouse serio1: TouchPad at isa0060/serio1/input0 lost sync at byte 1\nFeb 25 07:44:50 localhost.localdomain kernel: psmouse serio1: TouchPad at isa0060/serio1/input0 lost sync at byte 1\nFeb 25 07:44:50 localhost.localdomain kernel: psmouse serio1: TouchPad at isa0060/serio1/input0 lost sync at byte 1\nFeb 25 07:44:50 localhost.localdomain kernel: psmouse serio1: TouchPad at isa0060/serio1/input0 lost sync at byte 1\nFeb 25 07:44:50 localhost.localdomain kernel: psmouse serio1: TouchPad at isa0060/serio1/input0 - driver resynced.\n\nThey are so frequent the trackpad is largely unusable"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7975955",
+						"comment_count": "48",
+						"who": {
+							"text": "btissoir",
+							"name": "Benjamin Tissoires"
+						},
+						"bug_when": "2015-02-25 16:08:00 +0000",
+						"thetext": "(In reply to darrell pfeifer from comment #47)\n> Using rawhide and the xorg libinput driver. Also have acpi_osi=\"!Windows\n> 2013\" and psmouse.resetafter=0 on the kernel command line.\n>\n> Feb 25 07:44:50 localhost.localdomain kernel: psmouse serio1: TouchPad at\n> isa0060/serio1/input0 - driver resynced.\n> \n> They are so frequent the trackpad is largely unusable\n\nThere is a patch proposed upstream to solve this issue:\nhttps://patchwork.kernel.org/patch/5849611/\n\nThe fact that having the touchpad or the soundcard not working is a bit worrying on this laptop :("
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7976319",
+						"comment_count": "49",
+						"who": {
+							"text": "michael",
+							"name": "Michael Leuchtenburg"
+						},
+						"bug_when": "2015-02-25 17:20:06 +0000",
+						"thetext": "Benjamin,\n\ndarrell was running with psmouse.resetafter=0, though. All that patch does is automate setting resetafter=0.\n\nThe long-term solution for modern Linux is to run the soundcard in I2S mode and the touchpad in I2C mode. The touchpad already works well in I2C mode with patches in 4.0rc1 (er, I think; maybe it's just in master and didn't quite make rc1). The soundcard I2S work is ongoing. Dell is working on the HDA + PS/2 option because they want to support the kernel used in Ubuntu 14.04 LTS, to which it would be very hard to backport the required I2S support. They're also working on some BIOS/embedded controller firmware fixes which will likely improve the situation for the HDA + PS/2 option.\n\nSo I expect this hardware will be well supported soon, given Dell's commitment of resources plus ongoing work by other hardware companies and outside developers."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7976382",
+						"comment_count": "50",
+						"who": {
+							"text": "darrellpf",
+							"name": "darrell pfeifer"
+						},
+						"bug_when": "2015-02-25 17:34:24 +0000",
+						"thetext": "For documentation purposes...\n\nUp until yesterday I was using kernel 3.17.4-301.fc21. There were no command extra command line parameters. I had not installed xorg libinput.\n\nThat combination worked pretty well, far better than the current version I described above.\n\nI install kernels pretty much directy out of koji as they come out, so using 4.0.0-0.rc1.git1.1.fc23.x86_64. I'll watch for patches in the kernel.org git and update here if there are any changes."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7976565",
+						"comment_count": "51",
+						"who": {
+							"text": "michael",
+							"name": "Michael Leuchtenburg"
+						},
+						"bug_when": "2015-02-25 18:19:42 +0000",
+						"thetext": "darrell: btw, the lost sync messages are still normal with resetafter=0. It just means the driver won't reset due to errors and hence you won't have a long freeze while it does so."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7976661",
+						"comment_count": "52",
+						"who": {
+							"text": "darrellpf",
+							"name": "darrell pfeifer"
+						},
+						"bug_when": "2015-02-25 18:57:23 +0000",
+						"thetext": "Applied the just released A01 BIOS update.\n\nThe problems are fixed.\n\n(kernel 4.0rc1, with both the command line parameters)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7976896",
+						"comment_count": "53",
+						"who": {
+							"text": "darrellpf",
+							"name": "darrell pfeifer"
+						},
+						"bug_when": "2015-02-25 20:25:29 +0000",
+						"thetext": "Re #52. The sync error messages still appear in the kernel messages but at least the freezes are gone. At some point it might be a good idea to hush the messages since they appear very frequently."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7988789",
+						"comment_count": "54",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-02 12:34:28 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.8-201.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7988801",
+						"comment_count": "55",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-02 12:36:15 +0000",
+						"thetext": "kernel-3.18.8-100.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.8-100.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999922",
+						"comment_count": "56",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:24:43 +0000",
+						"thetext": "Package kernel-3.18.8-100.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-3.18.8-100.fc20'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2990/kernel-3.18.8-100.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8022210",
+						"comment_count": "57",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 08:16:48 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8025118",
+						"comment_count": "58",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 21:13:55 +0000",
+						"thetext": "kernel-3.18.9-100.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.9-100.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8042601",
+						"comment_count": "59",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-14 09:15:10 +0000",
+						"thetext": "kernel-3.18.9-100.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9180934",
+						"comment_count": "60",
+						"who": {
+							"text": "wright3189",
+							"name": "Andrew Wright"
+						},
+						"bug_when": "2016-03-27 18:07:59 +0000",
+						"thetext": "I'm having having the same intermittent issue with my XPS 9350 in Fedora 23, kernel 4.4.6. The touchpad keeps freezing. This usually happens when I'm using two-finger scrolling, although it happens when that feature is disabled also. When it happens, the cursor is locked into scrolling mode and only the touchpad buttons and keyboard work. I have to play around with a combination of button presses or restart to fix it.\n\nWill the patches above work for me? I'm on the newer Dell XPS 9350, 4.4.6-300.fc23.x86_64."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9231062",
+						"comment_count": "61",
+						"who": {
+							"text": "jcm",
+							"name": "Jon Masters"
+						},
+						"bug_when": "2016-04-12 22:25:02 +0000",
+						"thetext": "Andrew: I am seeing the same thing. I plan to triage it a bit."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10926951",
+						"comment_count": "62",
+						"who": {
+							"text": "orluke",
+							"name": "Luke Orland"
+						},
+						"bug_when": "2017-10-26 15:34:03 +0000",
+						"thetext": "I experience this issue from time to time on Fedora 26."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1189864,
+			"parent": true,
+			"security": true,
+			"title": "kernel: potential memory corruption (denial of service) in vhost/scsi driver",
+			"bugzilla": {
+				"bug_id": "1189864",
+				"alias": "CVE-2015-4036",
+				"creation_ts": "2015-02-05 16:44:00 +0000",
+				"short_desc": "CVE-2015-4036 kernel: potential memory corruption (denial of service) in vhost/scsi driver",
+				"delta_ts": "2021-02-17 05:40:50 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "NOTABUG",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1192079"
+				],
+				"blocked": [
+					{
+						"bug_id": "1189866",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7912272",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-05 16:44:00 +0000",
+						"thetext": "It was reported that in vhost_scsi_make_tpg() the limit for \"tpgt\" is UINT_MAX but the data type of \"tpg->tport_tpgt\" and that is a u16.\n\nIn the context it turns out that in vhost_scsi_set_endpoint(), \"tpg->tport_tpgt\" is used as an offset into the vs_tpg[] array which has VHOST_SCSI_MAX_TARGET (256) elements, so anything higher than 255 then is invalid. Attached patch corrects this.\nIn vhost_scsi_send_evt() the values higher than 255 are masked, but now that the limit has changed, the mask is not needed.\n\nUpstream fix:\nhttp://www.spinics.net/lists/linux-scsi/msg82650.html\n\nDiscussion:\nhttp://www.openwall.com/lists/oss-security/2015/05/13/4"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7912279",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-05 16:44:56 +0000",
+						"thetext": "Created attachment 988570\nkernel_vhost_scsi.patch"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7932932",
+						"comment_count": "2",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-12 15:21:21 +0000",
+						"thetext": "Statement:\n\nNot vulnerable. This issue did not affect the versions of the Linux kernel as shipped with Red Hat Enterprise Linux 5, 6 and 7, and Red Hat Enterprise MRG as they do not have CONFIG_VHOST_SCSI directive enabled in the build configuration."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7932938",
+						"comment_count": "3",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-12 15:22:14 +0000",
+						"thetext": "\nCreated kernel tracking bugs for this issue:\n\nAffects: fedora-all [bug 1192079]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7962729",
+						"comment_count": "5",
+						"who": {
+							"text": "pmatouse",
+							"name": "Petr Matousek"
+						},
+						"bug_when": "2015-02-20 14:02:40 +0000",
+						"thetext": "References:\n\nhttp://www.spinics.net/lists/linux-scsi/msg82650.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8022217",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 08:17:21 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8042607",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-14 09:15:30 +0000",
+						"thetext": "kernel-3.18.9-100.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1190933,
+			"title": "kernel 3.18: read-only root due to journal_async_commit in /etc/fstab",
+			"bugzilla": {
+				"bug_id": "1190933",
+				"creation_ts": "2015-02-10 02:54:01 +0000",
+				"short_desc": "kernel 3.18: read-only root due to journal_async_commit in /etc/fstab",
+				"delta_ts": "2015-03-14 09:15:07 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "1186363",
+						"creation_ts": "2015-01-27 14:36:32 +0000",
+						"short_desc": "kernel 3.18.3 breaks wifi",
+						"delta_ts": "2015-02-25 01:40:07 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "UPSTREAM",
+						"priority": "unspecified",
+						"bug_severity": "urgent",
+						"depends_on": [
+							"1190933"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7882756",
+								"comment_count": "0",
+								"who": {
+									"text": "conradsand.arma",
+									"name": "Conrad S"
+								},
+								"bug_when": "2015-01-27 14:36:32 +0000",
+								"thetext": "Description of problem:\n- Upgrading to kernel 3.18.3-201.fc21 breaks wifi connections \n- Previous good kernel is kernel-3.17.8-300.fc21\n\nVersion-Release number of selected component (if applicable):\n3.18.3-201.fc21\n\nHow reproducible:\n- enable wifi\n- wifi appears as only \"half connected\": in the top-right panel in gnome shell, there is a question mark over the wifi symbol\n- choosing \"select network\" from wifi menu shows that the correct wifi network has a tick next to it, but no internet connection is available\n\nSteps to Reproduce:\n1. assuming previous good kernel is running (kernel-3.17.8-300)\n2. yum check-update\n3. yum update kernel\n4. reboot\n5. running kernel is kernel-3.18.3-201\n6. enable wifi from top-right menu in gnome-shell\n\nActual results:\nwifi no longer works after booting with updated kernel\n\nExpected results:\nwifi connects and works\n\nAdditional info:\nrelevant lspci (from working kernel 3.17.8-300)\n00:16.0 Communication controller: Intel Corporation 7 Series/C210 Series Chipset Family MEI Controller #1 (rev 04)\n01:00.0 Network controller: Intel Corporation Centrino Advanced-N 6235 (rev 24)\n02:00.0 Ethernet controller: Realtek Semiconductor Co., Ltd. RTL8111/8168/8411 PCI Express Gigabit Ethernet Controller (rev 06)\n\n$ lsmod | grep wifi\niwlwifi               129618  1 iwldvm\ncfg80211              505401  3 iwlwifi,mac80211,iwldvm\n\n(lsmod is from working kernel 3.17.8-300)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7883163",
+								"comment_count": "1",
+								"who": {
+									"text": "conradsand.arma",
+									"name": "Conrad S"
+								},
+								"bug_when": "2015-01-27 15:11:55 +0000",
+								"thetext": "Related bug:\nhttps://bugzilla.kernel.org/show_bug.cgi?id=92151"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7962163",
+								"comment_count": "2",
+								"who": {
+									"text": "sgruszka",
+									"name": "Stanislaw Gruszka"
+								},
+								"bug_when": "2015-02-20 10:23:38 +0000",
+								"thetext": "Please attach dmesg output from working and non-working kernel."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7969446",
+								"comment_count": "3",
+								"who": {
+									"text": "conradsand.arma",
+									"name": "Conrad S"
+								},
+								"bug_when": "2015-02-24 05:17:15 +0000",
+								"thetext": "This turned out to be a problem with ext4 in kernel 3.18.\n\nMy /etc/fstab had journal_async_commit for the root partition. Apparently the journal_async_commit option cannot be enabled during a remount.\n\nAs the root partition is already mounted by the time it reads /etc/fstab, the ext4 driver in 3.18 sees journal_async_commit and \"helpfully\" remounts root as read-only.  This in turn causes wifi to break.\n\nThis is arguably boneheaded behaviour on the part of the ext4 driver.\n\nThe real fix is to have a more strict kernel patch review process, in order prevent such boneheaded behaviour ending up in the kernel.\n\n\nhttps://bugzilla.redhat.com/show_bug.cgi?id=1190933"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7969803",
+								"comment_count": "4",
+								"who": {
+									"text": "sgruszka",
+									"name": "Stanislaw Gruszka"
+								},
+								"bug_when": "2015-02-24 08:27:33 +0000",
+								"thetext": "I don't know how wifi problem could possibly depend on ext4 problem. Can we get info requested in comment 2 ?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7973249",
+								"comment_count": "5",
+								"who": {
+									"text": "conradsand.arma",
+									"name": "Conrad S"
+								},
+								"bug_when": "2015-02-25 01:40:07 +0000",
+								"thetext": "It's as simple as it sounds: ext4 has a bug which causes the root filesystem (/) to become read-only at boot. This in turn stops wifi connecting properly. I presume this is because NetworkManager (or a related subsystem) can't write to the root filesystem (maybe to the /etc directory?).\n\nBy having journal_async_commit in /etc/fstab, I can reliably put the root filesystem into read-only at boot, and hence cause problems for wifi.\n \nWithout journal_async_commit in /etc/fstab, wifi works properly.\n\nRemoving journal_async_commit solves the issue for me, but it does point to the actual bug being in the ext4 driver."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7922478",
+						"comment_count": "0",
+						"who": {
+							"text": "conradsand.arma",
+							"name": "Conrad S"
+						},
+						"bug_when": "2015-02-10 02:54:01 +0000",
+						"thetext": "Description of problem:\n\nBooting kernel 3.18 with journal_async_commit for / in /etc/fstab causes the root file system to be read-only.\n\nVersion-Release number of selected component (if applicable):\nkernel-3.18.5-201.fc21.x86_64\n3.18.3 also has this problem.\n\nHow reproducible:\nAlways while using kernel 3.18.  No problems with kernel 3.17.\n\nSteps to Reproduce:\n1. Change the entry for / in /etc/fstab to:\nUUID=...  / ext4    defaults,nodiratime,noatime,journal_async_commit 1 1\n2. Upgrade from kernel 3.17 to 3.18 \n3. Reboot\n4. Try to write to /\n\nActual results:\n/ is mounted read-only at boot, causing all sorts of problems (eg. wifi no longer connects)\n\nExpected results:\n/ is mounted as read-write\n\nAdditional info:\nkernel-3.17.7-300.fc21.x86_64 works without problems: / is mounted as read-write at boot with journal_async_commit"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7922500",
+						"comment_count": "1",
+						"who": {
+							"text": "conradsand.arma",
+							"name": "Conrad S"
+						},
+						"bug_when": "2015-02-10 03:01:24 +0000",
+						"thetext": "Created attachment 989921\ndmesg\n\ndmesg from kernel 3.18.5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7922505",
+						"comment_count": "2",
+						"who": {
+							"text": "conradsand.arma",
+							"name": "Conrad S"
+						},
+						"bug_when": "2015-02-10 03:05:25 +0000",
+						"thetext": "A symptom of the problem (extracted from dmesg)\n[    4.129492] EXT4-fs (sdb1): changing journal_checksum during remount not supported\n\nChanging the /etc/fstab entry to also contain \"journal_checksum\" seems not to help."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7923867",
+						"comment_count": "3",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-02-10 13:40:14 +0000",
+						"thetext": "That is upstream commit\n\ncommit 6b992ff25658367089db4a82666e232b65d55eae\nAuthor: Darrick J. Wong <darrick.wong@oracle.com>\nDate:   Thu Oct 30 10:53:16 2014 -0400\n\n    ext4: disallow changing journal_csum option during remount\n    \n    ext4 does not permit changing the metadata or journal checksum feature\n    flag while mounted.  Until we decide to support that, don't allow a\n    remount to change the journal_csum flag (right now we silently fail to\n    change anything).\n    \n    Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>\n    Signed-off-by: Theodore Ts'o <tytso@mit.edu>\n\n\nwhich indeed landed in 3.18.  Note that \"works without problems\" on 3.17 in this case means it didn't do anything at all.\n\nI'm not sure this is a bug, but I'll let the fs people weigh in."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7924083",
+						"comment_count": "4",
+						"who": {
+							"text": "conradsand.arma",
+							"name": "Conrad S"
+						},
+						"bug_when": "2015-02-10 14:46:12 +0000",
+						"thetext": "Technically this is not supposed to be a remount, but the \"first\" mount at boot time.\n\nObviously there is the cyclic dependency of requiring /etc to be accessible in order to read /etc/fstab, with /etc usually being part of the / file system. So / needs to be mounted in order to read /etc/fstab.\n\nHowever, if we can't enable journal_async_commit at boot time, then what's the point of putting options into /etc/fstab ?  If the journal_csum flag can't be enabled at boot or after mounting, then there is no way of enabling journal_async_commit.\n\nThe manual for mount says:\njournal_async_commit - Commit block can be written to disk without waiting for descriptor blocks. If enabled, older kernels cannot mount the device. This will enable 'journal_checksum' internally.\n\nSo how to enable journal_async_commit at boot time?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7924093",
+						"comment_count": "5",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-02-10 14:50:46 +0000",
+						"thetext": "I'll chime in more a bit later, but the rootflags=journal_async_commit parameter on the kernel commandline should do the trick.  This is in general the way to specify non-remountable options for the root fs.\n\n-Eric"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7924156",
+						"comment_count": "6",
+						"who": {
+							"text": "conradsand.arma",
+							"name": "Conrad S"
+						},
+						"bug_when": "2015-02-10 15:05:31 +0000",
+						"thetext": "If the journal_async_commit and journal_csum options are problematic for /, having a big fat warning in ext4 documentation (and the man page for mount) would be very useful -- it'll save a lot of headaches and head scratching.\n\nI originally thought that kernel 3.18 had problems in its wifi drivers (as wifi no longer connected), only to discover by accident that this was really a file system problem.\n\nNote that specifying fs options as kernel parameters does defeat the purpose of /etc/fstab. Is there a better solution to this?  (For example, permanently setting journal_async_commit at the file system level?)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7924357",
+						"comment_count": "7",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-02-10 16:02:38 +0000",
+						"thetext": "They are not problematic for root, exactly.  They are problematic when specified during remounting.  Which is what happens for root. ;)\n\nIt's just that the root fs gets remounted with the options in fstab, and so those non-remountable options cannot be specified directly via fstab.\n\n> Note that specifying fs options as kernel parameters does defeat the purpose of /etc/fstab.\n\nwell, no, not really.  Actually, it may be that whatever sets up /boot/init* environment should pick up the options out of fstab - I'm not sure.  If it doesn't, that might make for a nice RFE.\n\nAnd yes, you can probably also set options into the filesystem with tune2fs; there is tune2fs -o mount-option as well as -E mount_opts=\"string\"\n\nAnyway, it would have been better if these options just got ignored with a warning on a remount, rather than failing the mount.  I'll propose that upstream."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7924522",
+						"comment_count": "8",
+						"who": {
+							"text": "conradsand.arma",
+							"name": "Conrad S"
+						},
+						"bug_when": "2015-02-10 17:04:25 +0000",
+						"thetext": "$ sudo tune2fs -o journal_async_commit /dev/sdb1\ntune2fs 1.42.11 (09-Jul-2014)\nInvalid mount option set: journal_async_commit\n\nI'm not sure whether the -E option would work under 3.18. From manual page for tune2fs states:\n-E extended-options\n ...\nmount_opts=mount_option_string\nSet  a  set  of default mount options which will be used when the file system is mounted.  Unlike the bitmask-based default mount options which can be specified with the -o option, mount_option_string is an arbitrary string with a maximum length of 63 bytes, which is stored in the superblock.\n\nThe ext4 file system driver will *** first apply the bitmask-based default options ***, and then parse the mount_option_string, before parsing the mount options passed from the mount(8) program.\n\nI've added *** for emphasis.  If the journal_csum flag is not set in the default options, wouldn't 3.18 then refuse to apply journal_async_commit ?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7924623",
+						"comment_count": "9",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-02-10 17:44:10 +0000",
+						"thetext": "If there are no bitmask-based defaults, then nothing is done in your *** step ***, and then the mount_option_string will be applied.\n\nIt's not a remount, it's just multiple steps in the original option parsing.\n\nSigh, this is made further confusing by the fact that the option is not shown in /proc/mounts due to lack of handling in ext4_show_options ...  o_O let me send a patch for that, too....\n\nAnyway: AFAICT, there is not really a bug here; behavior was intentionally changed.  I'll argue for changing it back to be more forgiving, and fix up the other cruft that has shaken out while looking at it."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7924679",
+						"comment_count": "10",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-02-10 18:00:16 +0000",
+						"thetext": "Oh, no - actually - show_options *does not show* options if they are set by default.\n\nSo if you set journal_async_commit with \"-E mount_opts=\" then it *won't* show up in /proc/mounts.  Of course ... o_O\n\nbut also! of course! it _does_ show up in \n\n# cat /proc/fs/ext4/loop0/options \nrw\ndelalloc\njournal_checksum\njournal_async_commit\n\n...\n\nAnyway, setting the default does work.  dmesg and the proc file shows that it mounts the way you want."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7926014",
+						"comment_count": "11",
+						"who": {
+							"text": "conradsand.arma",
+							"name": "Conrad S"
+						},
+						"bug_when": "2015-02-11 06:02:59 +0000",
+						"thetext": "Thanks for looking into this.\n\n\n(In reply to Eric Sandeen from comment #9)\n> Sigh, this is made further confusing by the fact that the option is not\n> shown in /proc/mounts due to lack of handling in ext4_show_options ...  o_O\n> let me send a patch for that, too....\n> \n> Anyway: AFAICT, there is not really a bug here; behavior was intentionally\n> changed.  I'll argue for changing it back to be more forgiving, and fix up\n> the other cruft that has shaken out while looking at it."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7969447",
+						"comment_count": "12",
+						"who": {
+							"text": "conradsand.arma",
+							"name": "Conrad S"
+						},
+						"bug_when": "2015-02-24 05:18:12 +0000",
+						"thetext": "Is the fix going to be backported to kernel 3.18 and/or 3.19 ?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7970971",
+						"comment_count": "13",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-02-24 13:55:10 +0000",
+						"thetext": "I've not seen a fix yet.  If there is one, we can look at backporting it."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7971516",
+						"comment_count": "14",
+						"who": {
+							"text": "esandeen",
+							"name": "Eric Sandeen"
+						},
+						"bug_when": "2015-02-24 16:07:59 +0000",
+						"thetext": "Sorry.  This should fix it:\n\nhttp://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/fs/ext4?id=2d5b86e048780c5efa7f7d9708815555919e7b05\n\nI didn't cc: stable :("
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7971524",
+						"comment_count": "15",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-02-24 16:10:09 +0000",
+						"thetext": "OK, thanks Eric.  I'll get this into f20/f21 today."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7988788",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-02 12:34:25 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.8-201.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7988800",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-02 12:36:13 +0000",
+						"thetext": "kernel-3.18.8-100.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.8-100.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999921",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:24:41 +0000",
+						"thetext": "Package kernel-3.18.8-100.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-3.18.8-100.fc20'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2990/kernel-3.18.8-100.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8022209",
+						"comment_count": "19",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 08:16:44 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8025117",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 21:13:53 +0000",
+						"thetext": "kernel-3.18.9-100.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.9-100.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8042600",
+						"comment_count": "21",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-14 09:15:07 +0000",
+						"thetext": "kernel-3.18.9-100.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1190947,
+			"title": "Add support for Atheros AR5B195 combo card (the AR3011 bluetooth part)",
+			"bugzilla": {
+				"bug_id": "1190947",
+				"creation_ts": "2015-02-10 04:36:00 +0000",
+				"short_desc": "Add support for Atheros AR5B195 combo card (the AR3011 bluetooth part)",
+				"delta_ts": "2015-03-18 10:25:12 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7922632",
+						"comment_count": "0",
+						"who": {
+							"text": "alex.ploumistos",
+							"name": "Alexander Ploumistos"
+						},
+						"bug_when": "2015-02-10 04:36:00 +0000",
+						"thetext": "Created attachment 989948\npatch\n\nI was tasked by a local company to refurbish some 20+ old netbooks. Among the upgrades there were these Atheros AR5B195 Mni PCIe combo cards, which expose their bluetooth part over the USB bus.\n(See here: https://wikidevi.com/wiki/Atheros_AR5B195)\n\nThe WLAN works fine, but the bluetooth part appears in lsusb as\n\n04f2:aff1 Chicony Electronics Co., Ltd\n\nwhen it should be something like Atheros AR3011 Bluetooth adapter. However, the issue is not just cosmetic; even though ath3k and btusb are both loaded, bluetooth doesn't work at all, hcitool does not list any devices and \"hciconfig hci0 up\" times out.\n\nAs per the instructions here\n\nhttps://wireless.wiki.kernel.org/en/users/Drivers/ath3k#ar3011_with_sflash_configurations\n\nI've prepared a patch against kernel 3.18 that adds the PID & VID of the devices.\n\nA similar patch at kernel.org's git for a different device:\n\nhttp://git.kernel.org/cgit/linux/kernel/git/stable/linux-stable.git/commit/?id=e9036e336a8e5640871e0006ea4a89982b25046f&id2=840af824b2bf9194ea596e0ddc7aa05066794ca1#patch1\n\nAfter googling a bit, I saw that this particular issue had appeared around 3.0-3.1. Ubuntu had a similar bug report, but although they claim it was fixed upstream, there is no such thing in the source:\nhttps://bugs.launchpad.net/linux/+bug/841673\nWe also have bugs #882693, #734369 and #702375 from about that same time.\n\nFrom what I understand, this works a bit like usb_modeswitch, so similar patches with the appropriate vendor and product IDs would solve a lot of people's problems.\n\nPlease, is there any chance this could land in F21 sometime in the next 10 days, so that I can make my deadline?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7923896",
+						"comment_count": "1",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-02-10 13:48:16 +0000",
+						"thetext": "Thanks for the patch!\n\nThis really needs to get sent upstream for review before we can take it.  Could you send it to:\n\nMarcel Holtmann <marcel@holtmann.org> (maintainer:BLUETOOTH DRIVERS)\nGustavo Padovan <gustavo@padovan.org> (maintainer:BLUETOOTH DRIVERS)\nJohan Hedberg <johan.hedberg@gmail.com> (maintainer:BLUETOOTH DRIVERS)\n\nWith the following on CC:\n\nlinux-bluetooth@vger.kernel.org (open list:BLUETOOTH DRIVERS)\nlinux-kernel@vger.kernel.org (open list)\n\nYou can also CC me if you'd like.\n\nBe sure to write up a good changelog for this.  Most importantly, you need to include your Signed-off-by: in the patch description as well.  See Documentation/SubmittingPatches, section 2 and 12 specifically for what I'm talking about.\n\nOnce it is sent for review we can evaluate it for inclusion in Fedora."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7935811",
+						"comment_count": "2",
+						"who": {
+							"text": "hanipouspilot",
+							"name": "Dmitry Tunin"
+						},
+						"bug_when": "2015-02-13 12:29:20 +0000",
+						"thetext": "Alexander,\n\nThe way you sent upstream patch it won't be accepted.\nI had this trouble before too.\nIf you post here output of\n\ncat /sys/kernel/debug/usb/devices\n\nI can help you to make a patch mail."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7976747",
+						"comment_count": "3",
+						"who": {
+							"text": "alex.ploumistos",
+							"name": "Alexander Ploumistos"
+						},
+						"bug_when": "2015-02-25 19:37:09 +0000",
+						"thetext": "As far as I can tell, the patch has made it to the kernel-next tree (next-20150225) but not to 4.0-rc1, 3.19 or any of the stable trees.\n\nMeanwhile, I had to return the netbooks, which I left with a patched 3.18.7-200.fc21 kernel and an exclude directive in yum.conf. I know that the fedora kernel team has their hands full and I don't want to waste your time, I have just one question: will this bug report get updated when the patched kernel comes along, or should I keep an eye on koji builds?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7976769",
+						"comment_count": "4",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-02-25 19:47:55 +0000",
+						"thetext": "Yes.  In fact, I'll get your patch included today.  Thanks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7976810",
+						"comment_count": "5",
+						"who": {
+							"text": "alex.ploumistos",
+							"name": "Alexander Ploumistos"
+						},
+						"bug_when": "2015-02-25 19:53:14 +0000",
+						"thetext": "No, thank you!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7988787",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-02 12:34:23 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.8-201.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7988799",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-02 12:36:11 +0000",
+						"thetext": "kernel-3.18.8-100.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.8-100.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7990974",
+						"comment_count": "8",
+						"who": {
+							"text": "alex.ploumistos",
+							"name": "Alexander Ploumistos"
+						},
+						"bug_when": "2015-03-02 23:02:54 +0000",
+						"thetext": "Tested 3.18.8-201 on i686 and karma left."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7998917",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 01:45:06 +0000",
+						"thetext": "kernel-4.0.0-0.rc2.git0.1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/kernel-4.0.0-0.rc2.git0.1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999920",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:24:39 +0000",
+						"thetext": "Package kernel-3.18.8-100.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-3.18.8-100.fc20'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2990/kernel-3.18.8-100.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8022208",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 08:16:42 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8025116",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 21:13:51 +0000",
+						"thetext": "kernel-3.18.9-100.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.9-100.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8027152",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-10 13:26:00 +0000",
+						"thetext": "kernel-4.0.0-0.rc3.git0.1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/kernel-4.0.0-0.rc3.git0.1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8042599",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-14 09:15:05 +0000",
+						"thetext": "kernel-3.18.9-100.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8053357",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-18 10:25:12 +0000",
+						"thetext": "kernel-4.0.0-0.rc3.git0.1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1192079,
+			"security": true,
+			"title": "kernel: potential memory corruption (denial of service) in vhost/scsi driver [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1192079",
+				"creation_ts": "2015-02-12 15:22:06 +0000",
+				"short_desc": "kernel: potential memory corruption (denial of service) in vhost/scsi driver [fedora-all]",
+				"delta_ts": "2015-03-14 09:15:16 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1189864",
+						"alias": "CVE-2015-4036",
+						"creation_ts": "2015-02-05 16:44:00 +0000",
+						"short_desc": "CVE-2015-4036 kernel: potential memory corruption (denial of service) in vhost/scsi driver",
+						"delta_ts": "2021-02-17 05:40:50 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "NOTABUG",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1192079"
+						],
+						"blocked": [
+							{
+								"bug_id": "1189866",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7912272",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-02-05 16:44:00 +0000",
+								"thetext": "It was reported that in vhost_scsi_make_tpg() the limit for \"tpgt\" is UINT_MAX but the data type of \"tpg->tport_tpgt\" and that is a u16.\n\nIn the context it turns out that in vhost_scsi_set_endpoint(), \"tpg->tport_tpgt\" is used as an offset into the vs_tpg[] array which has VHOST_SCSI_MAX_TARGET (256) elements, so anything higher than 255 then is invalid. Attached patch corrects this.\nIn vhost_scsi_send_evt() the values higher than 255 are masked, but now that the limit has changed, the mask is not needed.\n\nUpstream fix:\nhttp://www.spinics.net/lists/linux-scsi/msg82650.html\n\nDiscussion:\nhttp://www.openwall.com/lists/oss-security/2015/05/13/4"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7912279",
+								"comment_count": "1",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-02-05 16:44:56 +0000",
+								"thetext": "Created attachment 988570\nkernel_vhost_scsi.patch"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7932932",
+								"comment_count": "2",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-02-12 15:21:21 +0000",
+								"thetext": "Statement:\n\nNot vulnerable. This issue did not affect the versions of the Linux kernel as shipped with Red Hat Enterprise Linux 5, 6 and 7, and Red Hat Enterprise MRG as they do not have CONFIG_VHOST_SCSI directive enabled in the build configuration."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7932938",
+								"comment_count": "3",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-02-12 15:22:14 +0000",
+								"thetext": "\nCreated kernel tracking bugs for this issue:\n\nAffects: fedora-all [bug 1192079]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7962729",
+								"comment_count": "5",
+								"who": {
+									"text": "pmatouse",
+									"name": "Petr Matousek"
+								},
+								"bug_when": "2015-02-20 14:02:40 +0000",
+								"thetext": "References:\n\nhttp://www.spinics.net/lists/linux-scsi/msg82650.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8022217",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-09 08:17:21 +0000",
+								"thetext": "kernel-3.18.8-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8042607",
+								"comment_count": "7",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-14 09:15:30 +0000",
+								"thetext": "kernel-3.18.9-100.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7932935",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-12 15:22:06 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\nReproducers, if any, will remain confidential and never be made public, unless done so by the security team.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7932936",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-12 15:22:12 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1189864,1192079\n\n# Description of your update\nnotes=Security fix for \n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1189864,1192079"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7942875",
+						"comment_count": "2",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-02-16 19:41:08 +0000",
+						"thetext": "Fixed in Fedora git."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7988793",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-02 12:34:34 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.8-201.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7988803",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-02 12:36:20 +0000",
+						"thetext": "kernel-3.18.8-100.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.8-100.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999924",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:24:48 +0000",
+						"thetext": "Package kernel-3.18.8-100.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-3.18.8-100.fc20'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2990/kernel-3.18.8-100.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8022213",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 08:17:00 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8025120",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 21:14:00 +0000",
+						"thetext": "kernel-3.18.9-100.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.9-100.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8042603",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-14 09:15:16 +0000",
+						"thetext": "kernel-3.18.9-100.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1192519,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-1593 kernel: Linux stack ASLR implementation Integer overflow",
+			"bugzilla": {
+				"bug_id": "1192519",
+				"alias": "CVE-2015-1593",
+				"creation_ts": "2015-02-13 15:42:47 +0000",
+				"short_desc": "CVE-2015-1593 kernel: Linux stack ASLR implementation Integer overflow",
+				"delta_ts": "2021-02-17 05:39:09 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1192520",
+					"1195682",
+					"1195683",
+					"1195684",
+					"1195685",
+					"1195686",
+					"1195687",
+					"1195688",
+					"1622237",
+					"1632284"
+				],
+				"blocked": [
+					{
+						"bug_id": "1192521",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2019:3517",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7936372",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-13 15:42:47 +0000",
+						"thetext": "It was reported [1] that stack address is not properly randomized on some 64 bit architectures due to an integer overflow.\nThe stack entropy of the processes is reduced by four.\nThe possible locations are significantly reduced from around one billion to two hundred millions. The problem seems to affect only to the x86_64 architecture.\nProposed patch:\nhttps://lkml.org/lkml/2015/1/7/811\n\n[1]: http://hmarco.org/bugs/linux-ASLR-integer-overflow.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7936376",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-13 15:43:09 +0000",
+						"thetext": "\nCreated kernel tracking bugs for this issue:\n\nAffects: fedora-all [bug 1192520]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7962667",
+						"comment_count": "2",
+						"who": {
+							"text": "pmatouse",
+							"name": "Petr Matousek"
+						},
+						"bug_when": "2015-02-20 13:49:10 +0000",
+						"thetext": "Statement:\n\nThis issue does affect the Linux kernel versions as shipped with Red Hat Enterprise Linux 6, 7 and Red Hat Enterprise MRG 2. Future kernel updates in the respective releases may address this issue.\n\nThis issue does affect the Linux kernel versions as shipped with Red Hat Enterprise Linux 5. Red Hat Enterprise Linux 5 is now in Production 3 Phase of the support and maintenance life cycle. This has been rated as having Low security impact and is not currently planned to be addressed in future updates. For additional information, refer to the Red Hat Enterprise Linux Life Cycle: https://access.redhat.com/support/policy/updates/errata/."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8022218",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 08:17:24 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8042608",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-14 09:15:34 +0000",
+						"thetext": "kernel-3.18.9-100.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8151890",
+						"comment_count": "7",
+						"who": {
+							"text": "j_j_b_o_devel",
+							"name": "João Jerónimo"
+						},
+						"bug_when": "2015-04-16 20:18:40 +0000",
+						"thetext": "Sorry for being picky, but isn't the very existence of the /proc/<pid>/maps virtual files a security issue?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8237797",
+						"comment_count": "8",
+						"who": {
+							"text": "wmealing",
+							"name": "Wade Mealing"
+						},
+						"bug_when": "2015-05-15 06:11:13 +0000",
+						"thetext": "Gday João,\n\nIn the interest of getting your questions answered correctly (I just came across this by chance) It might be best to lodge it directly against the kernel component of the product you're asking about (Probably RHEL 7 or Fedora 21).\n\nThanks,\n\nWade Mealing\nRed Hat Product Security"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8238027",
+						"comment_count": "9",
+						"who": {
+							"text": "pmatouse",
+							"name": "Petr Matousek"
+						},
+						"bug_when": "2015-05-15 08:33:58 +0000",
+						"thetext": "Upstream fix:\n\nhttp://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=4e7c22d447bb6d7e37bfe39ff658486ae78e8d77"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8362720",
+						"comment_count": "10",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-06-23 08:25:39 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:1139 https://rhn.redhat.com/errata/RHSA-2015-1139.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8362748",
+						"comment_count": "11",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-06-23 08:29:01 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  MRG for RHEL-6 v.2\n\nVia RHSA-2015:1138 https://rhn.redhat.com/errata/RHSA-2015-1138.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8362831",
+						"comment_count": "12",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-06-23 08:48:00 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:1137 https://rhn.redhat.com/errata/RHSA-2015-1137.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8438259",
+						"comment_count": "14",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-07-14 15:12:25 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2015:1221 https://rhn.redhat.com/errata/RHSA-2015-1221.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13330242",
+						"comment_count": "15",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2019-11-05 21:05:28 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2019:3517 https://access.redhat.com/errata/RHSA-2019:3517"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1192520,
+			"security": true,
+			"title": "kernel: Linux stack ASLR implementation Integer overflow [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1192520",
+				"creation_ts": "2015-02-13 15:43:03 +0000",
+				"short_desc": "CVE-2015-1593 kernel: Linux stack ASLR implementation Integer overflow [fedora-all]",
+				"delta_ts": "2018-08-28 04:27:40 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1192519",
+						"alias": "CVE-2015-1593",
+						"creation_ts": "2015-02-13 15:42:47 +0000",
+						"short_desc": "CVE-2015-1593 kernel: Linux stack ASLR implementation Integer overflow",
+						"delta_ts": "2021-02-17 05:39:09 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1192520",
+							"1195682",
+							"1195683",
+							"1195684",
+							"1195685",
+							"1195686",
+							"1195687",
+							"1195688",
+							"1622237",
+							"1632284"
+						],
+						"blocked": [
+							{
+								"bug_id": "1192521",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2019:3517",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7936372",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-02-13 15:42:47 +0000",
+								"thetext": "It was reported [1] that stack address is not properly randomized on some 64 bit architectures due to an integer overflow.\nThe stack entropy of the processes is reduced by four.\nThe possible locations are significantly reduced from around one billion to two hundred millions. The problem seems to affect only to the x86_64 architecture.\nProposed patch:\nhttps://lkml.org/lkml/2015/1/7/811\n\n[1]: http://hmarco.org/bugs/linux-ASLR-integer-overflow.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7936376",
+								"comment_count": "1",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-02-13 15:43:09 +0000",
+								"thetext": "\nCreated kernel tracking bugs for this issue:\n\nAffects: fedora-all [bug 1192520]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7962667",
+								"comment_count": "2",
+								"who": {
+									"text": "pmatouse",
+									"name": "Petr Matousek"
+								},
+								"bug_when": "2015-02-20 13:49:10 +0000",
+								"thetext": "Statement:\n\nThis issue does affect the Linux kernel versions as shipped with Red Hat Enterprise Linux 6, 7 and Red Hat Enterprise MRG 2. Future kernel updates in the respective releases may address this issue.\n\nThis issue does affect the Linux kernel versions as shipped with Red Hat Enterprise Linux 5. Red Hat Enterprise Linux 5 is now in Production 3 Phase of the support and maintenance life cycle. This has been rated as having Low security impact and is not currently planned to be addressed in future updates. For additional information, refer to the Red Hat Enterprise Linux Life Cycle: https://access.redhat.com/support/policy/updates/errata/."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8022218",
+								"comment_count": "5",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-09 08:17:24 +0000",
+								"thetext": "kernel-3.18.8-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8042608",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-14 09:15:34 +0000",
+								"thetext": "kernel-3.18.9-100.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8151890",
+								"comment_count": "7",
+								"who": {
+									"text": "j_j_b_o_devel",
+									"name": "João Jerónimo"
+								},
+								"bug_when": "2015-04-16 20:18:40 +0000",
+								"thetext": "Sorry for being picky, but isn't the very existence of the /proc/<pid>/maps virtual files a security issue?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8237797",
+								"comment_count": "8",
+								"who": {
+									"text": "wmealing",
+									"name": "Wade Mealing"
+								},
+								"bug_when": "2015-05-15 06:11:13 +0000",
+								"thetext": "Gday João,\n\nIn the interest of getting your questions answered correctly (I just came across this by chance) It might be best to lodge it directly against the kernel component of the product you're asking about (Probably RHEL 7 or Fedora 21).\n\nThanks,\n\nWade Mealing\nRed Hat Product Security"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8238027",
+								"comment_count": "9",
+								"who": {
+									"text": "pmatouse",
+									"name": "Petr Matousek"
+								},
+								"bug_when": "2015-05-15 08:33:58 +0000",
+								"thetext": "Upstream fix:\n\nhttp://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=4e7c22d447bb6d7e37bfe39ff658486ae78e8d77"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8362720",
+								"comment_count": "10",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-06-23 08:25:39 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:1139 https://rhn.redhat.com/errata/RHSA-2015-1139.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8362748",
+								"comment_count": "11",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-06-23 08:29:01 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  MRG for RHEL-6 v.2\n\nVia RHSA-2015:1138 https://rhn.redhat.com/errata/RHSA-2015-1138.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8362831",
+								"comment_count": "12",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-06-23 08:48:00 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:1137 https://rhn.redhat.com/errata/RHSA-2015-1137.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8438259",
+								"comment_count": "14",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-07-14 15:12:25 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2015:1221 https://rhn.redhat.com/errata/RHSA-2015-1221.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "13330242",
+								"comment_count": "15",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2019-11-05 21:05:28 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2019:3517 https://access.redhat.com/errata/RHSA-2019:3517"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7936374",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-13 15:43:03 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\nReproducers, if any, will remain confidential and never be made public, unless done so by the security team.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7936375",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-13 15:43:07 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1192519,1192520\n\n# Description of your update\nnotes=Security fix for \n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1192519,1192520"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7942818",
+						"comment_count": "2",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-02-16 19:20:14 +0000",
+						"thetext": "Fixed in Fedora git."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7988795",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-02 12:34:36 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.8-201.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7988804",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-02 12:36:22 +0000",
+						"thetext": "kernel-3.18.8-100.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.8-100.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999925",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:24:50 +0000",
+						"thetext": "Package kernel-3.18.8-100.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-3.18.8-100.fc20'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2990/kernel-3.18.8-100.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8022214",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 08:17:06 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8025121",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 21:14:02 +0000",
+						"thetext": "kernel-3.18.9-100.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.9-100.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8042604",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-14 09:15:18 +0000",
+						"thetext": "kernel-3.18.9-100.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1193907,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-0275 kernel: fs: ext4: fallocate zero range page size > block size BUG()",
+			"bugzilla": {
+				"bug_id": "1193907",
+				"alias": "CVE-2015-0275",
+				"creation_ts": "2015-02-18 14:33:53 +0000",
+				"short_desc": "CVE-2015-0275 kernel: fs: ext4: fallocate zero range page size > block size BUG()",
+				"delta_ts": "2023-05-12 07:54:07 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1187071",
+					"1193909",
+					"1195178",
+					"1252878",
+					"1252880",
+					"1252881"
+				],
+				"blocked": [
+					{
+						"bug_id": "1193911",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2015:1788",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7955560",
+						"comment_count": "0",
+						"who": {
+							"text": "pmatouse",
+							"name": "Petr Matousek"
+						},
+						"bug_when": "2015-02-18 14:33:53 +0000",
+						"thetext": "A flaw was found in the way the Linux kernel's EXT4 filesystem handled\npage size > block size condition when fallocate zero range functionality\nis used.\n\nAcknowledgements:\n\nThis issue was discovered by Xiong Zhou of Red Hat."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7966368",
+						"comment_count": "2",
+						"who": {
+							"text": "pmatouse",
+							"name": "Petr Matousek"
+						},
+						"bug_when": "2015-02-23 09:48:06 +0000",
+						"thetext": "Upstream patch submission:\n\nhttp://www.spinics.net/lists/linux-ext4/msg47193.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7966407",
+						"comment_count": "3",
+						"who": {
+							"text": "pmatouse",
+							"name": "Petr Matousek"
+						},
+						"bug_when": "2015-02-23 09:58:48 +0000",
+						"thetext": "Statement:\n\nThis issue does not affect the Linux kernel packages as shipped with Red Hat Enterprise Linux 5 and 6. This issue does affect the Linux kernel packages as shipped with Red Hat Enterprise Linux 7 and Red Hat Enterprise MRG 2. Future updates in the respective releases may address this issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7966495",
+						"comment_count": "4",
+						"who": {
+							"text": "pmatouse",
+							"name": "Petr Matousek"
+						},
+						"bug_when": "2015-02-23 10:36:24 +0000",
+						"thetext": "\nCreated kernel tracking bugs for this issue:\n\nAffects: fedora-all [bug 1195178]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8022216",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 08:17:17 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8042606",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-14 09:15:26 +0000",
+						"thetext": "kernel-3.18.9-100.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8635633",
+						"comment_count": "9",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-09-15 09:23:39 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  MRG for RHEL-6 v.2\n\nVia RHSA-2015:1787 https://rhn.redhat.com/errata/RHSA-2015-1787.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8635701",
+						"comment_count": "10",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-09-15 09:39:26 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:1788 https://rhn.redhat.com/errata/RHSA-2015-1788.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8636173",
+						"comment_count": "11",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-09-15 12:06:47 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:1778 https://rhn.redhat.com/errata/RHSA-2015-1778.html"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1194612,
+			"title": "Please move mptspi.ko.xz (and related modules) to kernel-core",
+			"bugzilla": {
+				"bug_id": "1194612",
+				"creation_ts": "2015-02-20 11:23:06 +0000",
+				"short_desc": "Please move mptspi.ko.xz (and related modules) to kernel-core",
+				"delta_ts": "2015-03-09 08:16:58 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7962310",
+						"comment_count": "0",
+						"who": {
+							"text": "sitsofe",
+							"name": "Sitsofe Wheeler"
+						},
+						"bug_when": "2015-02-20 11:23:06 +0000",
+						"thetext": "Description of problem:\nIt is not possible to boot the cloud image when using VMware Fusion 7 as a host.\n\nVersion-Release number of selected component (if applicable):\nkernel-core-3.18.7-200.fc21.x86_64\nkernel-modules-3.18.7-200.fc21.x86_64\n\nHow reproducible:\nReproducible every time.\n\nSteps to Reproduce:\n1. Download the Fedora cloud image (https://getfedora.org/en_GB/cloud/download/ ).\n2. Convert the raw disk to a VMDK (e.g.\nqemu-img convert -O vmdk -o adapter_type=lsilogic Fedora-Cloud-Base-20141203-21.x86_64.raw Fedora-Cloud-Base-20141203-21.x86_64.vmdk\n). \n3. Create a new VM and ensure the disk type is set to SCSI (VMware Fusion 7.1.1).\n4. Boot the VM. \n\nActual results:\nHang.\n\nExpected results:\nVM to finish booting.\n\nAdditional info:\nCloser inspection shows the issue is because the \"disk\" requires the \"Fusion MPT SPI Host\" driver which isn't present in the base cloud image but is part of the kernel-modules package. If you can somehow get the kernel-modules RPM into the image and then rerun dracut this problem goes away."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7963370",
+						"comment_count": "1",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-02-20 16:46:27 +0000",
+						"thetext": "OK.  I've moved the modules into kernel-core on f21-rawhide.  Should be in the next build of each."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7988792",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-02 12:34:32 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.8-201.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999956",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:27:27 +0000",
+						"thetext": "Package kernel-3.18.8-201.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-3.18.8-201.fc21'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-3011/kernel-3.18.8-201.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8003803",
+						"comment_count": "4",
+						"who": {
+							"text": "sitsofe",
+							"name": "Sitsofe Wheeler"
+						},
+						"bug_when": "2015-03-04 16:34:30 +0000",
+						"thetext": "This seems to be fixed:\n# cat /sys/block/sda/device/subsystem/devices/host0/scsi_host/host0/subsystem/host32/proc_name\nmptspi\n# lsmod | grep mptspi\nmptspi                 22552  0 \nmptscsih               38664  1 mptspi\nmptbase               103883  2 mptspi,mptscsih\nscsi_transport_spi     30176  1 mptspi\n# rpm -ql kernel-core | grep mpt\n/lib/modules/3.18.8-201.fc21.x86_64/kernel/drivers/message/fusion/mptbase.ko.xz\n/lib/modules/3.18.8-201.fc21.x86_64/kernel/drivers/message/fusion/mptlan.ko.xz\n/lib/modules/3.18.8-201.fc21.x86_64/kernel/drivers/message/fusion/mptsas.ko.xz\n/lib/modules/3.18.8-201.fc21.x86_64/kernel/drivers/message/fusion/mptscsih.ko.xz\n/lib/modules/3.18.8-201.fc21.x86_64/kernel/drivers/message/fusion/mptspi.ko.xz\n/lib/modules/3.18.8-201.fc21.x86_64/kernel/drivers/scsi/mpt2sas\n/lib/modules/3.18.8-201.fc21.x86_64/kernel/drivers/scsi/mpt3sas\n\nThis looks fixed to me!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8022212",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 08:16:58 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1195178,
+			"security": true,
+			"title": "CVE-2015-0275 kernel: fs: ext4: fallocate zero range page size > block size BUG() [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1195178",
+				"creation_ts": "2015-02-23 10:36:16 +0000",
+				"short_desc": "CVE-2015-0275 kernel: fs: ext4: fallocate zero range page size > block size BUG() [fedora-all]",
+				"delta_ts": "2015-03-14 09:15:14 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1193907",
+						"alias": "CVE-2015-0275",
+						"creation_ts": "2015-02-18 14:33:53 +0000",
+						"short_desc": "CVE-2015-0275 kernel: fs: ext4: fallocate zero range page size > block size BUG()",
+						"delta_ts": "2023-05-12 07:54:07 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1187071",
+							"1193909",
+							"1195178",
+							"1252878",
+							"1252880",
+							"1252881"
+						],
+						"blocked": [
+							{
+								"bug_id": "1193911",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:1788",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7955560",
+								"comment_count": "0",
+								"who": {
+									"text": "pmatouse",
+									"name": "Petr Matousek"
+								},
+								"bug_when": "2015-02-18 14:33:53 +0000",
+								"thetext": "A flaw was found in the way the Linux kernel's EXT4 filesystem handled\npage size > block size condition when fallocate zero range functionality\nis used.\n\nAcknowledgements:\n\nThis issue was discovered by Xiong Zhou of Red Hat."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7966368",
+								"comment_count": "2",
+								"who": {
+									"text": "pmatouse",
+									"name": "Petr Matousek"
+								},
+								"bug_when": "2015-02-23 09:48:06 +0000",
+								"thetext": "Upstream patch submission:\n\nhttp://www.spinics.net/lists/linux-ext4/msg47193.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7966407",
+								"comment_count": "3",
+								"who": {
+									"text": "pmatouse",
+									"name": "Petr Matousek"
+								},
+								"bug_when": "2015-02-23 09:58:48 +0000",
+								"thetext": "Statement:\n\nThis issue does not affect the Linux kernel packages as shipped with Red Hat Enterprise Linux 5 and 6. This issue does affect the Linux kernel packages as shipped with Red Hat Enterprise Linux 7 and Red Hat Enterprise MRG 2. Future updates in the respective releases may address this issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7966495",
+								"comment_count": "4",
+								"who": {
+									"text": "pmatouse",
+									"name": "Petr Matousek"
+								},
+								"bug_when": "2015-02-23 10:36:24 +0000",
+								"thetext": "\nCreated kernel tracking bugs for this issue:\n\nAffects: fedora-all [bug 1195178]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8022216",
+								"comment_count": "5",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-09 08:17:17 +0000",
+								"thetext": "kernel-3.18.8-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8042606",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-14 09:15:26 +0000",
+								"thetext": "kernel-3.18.9-100.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8635633",
+								"comment_count": "9",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-09-15 09:23:39 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  MRG for RHEL-6 v.2\n\nVia RHSA-2015:1787 https://rhn.redhat.com/errata/RHSA-2015-1787.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8635701",
+								"comment_count": "10",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-09-15 09:39:26 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:1788 https://rhn.redhat.com/errata/RHSA-2015-1788.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8636173",
+								"comment_count": "11",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-09-15 12:06:47 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:1778 https://rhn.redhat.com/errata/RHSA-2015-1778.html"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7966493",
+						"comment_count": "0",
+						"who": {
+							"text": "pmatouse",
+							"name": "Petr Matousek"
+						},
+						"bug_when": "2015-02-23 10:36:16 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\nReproducers, if any, will remain confidential and never be made public, unless done so by the security team.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7966494",
+						"comment_count": "1",
+						"who": {
+							"text": "pmatouse",
+							"name": "Petr Matousek"
+						},
+						"bug_when": "2015-02-23 10:36:22 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1193907,1195178\n\n# Description of your update\nnotes=Security fix for CVE-2015-0275\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1193907,1195178"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7968381",
+						"comment_count": "2",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-02-23 19:32:41 +0000",
+						"thetext": "Fixed in Fedora git"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7988790",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-02 12:34:31 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.8-201.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7988802",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-02 12:36:18 +0000",
+						"thetext": "kernel-3.18.8-100.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.8-100.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999923",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:24:46 +0000",
+						"thetext": "Package kernel-3.18.8-100.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-3.18.8-100.fc20'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2990/kernel-3.18.8-100.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8022211",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 08:16:52 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8025119",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 21:13:57 +0000",
+						"thetext": "kernel-3.18.9-100.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.9-100.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8042602",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-14 09:15:14 +0000",
+						"thetext": "kernel-3.18.9-100.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1196581,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-1421 kernel: net: slab corruption from use after free on INIT collisions",
+			"bugzilla": {
+				"bug_id": "1196581",
+				"alias": "CVE-2015-1421",
+				"creation_ts": "2015-02-26 10:33:34 +0000",
+				"short_desc": "CVE-2015-1421 kernel: net: slab corruption from use after free on INIT collisions",
+				"delta_ts": "2023-05-12 07:20:41 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "high",
+				"bug_severity": "high",
+				"depends_on": [
+					"1135425",
+					"1183959",
+					"1196587",
+					"1196588",
+					"1196589",
+					"1196590",
+					"1196591",
+					"1196592",
+					"1196593",
+					"1196594",
+					"1196595"
+				],
+				"blocked": [
+					{
+						"bug_id": "1186793",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2015:1082",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7978526",
+						"comment_count": "0",
+						"who": {
+							"text": "pmatouse",
+							"name": "Petr Matousek"
+						},
+						"bug_when": "2015-02-26 10:33:34 +0000",
+						"thetext": "An use after free flaw was found in the Linux kernel SCTP implementation\nhandled auth keys reference counting during INIT collisions.\n\nA remote user could use this flaw to crash the system or, though unlikely,\nescalate their privileges on the system.\n\nUpstream patch:\n\nhttps://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=600ddd6825543962fb807884169e57b580dba208\n\nAcknowledgements:\n\nThis issue was discovered by Sun Baoliang of Red Hat."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7978559",
+						"comment_count": "1",
+						"who": {
+							"text": "pmatouse",
+							"name": "Petr Matousek"
+						},
+						"bug_when": "2015-02-26 10:42:03 +0000",
+						"thetext": "Statement:\n\nThis issue did not affect the Linux kernel packages as shipped with Red Hat Enterprise Linux 5.\n\nThis issue affects the Linux kernel packages as shipped with Red Hat Enterprise Linux 6 and Red Hat Enterprise MRG 2. Future Linux kernel updates for the respective releases may address this issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7978580",
+						"comment_count": "5",
+						"who": {
+							"text": "pmatouse",
+							"name": "Petr Matousek"
+						},
+						"bug_when": "2015-02-26 10:43:49 +0000",
+						"thetext": "\nCreated kernel tracking bugs for this issue:\n\nAffects: fedora-all [bug 1196595]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8022215",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 08:17:12 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8042605",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-14 09:15:21 +0000",
+						"thetext": "kernel-3.18.9-100.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8086158",
+						"comment_count": "8",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-03-26 11:58:30 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:0727 https://rhn.redhat.com/errata/RHSA-2015-0727.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8088171",
+						"comment_count": "9",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-03-26 16:53:20 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:0726 https://rhn.redhat.com/errata/RHSA-2015-0726.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8095980",
+						"comment_count": "10",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-03-30 08:19:41 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  MRG for RHEL-6 v.2\n\nVia RHSA-2015:0751 https://rhn.redhat.com/errata/RHSA-2015-0751.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8119989",
+						"comment_count": "11",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-04-07 15:13:11 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6.5 EUS - Server and Compute Node Only\n\nVia RHSA-2015:0782 https://rhn.redhat.com/errata/RHSA-2015-0782.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8164474",
+						"comment_count": "12",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-04-21 15:04:04 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2015:0864 https://rhn.redhat.com/errata/RHSA-2015-0864.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8269772",
+						"comment_count": "13",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-05-27 12:07:22 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6.4 AUS - Server Only\n\nVia RHSA-2015:1030 https://rhn.redhat.com/errata/RHSA-2015-1030.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8318613",
+						"comment_count": "14",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-06-09 14:24:42 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6.2 AUS\n\nVia RHSA-2015:1082 https://rhn.redhat.com/errata/RHSA-2015-1082.html"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1196595,
+			"security": true,
+			"title": "CVE-2015-1421 kernel: net: slab corruption from use after free on INIT collisions [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1196595",
+				"creation_ts": "2015-02-26 10:43:27 +0000",
+				"short_desc": "CVE-2015-1421 kernel: net: slab corruption from use after free on INIT collisions [fedora-all]",
+				"delta_ts": "2015-03-14 09:15:03 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "1196581",
+						"alias": "CVE-2015-1421",
+						"creation_ts": "2015-02-26 10:33:34 +0000",
+						"short_desc": "CVE-2015-1421 kernel: net: slab corruption from use after free on INIT collisions",
+						"delta_ts": "2023-05-12 07:20:41 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"1135425",
+							"1183959",
+							"1196587",
+							"1196588",
+							"1196589",
+							"1196590",
+							"1196591",
+							"1196592",
+							"1196593",
+							"1196594",
+							"1196595"
+						],
+						"blocked": [
+							{
+								"bug_id": "1186793",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:1082",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7978526",
+								"comment_count": "0",
+								"who": {
+									"text": "pmatouse",
+									"name": "Petr Matousek"
+								},
+								"bug_when": "2015-02-26 10:33:34 +0000",
+								"thetext": "An use after free flaw was found in the Linux kernel SCTP implementation\nhandled auth keys reference counting during INIT collisions.\n\nA remote user could use this flaw to crash the system or, though unlikely,\nescalate their privileges on the system.\n\nUpstream patch:\n\nhttps://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=600ddd6825543962fb807884169e57b580dba208\n\nAcknowledgements:\n\nThis issue was discovered by Sun Baoliang of Red Hat."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7978559",
+								"comment_count": "1",
+								"who": {
+									"text": "pmatouse",
+									"name": "Petr Matousek"
+								},
+								"bug_when": "2015-02-26 10:42:03 +0000",
+								"thetext": "Statement:\n\nThis issue did not affect the Linux kernel packages as shipped with Red Hat Enterprise Linux 5.\n\nThis issue affects the Linux kernel packages as shipped with Red Hat Enterprise Linux 6 and Red Hat Enterprise MRG 2. Future Linux kernel updates for the respective releases may address this issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7978580",
+								"comment_count": "5",
+								"who": {
+									"text": "pmatouse",
+									"name": "Petr Matousek"
+								},
+								"bug_when": "2015-02-26 10:43:49 +0000",
+								"thetext": "\nCreated kernel tracking bugs for this issue:\n\nAffects: fedora-all [bug 1196595]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8022215",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-09 08:17:12 +0000",
+								"thetext": "kernel-3.18.8-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8042605",
+								"comment_count": "7",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-14 09:15:21 +0000",
+								"thetext": "kernel-3.18.9-100.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8086158",
+								"comment_count": "8",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-03-26 11:58:30 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:0727 https://rhn.redhat.com/errata/RHSA-2015-0727.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8088171",
+								"comment_count": "9",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-03-26 16:53:20 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:0726 https://rhn.redhat.com/errata/RHSA-2015-0726.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8095980",
+								"comment_count": "10",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-03-30 08:19:41 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  MRG for RHEL-6 v.2\n\nVia RHSA-2015:0751 https://rhn.redhat.com/errata/RHSA-2015-0751.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8119989",
+								"comment_count": "11",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-04-07 15:13:11 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6.5 EUS - Server and Compute Node Only\n\nVia RHSA-2015:0782 https://rhn.redhat.com/errata/RHSA-2015-0782.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8164474",
+								"comment_count": "12",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-04-21 15:04:04 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2015:0864 https://rhn.redhat.com/errata/RHSA-2015-0864.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8269772",
+								"comment_count": "13",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-05-27 12:07:22 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6.4 AUS - Server Only\n\nVia RHSA-2015:1030 https://rhn.redhat.com/errata/RHSA-2015-1030.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8318613",
+								"comment_count": "14",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-06-09 14:24:42 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6.2 AUS\n\nVia RHSA-2015:1082 https://rhn.redhat.com/errata/RHSA-2015-1082.html"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7978572",
+						"comment_count": "0",
+						"who": {
+							"text": "pmatouse",
+							"name": "Petr Matousek"
+						},
+						"bug_when": "2015-02-26 10:43:27 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\nReproducers, if any, will remain confidential and never be made public, unless done so by the security team.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7978574",
+						"comment_count": "1",
+						"who": {
+							"text": "pmatouse",
+							"name": "Petr Matousek"
+						},
+						"bug_when": "2015-02-26 10:43:34 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1196581,1196595\n\n# Description of your update\nnotes=Security fix for CVE-2015-1421\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1196581,1196595"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7979098",
+						"comment_count": "2",
+						"who": {
+							"text": "jwboyer",
+							"name": "Josh Boyer"
+						},
+						"bug_when": "2015-02-26 13:21:32 +0000",
+						"thetext": "Fixed on the F20 and F21 branches in Fedora git.  F22 and rawhide already contain the fix."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7988786",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-02 12:34:21 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.8-201.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7988798",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-02 12:36:09 +0000",
+						"thetext": "kernel-3.18.8-100.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.8-100.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7999919",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-04 10:24:36 +0000",
+						"thetext": "Package kernel-3.18.8-100.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing kernel-3.18.8-100.fc20'\nas soon as you are able to, then reboot.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2990/kernel-3.18.8-100.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8022207",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 08:16:36 +0000",
+						"thetext": "kernel-3.18.8-201.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8025114",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 21:13:49 +0000",
+						"thetext": "kernel-3.18.9-100.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/kernel-3.18.9-100.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8042598",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-14 09:15:03 +0000",
+						"thetext": "kernel-3.18.9-100.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "kernel-3.18.8-201.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "python-perf-debuginfo",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-tools-debuginfo",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-tools-libs-devel",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-devel",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "perf-debuginfo",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-modules-extra",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-modules-extra",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "perf",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-tools",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "python-perf",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-core",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-debuginfo",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-tools-libs",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-debuginfo-common-armv7hl",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-modules",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-core",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "kernel-tools-libs",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-devel",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-tools-debuginfo",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-tools-libs-devel",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-debuginfo",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debuginfo-common-i686",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "python-perf-debuginfo",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-modules-extra",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "perf-debuginfo",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-modules-extra",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-modules-extra",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-modules-extra",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-modules",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-core",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-core",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-devel",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "perf",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-debuginfo",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-debuginfo",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-tools",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-modules",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "python-perf",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-core",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAEdebug-modules",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-core",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-PAE-devel",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "kernel",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "python-perf",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-tools-libs",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-tools-libs-devel",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-tools",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-tools-debuginfo",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "perf-debuginfo",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-debuginfo",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-modules",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "perf",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debuginfo-common-x86_64",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-modules-extra",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-core",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-devel",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-core",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python-perf-debuginfo",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-modules-extra",
+						"version": "3.18.8",
+						"release": "201.fc21",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 184467,
+			"text": "This update has been submitted for testing by jwboyer. ",
+			"timestamp": "2015-03-02 12:34:39",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 184468,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/43562/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-03-02 12:50:54",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 184469,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/43562/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-03-02 12:51:36",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 184470,
+			"karma": 1,
+			"text": "Personal LAMP and mail server running GNOME. All OK.",
+			"timestamp": "2015-03-02 18:56:53",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/ab0d8944c3805cda6dbba16a896382cf7bbde084fa926e1c20bc5ad2fa41d0cb?s=24&d=retro",
+				"email": "watsonbrad@comcast.net",
+				"id": 196,
+				"name": "bradw",
+				"openid": "bradw.id.fedoraproject.org"
+			},
+			"user_id": 196
+		},
+		{
+			"id": 184471,
+			"text": "Critical path update approved",
+			"timestamp": "2015-03-02 18:56:54",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 184472,
+			"karma": 1,
+			"text": "Working fine for me.",
+			"timestamp": "2015-03-02 19:02:58",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/e62cb974458dc33fcf2225462b8765e0aadcbbd698560c8f8dad6c3e23d5e47e?s=24&d=retro",
+				"email": "dhgutteridge@hotmail.com",
+				"groups": [
+					{}
+				],
+				"id": 194,
+				"name": "dhgutteridge",
+				"openid": "dhgutteridge.id.fedoraproject.org"
+			},
+			"user_id": 194
+		},
+		{
+			"id": 184473,
+			"karma": 1,
+			"text": "Works for ARMv7 and builds for aarch64",
+			"timestamp": "2015-03-02 19:11:27",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/861506b8dba9fe9ee12a83ce2cd7c6fff15091298f9f1a4e6149876490c53e9b?s=24&d=retro",
+				"email": "pbrobinson@gmail.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "bodhiadmin"
+					},
+					{
+						"name": "sysadmin-main"
+					},
+					{
+						"name": "releng-team"
+					},
+					{
+						"name": "fedora-s390"
+					},
+					{
+						"name": "gitfedora-arm-installer"
+					},
+					{
+						"name": "gitspin-kickstarts"
+					},
+					{
+						"name": "cvsadmin"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "fedora-ppc"
+					},
+					{
+						"name": "alt-sugar"
+					},
+					{
+						"name": "torrentadmin"
+					},
+					{
+						"name": "sysadmin-cvs"
+					},
+					{
+						"name": "gitfedora-wiki"
+					},
+					{
+						"name": "sysadmin-releng"
+					},
+					{
+						"name": "aarch64"
+					},
+					{
+						"name": "sysadmin"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedora-arm"
+					},
+					{
+						"name": "sysadmin-secondary"
+					},
+					{
+						"name": "iot"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "arm-qa"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "gitpungi"
+					}
+				],
+				"id": 96,
+				"name": "pbrobinson",
+				"openid": "pbrobinson.id.fedoraproject.org"
+			},
+			"user_id": 96
+		},
+		{
+			"id": 184474,
+			"karma": 1,
+			"text": "Tested on i686, no regressions and the BT module is working fine.",
+			"timestamp": "2015-03-02 20:18:23",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/e21b7e58716e1fb9e94b5d10dd48de28972a97ff993de0f13bc2494ea8ffc795?s=24&d=retro",
+				"email": "alex.ploumistos@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "scitech_sig"
+					}
+				],
+				"id": 367,
+				"name": "alexpl",
+				"openid": "alexpl.id.fedoraproject.org"
+			},
+			"user_id": 367
+		},
+		{
+			"id": 184475,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2015-03-03 04:27:29",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 184476,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-03-04 10:27:30",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 184477,
+			"text": "Cloud based image booted on VMware Fusion 7.1.1 without kernel-modules installed\nand a rebuilt initramfs works resolving bug #1194612.\n\nkarma: +1",
+			"timestamp": "2015-03-04 16:28:13",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/ffa4b7625be5eced4d6d3ea49cd8c8f60d0c6bd502ed5eb97e52e63f15583009?s=24&d=retro",
+				"id": 207,
+				"name": "anonymous",
+				"openid": "anonymous.id.fedoraproject.org"
+			},
+			"user_id": 207
+		},
+		{
+			"id": 184478,
+			"karma": 1,
+			"text": "Works here (x86_64, i686).",
+			"timestamp": "2015-03-04 20:57:41",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/1a8afd83231ef5ba905344806ba95b39f2abd77b399b0ee217ec3e6fa30a4825?s=24&d=retro",
+				"email": "bojan@rexursive.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 198,
+				"name": "bojan",
+				"openid": "bojan.id.fedoraproject.org"
+			},
+			"user_id": 198
+		},
+		{
+			"id": 184479,
+			"karma": 1,
+			"text": "works fine on my 64bit system",
+			"timestamp": "2015-03-04 22:28:29",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/cea8a7bf566937938cd3ae702098447e4c6108670b852772899331d1fb696628?s=24&d=retro",
+				"email": "Fedora40@gmail.com",
+				"groups": [
+					{}
+				],
+				"id": 580,
+				"name": "greg18",
+				"openid": "greg18.id.fedoraproject.org"
+			},
+			"user_id": 580
+		},
+		{
+			"id": 184480,
+			"karma": 1,
+			"text": "works for me",
+			"timestamp": "2015-03-05 06:51:30",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/2087ddb84fdf1774c00fc96323f629621c9046b99eee2aa497044f598f3979d4?s=24&d=retro",
+				"email": "yuwatana@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					}
+				],
+				"id": 125,
+				"name": "yuwata",
+				"openid": "yuwata.id.fedoraproject.org"
+			},
+			"user_id": 125
+		},
+		{
+			"id": 184481,
+			"karma": 1,
+			"text": "No regressions noted",
+			"timestamp": "2015-03-05 09:01:06",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/36281392f26e23ecef1e6295fd712f48c66d11dc1e37365e933f6e07e7588960?s=24&d=retro",
+				"email": "freddy@freddywillemsen.nl",
+				"groups": [
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "signed_fpca"
+					}
+				],
+				"id": 230,
+				"name": "freddyw",
+				"openid": "freddyw.id.fedoraproject.org"
+			},
+			"user_id": 230
+		},
+		{
+			"id": 184482,
+			"karma": 1,
+			"text": "no problems spotted",
+			"timestamp": "2015-03-05 09:47:22",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/361588cc461dac33122e97f93df9b46d5401fc7f59e4be843887319b1f5be103?s=24&d=retro",
+				"email": "jpopelka@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "communishift"
+					},
+					{
+						"name": "gitpysmbc"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "gitfirewalld-recode"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "gitsystem-config-network"
+					},
+					{
+						"name": "git-packit-team"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "gitpython-iwlib"
+					},
+					{
+						"name": "gitsystem-config-printer"
+					},
+					{
+						"name": "gitdhcpv6"
+					},
+					{
+						"name": "gitpycups"
+					},
+					{
+						"name": "gitfirewalld"
+					},
+					{
+						"name": "fedora-ci-admins"
+					},
+					{
+						"name": "atomic-ci"
+					}
+				],
+				"id": 122,
+				"name": "jpopelka",
+				"openid": "jpopelka.id.fedoraproject.org"
+			},
+			"user_id": 122
+		},
+		{
+			"id": 184483,
+			"karma": 1,
+			"timestamp": "2015-03-05 23:42:40",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/73e804b1855a1d4ed603988de491f5603ac4590a52826783f7b30785d9237f45?s=24&d=retro",
+				"id": 750,
+				"name": "yograterol",
+				"openid": "yograterol.id.fedoraproject.org"
+			},
+			"user_id": 750
+		},
+		{
+			"id": 184484,
+			"karma": 1,
+			"text": "all hardware works, even nvidia card. looks good to me.",
+			"timestamp": "2015-03-06 01:25:02",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/b69a781f897ff47fb3d40e9bd36309fb6d6aecb6892aa07fbcf302de054e5b12?s=24&d=retro",
+				"email": "nonamedotc@gmail.com",
+				"groups": [
+					{
+						"name": "qa"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "scitech_sig"
+					},
+					{
+						"name": "triagers"
+					}
+				],
+				"id": 306,
+				"name": "nonamedotc",
+				"openid": "nonamedotc.id.fedoraproject.org"
+			},
+			"user_id": 306
+		},
+		{
+			"id": 184485,
+			"karma": 1,
+			"text": "All fine here.",
+			"timestamp": "2015-03-06 15:49:30",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/7125aceba76fb280192a9efbda0edd6a0d358247908eb6460e69779523f222d3?s=24&d=retro",
+				"email": "robyduck@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					}
+				],
+				"id": 704,
+				"name": "robyduck",
+				"openid": "robyduck.id.fedoraproject.org"
+			},
+			"user_id": 704
+		},
+		{
+			"id": 184486,
+			"text": "This update has been submitted for stable by jwboyer. ",
+			"timestamp": "2015-03-06 17:54:53",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 184487,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/45692/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-03-06 18:03:56",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 184488,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2015-03-08 19:31:28",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 184489,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-03-09 08:17:28",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 184490,
+			"karma": 1,
+			"timestamp": "2015-03-12 09:02:31",
+			"update_id": 24028,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/e04beb63c279ac05f99dd5ea1252e8d45b15611d1a9226bc42bda9fb31f24c75?s=24&d=retro",
+				"email": "i@cicku.me",
+				"groups": [
+					{
+						"name": "packager"
+					}
+				],
+				"id": 120,
+				"name": "cicku",
+				"openid": "cicku.id.fedoraproject.org"
+			},
+			"user_id": 120
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2015-03-09 08:17:28",
+	"date_stable": "2015-03-09 08:17:28",
+	"date_submitted": "2015-03-02 12:34:03",
+	"date_testing": "2015-03-04 10:27:30",
+	"karma": 13,
+	"meets_testing_requirements": true,
+	"notes": "Update to latest upstream stable release, Linux v3.18.8.  Numerous bugfixes across the tree.",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_cases": [
+		{
+			"id": 372,
+			"name": "QA:Testcase kernel regression"
+		}
+	],
+	"title": "kernel-3.18.8-201.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-3011",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-3011",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/53aa0a6d4d5e388d3bb56c93e6510dc1e1526c0773eb7646ceb67b8756b8a0c9?s=24&d=retro",
+		"email": "jwboyer@redhat.com",
+		"groups": [
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "bodhiadmin"
+			},
+			{
+				"name": "gitworkstation"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "gitspin-kickstarts"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "eln-sig"
+			},
+			{
+				"name": "torrentadmin"
+			},
+			{
+				"name": "cvsadmin"
+			},
+			{
+				"name": "sysadmin"
+			},
+			{
+				"name": "sig-altarch"
+			},
+			{
+				"name": "centos-board"
+			},
+			{
+				"name": "gitbodhi"
+			},
+			{
+				"name": "disabled_torrent"
+			},
+			{
+				"name": "sysadmin-kernel"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "gitkernel-tests"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "sysadmin-cvs"
+			},
+			{
+				"name": "centosproject-email-aliases"
+			},
+			{
+				"name": "modularity-wg"
+			}
+		],
+		"id": 834,
+		"name": "jwboyer",
+		"openid": "jwboyer.id.fedoraproject.org"
+	},
+	"version_hash": "4bc8b568bc24737ca51bacf25138f6c7113000b3"
+}

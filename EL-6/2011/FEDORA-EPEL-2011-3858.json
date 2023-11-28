@@ -1,0 +1,349 @@
+{
+	"alias": "FEDORA-EPEL-2011-3858",
+	"bugs": [
+		{
+			"bug_id": 719698,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2011-2516 xml-security-c: Stack-based buffer overflows when creating or verifying XML Signatures with RSA keys of sizes >= 8192 bits",
+			"bugzilla": {
+				"bug_id": "719698",
+				"alias": "CVE-2011-2516",
+				"creation_ts": "2011-07-07 17:21:04 +0000",
+				"short_desc": "CVE-2011-2516 xml-security-c: Stack-based buffer overflows when creating or verifying XML Signatures with RSA keys of sizes >= 8192 bits",
+				"delta_ts": "2019-09-29 12:45:43 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened, Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"719701",
+					"719702"
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "3871792",
+						"comment_count": "0",
+						"who": {
+							"text": "jlieskov",
+							"name": "Jan Lieskovsky"
+						},
+						"bug_when": "2011-07-07 17:21:04 +0000",
+						"thetext": "Stack-based buffer overflow flaws were found in the way xml-security-c, a C++ implementation of the XML Digital Signature specification, performed creation and verification of XML Signatures, when large RSA keys (length >= 8192) were used. A remote attacker, using sufficiently long RSA key, could use this flaw to cause an application linked against the xml-security-c library to crash (denial of service), or, potentially, it to execute arbitrary code with the privileges of the user running the application.\n\nReferences:\n[1] http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=632973\n[2] http://santuario.apache.org/secadv/CVE-2011-2516.txt\n[3] https://issues.apache.org/jira/browse/SANTUARIO-271\n\nUpstream patch:\n[4] http://svn.apache.org/viewvc?view=revision&revision=1125752"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3871797",
+						"comment_count": "1",
+						"who": {
+							"text": "jlieskov",
+							"name": "Jan Lieskovsky"
+						},
+						"bug_when": "2011-07-07 17:23:31 +0000",
+						"thetext": "This issue affects the versions of the xml-security-c package, as shipped with Fedora release of 14 and 15.\n\n--\n\nThis issue affects the versions of the xml-security-c package, as present within EPEL-5 and EPEL-6 repositories. Please schedule and update."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3871801",
+						"comment_count": "2",
+						"who": {
+							"text": "jlieskov",
+							"name": "Jan Lieskovsky"
+						},
+						"bug_when": "2011-07-07 17:26:51 +0000",
+						"thetext": "Created attachment 511759\nLocal copy of buff_overflow.cpp from [3]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3871806",
+						"comment_count": "3",
+						"who": {
+							"text": "jlieskov",
+							"name": "Jan Lieskovsky"
+						},
+						"bug_when": "2011-07-07 17:29:08 +0000",
+						"thetext": "Created attachment 511760\nLocal copy of reproducer.tar.gz from [3]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3871811",
+						"comment_count": "4",
+						"who": {
+							"text": "jlieskov",
+							"name": "Jan Lieskovsky"
+						},
+						"bug_when": "2011-07-07 17:30:18 +0000",
+						"thetext": "Created xml-security-c tracking bugs for this issue\n\nAffects: epel-all [bug 719701]\nAffects: fedora-all [bug 719702]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3872622",
+						"comment_count": "5",
+						"who": {
+							"text": "djorm",
+							"name": "David Jorm"
+						},
+						"bug_when": "2011-07-08 03:51:41 +0000",
+						"thetext": "To make the reproducer in attachment 511760 compile in Fedora 15, modify the Makefile:\n\n-LIBS = lxerces-c -lxml-security-c\n+LIBS = lxerces-c -lxml-security-c -lcrypto"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3872956",
+						"comment_count": "6",
+						"who": {
+							"text": "antti.andreimann",
+							"name": "Antti Andreimann"
+						},
+						"bug_when": "2011-07-08 08:57:11 +0000",
+						"thetext": "I've backported the patch to 1.5.1 and 1.6.0 and pushed the changes\nto appropriate branches.\n\nHowever the reproducer produces loads of errors under valgrind, even with 1.6.1. Can someone please verify if the patch actually does anything.\n\nhttp://koji.fedoraproject.org/koji/taskinfo?taskID=3186240\nhttp://koji.fedoraproject.org/koji/taskinfo?taskID=3186244\nhttp://koji.fedoraproject.org/koji/taskinfo?taskID=3186248\nhttp://koji.fedoraproject.org/koji/taskinfo?taskID=3186259"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3873243",
+						"comment_count": "7",
+						"who": {
+							"text": "jlieskov",
+							"name": "Jan Lieskovsky"
+						},
+						"bug_when": "2011-07-08 11:51:02 +0000",
+						"thetext": "Hi Antti,\n\n  thank you for your work on these.\n\n(In reply to comment #6)\n> I've backported the patch to 1.5.1 and 1.6.0 and pushed the changes\n> to appropriate branches.\n> \n> However the reproducer produces loads of errors under valgrind, even with\n> 1.6.1. Can someone please verify if the patch actually does anything.\n\nWhen simplified what the patch does is to double the space for \"outputStr[MAXB64BUFSIZE]\" buffer (from 1024 to 2048 bits). This may not be\nviewed as a complete solution (proper way how to address this issue). But the\nreasons, why this patch is changing the behaviour in that way are at:\n[1] https://issues.apache.org/jira/secure/ViewProfile.jspa?name=pzanoni\n[2] https://issues.apache.org/jira/secure/ViewProfile.jspa?name=cantor.2%40osu.edu\n[3] https://issues.apache.org/jira/secure/ViewProfile.jspa?name=cantor.2%40osu.edu\n\nand mainly:\n[4] https://issues.apache.org/jira/secure/ViewProfile.jspa?name=cantor.2%40osu.edu\n\nInteresting bits from [4]:\nVerification should work with any key sizes. Signing uses a buffer that's double the current size (should handle enormous/impractical keys), and detects when the result is too large to handle and fails instead of crashing. We can change the API in the future to improve this.\n\nSo I would say what the current patch is doing is:\n1) fixing the verification scenario,\n2) doubling the buffer size for signing case. Larger (8192 and more) bits\n   RSA keys will still report an error. Processing of them shouldn't\n   crash, but valgrind may still print error messages for those. Since there\n   is limitation in the API, this can't be (for now without XMLSig v2.0 being\n   present) fixed better.\n\nHope this helps, Jan.\n\n> \n> http://koji.fedoraproject.org/koji/taskinfo?taskID=3186240\n> http://koji.fedoraproject.org/koji/taskinfo?taskID=3186244\n> http://koji.fedoraproject.org/koji/taskinfo?taskID=3186248\n> http://koji.fedoraproject.org/koji/taskinfo?taskID=3186259"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3873308",
+						"comment_count": "8",
+						"who": {
+							"text": "jlieskov",
+							"name": "Jan Lieskovsky"
+						},
+						"bug_when": "2011-07-08 12:33:44 +0000",
+						"thetext": "Ouch, looks like the links in [1] up to [4] aren't doing what I originally\nintended. Provided are the corrected ones:\n\n[1] https://issues.apache.org/jira/browse/SANTUARIO-271?focusedCommentId=13032512&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-13032512\n\n[2] https://issues.apache.org/jira/browse/SANTUARIO-271?focusedCommentId=13032552&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-13032552\n\n[3] https://issues.apache.org/jira/browse/SANTUARIO-271?focusedCommentId=13036123&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-13036123\n\nand mainly:\n\n[4] https://issues.apache.org/jira/browse/SANTUARIO-271?focusedCommentId=13037430&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-13037430"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3893463",
+						"comment_count": "9",
+						"who": {
+							"text": "antti.andreimann",
+							"name": "Antti Andreimann"
+						},
+						"bug_when": "2011-07-18 12:33:35 +0000",
+						"thetext": "Thanx Jan.\n\nUnfortunately I have been unable to reproduce the strcpy memory error reported in https://issues.apache.org/jira/browse/SANTUARIO-271 thus I have simply followed the upstream advice and backported the patch to 1.6.0 and 1.5.1. The devel branch has been updated to 1.6.1 by Steve Traylen.\n\nThe updates for EL4-6 and F14-15 have been pushed to bodhi, feel free to give negative karma if the backported patch breaks anything:\n\nhttps://admin.fedoraproject.org/updates/search/CVE-2011-2516\n\nThanx for help."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3939208",
+						"comment_count": "10",
+						"who": {
+							"text": "antti.andreimann",
+							"name": "Antti Andreimann"
+						},
+						"bug_when": "2011-08-06 07:51:53 +0000",
+						"thetext": "Closing bug because fixed packages have been pushed to stable repositories for all supported distros (el4, el5, el6, fc14, fc15)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3940218",
+						"comment_count": "11",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2011-08-08 04:41:03 +0000",
+						"thetext": "This is fixed for fedora, but does not seem to be fixed for el*, We dont use bodhi for el* :)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3940698",
+						"comment_count": "12",
+						"who": {
+							"text": "antti.andreimann",
+							"name": "Antti Andreimann"
+						},
+						"bug_when": "2011-08-08 09:49:52 +0000",
+						"thetext": "Fedora EPEL *does* use bodhi. At least fixed xml-security-c packages are available from EPEL repository:\n\nhttp://download.fedora.redhat.com/pub/epel/4/x86_64/repoview/xml-security-c.html\n\nAFAIK xml-security-c is not part of official RHEL.\n(At least the sources are not available from ftp.redhat.com).\n\nIf I'm wrong please reopen and assign to whoever is resposible for pushing EPEL updates to RHEL. Thank you."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "3959894",
+						"comment_count": "13",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2011-08-16 16:47:22 +0000",
+						"thetext": "I think there was some confusion as we usually refer to EPEL for RHEL4 as EPEL4 rather then el4.  We do not have xml-security-c in RHEL.\n\nHowever, this bug wasn't assigned to you either, it was assigned to the SRT.  Please do not close our bugs (feel free to close the trackers that are assigned to you).  Thanks."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "xml-security-c-1.6.0-2.el6",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"i686": [
+					{
+						"name": "xml-security-c",
+						"version": "1.6.0",
+						"release": "2.el6",
+						"arch": "i686"
+					},
+					{
+						"name": "xml-security-c-debuginfo",
+						"version": "1.6.0",
+						"release": "2.el6",
+						"arch": "i686"
+					},
+					{
+						"name": "xml-security-c-devel",
+						"version": "1.6.0",
+						"release": "2.el6",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "xml-security-c",
+						"version": "1.6.0",
+						"release": "2.el6",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "xml-security-c-debuginfo",
+						"version": "1.6.0",
+						"release": "2.el6",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xml-security-c-devel",
+						"version": "1.6.0",
+						"release": "2.el6",
+						"arch": "x86_64"
+					},
+					{
+						"name": "xml-security-c",
+						"version": "1.6.0",
+						"release": "2.el6",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 2588,
+			"text": "This update has been submitted for testing by anttix. ",
+			"timestamp": "2011-07-18 12:27:20",
+			"update_id": 368,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2589,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2011-07-20 15:32:28",
+			"update_id": 368,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2590,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2011-08-03 17:04:53",
+			"update_id": 368,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2591,
+			"text": "This update has been submitted for stable by anttix. ",
+			"timestamp": "2011-08-03 19:08:50",
+			"update_id": 368,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2592,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2011-08-05 08:28:40",
+			"update_id": 368,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2011-08-05 08:28:40",
+	"date_stable": "2011-08-05 08:28:40",
+	"date_submitted": "2011-07-18 12:27:15",
+	"date_testing": "2011-07-20 15:32:28",
+	"meets_testing_requirements": true,
+	"notes": "Fix CVE-2011-2516: Apache Santuario XML Security for C++\ncontains buffer overflows signing or verifying with large keys.",
+	"pushed": true,
+	"release": {
+		"branch": "el6",
+		"candidate_tag": "dist-6E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "dist-6E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 6",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-6",
+		"override_tag": "dist-6E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-6E-epel",
+		"state": "archived",
+		"testing_tag": "dist-6E-epel-testing",
+		"version": "6"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "xml-security-c-1.6.0-2.el6",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2011-3858",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2011-3858",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/42377f7811a0bebe97e6689ef6e6f4e270b28b5d5d0313f048e8dc3a8524f164?s=24&d=retro",
+		"id": 298,
+		"name": "anttix",
+		"openid": "anttix.id.fedoraproject.org"
+	},
+	"version_hash": "5f697f9c434f7b6983ac437909ee713ff4fe3f05"
+}

@@ -1,0 +1,554 @@
+{
+	"alias": "FEDORA-2015-0831",
+	"bugs": [
+		{
+			"bug_id": 1181721,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-0203 qpid-cpp: 3 qpidd DoS issues in AMQP 0-10 protocol handling",
+			"bugzilla": {
+				"bug_id": "1181721",
+				"alias": "CVE-2015-0203",
+				"creation_ts": "2015-01-13 16:29:27 +0000",
+				"short_desc": "CVE-2015-0203 qpid-cpp: 3 qpidd DoS issues in AMQP 0-10 protocol handling",
+				"delta_ts": "2023-05-12 06:32:31 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1471925",
+					"1471926",
+					"1471927"
+				],
+				"blocked": [
+					{
+						"bug_id": "1181723",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2015:0708",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7840475",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-13 16:29:27 +0000",
+						"thetext": "It was reported [1] that certain unexpected protocol sequences cause the broker process to crash due to insufficient checking. Three distinct cases were identified as follows:\n\nThe AMQP 0-10 protocol defines a sequence set containing id ranges. The qpidd broker can be crashed by sending it a sequence-set containing an invalid range, where the start of the range is after the end. This condition causes an assertion, which causes the broker process to exit.\n\nThe AMQP 0-10 protocol defines header- and body- segments that may follow certain commands. The only command for which such segments are expected by qpidd is the message-transfer command. If another command is sent that includes header and/or body segments, this will cause a segmentation fault in the broker process, causing it then to exit.\n\nThe AMQP 0-10 protocol defines a session-gap control that can be sent on any established session. The qpidd broker does not support this control and responds with an appropriate error if requested on an established session. However, if the control is sent before the session is opened, the brokers handling causes an assertion which results in the broker process exiting.\n\nA patch is available (https://issues.apache.org/jira/browse/QPID-6310) that handles all these errors by sending an exception control to the remote peer and leave the broker available to all other users.\n\n[1]: http://mail-archives.apache.org/mod_mbox/qpid-users/201501.mbox/%3c54B4F4AC.8030109@apache.org%3e\n\nAcknowledgements:\n\nRed Hat would like to thank the Apache Software Foundation for reporting this issue. Upstream acknowledges G. Geshev from MWR Labs as the original reporter."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7904010",
+						"comment_count": "2",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-02-03 14:37:48 +0000",
+						"thetext": "It has now been discovered that in fact failing authentication does\nnot necessarily prevent exploitation of those reported\nvulnerabilities.\n\nFurther, it was stated that one of the specific vulnerabilities was\nthat the qpidd broker can be crashed by sending it a sequence-set\ncontaining an invalid range, where the start of the range is after the\nend. This was an incorrect analysis of the vulnerability, which is in\nfact caused by a sequence-set containing a single range expressing the\nmaximum possible gap.\n\nSolution:\n\nA further patch is available that handles a range expressing the\nmaximum possible gap without assertion\n(https://issues.apache.org/jira/browse/QPID-6310). The fix will be\nincluded in subsequent releases, but can be applied to 0.30 if\ndesired."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8023191",
+						"comment_count": "3",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-03-09 12:08:24 +0000",
+						"thetext": "Upstream advisory is:\n\nhttp://seclists.org/bugtraq/2015/Jan/61\n\nIt identifies 3 separate problems, as quote in comment 0.  Upstream bug report identifies the following commits to address these issues:\n\n  The AMQP 0-10 protocol defines a sequence set containing id\n  ranges. The qpidd broker can be crashed by sending it a sequence-set\n  containing an invalid range, where the start of the range is after the\n  end. This condition causes an assertion, which causes the broker\n  process to exit.\n\n  -> https://svn.apache.org/viewvc?view=revision&revision=1651321\n\n  The AMQP 0-10 protocol defines header- and body- segments that may\n  follow certain commands. The only command for which such segments are\n  expected by qpidd is the message-transfer command. If another command\n  is sent that includes header and/or body segments, this will cause a\n  segmentation fault in the broker process, causing it then to exit.\n\n  -> https://svn.apache.org/viewvc?view=revision&revision=1651320\n\n  The AMQP 0-10 protocol defines a session-gap control that can be sent\n  on any established session. The qpidd broker does not support this\n  control and responds with an appropriate error if requested on an\n  established session. However, if the control is sent before the\n  session is opened, the brokers handling causes an assertion which\n  results in the broker process exiting.\n\n  -> https://svn.apache.org/viewvc?view=revision&revision=1651319\n\nThe information in comment 2 was quoted from a follow-up upstream advisory:\n\nhttp://seclists.org/bugtraq/2015/Jan/121\n\nThe follow-up advisory provides the following corrections:\n\n- The original advisory for CVE-2015-0203 indicated that these issues were only exploitable by an authenticated user, which was later determined to be incorrect.  This may be because of CVE-2015-0223 (bug 1186308), but upstream advisory does not indicate clearly.\n\n- It identifies an additional way to trigger qpidd crash related to handling of sequence-set ranges.  That issue was assigned the CVE id CVE-2015-0224 and is tracked via bug 1186302.  Upstream commit fixing that issue is:\n\n  -> https://svn.apache.org/viewvc?view=revision&revision=1654365"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8023598",
+						"comment_count": "4",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-03-09 13:43:24 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  MRG for RHEL-5 v. 2\n\nVia RHSA-2015:0662 https://rhn.redhat.com/errata/RHSA-2015-0662.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8023602",
+						"comment_count": "5",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-03-09 13:43:41 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  MRG v.2 for RHEL-7\n\nVia RHSA-2015:0660 https://rhn.redhat.com/errata/RHSA-2015-0660.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8023639",
+						"comment_count": "6",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-03-09 13:50:09 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  MRG for RHEL-6 v.2\n\nVia RHSA-2015:0661 https://rhn.redhat.com/errata/RHSA-2015-0661.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8061149",
+						"comment_count": "7",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-03-19 17:10:37 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  MRG for RHEL-6 v.3\n\nVia RHSA-2015:0707 https://rhn.redhat.com/errata/RHSA-2015-0707.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8061194",
+						"comment_count": "8",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-03-19 17:11:04 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  MRG Messaging v.3 for RHEL-7\n\nVia RHSA-2015:0708 https://access.redhat.com/errata/RHSA-2015:0708"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8061265",
+						"comment_count": "9",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-03-19 17:11:49 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  MRG Messaging v.3 for RHEL-7\n\nVia RHSA-2015:0708 https://access.redhat.com/errata/RHSA-2015:0708"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8079549",
+						"comment_count": "10",
+						"who": {
+							"text": "dsirrine",
+							"name": "David Sirrine"
+						},
+						"bug_when": "2015-03-24 19:58:10 +0000",
+						"thetext": "Is there a statement of applicability to the qpid-cpp packages in the base RHEL channels outside of MRG?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8168645",
+						"comment_count": "11",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-04-22 13:14:17 +0000",
+						"thetext": "qpid-cpp packages in Red Hat Enterprise Linux 6 are deprecated.  Deprecation noticed can be found in Red Hat Enterprise Linux 6 Technical Notes document starting with 6.4, which contains:\n\n  The following packages have been deprecated and are subjected to removal in\n  a future release of Red Hat Enterprise Linux 6. These packages will not be\n  updated in the Red Hat Enterprise Linux 6 repositories and customers who do\n  not use the MRG-Messaging product are advised to uninstall them from their\n  system.\n\n  ...\n\n  qpid-cpp\n\nhttps://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/6.4_Technical_Notes/deprecated_functionality.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8288634",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-29 21:45:52 +0000",
+						"thetext": "qpid-cpp-0.30-12.el7, qpid-qmf-0.28-27.el7 has been pushed to the Fedora EPEL 7 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8356526",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-21 00:03:58 +0000",
+						"thetext": "qpid-cpp-0.32-4.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10601918",
+						"comment_count": "18",
+						"who": {
+							"text": "kseifried",
+							"name": "Kurt Seifried"
+						},
+						"bug_when": "2017-07-17 17:00:53 +0000",
+						"thetext": "Created qpid-cpp tracking bugs for this issue:\n\nAffects: epel-7 [bug 1471925]\nAffects: fedora-all [bug 1471927]"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "qpid-cpp-0.30-4.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "qpid-cpp-server-ha",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qpid-tools",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qpid-cpp-server-store",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qpid-cpp-debuginfo",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qpid-cpp-server-rdma",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qpid-cpp-client-rdma",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qpid-cpp-server-xml",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qpid-cpp-server-linearstore",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qpid-cpp-client-devel",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qpid-cpp-server",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qpid-cpp-client",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "qpid-cpp-debuginfo",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "qpid-cpp-server",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "qpid-cpp-client-devel",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "qpid-cpp-client-rdma",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "qpid-cpp-server-xml",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "qpid-tools",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "qpid-cpp-server-store",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "qpid-cpp-server-ha",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "qpid-cpp-server-rdma",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "qpid-cpp-server-linearstore",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "qpid-cpp-client",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "qpid-cpp-client-devel-docs",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "qpid-cpp",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "qpid-cpp-server-store",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qpid-cpp-debuginfo",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qpid-tools",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qpid-cpp-server-linearstore",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qpid-cpp-server-xml",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qpid-cpp-client",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qpid-cpp-client-devel",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qpid-cpp-server",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qpid-cpp-server-rdma",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qpid-cpp-server-ha",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qpid-cpp-client-rdma",
+						"version": "0.30",
+						"release": "4.fc21",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 90640,
+			"text": "This update has been submitted for testing by mcpierce. ",
+			"timestamp": "2015-01-16 18:17:25",
+			"update_id": 12472,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 90641,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/28734/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-01-16 18:33:01",
+			"update_id": 12472,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 90642,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/28734/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-01-16 18:35:07",
+			"update_id": 12472,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 90643,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2015-01-16 20:55:24",
+			"update_id": 12472,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 90644,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-01-17 05:48:31",
+			"update_id": 12472,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 90645,
+			"text": "This update has been obsoleted by https://admin.fedoraproject.org/updates/qpid-cpp-0.30-6.fc21",
+			"timestamp": "2015-01-21 22:22:33",
+			"update_id": 12472,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2015-01-17 05:48:31",
+	"date_submitted": "2015-01-16 18:17:21",
+	"date_testing": "2015-01-17 05:48:31",
+	"meets_testing_requirements": true,
+	"notes": "Resolves: BZ#1181721",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "obsolete",
+	"suggest": "unspecified",
+	"title": "qpid-cpp-0.30-4.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-0831",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-0831",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/1ad49ad8464201f56a83dc244799082fd846a594d03f6a78d800bb01fca6e155?s=24&d=retro",
+		"id": 679,
+		"name": "mcpierce",
+		"openid": "mcpierce.id.fedoraproject.org"
+	},
+	"version_hash": "d4ce3831db581996d674f4c247181608e20c255f"
+}

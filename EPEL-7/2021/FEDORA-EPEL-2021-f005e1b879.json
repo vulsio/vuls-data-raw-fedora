@@ -1,0 +1,355 @@
+{
+	"alias": "FEDORA-EPEL-2021-f005e1b879",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1801338,
+			"title": "Changes to gpgv options used in debmirror 2.33 break gpg signature verification.",
+			"bugzilla": {
+				"bug_id": "1801338",
+				"creation_ts": "2020-02-10 16:53:26 +0000",
+				"short_desc": "Changes to gpgv options used in debmirror 2.33 break gpg signature verification.",
+				"delta_ts": "2021-11-30 00:43:35 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened",
+				"priority": "unspecified",
+				"bug_severity": "high",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "13596126",
+						"comment_count": "0",
+						"who": {
+							"text": "ledfordd",
+							"name": "Donald Ledford"
+						},
+						"bug_when": "2020-02-10 16:53:26 +0000",
+						"thetext": "Description of problem: The 2.33-1 update to debmirror breaks syncing DEB repos with gpg signature verification enabled.\n\nVersion-Release number of selected component (if applicable): 2.33-1.el7\n\nHow reproducible: Update debmirror from 2.32-1 to 2.33-1 and attempt to sync a DEB repo with signature verification enabled.\n\nSteps to Reproduce:\n1. Update debmirror to 2.33-1\n2. Sync DEB mirror with GPG signature verification turned on.\n\nActual results: \ndebmirror reports an error with the message:\ngpgv: invalid option \"--output\"\n.temp/.tmp/dists/xenial/Release.gpg signature does not verify.\n\nExpected results:\nThe repo syncs without errors.\n\nWordaround:\nDowngrade debmirror from 2.33 to 2.32.\n\nAdditional info:\nThis appears to be happening because the version of GPG in CentOS 7, 2.0.22, does not have the \"--output\" option.\n\nLine 2255 in debmirror 2.33 is:\nmy @gpgv = qw(gpgv --output - --status-fd);\n\nThe gpgv call in debmirror 2.32 is made on line 2160 and does not contain the \"--output\" option:\nmy @gpgv = qw(gpgv --status-fd 1);\n\nRebasing GPG2 for CentOS/RHEL 7 to a newer 2.2.x release would resolve this issue but it's probably easier to back the change out of debmirror."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13596134",
+						"comment_count": "1",
+						"who": {
+							"text": "ledfordd",
+							"name": "Donald Ledford"
+						},
+						"bug_when": "2020-02-10 16:56:33 +0000",
+						"thetext": "Sorry, I meant 2.30-1 not 2.32-1 in the above comment."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13603800",
+						"comment_count": "2",
+						"who": {
+							"text": "sergio",
+							"name": "Sergio Basto"
+						},
+						"bug_when": "2020-02-12 07:19:10 +0000",
+						"thetext": "Thank you for the report \n\nuse mean just remove \"--output -\" fixes the problem ?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13605805",
+						"comment_count": "3",
+						"who": {
+							"text": "ledfordd",
+							"name": "Donald Ledford"
+						},
+						"bug_when": "2020-02-12 16:48:43 +0000",
+						"thetext": "I'm not sure that just removing \"--output -\" would resolve the issue. \n\nIt appears the code changes between 2.30 and 2.33 added lines to dynamically change the \"--status-fd\" FD number at runtime. The code appears to check the gpgv STDOUT for a good signature message. If --status-fd isn't 1 or 2 the Perl code may not get the gpgv command output to check. I'm guessing that \"--output -\" was added so the output is always sent to STDOUT and other messages can be sent to other FD descriptors with the dynamic \"--status-fd\" FD option.\n\nThe code change for this functionality was done in commit 3b5c84e534e52f51e0a6373223483f1130d45e3e in response to Debian bug 918304. The first release of debmirror with these changes was version 2.31.\n\nSee here: https://salsa.debian.org/debian/debmirror/commit/3b5c84e534e52f51e0a6373223483f1130d45e3e\n\nand here: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=918304\n\nI'll be honest, I'm not a programmer and Perl isn't a language I'm super familiar with so I'm guessing on the above analysis.\n\nI reverted the debmirror package to 2.30-1 and pinned it on my production system to work around this bug. My repos are still syncing correctly with the 2.30-1 package and GPG signature verification turned on."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13613646",
+						"comment_count": "4",
+						"who": {
+							"text": "sergio",
+							"name": "Sergio Basto"
+						},
+						"bug_when": "2020-02-15 03:01:55 +0000",
+						"thetext": "OK, no worries,  maybe the best is rollback to debmirror-2.30 in el7 , isn't it .\n\nThanks for the report"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13659925",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-03-01 23:07:51 +0000",
+						"thetext": "debmirror-2.30-4.el7 has been pushed to the Fedora EPEL 7 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2020-9d014c4edf"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13706933",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-03-16 16:06:11 +0000",
+						"thetext": "debmirror-2.30-4.el7 has been pushed to the Fedora EPEL 7 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15507354",
+						"comment_count": "7",
+						"who": {
+							"text": "sergio",
+							"name": "Sergio Basto"
+						},
+						"bug_when": "2021-09-17 13:47:13 +0000",
+						"thetext": "(In reply to Sergio Basto from comment #2)\n> Thank you for the report \n> \n> use mean just remove \"--output -\" fixes the problem ?\n\nOK, I'm sending  debmirror-2.35-1.el7 to testing with mentioned patch since I got other person which says that is working and \ndebmirror-2.35 is need to pick up the new cnf metadata that ubuntu 20.04 requires."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15507362",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-09-17 13:51:00 +0000",
+						"thetext": "FEDORA-EPEL-2021-f005e1b879 has been submitted as an update to Fedora EPEL 7. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2021-f005e1b879"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15507549",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-09-17 14:19:00 +0000",
+						"thetext": "FEDORA-EPEL-2021-f005e1b879 has been pushed to the Fedora EPEL 7 testing repository.\n\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2021-f005e1b879\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15721323",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-11-30 00:43:35 +0000",
+						"thetext": "FEDORA-EPEL-2021-f005e1b879 has been pushed to the Fedora EPEL 7 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 1,
+			"nvr": "debmirror-2.35-1.el7",
+			"release_id": 8,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "debmirror",
+						"epoch": 1,
+						"version": "2.35",
+						"release": "1.el7",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "debmirror",
+						"epoch": 1,
+						"version": "2.35",
+						"release": "1.el7",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 2211798,
+			"text": "This update has been submitted for testing by sergiomb. ",
+			"timestamp": "2021-09-17 13:50:56",
+			"update_id": 341875,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2211799,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2021-09-17 13:50:56",
+			"update_id": 341875,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2211800,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2021-09-17 13:50:56",
+			"update_id": 341875,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2211806,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2021-09-17 14:08:38",
+			"update_id": 341875,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2211822,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2021-09-17 14:19:00",
+			"update_id": 341875,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2220655,
+			"text": "This update can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2021-09-24 14:20:12",
+			"update_id": 341875,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2295787,
+			"text": "This update has been submitted for stable by sergiomb. ",
+			"timestamp": "2021-11-29 12:52:57",
+			"update_id": 341875,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2296381,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2021-11-30 00:43:39",
+			"update_id": 341875,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2021-11-30 00:43:32",
+	"date_stable": "2021-11-30 00:43:32",
+	"date_submitted": "2021-09-17 13:50:56",
+	"date_testing": "2021-09-17 14:18:58",
+	"meets_testing_requirements": true,
+	"notes": "Debmirror 2.35 on EPEL-7 with patch mentioned in #1801338, I received an email that says it works and it is need to pick up the new cnf metadata that ubuntu 20.04 requires. ",
+	"pushed": true,
+	"release": {
+		"branch": "epel7",
+		"candidate_tag": "epel7-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "epel7",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 7",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EPEL-7",
+		"override_tag": "epel7-override",
+		"package_manager": "unspecified",
+		"pending_signing_tag": "epel7-signing-pending",
+		"pending_stable_tag": "epel7-pending",
+		"pending_testing_tag": "epel7-testing-pending",
+		"stable_tag": "epel7",
+		"state": "current",
+		"testing_tag": "epel7-testing",
+		"version": "7"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "medium",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "debmirror-2.35-1.el7",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2021-f005e1b879",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2021-f005e1b879",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/7704b19ee9a5ceec13acb44db0e3f95bf189b1735143ac708dd8b0ae9ca177d4?s=24&d=retro",
+		"email": "sergio@serjux.com",
+		"groups": [
+			{
+				"name": "nodejs-sig"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "clamav"
+			}
+		],
+		"id": 271,
+		"name": "sergiomb",
+		"openid": "sergiomb.id.fedoraproject.org"
+	},
+	"version_hash": "bb07607ecb5682dba1cdc5799363fd9847941dda"
+}

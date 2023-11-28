@@ -1,0 +1,1433 @@
+{
+	"alias": "FEDORA-2014-17259",
+	"bugs": [
+		{
+			"bug_id": 1173157,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-8137 jasper: double-free in in jas_iccattrval_destroy() (oCERT-2014-012)",
+			"bugzilla": {
+				"bug_id": "1173157",
+				"alias": "CVE-2014-8137",
+				"creation_ts": "2014-12-11 14:54:47 +0000",
+				"short_desc": "CVE-2014-8137 jasper: double-free in in jas_iccattrval_destroy() (oCERT-2014-012)",
+				"delta_ts": "2023-05-12 06:54:33 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1173566",
+					"1173567",
+					"1173568",
+					"1173569",
+					"1175761",
+					"1175762",
+					"1175763",
+					"1175764",
+					"1185248",
+					"1185249",
+					"1188086"
+				],
+				"blocked": [
+					{
+						"bug_id": "1167538",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1206715",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2015:1713",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7755627",
+						"comment_count": "0",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-11 14:54:47 +0000",
+						"thetext": "oCERT reports a double-free issue in jas_iccattrval_destroy() in jasper:\n\n  In jas_icctxt_input() if there's an error, there's a call to\n  jas_free(txt->string) which is freeing attrval->data.txt, but later on\n  jas_iccattrval_destroy it tries to call free on it again.\n\nAcknowledgements:\n\nRed Hat would like to thank oCERT for reporting these issues. oCERT acknowledges Jose Duart of the Google Security Team as the original reporter."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7755772",
+						"comment_count": "2",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-11 15:23:30 +0000",
+						"thetext": "Created attachment 967282\nPossible patch - variant 1\n\nThis uses somewhat conservative approach.  It changes iccattrvalinfo destroy ops functions to set variables to NULL after free(), so even if called repeatedly, double-free is avoided.  It also changes jas_icctxt_input() to call jas_icctxt_destroy() on error, rather than performing memory freeing directly."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7755781",
+						"comment_count": "3",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-11 15:28:12 +0000",
+						"thetext": "Created attachment 967283\nPossible patch - variant 2\n\nThis removes jas_icc*_destroy() calls from error code paths in iccattrvalinfo input ops functions (jas_icc*_input()).  This should not introduce any memory leak, as input ops functions only seem to be called from jas_iccprof_load(), and if they return error, jas_iccattrval_destroy() gets called, which leads to destroy op call.\n\n        if ((*attrval->ops->input)(attrval, in, len)) {\n            goto error;\n        }\n\n  ...\n\nerror:\n  ...\n    if (attrval)\n        jas_iccattrval_destroy(attrval);"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7755789",
+						"comment_count": "4",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-11 15:31:03 +0000",
+						"thetext": "Created attachment 967284\nAdditional fix to avoid assert() abort\n\nIf one of the above patches is applied, assert(iccprof) is triggered in jp2_decode(), aborting application using jasper.  This fix makes jasper fail more gracefully."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7756139",
+						"comment_count": "5",
+						"who": {
+							"text": "jpopelka",
+							"name": "Jiri Popelka"
+						},
+						"bug_when": "2014-12-11 17:17:53 +0000",
+						"thetext": "All patches look good to me. I have no problem with the 'not so conservative' patch (variant 2). It doesn't seem to cause any leaks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7756564",
+						"comment_count": "6",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-11 19:57:39 +0000",
+						"thetext": "Ack, thank you for review.  I also view the second variant as preferred."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7778014",
+						"comment_count": "9",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-18 14:15:24 +0000",
+						"thetext": "Public now via oCERT-2014-012 advisory.\n\nExternal References:\n\nhttp://www.ocert.org/advisories/ocert-2014-012.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7778047",
+						"comment_count": "10",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-18 14:18:42 +0000",
+						"thetext": "\nCreated mingw-jasper tracking bugs for this issue:\n\nAffects: fedora-all [bug 1175762]\nAffects: epel-7 [bug 1175764]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7778048",
+						"comment_count": "11",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-18 14:18:44 +0000",
+						"thetext": "\nCreated jasper tracking bugs for this issue:\n\nAffects: fedora-all [bug 1175761]\nAffects: epel-5 [bug 1175763]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7778909",
+						"comment_count": "13",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2014-12-18 18:31:46 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2014:2021 https://rhn.redhat.com/errata/RHSA-2014-2021.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7793803",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-29 09:55:01 +0000",
+						"thetext": "mingw-jasper-1.900.1-25.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7793807",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-29 09:55:15 +0000",
+						"thetext": "mingw-jasper-1.900.1-25.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7793872",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-29 10:01:49 +0000",
+						"thetext": "mingw-jasper-1.900.1-25.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7799099",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-03 00:13:19 +0000",
+						"thetext": "mingw-jasper-1.900.1-25.el7 has been pushed to the Fedora EPEL 7 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7809426",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-06 06:04:35 +0000",
+						"thetext": "jasper-1.900.1-27.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7809450",
+						"comment_count": "19",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-06 06:07:15 +0000",
+						"thetext": "jasper-1.900.1-26.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7809488",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-06 06:10:27 +0000",
+						"thetext": "jasper-1.900.1-29.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8053898",
+						"comment_count": "23",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-03-18 12:12:40 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  RHEV Manager version 3.5\n\nVia RHSA-2015:0698 https://rhn.redhat.com/errata/RHSA-2015-0698.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8219620",
+						"comment_count": "24",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-11 00:53:14 +0000",
+						"thetext": "jasper-1.900.1-15.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8603749",
+						"comment_count": "25",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-09-03 17:08:49 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  RHEV-H and Agents for RHEL-6\n  RHEV-H and Agents for RHEL-7\n\nVia RHSA-2015:1713 https://rhn.redhat.com/errata/RHSA-2015-1713.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9917826",
+						"comment_count": "26",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2016-11-23 22:55:54 +0000",
+						"thetext": "Fixed upstream in version 1.900.3:\n\nhttps://github.com/mdadams/jasper/commit/4bb93a6c49da7c1b6ad2acb60b18954a6547c637"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1173162,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-8138 jasper: heap overflow in jp2_decode() (oCERT-2014-012)",
+			"bugzilla": {
+				"bug_id": "1173162",
+				"alias": "CVE-2014-8138",
+				"creation_ts": "2014-12-11 15:02:27 +0000",
+				"short_desc": "CVE-2014-8138 jasper: heap overflow in jp2_decode() (oCERT-2014-012)",
+				"delta_ts": "2023-05-12 06:55:36 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "high",
+				"bug_severity": "high",
+				"depends_on": [
+					"1173566",
+					"1173567",
+					"1173568",
+					"1173569",
+					"1175761",
+					"1175762",
+					"1175763",
+					"1175764",
+					"1185246",
+					"1185247",
+					"1188087"
+				],
+				"blocked": [
+					{
+						"bug_id": "1167538",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1206715",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2015:1713",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7755662",
+						"comment_count": "0",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-11 15:02:27 +0000",
+						"thetext": "oCERT reports a heap-overflow issue in jp2_decode() in jasper:\n\n  This code in jas_decode doesn't check for an upper bound on the value of\n  channo:\n\n\tjas_image_setcmpttype(dec->image,\n\t  dec->chantocmptlut[dec->cdef->data.cdef.ents[i].channo],\n\t  jp2_getct(jas_image_clrspc(dec->image),\n\t  dec->cdef->data.cdef.ents[i].type, dec->cdef->data.cdef.ents[i].assoc));\n  \n  This could be used via jas_image_setcmpttype (actually this is just\n  image->cmpts_[cmptno]->type_ = type), to do an arbitrary write since\n  there's no bound check there either.\n\nAcknowledgements:\n\nRed Hat would like to thank oCERT for reporting these issues. oCERT acknowledges Jose Duart of the Google Security Team as the original reporter."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7755750",
+						"comment_count": "2",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-11 15:17:56 +0000",
+						"thetext": "Created attachment 967280\nProposed patch\n\nThis adds channo check directly to jp2_decode().  An alternative would be to do check earlier in jp2_cdef_getdata().  However, as jp2_decode() does other similar sanity checks, it seems more consistent to add the check there as well."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7755907",
+						"comment_count": "3",
+						"who": {
+							"text": "jpopelka",
+							"name": "Jiri Popelka"
+						},
+						"bug_when": "2014-12-11 16:09:16 +0000",
+						"thetext": "Comment on attachment 967280\nProposed patch\n\nPatch looks good to me."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7778019",
+						"comment_count": "7",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-18 14:16:11 +0000",
+						"thetext": "Public now via oCERT-2014-012 advisory.\n\nExternal References:\n\nhttp://www.ocert.org/advisories/ocert-2014-012.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7778034",
+						"comment_count": "8",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-18 14:17:44 +0000",
+						"thetext": "\nCreated mingw-jasper tracking bugs for this issue:\n\nAffects: fedora-all [bug 1175762]\nAffects: epel-7 [bug 1175764]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7778036",
+						"comment_count": "9",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-18 14:17:48 +0000",
+						"thetext": "\nCreated jasper tracking bugs for this issue:\n\nAffects: fedora-all [bug 1175761]\nAffects: epel-5 [bug 1175763]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7778910",
+						"comment_count": "11",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2014-12-18 18:31:49 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2014:2021 https://rhn.redhat.com/errata/RHSA-2014-2021.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7793804",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-29 09:55:05 +0000",
+						"thetext": "mingw-jasper-1.900.1-25.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7793808",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-29 09:55:17 +0000",
+						"thetext": "mingw-jasper-1.900.1-25.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7793873",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-29 10:01:52 +0000",
+						"thetext": "mingw-jasper-1.900.1-25.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7799098",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-03 00:13:16 +0000",
+						"thetext": "mingw-jasper-1.900.1-25.el7 has been pushed to the Fedora EPEL 7 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7809427",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-06 06:04:39 +0000",
+						"thetext": "jasper-1.900.1-27.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7809451",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-06 06:07:18 +0000",
+						"thetext": "jasper-1.900.1-26.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7809489",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-06 06:10:30 +0000",
+						"thetext": "jasper-1.900.1-29.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8053899",
+						"comment_count": "21",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-03-18 12:12:43 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  RHEV Manager version 3.5\n\nVia RHSA-2015:0698 https://rhn.redhat.com/errata/RHSA-2015-0698.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8219616",
+						"comment_count": "22",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-05-11 00:52:30 +0000",
+						"thetext": "jasper-1.900.1-15.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8603750",
+						"comment_count": "23",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-09-03 17:08:54 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  RHEV-H and Agents for RHEL-6\n  RHEV-H and Agents for RHEL-7\n\nVia RHSA-2015:1713 https://rhn.redhat.com/errata/RHSA-2015-1713.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9917737",
+						"comment_count": "24",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2016-11-23 21:43:46 +0000",
+						"thetext": "Fix was integrated upstream in version 1.900.2:\n\nhttps://github.com/mdadams/jasper/commit/c54113d6fa49f8f26d1572e972b806276c5b05d5"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1175762,
+			"security": true,
+			"title": "CVE-2014-8138 CVE-2014-8137 mingw-jasper: various flaws [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1175762",
+				"creation_ts": "2014-12-18 14:17:17 +0000",
+				"short_desc": "CVE-2014-8138 CVE-2014-8137 mingw-jasper: various flaws [fedora-all]",
+				"delta_ts": "2014-12-29 10:01:47 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "1173157",
+						"alias": "CVE-2014-8137",
+						"creation_ts": "2014-12-11 14:54:47 +0000",
+						"short_desc": "CVE-2014-8137 jasper: double-free in in jas_iccattrval_destroy() (oCERT-2014-012)",
+						"delta_ts": "2023-05-12 06:54:33 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1173566",
+							"1173567",
+							"1173568",
+							"1173569",
+							"1175761",
+							"1175762",
+							"1175763",
+							"1175764",
+							"1185248",
+							"1185249",
+							"1188086"
+						],
+						"blocked": [
+							{
+								"bug_id": "1167538",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1206715",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:1713",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7755627",
+								"comment_count": "0",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-11 14:54:47 +0000",
+								"thetext": "oCERT reports a double-free issue in jas_iccattrval_destroy() in jasper:\n\n  In jas_icctxt_input() if there's an error, there's a call to\n  jas_free(txt->string) which is freeing attrval->data.txt, but later on\n  jas_iccattrval_destroy it tries to call free on it again.\n\nAcknowledgements:\n\nRed Hat would like to thank oCERT for reporting these issues. oCERT acknowledges Jose Duart of the Google Security Team as the original reporter."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7755772",
+								"comment_count": "2",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-11 15:23:30 +0000",
+								"thetext": "Created attachment 967282\nPossible patch - variant 1\n\nThis uses somewhat conservative approach.  It changes iccattrvalinfo destroy ops functions to set variables to NULL after free(), so even if called repeatedly, double-free is avoided.  It also changes jas_icctxt_input() to call jas_icctxt_destroy() on error, rather than performing memory freeing directly."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7755781",
+								"comment_count": "3",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-11 15:28:12 +0000",
+								"thetext": "Created attachment 967283\nPossible patch - variant 2\n\nThis removes jas_icc*_destroy() calls from error code paths in iccattrvalinfo input ops functions (jas_icc*_input()).  This should not introduce any memory leak, as input ops functions only seem to be called from jas_iccprof_load(), and if they return error, jas_iccattrval_destroy() gets called, which leads to destroy op call.\n\n        if ((*attrval->ops->input)(attrval, in, len)) {\n            goto error;\n        }\n\n  ...\n\nerror:\n  ...\n    if (attrval)\n        jas_iccattrval_destroy(attrval);"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7755789",
+								"comment_count": "4",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-11 15:31:03 +0000",
+								"thetext": "Created attachment 967284\nAdditional fix to avoid assert() abort\n\nIf one of the above patches is applied, assert(iccprof) is triggered in jp2_decode(), aborting application using jasper.  This fix makes jasper fail more gracefully."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7756139",
+								"comment_count": "5",
+								"who": {
+									"text": "jpopelka",
+									"name": "Jiri Popelka"
+								},
+								"bug_when": "2014-12-11 17:17:53 +0000",
+								"thetext": "All patches look good to me. I have no problem with the 'not so conservative' patch (variant 2). It doesn't seem to cause any leaks."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7756564",
+								"comment_count": "6",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-11 19:57:39 +0000",
+								"thetext": "Ack, thank you for review.  I also view the second variant as preferred."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7778014",
+								"comment_count": "9",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-18 14:15:24 +0000",
+								"thetext": "Public now via oCERT-2014-012 advisory.\n\nExternal References:\n\nhttp://www.ocert.org/advisories/ocert-2014-012.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7778047",
+								"comment_count": "10",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-18 14:18:42 +0000",
+								"thetext": "\nCreated mingw-jasper tracking bugs for this issue:\n\nAffects: fedora-all [bug 1175762]\nAffects: epel-7 [bug 1175764]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7778048",
+								"comment_count": "11",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-18 14:18:44 +0000",
+								"thetext": "\nCreated jasper tracking bugs for this issue:\n\nAffects: fedora-all [bug 1175761]\nAffects: epel-5 [bug 1175763]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7778909",
+								"comment_count": "13",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-12-18 18:31:46 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2014:2021 https://rhn.redhat.com/errata/RHSA-2014-2021.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7793803",
+								"comment_count": "14",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-12-29 09:55:01 +0000",
+								"thetext": "mingw-jasper-1.900.1-25.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7793807",
+								"comment_count": "15",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-12-29 09:55:15 +0000",
+								"thetext": "mingw-jasper-1.900.1-25.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7793872",
+								"comment_count": "16",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-12-29 10:01:49 +0000",
+								"thetext": "mingw-jasper-1.900.1-25.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7799099",
+								"comment_count": "17",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-01-03 00:13:19 +0000",
+								"thetext": "mingw-jasper-1.900.1-25.el7 has been pushed to the Fedora EPEL 7 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7809426",
+								"comment_count": "18",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-01-06 06:04:35 +0000",
+								"thetext": "jasper-1.900.1-27.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7809450",
+								"comment_count": "19",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-01-06 06:07:15 +0000",
+								"thetext": "jasper-1.900.1-26.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7809488",
+								"comment_count": "20",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-01-06 06:10:27 +0000",
+								"thetext": "jasper-1.900.1-29.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8053898",
+								"comment_count": "23",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-03-18 12:12:40 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHEV Manager version 3.5\n\nVia RHSA-2015:0698 https://rhn.redhat.com/errata/RHSA-2015-0698.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8219620",
+								"comment_count": "24",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-05-11 00:53:14 +0000",
+								"thetext": "jasper-1.900.1-15.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8603749",
+								"comment_count": "25",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-09-03 17:08:49 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHEV-H and Agents for RHEL-6\n  RHEV-H and Agents for RHEL-7\n\nVia RHSA-2015:1713 https://rhn.redhat.com/errata/RHSA-2015-1713.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9917826",
+								"comment_count": "26",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2016-11-23 22:55:54 +0000",
+								"thetext": "Fixed upstream in version 1.900.3:\n\nhttps://github.com/mdadams/jasper/commit/4bb93a6c49da7c1b6ad2acb60b18954a6547c637"
+							}
+						]
+					},
+					{
+						"bug_id": "1173162",
+						"alias": "CVE-2014-8138",
+						"creation_ts": "2014-12-11 15:02:27 +0000",
+						"short_desc": "CVE-2014-8138 jasper: heap overflow in jp2_decode() (oCERT-2014-012)",
+						"delta_ts": "2023-05-12 06:55:36 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"1173566",
+							"1173567",
+							"1173568",
+							"1173569",
+							"1175761",
+							"1175762",
+							"1175763",
+							"1175764",
+							"1185246",
+							"1185247",
+							"1188087"
+						],
+						"blocked": [
+							{
+								"bug_id": "1167538",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1206715",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:1713",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7755662",
+								"comment_count": "0",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-11 15:02:27 +0000",
+								"thetext": "oCERT reports a heap-overflow issue in jp2_decode() in jasper:\n\n  This code in jas_decode doesn't check for an upper bound on the value of\n  channo:\n\n\tjas_image_setcmpttype(dec->image,\n\t  dec->chantocmptlut[dec->cdef->data.cdef.ents[i].channo],\n\t  jp2_getct(jas_image_clrspc(dec->image),\n\t  dec->cdef->data.cdef.ents[i].type, dec->cdef->data.cdef.ents[i].assoc));\n  \n  This could be used via jas_image_setcmpttype (actually this is just\n  image->cmpts_[cmptno]->type_ = type), to do an arbitrary write since\n  there's no bound check there either.\n\nAcknowledgements:\n\nRed Hat would like to thank oCERT for reporting these issues. oCERT acknowledges Jose Duart of the Google Security Team as the original reporter."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7755750",
+								"comment_count": "2",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-11 15:17:56 +0000",
+								"thetext": "Created attachment 967280\nProposed patch\n\nThis adds channo check directly to jp2_decode().  An alternative would be to do check earlier in jp2_cdef_getdata().  However, as jp2_decode() does other similar sanity checks, it seems more consistent to add the check there as well."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7755907",
+								"comment_count": "3",
+								"who": {
+									"text": "jpopelka",
+									"name": "Jiri Popelka"
+								},
+								"bug_when": "2014-12-11 16:09:16 +0000",
+								"thetext": "Comment on attachment 967280\nProposed patch\n\nPatch looks good to me."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7778019",
+								"comment_count": "7",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-18 14:16:11 +0000",
+								"thetext": "Public now via oCERT-2014-012 advisory.\n\nExternal References:\n\nhttp://www.ocert.org/advisories/ocert-2014-012.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7778034",
+								"comment_count": "8",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-18 14:17:44 +0000",
+								"thetext": "\nCreated mingw-jasper tracking bugs for this issue:\n\nAffects: fedora-all [bug 1175762]\nAffects: epel-7 [bug 1175764]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7778036",
+								"comment_count": "9",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-12-18 14:17:48 +0000",
+								"thetext": "\nCreated jasper tracking bugs for this issue:\n\nAffects: fedora-all [bug 1175761]\nAffects: epel-5 [bug 1175763]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7778910",
+								"comment_count": "11",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-12-18 18:31:49 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2014:2021 https://rhn.redhat.com/errata/RHSA-2014-2021.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7793804",
+								"comment_count": "12",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-12-29 09:55:05 +0000",
+								"thetext": "mingw-jasper-1.900.1-25.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7793808",
+								"comment_count": "13",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-12-29 09:55:17 +0000",
+								"thetext": "mingw-jasper-1.900.1-25.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7793873",
+								"comment_count": "14",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-12-29 10:01:52 +0000",
+								"thetext": "mingw-jasper-1.900.1-25.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7799098",
+								"comment_count": "15",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-01-03 00:13:16 +0000",
+								"thetext": "mingw-jasper-1.900.1-25.el7 has been pushed to the Fedora EPEL 7 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7809427",
+								"comment_count": "16",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-01-06 06:04:39 +0000",
+								"thetext": "jasper-1.900.1-27.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7809451",
+								"comment_count": "17",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-01-06 06:07:18 +0000",
+								"thetext": "jasper-1.900.1-26.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7809489",
+								"comment_count": "18",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-01-06 06:10:30 +0000",
+								"thetext": "jasper-1.900.1-29.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8053899",
+								"comment_count": "21",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-03-18 12:12:43 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHEV Manager version 3.5\n\nVia RHSA-2015:0698 https://rhn.redhat.com/errata/RHSA-2015-0698.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8219616",
+								"comment_count": "22",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-05-11 00:52:30 +0000",
+								"thetext": "jasper-1.900.1-15.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8603750",
+								"comment_count": "23",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-09-03 17:08:54 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHEV-H and Agents for RHEL-6\n  RHEV-H and Agents for RHEL-7\n\nVia RHSA-2015:1713 https://rhn.redhat.com/errata/RHSA-2015-1713.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9917737",
+								"comment_count": "24",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2016-11-23 21:43:46 +0000",
+								"thetext": "Fix was integrated upstream in version 1.900.2:\n\nhttps://github.com/mdadams/jasper/commit/c54113d6fa49f8f26d1572e972b806276c5b05d5"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7778026",
+						"comment_count": "0",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-18 14:17:17 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7778028",
+						"comment_count": "1",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-18 14:17:24 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1173162,1175762\n\n# Description of your update\nnotes=Security fix for CVE-2014-8138\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1173162,1175762"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7778043",
+						"comment_count": "2",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-12-18 14:18:11 +0000",
+						"thetext": "\nAdding parent bug 1173157 (for CVE-2014-8137).  Please use this new fedpkg update template when submitting the update:\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1175762,1173157,1173162\n\n# Description of your update\nnotes=Security fix for CVE-2014-8138, CVE-2014-8137\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1175762,1173157,1173162"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7778943",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-18 18:40:33 +0000",
+						"thetext": "mingw-jasper-1.900.1-25.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/mingw-jasper-1.900.1-25.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7778949",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-18 18:42:56 +0000",
+						"thetext": "mingw-jasper-1.900.1-25.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/mingw-jasper-1.900.1-25.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7778967",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-18 18:44:55 +0000",
+						"thetext": "mingw-jasper-1.900.1-25.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/mingw-jasper-1.900.1-25.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7782059",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-19 18:28:31 +0000",
+						"thetext": "Package mingw-jasper-1.900.1-25.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing mingw-jasper-1.900.1-25.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-17259/mingw-jasper-1.900.1-25.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7793802",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-29 09:54:55 +0000",
+						"thetext": "mingw-jasper-1.900.1-25.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7793806",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-29 09:55:12 +0000",
+						"thetext": "mingw-jasper-1.900.1-25.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7793871",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-29 10:01:47 +0000",
+						"thetext": "mingw-jasper-1.900.1-25.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "mingw-jasper-1.900.1-25.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "mingw64-jasper-static",
+						"version": "1.900.1",
+						"release": "25.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw32-jasper-debuginfo",
+						"version": "1.900.1",
+						"release": "25.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw32-jasper-static",
+						"version": "1.900.1",
+						"release": "25.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw64-jasper",
+						"version": "1.900.1",
+						"release": "25.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw32-jasper",
+						"version": "1.900.1",
+						"release": "25.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw64-jasper-debuginfo",
+						"version": "1.900.1",
+						"release": "25.fc21",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "mingw-jasper",
+						"version": "1.900.1",
+						"release": "25.fc21",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 256126,
+			"text": "This update has been submitted for testing by mooninite. ",
+			"timestamp": "2014-12-18 18:40:38",
+			"update_id": 31383,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 256127,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/22170/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-12-18 18:58:15",
+			"update_id": 31383,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 256128,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/22170/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-12-18 18:58:59",
+			"update_id": 31383,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 256129,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2014-12-18 20:07:58",
+			"update_id": 31383,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 256130,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-12-19 18:28:29",
+			"update_id": 31383,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 256131,
+			"text": "This update has reached 7 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2014-12-26 23:04:35",
+			"update_id": 31383,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 256132,
+			"text": "This update has been submitted for stable by mooninite. ",
+			"timestamp": "2014-12-27 06:31:20",
+			"update_id": 31383,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 256133,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/23867/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-12-27 06:35:25",
+			"update_id": 31383,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 256134,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2014-12-28 21:22:05",
+			"update_id": 31383,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 256135,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2014-12-29 09:54:53",
+			"update_id": 31383,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2014-12-29 09:54:53",
+	"date_stable": "2014-12-29 09:54:53",
+	"date_submitted": "2014-12-18 18:40:29",
+	"date_testing": "2014-12-19 18:28:29",
+	"meets_testing_requirements": true,
+	"notes": "Fixes for CVE-2014-8137 and CVE-2014-8138",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "mingw-jasper-1.900.1-25.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2014-17259",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2014-17259",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/b996efd4f3bf93c5742cff6bd450af2fb0dc9525409d922bb448d22237bd5047?s=24&d=retro",
+		"email": "mike@cchtml.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 457,
+		"name": "mooninite",
+		"openid": "mooninite.id.fedoraproject.org"
+	},
+	"version_hash": "58e6503e6a58e7e041f83e9c2ab7308e01e30e1f"
+}

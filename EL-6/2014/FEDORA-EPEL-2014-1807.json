@@ -1,0 +1,724 @@
+{
+	"alias": "FEDORA-EPEL-2014-1807",
+	"bugs": [
+		{
+			"bug_id": 1054790,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-0021 chrony: DDoS via amplification in cmdmon protocol",
+			"bugzilla": {
+				"bug_id": "1054790",
+				"alias": "CVE-2014-0021",
+				"creation_ts": "2014-01-17 13:35:09 +0000",
+				"short_desc": "CVE-2014-0021 chrony: DDoS via amplification in cmdmon protocol",
+				"delta_ts": "2023-05-12 12:56:50 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1053022",
+					"1055003",
+					"1061825"
+				],
+				"blocked": [
+					{
+						"bug_id": "1054354",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6721584",
+						"comment_count": "0",
+						"who": {
+							"text": "ratulg",
+							"name": "Ratul Gupta"
+						},
+						"bug_when": "2014-01-17 13:35:09 +0000",
+						"thetext": "Miroslav Lichvar from Red Hat reports that the cmdmon protocol implemented in chrony was found to be vulnerable to DDoS attacks using traffic amplification. By default, commands are allowed only from localhost, but it's possible to configure chronyd to allow commands from any address. This could allow a remote attacker to cause a DoS, which could cause excessive resource usage."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6721609",
+						"comment_count": "1",
+						"who": {
+							"text": "ratulg",
+							"name": "Ratul Gupta"
+						},
+						"bug_when": "2014-01-17 13:41:26 +0000",
+						"thetext": "Acknowledgement:\n\nThis issue was discovered by Miroslav Lichvar of Red Hat."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6723408",
+						"comment_count": "6",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2014-01-17 22:51:09 +0000",
+						"thetext": "This has been discussed upstream:\n\nhttp://listengine.tuxfamily.org/chrony.tuxfamily.org/chrony-dev/2014/01/msg00001.html\n\nMiroslav, is it correct to state that EPEL would be affected by this (chrony 1.25)?  I've not looked at any code, but I suspect this issue has always existed (but is simply not exploitable \"out of the box\" due to chrony's defaults)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6723418",
+						"comment_count": "7",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2014-01-17 22:55:37 +0000",
+						"thetext": "\nCreated chrony tracking bugs for this issue:\n\nAffects: fedora-all [bug 1055003]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6727393",
+						"comment_count": "8",
+						"who": {
+							"text": "mlichvar",
+							"name": "Miroslav Lichvar"
+						},
+						"bug_when": "2014-01-20 13:11:13 +0000",
+						"thetext": "(In reply to Vincent Danen from comment #6)\n\nYes, all chrony versions have this problem. EPEL is affected too."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6732145",
+						"comment_count": "10",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-01-21 14:12:40 +0000",
+						"thetext": "Noting here details Miroslav posted to the upstream chrony-dev mailing list, including a detailed table with amplification factors of all chrony control commands.  Source:\n\nhttp://listengine.tuxfamily.org/chrony.tuxfamily.org/chrony-dev/2014/01/msg00005.html\n\n  I've checked packet lengths for all commands and the biggest offender\n  is MANUAL_LIST (chronyc manual list), which may amplify the traffic by\n  up to factor of 17.2. The second worse is CLIENT_ACCESSES_BY_INDEX\n  (chronyc clients) with factor of 6.5, but the client has to be\n  authenticated to get the reply. Everything else is below 3. In the\n  protocol there is at most one reply per request.\n  \n  The MANUAL_LIST command is used to list up to 32 manual measurements,\n  which were entered by the SETTIME command when the manual mode is\n  enabled. It's disabled by default and I think it's unlikely that\n  someone would use the manual mode on a system connected to internet.\n  \n  ...\n  \n  The following table has details on all currently supported commands.\n  The columns are name, flag if it's open to any client or requires\n  authentication, minimum length of the request in IPv4 packet, maximum\n  length of the reply in IPv4 packet and the ratio of the two values.\n  MD5 authentication is assumed for commands with AUTH.\n  \n  MANUAL_LIST               OPEN   48  828  17.2\n  CLIENT_ACCESSES_BY_INDEX  AUTH   72  468   6.5\n  TRACKING                  OPEN   48  132   2.8\n  SOURCESTATS               OPEN   52  112   2.2\n  SOURCE_DATA               OPEN   52  104   2.0\n  RTCREPORT                 OPEN   48   84   1.8\n  ACTIVITY                  OPEN   48   76   1.6\n  N_SOURCES                 OPEN   48   60   1.2\n  NULL                      OPEN   48   56   1.2\n  WRITERTC                  AUTH   64   72   1.1\n  TRIMRTC                   AUTH   64   72   1.1\n  SETTIME                   AUTH   76   84   1.1\n  RESELECTDISTANCE          AUTH   68   72   1.1\n  RESELECT                  AUTH   64   72   1.1\n  REKEY                     AUTH   64   72   1.1\n  MODIFY_MAXUPDATESKEW      AUTH   68   72   1.1\n  MANUAL_DELETE             AUTH   68   72   1.1\n  MANUAL                    AUTH   68   72   1.1\n  MAKESTEP                  AUTH   64   72   1.1\n  DUMP                      AUTH   68   72   1.1\n  DFREQ                     AUTH   68   72   1.1\n  CYCLELOGS                 AUTH   64   72   1.1\n  LOCAL                     AUTH   72   72   1.0\n  DOFFSET                   AUTH   72   72   1.0\n  LOGON                     OPEN   60   56   0.9\n  DEL_SOURCE                AUTH   84   72   0.9\n  CMDACCHECK                AUTH   84   72   0.9\n  ACCHECK                   AUTH   84   72   0.9\n  MODIFY_POLLTARGET         AUTH   88   72   0.8\n  MODIFY_MINSTRATUM         AUTH   88   72   0.8\n  MODIFY_MINPOLL            AUTH   88   72   0.8\n  MODIFY_MAXPOLL            AUTH   88   72   0.8\n  MODIFY_MAXDELAYRATIO      AUTH   88   72   0.8\n  MODIFY_MAXDELAYDEVRATIO   AUTH   88   72   0.8\n  MODIFY_MAXDELAY           AUTH   88   72   0.8\n  DENYALL                   AUTH   88   72   0.8\n  DENY                      AUTH   88   72   0.8\n  CMDDENYALL                AUTH   88   72   0.8\n  CMDDENY                   AUTH   88   72   0.8\n  CMDALLOWALL               AUTH   88   72   0.8\n  CMDALLOW                  AUTH   88   72   0.8\n  ALLOWALL                  AUTH   88   72   0.8\n  ALLOW                     AUTH   88   72   0.8\n  ONLINE                    AUTH  104   72   0.7\n  OFFLINE                   AUTH  104   72   0.7\n  BURST                     AUTH  112   72   0.6\n  ADD_SERVER                AUTH  116   72   0.6\n  ADD_PEER                  AUTH  116   72   0.6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6760309",
+						"comment_count": "16",
+						"who": {
+							"text": "mlichvar",
+							"name": "Miroslav Lichvar"
+						},
+						"bug_when": "2014-01-28 16:41:03 +0000",
+						"thetext": "Proposed patches are here:\n\nhttp://thread.gmane.org/gmane.comp.time.chrony.devel/1019"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6771768",
+						"comment_count": "17",
+						"who": {
+							"text": "mlichvar",
+							"name": "Miroslav Lichvar"
+						},
+						"bug_when": "2014-01-31 16:48:25 +0000",
+						"thetext": "chrony-1.29.1 was released. It fixes the amplification in the control protocol.\n\nhttp://chrony.tuxfamily.org/News.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6785638",
+						"comment_count": "18",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-02-05 17:21:32 +0000",
+						"thetext": "To summarize explicitly, chrony 1.19.1 has these changes to address this CVE:\n\n- requires padding in cmdmon protocol requests.  As a consequence, cmdmon responses are no longer larger than requests, avoiding traffic amplification.\n- no longer send any response to hosts on on the cmdallow list"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6785642",
+						"comment_count": "19",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-02-05 17:22:10 +0000",
+						"thetext": "\nCreated chrony tracking bugs for this issue:\n\nAffects: epel-all [bug 1061825]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6791571",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-02-06 03:50:41 +0000",
+						"thetext": "chrony-1.29.1-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6837327",
+						"comment_count": "21",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-02-20 00:46:58 +0000",
+						"thetext": "chrony-1.29.1-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7338190",
+						"comment_count": "22",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-29 19:27:13 +0000",
+						"thetext": "chrony-1.30-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7338194",
+						"comment_count": "23",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-29 19:27:27 +0000",
+						"thetext": "chrony-1.30-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1061825,
+			"security": true,
+			"title": "CVE-2014-0021 chrony: DDoS via amplification in cmdmon protocol [epel-all]",
+			"bugzilla": {
+				"bug_id": "1061825",
+				"creation_ts": "2014-02-05 17:22:00 +0000",
+				"short_desc": "CVE-2014-0021 chrony: DDoS via amplification in cmdmon protocol [epel-all]",
+				"delta_ts": "2014-07-29 19:27:25 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1054790",
+						"alias": "CVE-2014-0021",
+						"creation_ts": "2014-01-17 13:35:09 +0000",
+						"short_desc": "CVE-2014-0021 chrony: DDoS via amplification in cmdmon protocol",
+						"delta_ts": "2023-05-12 12:56:50 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1053022",
+							"1055003",
+							"1061825"
+						],
+						"blocked": [
+							{
+								"bug_id": "1054354",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "6721584",
+								"comment_count": "0",
+								"who": {
+									"text": "ratulg",
+									"name": "Ratul Gupta"
+								},
+								"bug_when": "2014-01-17 13:35:09 +0000",
+								"thetext": "Miroslav Lichvar from Red Hat reports that the cmdmon protocol implemented in chrony was found to be vulnerable to DDoS attacks using traffic amplification. By default, commands are allowed only from localhost, but it's possible to configure chronyd to allow commands from any address. This could allow a remote attacker to cause a DoS, which could cause excessive resource usage."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6721609",
+								"comment_count": "1",
+								"who": {
+									"text": "ratulg",
+									"name": "Ratul Gupta"
+								},
+								"bug_when": "2014-01-17 13:41:26 +0000",
+								"thetext": "Acknowledgement:\n\nThis issue was discovered by Miroslav Lichvar of Red Hat."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6723408",
+								"comment_count": "6",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2014-01-17 22:51:09 +0000",
+								"thetext": "This has been discussed upstream:\n\nhttp://listengine.tuxfamily.org/chrony.tuxfamily.org/chrony-dev/2014/01/msg00001.html\n\nMiroslav, is it correct to state that EPEL would be affected by this (chrony 1.25)?  I've not looked at any code, but I suspect this issue has always existed (but is simply not exploitable \"out of the box\" due to chrony's defaults)."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6723418",
+								"comment_count": "7",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2014-01-17 22:55:37 +0000",
+								"thetext": "\nCreated chrony tracking bugs for this issue:\n\nAffects: fedora-all [bug 1055003]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6727393",
+								"comment_count": "8",
+								"who": {
+									"text": "mlichvar",
+									"name": "Miroslav Lichvar"
+								},
+								"bug_when": "2014-01-20 13:11:13 +0000",
+								"thetext": "(In reply to Vincent Danen from comment #6)\n\nYes, all chrony versions have this problem. EPEL is affected too."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6732145",
+								"comment_count": "10",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-01-21 14:12:40 +0000",
+								"thetext": "Noting here details Miroslav posted to the upstream chrony-dev mailing list, including a detailed table with amplification factors of all chrony control commands.  Source:\n\nhttp://listengine.tuxfamily.org/chrony.tuxfamily.org/chrony-dev/2014/01/msg00005.html\n\n  I've checked packet lengths for all commands and the biggest offender\n  is MANUAL_LIST (chronyc manual list), which may amplify the traffic by\n  up to factor of 17.2. The second worse is CLIENT_ACCESSES_BY_INDEX\n  (chronyc clients) with factor of 6.5, but the client has to be\n  authenticated to get the reply. Everything else is below 3. In the\n  protocol there is at most one reply per request.\n  \n  The MANUAL_LIST command is used to list up to 32 manual measurements,\n  which were entered by the SETTIME command when the manual mode is\n  enabled. It's disabled by default and I think it's unlikely that\n  someone would use the manual mode on a system connected to internet.\n  \n  ...\n  \n  The following table has details on all currently supported commands.\n  The columns are name, flag if it's open to any client or requires\n  authentication, minimum length of the request in IPv4 packet, maximum\n  length of the reply in IPv4 packet and the ratio of the two values.\n  MD5 authentication is assumed for commands with AUTH.\n  \n  MANUAL_LIST               OPEN   48  828  17.2\n  CLIENT_ACCESSES_BY_INDEX  AUTH   72  468   6.5\n  TRACKING                  OPEN   48  132   2.8\n  SOURCESTATS               OPEN   52  112   2.2\n  SOURCE_DATA               OPEN   52  104   2.0\n  RTCREPORT                 OPEN   48   84   1.8\n  ACTIVITY                  OPEN   48   76   1.6\n  N_SOURCES                 OPEN   48   60   1.2\n  NULL                      OPEN   48   56   1.2\n  WRITERTC                  AUTH   64   72   1.1\n  TRIMRTC                   AUTH   64   72   1.1\n  SETTIME                   AUTH   76   84   1.1\n  RESELECTDISTANCE          AUTH   68   72   1.1\n  RESELECT                  AUTH   64   72   1.1\n  REKEY                     AUTH   64   72   1.1\n  MODIFY_MAXUPDATESKEW      AUTH   68   72   1.1\n  MANUAL_DELETE             AUTH   68   72   1.1\n  MANUAL                    AUTH   68   72   1.1\n  MAKESTEP                  AUTH   64   72   1.1\n  DUMP                      AUTH   68   72   1.1\n  DFREQ                     AUTH   68   72   1.1\n  CYCLELOGS                 AUTH   64   72   1.1\n  LOCAL                     AUTH   72   72   1.0\n  DOFFSET                   AUTH   72   72   1.0\n  LOGON                     OPEN   60   56   0.9\n  DEL_SOURCE                AUTH   84   72   0.9\n  CMDACCHECK                AUTH   84   72   0.9\n  ACCHECK                   AUTH   84   72   0.9\n  MODIFY_POLLTARGET         AUTH   88   72   0.8\n  MODIFY_MINSTRATUM         AUTH   88   72   0.8\n  MODIFY_MINPOLL            AUTH   88   72   0.8\n  MODIFY_MAXPOLL            AUTH   88   72   0.8\n  MODIFY_MAXDELAYRATIO      AUTH   88   72   0.8\n  MODIFY_MAXDELAYDEVRATIO   AUTH   88   72   0.8\n  MODIFY_MAXDELAY           AUTH   88   72   0.8\n  DENYALL                   AUTH   88   72   0.8\n  DENY                      AUTH   88   72   0.8\n  CMDDENYALL                AUTH   88   72   0.8\n  CMDDENY                   AUTH   88   72   0.8\n  CMDALLOWALL               AUTH   88   72   0.8\n  CMDALLOW                  AUTH   88   72   0.8\n  ALLOWALL                  AUTH   88   72   0.8\n  ALLOW                     AUTH   88   72   0.8\n  ONLINE                    AUTH  104   72   0.7\n  OFFLINE                   AUTH  104   72   0.7\n  BURST                     AUTH  112   72   0.6\n  ADD_SERVER                AUTH  116   72   0.6\n  ADD_PEER                  AUTH  116   72   0.6"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6760309",
+								"comment_count": "16",
+								"who": {
+									"text": "mlichvar",
+									"name": "Miroslav Lichvar"
+								},
+								"bug_when": "2014-01-28 16:41:03 +0000",
+								"thetext": "Proposed patches are here:\n\nhttp://thread.gmane.org/gmane.comp.time.chrony.devel/1019"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6771768",
+								"comment_count": "17",
+								"who": {
+									"text": "mlichvar",
+									"name": "Miroslav Lichvar"
+								},
+								"bug_when": "2014-01-31 16:48:25 +0000",
+								"thetext": "chrony-1.29.1 was released. It fixes the amplification in the control protocol.\n\nhttp://chrony.tuxfamily.org/News.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6785638",
+								"comment_count": "18",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-02-05 17:21:32 +0000",
+								"thetext": "To summarize explicitly, chrony 1.19.1 has these changes to address this CVE:\n\n- requires padding in cmdmon protocol requests.  As a consequence, cmdmon responses are no longer larger than requests, avoiding traffic amplification.\n- no longer send any response to hosts on on the cmdallow list"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6785642",
+								"comment_count": "19",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-02-05 17:22:10 +0000",
+								"thetext": "\nCreated chrony tracking bugs for this issue:\n\nAffects: epel-all [bug 1061825]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6791571",
+								"comment_count": "20",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-02-06 03:50:41 +0000",
+								"thetext": "chrony-1.29.1-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6837327",
+								"comment_count": "21",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-02-20 00:46:58 +0000",
+								"thetext": "chrony-1.29.1-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7338190",
+								"comment_count": "22",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-07-29 19:27:13 +0000",
+								"thetext": "chrony-1.30-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7338194",
+								"comment_count": "23",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-07-29 19:27:27 +0000",
+								"thetext": "chrony-1.30-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6785640",
+						"comment_count": "0",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-02-05 17:22:00 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora EPEL.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen creating a Bodhi update request, please use the bodhi submission link\nnoted in the next comment(s).  This will include the bug IDs of this\ntracking bug as well as the relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nBodhi notes field when available.\n\nPlease note: this issue affects multiple supported versions of Fedora EPEL.\nOnly one tracking bug has been filed; please ensure that it is only closed\nwhen all affected versions are fixed.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6785641",
+						"comment_count": "1",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-02-05 17:22:08 +0000",
+						"thetext": "\nPlease use the following update submission link to create the Bodhi\nrequest for this issue as it contains the top-level parent bug(s) as well\nas this tracking bug.  This will ensure that all associated bugs get\nupdated when new packages are pushed to stable.\n\nPlease also ensure that the \"Close bugs when update is stable\" option\nremains checked.\n\nBodhi update submission link:\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1054790,1061825"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6785656",
+						"comment_count": "2",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-02-05 17:25:07 +0000",
+						"thetext": "I have created this epel tracker, but I'm not sure how actively epel version is maintained.  Version shipped currently is 1.25, not sure if update is planned."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6792317",
+						"comment_count": "3",
+						"who": {
+							"text": "mlichvar",
+							"name": "Miroslav Lichvar"
+						},
+						"bug_when": "2014-02-06 09:23:27 +0000",
+						"thetext": "Previous security issues found in the chrony epel package were fixed by backporting. In this case I'm not sure. The control protocol in 1.25 is not compatible with 1.27 and later, so backporting the new padding requirement would create a completely new protocol incompatible with anything else.\n\nUpdating to 1.29.1 seems like a better option to me."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7254048",
+						"comment_count": "4",
+						"who": {
+							"text": "mlichvar",
+							"name": "Miroslav Lichvar"
+						},
+						"bug_when": "2014-07-01 16:15:59 +0000",
+						"thetext": "I'm working on update to 1.30."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7258477",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-02 14:57:43 +0000",
+						"thetext": "chrony-1.30-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/chrony-1.30-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7258480",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-02 14:58:13 +0000",
+						"thetext": "chrony-1.30-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/chrony-1.30-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7262678",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-03 17:56:38 +0000",
+						"thetext": "Package chrony-1.30-1.el5:\n* should fix your issue,\n* was pushed to the Fedora EPEL 5 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=epel-testing chrony-1.30-1.el5'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2014-1803/chrony-1.30-1.el5\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7338189",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-29 19:27:10 +0000",
+						"thetext": "chrony-1.30-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7338193",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-29 19:27:25 +0000",
+						"thetext": "chrony-1.30-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "chrony-1.30-1.el6",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"i686": [
+					{
+						"name": "chrony",
+						"version": "1.30",
+						"release": "1.el6",
+						"arch": "i686"
+					},
+					{
+						"name": "chrony-debuginfo",
+						"version": "1.30",
+						"release": "1.el6",
+						"arch": "i686"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "chrony-debuginfo",
+						"version": "1.30",
+						"release": "1.el6",
+						"arch": "ppc64"
+					},
+					{
+						"name": "chrony",
+						"version": "1.30",
+						"release": "1.el6",
+						"arch": "ppc64"
+					}
+				],
+				"src": [
+					{
+						"name": "chrony",
+						"version": "1.30",
+						"release": "1.el6",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "chrony",
+						"version": "1.30",
+						"release": "1.el6",
+						"arch": "x86_64"
+					},
+					{
+						"name": "chrony-debuginfo",
+						"version": "1.30",
+						"release": "1.el6",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 164034,
+			"text": "This update has been submitted for testing by mlichvar. ",
+			"timestamp": "2014-07-02 14:58:30",
+			"update_id": 21647,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 164035,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 testing updates repository.",
+			"timestamp": "2014-07-03 16:09:42",
+			"update_id": 21647,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 164036,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-07-03 17:57:07",
+			"update_id": 21647,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 164037,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2014-07-17 20:23:16",
+			"update_id": 21647,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 164038,
+			"text": "This update has been submitted for stable by mlichvar. ",
+			"timestamp": "2014-07-29 14:47:40",
+			"update_id": 21647,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 164039,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 stable updates repository.",
+			"timestamp": "2014-07-29 17:59:11",
+			"update_id": 21647,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 164040,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2014-07-29 19:27:23",
+			"update_id": 21647,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2014-07-02 14:59:40",
+	"date_pushed": "2014-07-29 19:27:23",
+	"date_stable": "2014-07-29 19:27:23",
+	"date_submitted": "2014-07-02 14:58:22",
+	"date_testing": "2014-07-03 17:57:07",
+	"meets_testing_requirements": true,
+	"notes": "This is an update to the latest upstream release. This fixes the following security vulnerability:\r\n\r\n- Modify chronyc protocol to prevent amplification attacks (CVE-2014-0021) (incompatible with previous protocol version, chronyc supports both)\r\n\r\nChangelog is available here:\r\nhttp://chrony.tuxfamily.org/News.html",
+	"pushed": true,
+	"release": {
+		"branch": "el6",
+		"candidate_tag": "dist-6E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "dist-6E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 6",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-6",
+		"override_tag": "dist-6E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-6E-epel",
+		"state": "archived",
+		"testing_tag": "dist-6E-epel-testing",
+		"version": "6"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "chrony-1.30-1.el6",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2014-1807",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2014-1807",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/b0dce3af72be4d5491d36e2ec2a96e9c06c36f7f34a0223e26038b54b59eb8b4?s=24&d=retro",
+		"email": "mlichvar@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "cla_redhat"
+			},
+			{
+				"name": "gitnewt"
+			},
+			{
+				"name": "gitmailcap"
+			},
+			{
+				"name": "gitrpmreaper"
+			}
+		],
+		"id": 826,
+		"name": "mlichvar",
+		"openid": "mlichvar.id.fedoraproject.org"
+	},
+	"version_hash": "c45b82306b7b894b44324657b10207f281b35a18"
+}

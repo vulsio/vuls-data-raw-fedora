@@ -1,0 +1,4292 @@
+{
+	"alias": "FEDORA-2014-17576",
+	"bugs": [
+		{
+			"bug_id": 1096234,
+			"security": true,
+			"title": "CVE-2014-0221 CVE-2014-0198 CVE-2014-0224 CVE-2014-0195 CVE-2010-5298 CVE-2014-3470 mingw-openssl: various flaws [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1096234",
+				"creation_ts": "2014-05-09 13:52:19 +0000",
+				"short_desc": "CVE-2014-0221 CVE-2014-0198 CVE-2014-0224 CVE-2014-0195 CVE-2010-5298 CVE-2014-3470 mingw-openssl: various flaws [fedora-all]",
+				"delta_ts": "2015-04-06 14:13:00 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1087195",
+						"alias": "CVE-2010-5298",
+						"creation_ts": "2014-04-14 06:21:04 +0000",
+						"short_desc": "CVE-2010-5298 openssl: freelist misuse causing a possible use-after-free",
+						"delta_ts": "2021-02-17 06:41:10 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Reopened, Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1096233",
+							"1096234",
+							"1103604",
+							"1103605",
+							"1103632",
+							"1103633",
+							"1103741",
+							"1104349",
+							"1104350",
+							"1127889"
+						],
+						"blocked": [
+							{
+								"bug_id": "1087207",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1103601",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2014:0679",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7006977",
+								"comment_count": "0",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-04-14 06:21:04 +0000",
+								"thetext": "The following security advisory was reported by OpenBSD:\n\nOpenBSD 5.4 errata 8, Apr 12, 2014:  A use-after-free race condition in OpenSSL's read buffer may permit an attacker to inject data from one connection into another.\n\nReference:\n\nhttp://ftp.openbsd.org/pub/OpenBSD/patches/5.4/common/008_openssl.patch\nhttp://www.tedunangst.com/flak/post/analysis-of-openssl-freelist-reuse"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7007044",
+								"comment_count": "1",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-04-14 06:48:51 +0000",
+								"thetext": "Analysis:\n\nopenssl does its own memory management and maintains a LIFO freelist of buffers available.\n\nIn ssl3_read_bytes(), it released buffer even if there is some data available inside it.\n\nLater in s3_pkt.c:1058, ssl3_release_read_buffer() is called to allocate another buffer. In a single threaded application the same buffer would be allocated and openssl continues to read valid data from it.\n\nHowever in a multi-thread context or when openssl is compiled with OPENSSL_NO_BUF_FREELISTS which makes it uses system memory management, when a buffer is re-malloced, the old data is gone, at this point openssl bails out and TLS session is broken.\n\nI don't think this is exploitable. Could be exploitable only if the re-malloced buffer is not initialized and sent out on the wire, but I don't see that happening anywhere."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7007534",
+								"comment_count": "2",
+								"who": {
+									"text": "tmraz",
+									"name": "Tomas Mraz"
+								},
+								"bug_when": "2014-04-14 08:55:10 +0000",
+								"thetext": "I don't think this is exploitable. The concurrent thread (if using the data properly) would not reuse the buffer contents and will overwrite it with its own ciphertext data. This will cause parsing error in the original thread when it will try to read the data later."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7009577",
+								"comment_count": "3",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-04-14 20:46:14 +0000",
+								"thetext": "CVE-2010-5298 was assigned to this issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7031068",
+								"comment_count": "6",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-04-23 13:21:29 +0000",
+								"thetext": "Upstream bug:\nhttps://rt.openssl.org/Ticket/Display.html?id=2167&user=guest&pass=guest\n\nUpstream commit:\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=94d1f4b"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7076217",
+								"comment_count": "7",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-05-09 13:24:21 +0000",
+								"thetext": "The support for freelist was introduced as part of the \"Memory saving patch\" added in OpenSSL version 1.0.0:\n\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=8671b89\n\nTherefore, this issue does not affect openssl packages in Red Hat Enterprise Linux 5 or earlier, that are based on upstream version 0.9.8 and earlier and does not contain affected code.\n\nThis problem can only occur when application enables SSL_MODE_RELEASE_BUFFERS mode, which is not the default.  As noted in bug 1093837 comment 1, few applications shipped as part of Red Hat Enterprise Linux 6 do so.  Additionally, single-threaded applications using this mode are usually not affected either.\n\nThe buffer re-used is read buffer where packet data is stored.  If the TLS/SSL connection is already established and encrypted data is expected, encrypted data from different concurrent TLS/SSL would not decrypt successfully.  Data re-use during handshake may proceed further, but TLS/SSL already contains mechanisms to prevent handshake from completing if any data is injected.\n\nThere currently does not seem to be any reports to indicate conditions under which this can have worse impact than aborted connection."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7076281",
+								"comment_count": "8",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-05-09 13:49:26 +0000",
+								"thetext": "Statement:\n\nThis issue did not affect the openssl packages shipped with Red Hat Enterprise Linux 5."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7076297",
+								"comment_count": "9",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-05-09 13:53:28 +0000",
+								"thetext": "\nCreated openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1096233]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7076299",
+								"comment_count": "10",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-05-09 13:53:38 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1096234]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150388",
+								"comment_count": "15",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-06-05 11:44:15 +0000",
+								"thetext": "Fixed upstream in OpenSSL 1.0.1h and 1.0.0m.\n\nExternal References:\n\nhttps://www.openssl.org/news/secadv_20140605.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150409",
+								"comment_count": "16",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 11:53:56 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2014:0625 https://rhn.redhat.com/errata/RHSA-2014-0625.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150500",
+								"comment_count": "17",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 12:15:47 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Storage 2.1\n\nVia RHSA-2014:0628 https://rhn.redhat.com/errata/RHSA-2014-0628.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7152381",
+								"comment_count": "18",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-06-05 21:53:39 +0000",
+								"thetext": "openssl-1.0.1e-38.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7152392",
+								"comment_count": "19",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-06-05 21:54:34 +0000",
+								"thetext": "openssl-1.0.1e-38.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7168885",
+								"comment_count": "20",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-10 12:25:16 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:0679 https://rhn.redhat.com/errata/RHSA-2014-0679.html"
+							}
+						]
+					},
+					{
+						"bug_id": "1093837",
+						"alias": "CVE-2014-0198",
+						"creation_ts": "2014-05-02 19:09:45 +0000",
+						"short_desc": "CVE-2014-0198 openssl: SSL_MODE_RELEASE_BUFFERS NULL pointer dereference in do_ssl3_write()",
+						"delta_ts": "2021-02-17 06:35:53 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1096233",
+							"1096234",
+							"1103604",
+							"1103605",
+							"1103632",
+							"1103633",
+							"1103741",
+							"1104349",
+							"1104350",
+							"1127889"
+						],
+						"blocked": [
+							{
+								"bug_id": "1093849",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1103601",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2014:0679",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7058268",
+								"comment_count": "0",
+								"who": {
+									"text": "kseifried",
+									"name": "Kurt Seifried"
+								},
+								"bug_when": "2014-05-02 19:09:45 +0000",
+								"thetext": "The OpenBSD Project reports:\n\nAn attacker can trigger generation of an SSL alert which could cause a null pointer dereference.\n\nExternal references:\nhttp://ftp.openbsd.org/pub/OpenBSD/patches/5.5/common/005_openssl.patch.sig\nhttps://rt.openssl.org/Ticket/Display.html?user=guest&pass=guest&id=3321"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7061347",
+								"comment_count": "1",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-05-05 09:23:04 +0000",
+								"thetext": "This issue can happen when SSL_MODE_RELEASE_BUFFERS mode is enabled.  Support for SSL_MODE_RELEASE_BUFFERS was only introduced upstream in OpenSSL version 1.0.0, so this does not affect openssl packages in Red Hat Enterprise Linux 5 and earlier.\n\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=8671b89\n\nIn Red Hat Enterprise Linux 6, the only package that enabled SSL_MODE_RELEASE_BUFFERS is tog-pegasus.  There are other packages in several layered product run on top of Red Hat Enterprise Linux 6 - ruby193-ruby, nodejs, nodejs010-nodejs, haproxy15side.  These are included in one or more of the following products: Red Hat Software Collections, Red Hat OpenShift Enterprise, and Red Hat Enterprise Linux - OpenStack Platform."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7076257",
+								"comment_count": "3",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-05-09 13:40:34 +0000",
+								"thetext": "Statement:\n\nThis issue did not affect the openssl packages shipped with Red Hat Enterprise Linux 5."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7076290",
+								"comment_count": "4",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-05-09 13:52:32 +0000",
+								"thetext": "\nCreated openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1096233]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7076291",
+								"comment_count": "5",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-05-09 13:52:38 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1096234]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7079989",
+								"comment_count": "6",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-05-12 09:22:48 +0000",
+								"thetext": "OpenSSL upstream commit, as applied to 1.0.1 branch:\n\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=b107586\n\nThe fix is not needed for master/1.0.2 branch, which already contains different fix for the issue, that upstream does not plan to backport to 1.0.1 and 1.0.0, see upstream bug for details.\n\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=3ef477c"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150387",
+								"comment_count": "9",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-06-05 11:44:08 +0000",
+								"thetext": "Fixed upstream in OpenSSL 1.0.1h and 1.0.0m.\n\nExternal References:\n\nhttps://www.openssl.org/news/secadv_20140605.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150411",
+								"comment_count": "10",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 11:54:00 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2014:0625 https://rhn.redhat.com/errata/RHSA-2014-0625.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150502",
+								"comment_count": "11",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 12:15:51 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Storage 2.1\n\nVia RHSA-2014:0628 https://rhn.redhat.com/errata/RHSA-2014-0628.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7152382",
+								"comment_count": "12",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-06-05 21:53:45 +0000",
+								"thetext": "openssl-1.0.1e-38.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7152394",
+								"comment_count": "13",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-06-05 21:54:40 +0000",
+								"thetext": "openssl-1.0.1e-38.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7168886",
+								"comment_count": "14",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-10 12:25:21 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:0679 https://rhn.redhat.com/errata/RHSA-2014-0679.html"
+							}
+						]
+					},
+					{
+						"bug_id": "1103586",
+						"alias": "CVE-2014-0224",
+						"creation_ts": "2014-06-02 07:17:00 +0000",
+						"short_desc": "CVE-2014-0224 openssl: SSL/TLS MITM vulnerability",
+						"delta_ts": "2023-05-12 04:13:35 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"1096233",
+							"1096234",
+							"1103604",
+							"1103605",
+							"1103606",
+							"1103607",
+							"1103608",
+							"1103609",
+							"1103610",
+							"1103611",
+							"1103632",
+							"1103633",
+							"1103634",
+							"1103635",
+							"1103653",
+							"1103654",
+							"1103655",
+							"1103656",
+							"1103657",
+							"1103659",
+							"1103723",
+							"1103724",
+							"1103741",
+							"1103885",
+							"1103886",
+							"1103887",
+							"1103888",
+							"1103889",
+							"1103890",
+							"1104349",
+							"1104350",
+							"1127888",
+							"1127889"
+						],
+						"blocked": [
+							{
+								"bug_id": "1103601",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1103903",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1103904",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1103905",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2014:0680",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7136551",
+								"comment_count": "0",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-02 07:17:00 +0000",
+								"thetext": "It was found that OpenSSL was vulnerable to a SSL/TLS MITM vulnerability. An attacker using a carefully crafted handshake can force the use of weak keying material in OpenSSL SSL/TLS clients and servers. This can be exploited by a Man-in-the-middle (MITM) attack where the attacker can decrypt and modify traffic from the attacked client and server.\n\nAs per the upstream advisory:\n\nThe attack can only be performed between a vulnerable client *and* server. OpenSSL clients are vulnerable in all versions of OpenSSL. Servers are only known to be vulnerable in OpenSSL 1.0.1 and 1.0.2-beta1. Users of OpenSSL servers earlier than 1.0.1 are advised to upgrade as a precaution.\n\nOpenSSL 0.9.8 SSL/TLS users (client and/or server) should upgrade to 0.9.8za.\nOpenSSL 1.0.0 SSL/TLS users (client and/or server) should upgrade to 1.0.0m.\nOpenSSL 1.0.1 SSL/TLS users (client and/or server) should upgrade to 1.0.1h.\n\n\nAcknowledgements:\n\nRed Hat would like to thank the OpenSSL project for reporting this issue. Upstream acknowledges KIKUCHI Masashi of Lepidum as the original reporter of this issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7136764",
+								"comment_count": "4",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-02 08:30:26 +0000",
+								"thetext": "Created attachment 901373\nUpstream patch"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150341",
+								"comment_count": "19",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-05 11:32:02 +0000",
+								"thetext": "External References:\n\nhttps://www.openssl.org/news/secadv_20140605.txt\nhttps://access.redhat.com/site/articles/904433\nhttps://access.redhat.com/site/solutions/905793"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150350",
+								"comment_count": "20",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-05 11:35:51 +0000",
+								"thetext": "Upstream commits:\n\nOpenSSL-1.0.1:\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=bc8923b1ec9c467755cd86f7848c50ee8812e441\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=006cd7083f76ed5cb0d9a914857e9231ef1bc317\n\nOpenSSL-0.9.8:\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=410a49a4fa1d2a1a9775ee29f9e40cbbda79c149\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=897169fdf06bf75b4d0c503d61abb45656dd90a6"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150372",
+								"comment_count": "21",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-06-05 11:39:35 +0000",
+								"thetext": "Fixed upstream in versions 1.0.1h, 1.0.0m and 0.9.8za."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150412",
+								"comment_count": "22",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 11:54:06 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2014:0625 https://rhn.redhat.com/errata/RHSA-2014-0625.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150417",
+								"comment_count": "23",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 11:54:49 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 5\n\nVia RHSA-2014:0624 https://rhn.redhat.com/errata/RHSA-2014-0624.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150437",
+								"comment_count": "24",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 12:04:43 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 5\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2014:0626 https://rhn.redhat.com/errata/RHSA-2014-0626.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150475",
+								"comment_count": "25",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-05 12:12:30 +0000",
+								"thetext": "\nCreated openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1096233]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150476",
+								"comment_count": "26",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-05 12:12:34 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1096234]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150503",
+								"comment_count": "27",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 12:15:57 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Storage 2.1\n\nVia RHSA-2014:0628 https://rhn.redhat.com/errata/RHSA-2014-0628.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150510",
+								"comment_count": "28",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 12:16:41 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 4 Extended Lifecycle Support\n  Red Hat Enterprise Linux 5.6 Long Life\n  Red Hat Enterprise Linux 5.9 EUS - Server Only\n  Red Hat Enterprise Linux 6.3 EUS - Server and Compute Node Only\n  Red Hat Enterprise Linux 6.4 EUS - Server and Compute Node Only\n  Red Hat Enterprise Linux 6.2 AUS\n\nVia RHSA-2014:0627 https://rhn.redhat.com/errata/RHSA-2014-0627.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7151155",
+								"comment_count": "29",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2014-06-05 14:52:32 +0000",
+								"thetext": "IssueDescription:\n\nIt was found that OpenSSL clients and servers could be forced, via a specially crafted handshake packet, to use weak keying material for communication. A man-in-the-middle attacker could use this flaw to decrypt and modify traffic between a client and a server."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7151169",
+								"comment_count": "30",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 14:57:29 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat JBoss Enterprise Web Platform 5.2.0\n\nVia RHSA-2014:0633 https://rhn.redhat.com/errata/RHSA-2014-0633.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7151176",
+								"comment_count": "31",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 14:58:26 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat JBoss Web Server 2.0.1\n\nVia RHSA-2014:0632 https://rhn.redhat.com/errata/RHSA-2014-0632.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7151178",
+								"comment_count": "32",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 14:58:42 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat JBoss Enterprise Application Platform 5.2.0\n\nVia RHSA-2014:0630 https://rhn.redhat.com/errata/RHSA-2014-0630.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7151181",
+								"comment_count": "33",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 14:58:57 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  RHEV-H and Agents for RHEL-6\n\nVia RHSA-2014:0629 https://rhn.redhat.com/errata/RHSA-2014-0629.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7151295",
+								"comment_count": "34",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 15:27:57 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat JBoss Enterprise Application Platform 6.2.3\n\nVia RHSA-2014:0631 https://rhn.redhat.com/errata/RHSA-2014-0631.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7152384",
+								"comment_count": "35",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-06-05 21:53:51 +0000",
+								"thetext": "openssl-1.0.1e-38.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7152395",
+								"comment_count": "36",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-06-05 21:54:48 +0000",
+								"thetext": "openssl-1.0.1e-38.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7168882",
+								"comment_count": "37",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-10 12:25:01 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:0680 https://rhn.redhat.com/errata/RHSA-2014-0680.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7168900",
+								"comment_count": "38",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-10 12:28:15 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:0679 https://rhn.redhat.com/errata/RHSA-2014-0679.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7366751",
+								"comment_count": "41",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 18:38:37 +0000",
+								"thetext": "\nCreated mingw32-openssl tracking bugs for this issue:\n\nAffects: epel-5 [bug 1127888]"
+							}
+						]
+					},
+					{
+						"bug_id": "1103593",
+						"alias": "CVE-2014-0221",
+						"creation_ts": "2014-06-02 07:25:42 +0000",
+						"short_desc": "CVE-2014-0221 openssl: DoS when sending invalid DTLS handshake",
+						"delta_ts": "2023-05-12 04:01:05 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1096233",
+							"1096234",
+							"1103604",
+							"1103605",
+							"1103632",
+							"1103633",
+							"1103741",
+							"1104349",
+							"1104350",
+							"1104970",
+							"1104988",
+							"1127831",
+							"1127832",
+							"1127888",
+							"1127889"
+						],
+						"blocked": [
+							{
+								"bug_id": "1064757",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1103601",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1116304",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1127468",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2014:1086",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7136580",
+								"comment_count": "0",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-02 07:25:42 +0000",
+								"thetext": "As per the upstream advisory:\n\nBy sending an invalid DTLS handshake to an OpenSSL DTLS client, the code can be made to recurse, eventually crashing in a DoS attack.\n\nOnly applications using OpenSSL as a DTLS client are affected.\n\nOpenSSL 0.9.8 DTLS users should upgrade to 0.9.8za\nOpenSSL 1.0.0 DTLS users should upgrade to 1.0.0m.\nOpenSSL 1.0.1 DTLS users should upgrade to 1.0.1h.\n.\n\nAcknowledgements:\n\nRed Hat would like to thank the OpenSSL project for reporting this issue. Upstream acknowledges Imre Rad of Search-Lab as the original reporter of this issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7136765",
+								"comment_count": "2",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-02 08:30:49 +0000",
+								"thetext": "Created attachment 901374\nUpstream patch"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7145961",
+								"comment_count": "8",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-04 08:51:33 +0000",
+								"thetext": "Statement:\n\n(none)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150345",
+								"comment_count": "10",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-05 11:32:26 +0000",
+								"thetext": "Fixed upstream in OpenSSL 1.0.1h, 1.0.0m and 0.9.8za.\n\nExternal References:\n\nhttps://www.openssl.org/news/secadv_20140605.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150354",
+								"comment_count": "11",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-05 11:36:51 +0000",
+								"thetext": "Upstream commits:\n\nOpenSSL-1.0.1:\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=d3152655d5319ce883c8e3ac4b99f8de4c59d846\n\nOpenSSL-0.9.8:\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=de2422affbe24262496f477edeb1c04017907eb4"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150413",
+								"comment_count": "12",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 11:54:11 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2014:0625 https://rhn.redhat.com/errata/RHSA-2014-0625.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150481",
+								"comment_count": "13",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-05 12:13:32 +0000",
+								"thetext": "\nCreated openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1096233]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150484",
+								"comment_count": "14",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-05 12:13:38 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1096234]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150505",
+								"comment_count": "15",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 12:16:01 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Storage 2.1\n\nVia RHSA-2014:0628 https://rhn.redhat.com/errata/RHSA-2014-0628.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7152385",
+								"comment_count": "16",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-06-05 21:53:57 +0000",
+								"thetext": "openssl-1.0.1e-38.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7152396",
+								"comment_count": "17",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-06-05 21:54:53 +0000",
+								"thetext": "openssl-1.0.1e-38.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7168901",
+								"comment_count": "18",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-10 12:28:22 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:0679 https://rhn.redhat.com/errata/RHSA-2014-0679.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7172447",
+								"comment_count": "19",
+								"who": {
+									"text": "prabhakar_pujeri",
+									"name": "Prabhakar Pujeri"
+								},
+								"bug_when": "2014-06-11 07:44:32 +0000",
+								"thetext": "is there Errata for RHEL 5.9 ?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7172580",
+								"comment_count": "20",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-06-11 08:27:41 +0000",
+								"thetext": "(In reply to Prabhakar Pujeri from comment #19)\n> is there Errata for RHEL 5.9 ?\n\nPlease direct this question to Red Hat Support:\nhttps://access.redhat.com/site/support"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7360064",
+								"comment_count": "23",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2014-08-06 08:02:27 +0000",
+								"thetext": "IssueDescription:\n\nA denial of service flaw was found in the way OpenSSL handled certain DTLS ServerHello requests. A specially crafted DTLS handshake packet could cause a DTLS client using OpenSSL to crash."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7361600",
+								"comment_count": "28",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-06 14:53:02 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  JBoss Enterprise Application Platform 6.3.0\n\nVia RHSA-2014:1021 https://rhn.redhat.com/errata/RHSA-2014-1021.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7366759",
+								"comment_count": "30",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 18:39:07 +0000",
+								"thetext": "\nCreated mingw32-openssl tracking bugs for this issue:\n\nAffects: epel-5 [bug 1127888]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7382497",
+								"comment_count": "31",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-13 18:19:00 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 5\n\nVia RHSA-2014:1053 https://rhn.redhat.com/errata/RHSA-2014-1053.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7406802",
+								"comment_count": "32",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-21 15:32:37 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  JBoss Web Server 2.1.0\n\nVia RHSA-2014:1086 https://rhn.redhat.com/errata/RHSA-2014-1086.html"
+							}
+						]
+					},
+					{
+						"bug_id": "1103598",
+						"alias": "CVE-2014-0195",
+						"creation_ts": "2014-06-02 07:40:03 +0000",
+						"short_desc": "CVE-2014-0195 openssl: Buffer overflow via DTLS invalid fragment",
+						"delta_ts": "2023-05-12 04:14:39 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"1096233",
+							"1096234",
+							"1103604",
+							"1103605",
+							"1103632",
+							"1103633",
+							"1103741",
+							"1104349",
+							"1104350",
+							"1127888",
+							"1127889"
+						],
+						"blocked": [
+							{
+								"bug_id": "1103601",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2014:0679",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7136637",
+								"comment_count": "0",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-02 07:40:03 +0000",
+								"thetext": "As per the upstream advisory:\n\nA buffer overrun attack can be triggered by sending invalid DTLS fragments to an OpenSSL DTLS client or server. This is potentially exploitable to run arbitrary code on a vulnerable client or server.\n\nOnly applications using OpenSSL as a DTLS client or server affected.\n\nOpenSSL 0.9.8 DTLS users should upgrade to 0.9.8za\nOpenSSL 1.0.0 DTLS users should upgrade to 1.0.0m.\nOpenSSL 1.0.1 DTLS users should upgrade to 1.0.1h.\n\n\nAcknowledgements:\n\nRed Hat would like to thank the OpenSSL project for reporting this issue. Upstream acknowledges Jüri Aedla as the original reporter of this issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7136766",
+								"comment_count": "2",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-02 08:31:02 +0000",
+								"thetext": "Created attachment 901375\nUpstream patch"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7145203",
+								"comment_count": "11",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-06-04 07:15:14 +0000",
+								"thetext": "This issue was introduced upstream in version 0.9.8o via the following commit:\n\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=c713a4c\nhttps://rt.openssl.org/Ticket/Display.html?id=2230&user=guest&pass=guest\n\nAffected code does not exist in the openssl packages as shipped with Red Hat Enterprise Linux 5, which are based on upstream version 0.9.8e."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150348",
+								"comment_count": "12",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-05 11:32:42 +0000",
+								"thetext": "Fixed upstream in OpenSSL 1.0.1h, 1.0.0m and 0.9.8za.\n\nExternal References:\n\nhttps://www.openssl.org/news/secadv_20140605.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150356",
+								"comment_count": "13",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-05 11:37:34 +0000",
+								"thetext": "Upstream commits:\n\nOpenSSL-1.0.1:\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=1632ef744872edc2aa2a53d487d3e79c965a4ad3\n\nOpenSSL-0.9.8:\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=82ba68c42d6a9cf245afa489471005b2a0377c10"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150414",
+								"comment_count": "14",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 11:54:15 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2014:0625 https://rhn.redhat.com/errata/RHSA-2014-0625.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150491",
+								"comment_count": "15",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-05 12:14:37 +0000",
+								"thetext": "\nCreated openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1096233]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150492",
+								"comment_count": "16",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-05 12:14:42 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1096234]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150506",
+								"comment_count": "17",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 12:16:05 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Storage 2.1\n\nVia RHSA-2014:0628 https://rhn.redhat.com/errata/RHSA-2014-0628.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150720",
+								"comment_count": "18",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-05 13:12:34 +0000",
+								"thetext": "Statement:\n\nThis issue does not affect the version of openssl as shipped with Red Hat Enterprise Linux 5. This issue does not affect the version of openssl098e as shipped with Red Hat Enterprise Linux 6."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7152386",
+								"comment_count": "19",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-06-05 21:54:01 +0000",
+								"thetext": "openssl-1.0.1e-38.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7152397",
+								"comment_count": "20",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-06-05 21:54:57 +0000",
+								"thetext": "openssl-1.0.1e-38.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7168902",
+								"comment_count": "21",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-10 12:28:27 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:0679 https://rhn.redhat.com/errata/RHSA-2014-0679.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7366761",
+								"comment_count": "22",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 18:39:37 +0000",
+								"thetext": "\nCreated mingw32-openssl tracking bugs for this issue:\n\nAffects: epel-5 [bug 1127888]"
+							}
+						]
+					},
+					{
+						"bug_id": "1103600",
+						"alias": "CVE-2014-3470",
+						"creation_ts": "2014-06-02 07:48:42 +0000",
+						"short_desc": "CVE-2014-3470 openssl: client-side denial of service when using anonymous ECDH",
+						"delta_ts": "2023-05-12 04:02:08 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1096233",
+							"1096234",
+							"1103604",
+							"1103605",
+							"1103632",
+							"1103633",
+							"1103741",
+							"1104349",
+							"1104350",
+							"1127888",
+							"1127889"
+						],
+						"blocked": [
+							{
+								"bug_id": "1103601",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2014:0679",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7136657",
+								"comment_count": "0",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-02 07:48:42 +0000",
+								"thetext": "As per the upstream advisory:\n\nOpenSSL TLS clients enabling anonymous ECDH ciphersuites are subject to a denial of service attack.\n\nOpenSSL 1.0.0 users should upgrade to 1.0.0m.\nOpenSSL 1.0.1 users should upgrade to 1.0.1h.\n\n\nAcknowledgements:\n\nRed Hat would like to thank the OpenSSL project for reporting this issue. Upstream acknowledges Felix Gröbert and Ivan Fratrić of Google as the original reporters of this issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7136767",
+								"comment_count": "2",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-02 08:31:28 +0000",
+								"thetext": "Created attachment 901376\nUpstream patch"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150349",
+								"comment_count": "6",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-05 11:32:55 +0000",
+								"thetext": "Fixed upstream in OpenSSL 1.0.1h, 1.0.0m and 0.9.8za.\n\nExternal References:\n\nhttps://www.openssl.org/news/secadv_20140605.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150360",
+								"comment_count": "7",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-05 11:38:50 +0000",
+								"thetext": "Upstream commits:\n\nOpenSSL-1.0.1:\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=8011cd56e39a433b1837465259a9bd24a38727fb\n\nOpenSSL-0.9.8:\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=141a5482fdd1944804cc342c1c443362eed8501b"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150415",
+								"comment_count": "8",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 11:54:19 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2014:0625 https://rhn.redhat.com/errata/RHSA-2014-0625.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150498",
+								"comment_count": "9",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-05 12:15:40 +0000",
+								"thetext": "\nCreated openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1096233]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150499",
+								"comment_count": "10",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-05 12:15:46 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1096234]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150507",
+								"comment_count": "11",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-05 12:16:10 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Storage 2.1\n\nVia RHSA-2014:0628 https://rhn.redhat.com/errata/RHSA-2014-0628.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7150758",
+								"comment_count": "12",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-06-05 13:23:48 +0000",
+								"thetext": "Statement:\n\nThis issue does not affect the version of openssl and openssl097a as shipped with Red Hat Enterprise Linux 5. This issue does not affect the openssl098e as shipped with Red Hat Enterprise Linux 6."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7152388",
+								"comment_count": "13",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-06-05 21:54:06 +0000",
+								"thetext": "openssl-1.0.1e-38.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7152398",
+								"comment_count": "14",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-06-05 21:55:02 +0000",
+								"thetext": "openssl-1.0.1e-38.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7168904",
+								"comment_count": "15",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-06-10 12:28:33 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:0679 https://rhn.redhat.com/errata/RHSA-2014-0679.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7366766",
+								"comment_count": "16",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 18:40:04 +0000",
+								"thetext": "\nCreated mingw32-openssl tracking bugs for this issue:\n\nAffects: epel-5 [bug 1127888]"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7076287",
+						"comment_count": "0",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-05-09 13:52:19 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen creating a Bodhi update request, use the bodhi submission link noted\nin the next comment(s).  This will include the bug IDs of this tracking\nbug as well as the relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nBodhi notes field when available.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7076289",
+						"comment_count": "1",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-05-09 13:52:29 +0000",
+						"thetext": "\nUse the following update submission link to create the Bodhi request for\nthis issue as it contains the top-level parent bug(s) as well as this\ntracking bug.  This will ensure that all associated bugs get updated when\nnew packages are pushed to stable.\n\nIMPORTANT: ensure that the \"Close bugs when update is stable\" option\nremains checked.\n\nBodhi update submission link:\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1093837,1096234"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7076296",
+						"comment_count": "2",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-05-09 13:53:25 +0000",
+						"thetext": "\nAdding parent bug 1087195 (for CVE-2010-5298).  Please use this new bodhi update url when correcting these flaws:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1096234,1087195,1093837"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7150473",
+						"comment_count": "3",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2014-06-05 12:12:28 +0000",
+						"thetext": "\nAdding parent bug 1103586 (for CVE-2014-0224).  Please use this new bodhi update url when correcting these flaws:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1096234,1087195,1093837,1103586"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7150480",
+						"comment_count": "4",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2014-06-05 12:13:30 +0000",
+						"thetext": "\nAdding parent bug 1103593 (for CVE-2014-0221).  Please use this new bodhi update url when correcting these flaws:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1096234,1087195,1093837,1103586,1103593"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7150490",
+						"comment_count": "5",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2014-06-05 12:14:35 +0000",
+						"thetext": "\nAdding parent bug 1103598 (for CVE-2014-0195).  Please use this new bodhi update url when correcting these flaws:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1096234,1087195,1093837,1103586,1103593,1103598"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7150497",
+						"comment_count": "6",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2014-06-05 12:15:38 +0000",
+						"thetext": "\nAdding parent bug 1103600 (for CVE-2014-3470).  Please use this new bodhi update url when correcting these flaws:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1096234,1087195,1093837,1103586,1103593,1103598,1103600"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7730108",
+						"comment_count": "7",
+						"who": {
+							"text": "pj.pandit",
+							"name": "pjp"
+						},
+						"bug_when": "2014-12-03 18:27:38 +0000",
+						"thetext": "Hello erik-fedora,\n\nCould you please fix this soon?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7787460",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-23 12:10:31 +0000",
+						"thetext": "mingw-openssl-1.0.1j-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/mingw-openssl-1.0.1j-1.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7787465",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-23 12:12:36 +0000",
+						"thetext": "mingw-openssl-1.0.1j-1.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/mingw-openssl-1.0.1j-1.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7790388",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-25 05:32:33 +0000",
+						"thetext": "Package mingw-openssl-1.0.1j-1.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing mingw-openssl-1.0.1j-1.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-17576/mingw-openssl-1.0.1j-1.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7797580",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-02 05:02:17 +0000",
+						"thetext": "mingw-openssl-1.0.1j-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7797631",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-02 05:07:06 +0000",
+						"thetext": "mingw-openssl-1.0.1j-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1127705,
+			"security": true,
+			"title": "CVE-2014-3505 CVE-2014-3506 CVE-2014-3507 CVE-2014-3511 CVE-2014-3510 CVE-2014-3508 CVE-2014-3509 mingw-openssl: various flaws [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1127705",
+				"creation_ts": "2014-08-07 11:31:31 +0000",
+				"short_desc": "CVE-2014-3505 CVE-2014-3506 CVE-2014-3507 CVE-2014-3511 CVE-2014-3510 CVE-2014-3508 CVE-2014-3509 mingw-openssl: various flaws [fedora-all]",
+				"delta_ts": "2015-04-06 14:13:38 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1127490",
+						"alias": "CVE-2014-3508",
+						"creation_ts": "2014-08-07 01:14:41 +0000",
+						"short_desc": "CVE-2014-3508 openssl: information leak in pretty printing functions",
+						"delta_ts": "2021-02-17 06:19:36 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1127695",
+							"1127696",
+							"1127697",
+							"1127698",
+							"1127704",
+							"1127705",
+							"1127709",
+							"1127831",
+							"1127832",
+							"1127885",
+							"1128013",
+							"1128014",
+							"1128015",
+							"1128016",
+							"1128405",
+							"1128406",
+							"1128961",
+							"1181611"
+						],
+						"blocked": [
+							{
+								"bug_id": "1127468",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1127506",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1138223",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1142543",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2014:1297",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7363252",
+								"comment_count": "0",
+								"who": {
+									"text": "agriffit",
+									"name": "Andrew Griffiths"
+								},
+								"bug_when": "2014-08-07 01:14:41 +0000",
+								"thetext": "It was found that OBJ_obj2txt may cause pretty printing functions such as X509_name_oneline, X509_name_print_ex, and others, to leak information from the stack. If applications echo pretty printing output, then a remote attacker could exploit this flaw to read information from the stack. OpenSSL clients and servers are not affected by this flaw; only applications that echo pretty printing output are affected."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7363604",
+								"comment_count": "1",
+								"who": {
+									"text": "aneelica",
+									"name": "Arun Babu Neelicattu"
+								},
+								"bug_when": "2014-08-07 05:52:22 +0000",
+								"thetext": "External References:\n\nhttps://www.openssl.org/news/secadv_20140806.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7363981",
+								"comment_count": "3",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 07:28:48 +0000",
+								"thetext": "Upstream commit:\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=0042fb5fd1c9d257d713b15a1f45da05cf5c1c87"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364909",
+								"comment_count": "5",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:34:15 +0000",
+								"thetext": "\nCreated openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1127704]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364910",
+								"comment_count": "6",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:34:21 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1127705]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364945",
+								"comment_count": "7",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:39:49 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: epel-7 [bug 1127709]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7366742",
+								"comment_count": "9",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 18:36:12 +0000",
+								"thetext": "\nCreated mingw32-openssl tracking bugs for this issue:\n\nAffects: epel-5 [bug 1127885]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7370693",
+								"comment_count": "11",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-08-09 07:34:13 +0000",
+								"thetext": "openssl-1.0.1e-39.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7370704",
+								"comment_count": "12",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-08-09 07:35:24 +0000",
+								"thetext": "openssl-1.0.1e-39.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7376541",
+								"comment_count": "14",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2014-08-12 07:41:51 +0000",
+								"thetext": "IssueDescription:\n\nIt was discovered that the OBJ_obj2txt() function could fail to properly NUL-terminate its output. This could possibly cause an application using OpenSSL functions to format fields of X.509 certificates to disclose portions of its memory."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7382498",
+								"comment_count": "15",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-13 18:19:05 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 5\n\nVia RHSA-2014:1053 https://rhn.redhat.com/errata/RHSA-2014-1053.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7383039",
+								"comment_count": "16",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-13 21:33:16 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 6\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:1052 https://rhn.redhat.com/errata/RHSA-2014-1052.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7383658",
+								"comment_count": "17",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-14 04:44:46 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Storage 2.1\n\nVia RHSA-2014:1054 https://rhn.redhat.com/errata/RHSA-2014-1054.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7491212",
+								"comment_count": "18",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-09-17 16:30:59 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  JBoss Web Server 2.1.0\n\nVia RHSA-2014:1256 https://rhn.redhat.com/errata/RHSA-2014-1256.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7515542",
+								"comment_count": "19",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-09-24 16:54:11 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  JBoss Enterprise Application Platform 6.3.0\n\nVia RHSA-2014:1297 https://rhn.redhat.com/errata/RHSA-2014-1297.html"
+							}
+						]
+					},
+					{
+						"bug_id": "1127498",
+						"alias": "CVE-2014-3509",
+						"creation_ts": "2014-08-07 01:57:35 +0000",
+						"short_desc": "CVE-2014-3509 openssl: race condition in ssl_parse_serverhello_tlsext",
+						"delta_ts": "2021-10-20 10:45:14 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1127695",
+							"1127696",
+							"1127697",
+							"1127698",
+							"1127704",
+							"1127705",
+							"1127709",
+							"1128405",
+							"1128406",
+							"1128961",
+							"1181611"
+						],
+						"blocked": [
+							{
+								"bug_id": "1127468",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1127506",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:0197",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7363306",
+								"comment_count": "0",
+								"who": {
+									"text": "agriffit",
+									"name": "Andrew Griffiths"
+								},
+								"bug_when": "2014-08-07 01:57:35 +0000",
+								"thetext": "A race condition was found in the ssl_parse_serverhello_tlsext() code that may result in upto 255 bytes being written to memory that had been free'd if an ec point format extension was sent by the server. This issue only affects multi-threaded clients."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7363605",
+								"comment_count": "1",
+								"who": {
+									"text": "aneelica",
+									"name": "Arun Babu Neelicattu"
+								},
+								"bug_when": "2014-08-07 05:52:29 +0000",
+								"thetext": "External References:\n\nhttps://www.openssl.org/news/secadv_20140806.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7363858",
+								"comment_count": "3",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 07:01:05 +0000",
+								"thetext": "Upstream commit:\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=fb0bc2b273bcc2d5401dd883fe869af4fc74bb21"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364231",
+								"comment_count": "4",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 08:31:25 +0000",
+								"thetext": "Affected code that implements support for Supported Point Formats Extension for ECC ciphersuites was originally introduced in the following commit:\n\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=36ca4ba6\n\nThis code was added upstream in version 1.0.0.  Therefore, openssl packages in Red Hat Enterprise Linux 5 and earlier, which are based on upstream version 0.9.8 and earlier, are not affected by this issue.\n\nAdditionally, the openssl packages shipped in Red Hat Enterprise Linux 6 prior to update RHBA-2013:1585 released as part of Red Hat Enterprise Linux 6.5 were also not affected, as Elliptic Curve Cryptography (ECC) support was not enabled."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364917",
+								"comment_count": "6",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:35:07 +0000",
+								"thetext": "\nCreated openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1127704]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364919",
+								"comment_count": "7",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:35:13 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1127705]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364949",
+								"comment_count": "8",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:40:12 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: epel-7 [bug 1127709]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7370694",
+								"comment_count": "9",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-08-09 07:34:19 +0000",
+								"thetext": "openssl-1.0.1e-39.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7370705",
+								"comment_count": "10",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-08-09 07:35:29 +0000",
+								"thetext": "openssl-1.0.1e-39.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7376528",
+								"comment_count": "12",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2014-08-12 07:40:16 +0000",
+								"thetext": "IssueDescription:\n\nA race condition was found in the way OpenSSL handled ServerHello messages with an included Supported EC Point Format extension. A malicious server could possibly use this flaw to cause a multi-threaded TLS/SSL client using OpenSSL to write into freed memory, causing the client to crash or execute arbitrary code."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7383040",
+								"comment_count": "13",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-13 21:33:21 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 6\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:1052 https://rhn.redhat.com/errata/RHSA-2014-1052.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7383660",
+								"comment_count": "14",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-14 04:44:52 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Storage 2.1\n\nVia RHSA-2014:1054 https://rhn.redhat.com/errata/RHSA-2014-1054.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7928928",
+								"comment_count": "16",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-02-11 17:44:14 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHEV Manager version 3.5\n\nVia RHSA-2015:0197 https://rhn.redhat.com/errata/RHSA-2015-0197.html"
+							}
+						]
+					},
+					{
+						"bug_id": "1127499",
+						"alias": "CVE-2014-3505",
+						"creation_ts": "2014-08-07 02:01:13 +0000",
+						"short_desc": "CVE-2014-3505 openssl: DTLS packet processing double free",
+						"delta_ts": "2021-02-17 06:19:45 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1127695",
+							"1127696",
+							"1127697",
+							"1127698",
+							"1127704",
+							"1127705",
+							"1127709",
+							"1127831",
+							"1127832",
+							"1127885",
+							"1128013",
+							"1128014",
+							"1128015",
+							"1128016",
+							"1128405",
+							"1128406",
+							"1128961",
+							"1181611"
+						],
+						"blocked": [
+							{
+								"bug_id": "1127468",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1127506",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1138223",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1142543",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2014:1297",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7363317",
+								"comment_count": "0",
+								"who": {
+									"text": "agriffit",
+									"name": "Andrew Griffiths"
+								},
+								"bug_when": "2014-08-07 02:01:13 +0000",
+								"thetext": "A double free vulnerability was identified in the OpenSSL DTLS code when an attacker forces an error condition. This issue affects both client and server code."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7363606",
+								"comment_count": "1",
+								"who": {
+									"text": "aneelica",
+									"name": "Arun Babu Neelicattu"
+								},
+								"bug_when": "2014-08-07 05:52:35 +0000",
+								"thetext": "External References:\n\nhttps://www.openssl.org/news/secadv_20140806.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7363856",
+								"comment_count": "3",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 06:59:34 +0000",
+								"thetext": "Upstream commit:\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=bff1ce4e6a1c57c3d0a5f9e4f85ba6385fccfe8b"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364891",
+								"comment_count": "5",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:31:41 +0000",
+								"thetext": "\nCreated openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1127704]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364892",
+								"comment_count": "6",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:31:48 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1127705]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364937",
+								"comment_count": "7",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:38:46 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: epel-7 [bug 1127709]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7370695",
+								"comment_count": "11",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-08-09 07:34:25 +0000",
+								"thetext": "openssl-1.0.1e-39.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7370706",
+								"comment_count": "12",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-08-09 07:35:35 +0000",
+								"thetext": "openssl-1.0.1e-39.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7373675",
+								"comment_count": "13",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-11 12:26:27 +0000",
+								"thetext": "Upstream vulnerabilities page now lists only versions starting with 0.9.8m as affected by this issue.  It seems the reason is the following change, that introduced the problem:\n\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=blobdiff;f=ssl/d1_both.c;h=0a5c08d;hb=f86d651;hpb=efa59b8\nhttp://cvs.openssl.org/filediff?f=openssl/ssl/d1_both.c&v1=1.4.2.11&v2=1.4.2.15\n\nBefore the change, it was not possible to reach the \"err\" goto label with item != NULL in dtls1_process_out_of_seq_message() so the OPENSSL_free(item) was never called there.\n\nWhile this change was introduced upstream in 0.9.8m, it was also backported to Red Hat Enterprise Linux 5 openssl packages based on upstream version 0.9.8e, as the change was the fix for CVE-2009-1378 (bug 501254).  It was first included in openssl packages released via RHSA-2009:1335 as part of the Red Hat Enterprise Linux 5.4 minor release.\n\nThe other part of the CVE-2014-3505 fix - the dtls1_reassemble_fragment() change - is only applicable to upstream versions 0.9.8o and 1.0.0a, that include following fixes for the DTLS fragment handling:\n\nhttps://rt.openssl.org/Ticket/Display.html?id=2230&user=guest&pass=guest\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=c713a4c\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=1507f3a"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7376548",
+								"comment_count": "15",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2014-08-12 07:42:31 +0000",
+								"thetext": "IssueDescription:\n\nA flaw was discovered in the way OpenSSL handled DTLS packets. A remote attacker could use this flaw to cause a DTLS server or client using OpenSSL to crash or use excessive amounts of memory."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7382499",
+								"comment_count": "16",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-13 18:19:10 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 5\n\nVia RHSA-2014:1053 https://rhn.redhat.com/errata/RHSA-2014-1053.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7383041",
+								"comment_count": "17",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-13 21:33:28 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 6\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:1052 https://rhn.redhat.com/errata/RHSA-2014-1052.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7383661",
+								"comment_count": "18",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-14 04:44:58 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Storage 2.1\n\nVia RHSA-2014:1054 https://rhn.redhat.com/errata/RHSA-2014-1054.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7491214",
+								"comment_count": "19",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-09-17 16:31:09 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  JBoss Web Server 2.1.0\n\nVia RHSA-2014:1256 https://rhn.redhat.com/errata/RHSA-2014-1256.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7515543",
+								"comment_count": "20",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-09-24 16:54:18 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  JBoss Enterprise Application Platform 6.3.0\n\nVia RHSA-2014:1297 https://rhn.redhat.com/errata/RHSA-2014-1297.html"
+							}
+						]
+					},
+					{
+						"bug_id": "1127500",
+						"alias": "CVE-2014-3506",
+						"creation_ts": "2014-08-07 02:03:52 +0000",
+						"short_desc": "CVE-2014-3506 openssl: DTLS memory exhaustion",
+						"delta_ts": "2021-02-17 06:18:57 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1127695",
+							"1127696",
+							"1127697",
+							"1127698",
+							"1127704",
+							"1127705",
+							"1127709",
+							"1127831",
+							"1127832",
+							"1127885",
+							"1128013",
+							"1128014",
+							"1128015",
+							"1128016",
+							"1128405",
+							"1128406",
+							"1128961",
+							"1181611"
+						],
+						"blocked": [
+							{
+								"bug_id": "1127468",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1127506",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1138223",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1142543",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2014:1297",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7363323",
+								"comment_count": "0",
+								"who": {
+									"text": "agriffit",
+									"name": "Andrew Griffiths"
+								},
+								"bug_when": "2014-08-07 02:03:52 +0000",
+								"thetext": "A vulnerability in the processing of DTLS handshake messages was found that results in large amounts of memory being used. Once the Denial Of Service attack has ceased, the memory will be freed."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7363607",
+								"comment_count": "1",
+								"who": {
+									"text": "aneelica",
+									"name": "Arun Babu Neelicattu"
+								},
+								"bug_when": "2014-08-07 05:52:39 +0000",
+								"thetext": "External References:\n\nhttps://www.openssl.org/news/secadv_20140806.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364739",
+								"comment_count": "3",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 10:51:13 +0000",
+								"thetext": "Upstream commit:\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=1250f12613b61758675848f6600ebd914ccd7636"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364897",
+								"comment_count": "5",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:32:37 +0000",
+								"thetext": "\nCreated openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1127704]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364898",
+								"comment_count": "6",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:32:43 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1127705]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364939",
+								"comment_count": "7",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:39:06 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: epel-7 [bug 1127709]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7366740",
+								"comment_count": "10",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 18:35:40 +0000",
+								"thetext": "\nCreated mingw32-openssl tracking bugs for this issue:\n\nAffects: epel-5 [bug 1127885]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7370696",
+								"comment_count": "12",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-08-09 07:34:32 +0000",
+								"thetext": "openssl-1.0.1e-39.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7370707",
+								"comment_count": "13",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-08-09 07:35:41 +0000",
+								"thetext": "openssl-1.0.1e-39.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7376550",
+								"comment_count": "15",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2014-08-12 07:42:43 +0000",
+								"thetext": "IssueDescription:\n\nA flaw was discovered in the way OpenSSL handled DTLS packets. A remote attacker could use this flaw to cause a DTLS server or client using OpenSSL to crash or use excessive amounts of memory."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7382501",
+								"comment_count": "16",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-13 18:19:15 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 5\n\nVia RHSA-2014:1053 https://rhn.redhat.com/errata/RHSA-2014-1053.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7383042",
+								"comment_count": "17",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-13 21:33:34 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 6\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:1052 https://rhn.redhat.com/errata/RHSA-2014-1052.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7383662",
+								"comment_count": "18",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-14 04:45:04 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Storage 2.1\n\nVia RHSA-2014:1054 https://rhn.redhat.com/errata/RHSA-2014-1054.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7491215",
+								"comment_count": "19",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-09-17 16:31:15 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  JBoss Web Server 2.1.0\n\nVia RHSA-2014:1256 https://rhn.redhat.com/errata/RHSA-2014-1256.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7515544",
+								"comment_count": "20",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-09-24 16:54:24 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  JBoss Enterprise Application Platform 6.3.0\n\nVia RHSA-2014:1297 https://rhn.redhat.com/errata/RHSA-2014-1297.html"
+							}
+						]
+					},
+					{
+						"bug_id": "1127502",
+						"alias": "CVE-2014-3507",
+						"creation_ts": "2014-08-07 02:06:15 +0000",
+						"short_desc": "CVE-2014-3507 openssl: DTLS memory leak from zero-length fragments",
+						"delta_ts": "2021-10-20 10:45:21 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1127695",
+							"1127696",
+							"1127697",
+							"1127698",
+							"1127704",
+							"1127705",
+							"1127709",
+							"1128405",
+							"1128406",
+							"1128961",
+							"1181611"
+						],
+						"blocked": [
+							{
+								"bug_id": "1127468",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1127506",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2014:1054",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7363328",
+								"comment_count": "0",
+								"who": {
+									"text": "agriffit",
+									"name": "Andrew Griffiths"
+								},
+								"bug_when": "2014-08-07 02:06:15 +0000",
+								"thetext": "It was found that an attacker could force OpenSSL to leak memory and never free it via DTLS packets."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7363608",
+								"comment_count": "1",
+								"who": {
+									"text": "aneelica",
+									"name": "Arun Babu Neelicattu"
+								},
+								"bug_when": "2014-08-07 05:52:43 +0000",
+								"thetext": "External References:\n\nhttps://www.openssl.org/news/secadv_20140806.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364413",
+								"comment_count": "3",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 09:10:55 +0000",
+								"thetext": "Upstream commit:\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=d0a4b7d1a2948fce38515b8d862f43e7ba0ebf74"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364902",
+								"comment_count": "5",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:33:27 +0000",
+								"thetext": "\nCreated openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1127704]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364903",
+								"comment_count": "6",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:33:32 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1127705]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364942",
+								"comment_count": "7",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:39:26 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: epel-7 [bug 1127709]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7365800",
+								"comment_count": "8",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 14:33:10 +0000",
+								"thetext": "This did not affect openssl packages in Red Hat Enterprise Linux 5 (based on upstream 0.9.8e) and openssl 1.0.0 packages in Red Hat Enterprise Linux 6 (i.e. packages released before RHBA-2013:1585, which rebased openssl from 1.0.0 to 1.0.1e).  Issue was introduced upstream in versions 0.9.8o and 1.0.0a via the following change:\n\nhttps://rt.openssl.org/Ticket/Display.html?id=2230&user=guest&pass=guest\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=c713a4c\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=1507f3a"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7370697",
+								"comment_count": "9",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-08-09 07:34:38 +0000",
+								"thetext": "openssl-1.0.1e-39.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7370708",
+								"comment_count": "10",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-08-09 07:35:47 +0000",
+								"thetext": "openssl-1.0.1e-39.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7376552",
+								"comment_count": "12",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2014-08-12 07:42:58 +0000",
+								"thetext": "IssueDescription:\n\nA flaw was discovered in the way OpenSSL handled DTLS packets. A remote attacker could use this flaw to cause a DTLS server or client using OpenSSL to crash or use excessive amounts of memory."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7383043",
+								"comment_count": "13",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-13 21:33:40 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 6\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:1052 https://rhn.redhat.com/errata/RHSA-2014-1052.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7383663",
+								"comment_count": "14",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-14 04:45:10 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Storage 2.1\n\nVia RHSA-2014:1054 https://rhn.redhat.com/errata/RHSA-2014-1054.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7402318",
+								"comment_count": "15",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2014-08-20 14:38:31 +0000",
+								"thetext": "Statement:\n\nThis did not affect openssl packages in Red Hat Enterprise Linux 5 (based on upstream 0.9.8e) and openssl 1.0.0 packages in Red Hat Enterprise Linux 6 (i.e. packages released before RHBA-2013:1585, which rebased openssl from 1.0.0 to 1.0.1e).  The issue was introduced upstream in versions 0.9.8o and 1.0.0a."
+							}
+						]
+					},
+					{
+						"bug_id": "1127503",
+						"alias": "CVE-2014-3510",
+						"creation_ts": "2014-08-07 02:09:19 +0000",
+						"short_desc": "CVE-2014-3510 openssl: DTLS anonymous (EC)DH denial of service",
+						"delta_ts": "2021-02-17 06:19:03 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1127695",
+							"1127696",
+							"1127697",
+							"1127698",
+							"1127704",
+							"1127705",
+							"1127709",
+							"1127831",
+							"1127832",
+							"1127885",
+							"1128013",
+							"1128014",
+							"1128015",
+							"1128016",
+							"1128405",
+							"1128406",
+							"1128961",
+							"1181611"
+						],
+						"blocked": [
+							{
+								"bug_id": "1127468",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1127506",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1138223",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1142543",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2014:1297",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7363332",
+								"comment_count": "0",
+								"who": {
+									"text": "agriffit",
+									"name": "Andrew Griffiths"
+								},
+								"bug_when": "2014-08-07 02:09:19 +0000",
+								"thetext": "It was found that OpenSSL DTLS clients using anonymous (EC)DH ciphersuites could be crashed by a malicious server via a handshake message."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7363609",
+								"comment_count": "1",
+								"who": {
+									"text": "aneelica",
+									"name": "Arun Babu Neelicattu"
+								},
+								"bug_when": "2014-08-07 05:52:46 +0000",
+								"thetext": "External References:\n\nhttps://www.openssl.org/news/secadv_20140806.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364336",
+								"comment_count": "3",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 08:53:51 +0000",
+								"thetext": "Upstream commit:\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=17160033765480453be0a41335fa6b833691c049\n\nNote that this is NULL pointer dereference issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364922",
+								"comment_count": "9",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:35:56 +0000",
+								"thetext": "\nCreated openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1127704]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364923",
+								"comment_count": "10",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:36:01 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1127705]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364953",
+								"comment_count": "11",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:40:35 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: epel-7 [bug 1127709]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7366744",
+								"comment_count": "13",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 18:36:40 +0000",
+								"thetext": "\nCreated mingw32-openssl tracking bugs for this issue:\n\nAffects: epel-5 [bug 1127885]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7370698",
+								"comment_count": "15",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-08-09 07:34:44 +0000",
+								"thetext": "openssl-1.0.1e-39.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7370709",
+								"comment_count": "16",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-08-09 07:35:53 +0000",
+								"thetext": "openssl-1.0.1e-39.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7376545",
+								"comment_count": "18",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2014-08-12 07:42:16 +0000",
+								"thetext": "IssueDescription:\n\nA NULL pointer dereference flaw was found in the way OpenSSL performed a handshake when using the anonymous Diffie-Hellman (DH) key exchange. A malicious server could cause a DTLS client using OpenSSL to crash if that client had anonymous DH cipher suites enabled."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7382502",
+								"comment_count": "19",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-13 18:19:20 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 5\n\nVia RHSA-2014:1053 https://rhn.redhat.com/errata/RHSA-2014-1053.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7383044",
+								"comment_count": "20",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-13 21:33:47 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 6\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:1052 https://rhn.redhat.com/errata/RHSA-2014-1052.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7383664",
+								"comment_count": "21",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-14 04:45:17 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Storage 2.1\n\nVia RHSA-2014:1054 https://rhn.redhat.com/errata/RHSA-2014-1054.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7491217",
+								"comment_count": "22",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-09-17 16:31:22 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  JBoss Web Server 2.1.0\n\nVia RHSA-2014:1256 https://rhn.redhat.com/errata/RHSA-2014-1256.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7515545",
+								"comment_count": "23",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-09-24 16:54:31 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  JBoss Enterprise Application Platform 6.3.0\n\nVia RHSA-2014:1297 https://rhn.redhat.com/errata/RHSA-2014-1297.html"
+							}
+						]
+					},
+					{
+						"bug_id": "1127504",
+						"alias": "CVE-2014-3511",
+						"creation_ts": "2014-08-07 02:12:10 +0000",
+						"short_desc": "CVE-2014-3511 openssl: TLS protocol downgrade attack",
+						"delta_ts": "2021-10-20 10:45:33 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1127695",
+							"1127696",
+							"1127697",
+							"1127698",
+							"1127704",
+							"1127705",
+							"1127709",
+							"1128405",
+							"1128406",
+							"1128961",
+							"1181611"
+						],
+						"blocked": [
+							{
+								"bug_id": "1127468",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1127506",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:0197",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7363333",
+								"comment_count": "0",
+								"who": {
+									"text": "agriffit",
+									"name": "Andrew Griffiths"
+								},
+								"bug_when": "2014-08-07 02:12:10 +0000",
+								"thetext": "By pathologically modifying a clients ClientHello message with fragmentation, it's possible to cause the server to negotiate TLS 1.0 instead of a higher version, even if both client and server support a higher protocol version."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7363610",
+								"comment_count": "1",
+								"who": {
+									"text": "aneelica",
+									"name": "Arun Babu Neelicattu"
+								},
+								"bug_when": "2014-08-07 05:52:49 +0000",
+								"thetext": "External References:\n\nhttps://www.openssl.org/news/secadv_20140806.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7363789",
+								"comment_count": "3",
+								"who": {
+									"text": "logan",
+									"name": "Loganaden Velvindron"
+								},
+								"bug_when": "2014-08-07 06:43:41 +0000",
+								"thetext": "Description below:\n\nOpenSSL TLS protocol downgrade attack (CVE-2014-3511)\n=====================================================\n\nA flaw in the OpenSSL SSL/TLS server code causes the server to negotiate\nTLS 1.0 instead of higher protocol versions when the ClientHello message is\nbadly fragmented. This allows a man-in-the-middle attacker to force a\ndowngrade to TLS 1.0 even if both the server and the client support a higher\nprotocol version, by modifying the client's TLS records.\n\nOpenSSL 1.0.1 SSL/TLS server users should upgrade to 1.0.1i.\n\nThanks to David Benjamin and Adam Langley (Google) for discovering and\nresearching this issue. This issue was reported to OpenSSL on 21st July 2014.\n\nThe fix was developed by David Benjamin."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7363805",
+								"comment_count": "4",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 06:46:31 +0000",
+								"thetext": "Upstream commit:\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=280b1f1ad12131defcd986676a8fc9717aaa601b"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7363835",
+								"comment_count": "5",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 06:54:06 +0000",
+								"thetext": "Support for TLS versions 1.1 and 1.2 was added upstream in OpenSSL version 1.0.1.  Red Hat Enterprise Linux 6 before 6.5 provided openssl packages based on version 1.0.0.  Hence Red Hat Enterprise Linux 6 packages prior to update RHBA-2013:1585 released as part of Red Hat Enterprise Linux 6.5, as well as packages in Red Hat Enterprise Linux 5 and earlier, were not affected as TLS 1.0 is the highest supported protocol version."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7363894",
+								"comment_count": "6",
+								"who": {
+									"text": "logan",
+									"name": "Loganaden Velvindron"
+								},
+								"bug_when": "2014-08-07 07:13:40 +0000",
+								"thetext": "Created attachment 924724\nCVE-2014-3511 patch\n\nCVE-2014-3511 patch for CentOS 6.5."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364928",
+								"comment_count": "8",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:36:49 +0000",
+								"thetext": "\nCreated openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1127704]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364929",
+								"comment_count": "9",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:36:56 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1127705]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7364955",
+								"comment_count": "10",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-08-07 11:40:59 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: epel-7 [bug 1127709]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7370699",
+								"comment_count": "11",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-08-09 07:34:50 +0000",
+								"thetext": "openssl-1.0.1e-39.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7370710",
+								"comment_count": "12",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-08-09 07:35:58 +0000",
+								"thetext": "openssl-1.0.1e-39.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7376544",
+								"comment_count": "14",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2014-08-12 07:42:03 +0000",
+								"thetext": "IssueDescription:\n\nA flaw was found in the way OpenSSL handled fragmented handshake packets. A man-in-the-middle attacker could use this flaw to force a TLS/SSL server using OpenSSL to use TLS 1.0, even if both the client and the server supported newer protocol versions."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7383046",
+								"comment_count": "15",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-13 21:33:53 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Enterprise Linux 6\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:1052 https://rhn.redhat.com/errata/RHSA-2014-1052.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7383665",
+								"comment_count": "16",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-08-14 04:45:23 +0000",
+								"thetext": "This issue has been addressed in following products:\n\n  Red Hat Storage 2.1\n\nVia RHSA-2014:1054 https://rhn.redhat.com/errata/RHSA-2014-1054.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7908908",
+								"comment_count": "18",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-02-04 17:52:41 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHEV-H and Agents for RHEL-6\n\nVia RHSA-2015:0126 https://rhn.redhat.com/errata/RHSA-2015-0126.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7928929",
+								"comment_count": "19",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-02-11 17:44:20 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHEV Manager version 3.5\n\nVia RHSA-2015:0197 https://rhn.redhat.com/errata/RHSA-2015-0197.html"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7364888",
+						"comment_count": "0",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-08-07 11:31:31 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7364890",
+						"comment_count": "1",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-08-07 11:31:39 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1127499,1127705\n\n# Description of your update\nnotes=Security fix for CVE-2014-3505\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1127499,1127705"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7364896",
+						"comment_count": "2",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-08-07 11:32:35 +0000",
+						"thetext": "\nAdding parent bug 1127500 (for CVE-2014-3506).  Please use this new fedpkg update template when submitting the update:\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1127705,1127499,1127500\n\n# Description of your update\nnotes=Security fix for CVE-2014-3505, CVE-2014-3506\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1127705,1127499,1127500"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7364901",
+						"comment_count": "3",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-08-07 11:33:25 +0000",
+						"thetext": "\nAdding parent bug 1127502 (for CVE-2014-3507).  Please use this new fedpkg update template when submitting the update:\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1127705,1127499,1127500,1127502\n\n# Description of your update\nnotes=Security fix for CVE-2014-3505, CVE-2014-3506, CVE-2014-3507\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1127705,1127499,1127500,1127502"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7364908",
+						"comment_count": "4",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-08-07 11:34:13 +0000",
+						"thetext": "\nAdding parent bug 1127490 (for CVE-2014-3508).  Please use this new fedpkg update template when submitting the update:\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1127705,1127490,1127499,1127500,1127502\n\n# Description of your update\nnotes=Security fix for CVE-2014-3505, CVE-2014-3506, CVE-2014-3507, CVE-2014-3508\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1127705,1127490,1127499,1127500,1127502"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7364916",
+						"comment_count": "5",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-08-07 11:35:05 +0000",
+						"thetext": "\nAdding parent bug 1127498 (for CVE-2014-3509).  Please use this new fedpkg update template when submitting the update:\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1127705,1127490,1127498,1127499,1127500,1127502\n\n# Description of your update\nnotes=Security fix for CVE-2014-3505, CVE-2014-3506, CVE-2014-3507, CVE-2014-3508, CVE-2014-3509\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1127705,1127490,1127498,1127499,1127500,1127502"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7364921",
+						"comment_count": "6",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-08-07 11:35:54 +0000",
+						"thetext": "\nAdding parent bug 1127503 (for CVE-2014-3510).  Please use this new fedpkg update template when submitting the update:\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1127705,1127490,1127498,1127499,1127500,1127502,1127503\n\n# Description of your update\nnotes=Security fix for CVE-2014-3505, CVE-2014-3506, CVE-2014-3507, CVE-2014-3508, CVE-2014-3509, CVE-2014-3510\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1127705,1127490,1127498,1127499,1127500,1127502,1127503"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7364927",
+						"comment_count": "7",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-08-07 11:36:48 +0000",
+						"thetext": "\nAdding parent bug 1127504 (for CVE-2014-3511).  Please use this new fedpkg update template when submitting the update:\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1127705,1127490,1127498,1127499,1127500,1127502,1127503,1127504\n\n# Description of your update\nnotes=Security fix for CVE-2014-3505, CVE-2014-3506, CVE-2014-3507, CVE-2014-3510, CVE-2014-3508, CVE-2014-3509, CVE-2014-3511\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1127705,1127490,1127498,1127499,1127500,1127502,1127503,1127504"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7730147",
+						"comment_count": "8",
+						"who": {
+							"text": "pj.pandit",
+							"name": "pjp"
+						},
+						"bug_when": "2014-12-03 18:29:52 +0000",
+						"thetext": "Hello rjones,\n\nCould you please fix this soon?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7787461",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-23 12:10:33 +0000",
+						"thetext": "mingw-openssl-1.0.1j-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/mingw-openssl-1.0.1j-1.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7787464",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-23 12:12:34 +0000",
+						"thetext": "mingw-openssl-1.0.1j-1.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/mingw-openssl-1.0.1j-1.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7790387",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-25 05:32:31 +0000",
+						"thetext": "Package mingw-openssl-1.0.1j-1.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing mingw-openssl-1.0.1j-1.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-17576/mingw-openssl-1.0.1j-1.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7797581",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-02 05:02:43 +0000",
+						"thetext": "mingw-openssl-1.0.1j-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7797630",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-02 05:07:05 +0000",
+						"thetext": "mingw-openssl-1.0.1j-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1152851,
+			"security": true,
+			"title": "CVE-2014-3566 mingw-openssl: openssl: Padding Oracle On Downgraded Legacy Encryption attack [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1152851",
+				"creation_ts": "2014-10-15 04:18:33 +0000",
+				"short_desc": "CVE-2014-3566 mingw-openssl: openssl: Padding Oracle On Downgraded Legacy Encryption attack [fedora-all]",
+				"delta_ts": "2015-01-02 05:07:03 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "1152789",
+						"alias": "POODLE",
+						"creation_ts": "2014-10-15 00:49:55 +0000",
+						"short_desc": "CVE-2014-3566 SSL/TLS: Padding Oracle On Downgraded Legacy Encryption attack",
+						"delta_ts": "2023-09-26 04:04:18 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Reopened, Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"1152850",
+							"1152851",
+							"1152852",
+							"1152854",
+							"1152855",
+							"1152856",
+							"1152857",
+							"1153396",
+							"1153458",
+							"1153459",
+							"1153460",
+							"1153477",
+							"1153478",
+							"1153524",
+							"1153525",
+							"1153526",
+							"1154551",
+							"1154894",
+							"1154895",
+							"1159360",
+							"1160852",
+							"1160853",
+							"1161900",
+							"1168513",
+							"1168514",
+							"1168515",
+							"1168516",
+							"1168517",
+							"1168518",
+							"1169222",
+							"1384708",
+							"1384709",
+							"1384710",
+							"1384711",
+							"1384712",
+							"1384713"
+						],
+						"blocked": [
+							{
+								"bug_id": "1152790",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1153503",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1153505",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1153509",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1155552",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1168521",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1179762",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1241683",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1384704",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:1546",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7577512",
+								"comment_count": "0",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-10-15 00:49:55 +0000",
+								"thetext": "Bodo Möller, Thai Duong and Krzysztof Kotowicz of Google discovered a flaw in the design of SSL version 3.0 that would allow an attacker to calculate the plaintext of secure connections, allowing, for example, secure HTTP cookies to be stolen.\n\nReferences:\nhttp://googleonlinesecurity.blogspot.com/2014/10/this-poodle-bites-exploiting-ssl-30.html\nhttps://www.openssl.org/~bodo/ssl-poodle.pdf"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7577520",
+								"comment_count": "1",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-10-15 00:55:26 +0000",
+								"thetext": "Knowledgebase article:\n\nhttps://access.redhat.com/articles/1232123\n\nTo mitigate this vulnerability, it is recommended that you explicitly disable SSLv3.0 in all affected packages. Additional instructions to do this for each affected package, as well as updates that disable SSLv3.0 by default, are being developed by Red Hat as a high priority."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7577788",
+								"comment_count": "2",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-10-15 03:29:17 +0000",
+								"thetext": "Upstream patch:\n\nmaster:\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commit;h=cf6da05304d554aaa885151451aa4ecaa977e601\n\nOpenSSL-1.0.1\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commit;h=6bfe55380abbf7528e04e59f18921bd6c896af1c\n\nOpenSSL-0.9.8:\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commit;h=c6a876473cbff0fd323c8abcaace98ee2d21863d\nhttps://git.openssl.org/gitweb/?p=openssl.git;a=commit;h=dc5dfe431cffbc1fa8eeead0853bd03395e52e71"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7577801",
+								"comment_count": "3",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-10-15 03:41:30 +0000",
+								"thetext": "NSS 3.17 already has a patch for this at:\n\nhttps://hg.mozilla.org/projects/nss/rev/45cb71fd7bca\nhttps://bugzilla.mozilla.org/show_bug.cgi?id=1036735\n\nThis introduces the SSL_ENABLE_FALLBACK_SCSV and resolves the downgrade issue.\n\nThis issue went into 3.17.1 beta"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7577867",
+								"comment_count": "4",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-10-15 04:18:50 +0000",
+								"thetext": "\nCreated openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1152850]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7577868",
+								"comment_count": "5",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-10-15 04:18:56 +0000",
+								"thetext": "\nCreated mingw-openssl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1152851]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7578084",
+								"comment_count": "8",
+								"who": {
+									"text": "nmavrogi",
+									"name": "Nikos Mavrogiannopoulos"
+								},
+								"bug_when": "2014-10-15 06:37:18 +0000",
+								"thetext": "(In reply to Huzaifa S. Sidhpurwala from comment #7)\n> (In reply to Huzaifa S. Sidhpurwala from comment #3)\n> \n> > GNUTLS:\n> > Looks like gnutls already has support for SCSV. Need to figure out where\n> \n> It appears like the following commit introduced SCSV in gnutls:\n> \n> https://gitorious.org/gnutls/gnutls/commit/\n> 1a338cbaaeec11d958de8da4d1ae036979fccf3e\n> \n> Though i am confused why 0xff is used instead of 0x56. All rhels have this.\n\nThis is the TLS renegotiation SCSV which is different than the TLS fallback SCSV. However, the attack as I understand it does not apply on clients that rely on the TLS protocol negotiation. It applies to clients that do the \"browser\"-like negotiation which is to connect using TLS1.2, if that doesn't work, discard everything, and retry TLS 1.1... and so on until you do SSL 3.0.\n\nGnuTLS does not provide an API to do that trickery, and does not even discuss that as an option. I think that this attack affects mostly browsers rather than applications that properly use TLS/SSL."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7578143",
+								"comment_count": "9",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-10-15 06:59:35 +0000",
+								"thetext": "Statement:\n\nThis issue affects the version of openssl as shipped with Red Hat Enterprise Linux 5, 6 and 7, Red Hat JBoss Enterprise Application Platform 5 and 6, and Red Hat JBoss Web Server 1 and 2, Red Hat Enterprise Virtualization Hypervisor 6.5, and Red Hat Storage 2.1.\n\nThis issue affects the version of nss as shipped with Red Hat Enterprise Linux 5, 6 and 7.\n\nAdditional information can be found in the Red Hat Knowledgebase article: \nhttps://access.redhat.com/articles/1232123"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7578217",
+								"comment_count": "10",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2014-10-15 07:12:11 +0000",
+								"thetext": "IssueDescription:\n\nA flaw was found in the way SSL 3.0 handled padding bytes when decrypting messages encrypted using block ciphers in cipher block chaining (CBC) mode. This flaw allows a man-in-the-middle (MITM) attacker to decrypt a selected byte of a cipher text in as few as 256 tries if they are able to force a victim application to repeatedly send the same data over newly created SSL 3.0 connections."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7579108",
+								"comment_count": "14",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-10-15 12:09:38 +0000",
+								"thetext": "Note that there are two problems outlined in the paper linked in comment 0:\n\n- efficient padding oracle attack against SSL 3.0 CBC cipher suites\n- lack of ways to avoid MITM forced fallback in applications that implement re-connect SSL/TLS version fallback mechanism\n\n\nThe SSL 3.0 problem is yet another attack against the \"authenticate-then-encrypt\" constructions used by block ciphers in the cipher block chaining (CBC) mode, as used in SSL and TLS.  Previous attacks included BEAST / CVE-2011-3389 (bug 737506) or Lucky13 / CVE-2013-0169 (bug 907589).  The paper describes that when using SSL 3.0, only as little as 256 connections may be required to reliably decrypt one byte of cipher text.\n\nThe attack is similar to the BEAST attack - it requires that a man-in-the-middle (MITM) attacker can make victim SSL client to repeatedly send the same secret information over SSL connection, mixed with attacker provided data.  Web browser is an example of such use case.  Attacker's script can make victim's browser send repeated requests to a target server.  Each request containing attacker controlled data (such as target path and GET/POST data) as well as secret information attacker wants to recover (such as authentication cookie).  A more detailed description of the browser attack can be found in the Adam Langley's blog post:\n\nhttps://www.imperialviolet.org/2014/10/14/poodle.html\n\nSSL 3.0 protocol issues that allow this attack are addressed, to some degree, in TLS - TLS 1.0 specifies format of message padding bytes, newer TLS versions define cipher suites using different modes.\n\nImplementations of SSL 3.0 protocols should be expected to get any fix to address this protocol problem.  Patches linked in comment 2 and comment 3 do not fix this issue, see below for more information on what they do.  One alternative may be to restrict use of CBC block ciphers with SSL 3.0, which leaves stream cipher RC4 as the only alternative.  RC4 has other known issues (see CVE-2013-2566 / bug 921947) and its use is discouraged.  It seems the only option will be to abandon the use of SSL 3.0.  See the Red Hat Knowledgebase article linked in comment 1 for instructions on how to disable the use of SSL 3.0 in various applications shipped as part of Red Hat products.\n\nAs SSL/TLS libraries used today usually support at least TLS version 1.0 (which is newer protocol version than SSL 3.0 despite having lower version number), often up to the currently latest TLS version 1.2, TLS 1.0 or newer is usually negotiated when SSL/TLS connection is created.  SSL/TLS protocols include a fallback mechanism which allows client and server to communicate even if the highest SSL/TLS version they support is not the same.  Client indicates the highest version it supports in its ClientHello handshake message, and server picks the highest version supported by both peers and communicates it back to client in its ServerHello handshake message.  SSL/TLS protocols implement protections to prevent MITM attacker from being able to tamper with handshake messages to force the use of the protocol version lower than the highest version supported by both client and server.  Which leads us to the second problem...\n\n\nCertain applications, most notably web browsers such as Mozilla Firefox or Google Chrome, implement different fallback mechanism for compatibility reasons.  Some SSL/TLS implementation do not correctly handle cases when connecting client supports newer TLS protocol version than supported by the client, or when certain TLS extensions are used.  Instead of negotiating the highest TLS version supported by server, connection attempt may fail.  As a workaround, a web browser may attempt to re-connect with certain protocol versions disabled.  For example, browser may initially connect claiming TLS 1.2 as the highest supported version, and subsequently reconnect claiming only TLS 1.1, TLS 1.0 or eventually SSL 3.0 as the highest supported version until connection attempt succeeds.\n\nThis fallback mechanism makes it trivial for MITM attacker to force browser to use specific SSL/TLS version when talking to a web server.  Even if both client and server support TLS 1.2, they can be forced to use SSL 3.0 if both allow that protocol version, which makes it possible to mount a padding oracle attack as described above.\n\nPatches in comment 2 and comment 3, which implement the TLS_FALLBACK_SCSV protection defined in the following RFC draft:\n\nhttps://tools.ietf.org/html/draft-ietf-tls-downgrade-scsv-00\n\naims to make this fallback mechanism safer by making it possible for applications to indicate if they are doing version fallback and that they can speak newer SSL/TLS protocol version.  Note that those fixes are insufficient if only applied to SSL/TLS libraries, client applications need to be modified to take advantage of the new feature.  The following conditions must be met to make TLS_FALLBACK_SCSV protection work:\n\n- SSL/TLS library used by an application doing re-connect fallback needs to implement TLS_FALLBACK_SCSV\n- application must be modified to instruct the SSL/TLS library to send TLS_FALLBACK_SCSV when doing fallback to older protocol version\n- SSL/TLS library used by the server must support TLS_FALLBACK_SCSV, no change to the server application is required\n\nIf server sees a connection attempt using SSL/TLS version lower than the highest protocol version it supports and that also includes TLS_FALLBACK_SCSV, it rejects the connection.\n\nNote that is re-connect version fallback commonly found in web browsers is uncommon in other applications or SSL/TLS libraries (i.e. it is not done by OpenSSL, NSS or GnuTLS)."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7579129",
+								"comment_count": "15",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-10-15 12:11:55 +0000",
+								"thetext": "Regarding the CVE, Mitre CVE project currently describes CVE-2014-3566 as:\n\n  The SSL protocol 3.0, as used in OpenSSL through 1.0.1i and other products,\n  uses nondeterministic CBC padding, which makes it easier for man-in-the-\n  middle attackers to obtain cleartext data via a padding-oracle attack, aka\n  the \"POODLE\" issue.\n\nThis description pins the CVE to the first, SSL 3.0 protocol issue.  However, it seems to have been used for both problems, and as part of fixes adding TLS_FALLBACK_SCSV support, which is likely to create confusion."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7580543",
+								"comment_count": "17",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-10-15 19:41:39 +0000",
+								"thetext": "OpenSSL upstream versions 0.9.8zc, 1.0.0o and 1.0.1j add support for TLS Fallback Signaling Cipher Suite Value (TLS_FALLBACK_SCSV) as a mitigation against CVE-2014-3566 / POODLE attack.\n\nhttps://www.openssl.org/news/secadv_20141015.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7581760",
+								"comment_count": "22",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-10-16 06:49:55 +0000",
+								"thetext": "Jenkins is adding a code fix to disable SSLv3:\n\nhttps://wiki.jenkins-ci.org/display/SECURITY/Jenkins+Security+Advisory+2014-10-15"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7582467",
+								"comment_count": "38",
+								"who": {
+									"text": "gerrit.slomma",
+									"name": "Gerrit Slomma"
+								},
+								"bug_when": "2014-10-16 11:02:57 +0000",
+								"thetext": "script is:\n\n#!/bin/bash\n#\n#  Copyright (C) 2014 by Dan Varga\n#  dvarga@redhat.com\n#\n#  This program is free software; you can redistribute it and/or modify\n#  it under the terms of the GNU General Public License as published by\n#  the Free Software Foundation; either version 3 of the License, or\n#  (at your option) any later version.\n\n\nhost=$1\nport=$2\n\nif [ \"$2\" == \"\" ]\nthen\n        port=443\nfi\n\n\nout=\"`echo x | openssl s_client -ssl3 -connect ${host}:${port} 2>/dev/null`\"\nret=$?\n\nif [ $ret -eq 0 ]\nthen\n        echo \"VULNERABLE! SSLv3 detected.\"\n        exit\nelif [ $ret -eq 1 ]\nthen\n        out=`echo $out | perl -pe 's|.*Cipher is (.*?) .*|$1|'`\n        if [ \"$out\" == \"0000\" ] || [ \"$out\" == \"(NONE)\" ]\n        then\n                echo \"Not Vulnerable. We detected that this server does not support SSLv3\"\n                exit\n        else\n                echo \"just passing through...\"\n        fi\nelif [ $ret -eq 124 ]\nthen\n        echo \"error: timeout connecting to host $host:$port\"\n        exit\nfi\necho \"error: Unable to connect to host $host:$port\"\n\nnow results:\n\nclient runs openssl 0.9.8e-12.el5_4.6 on RHEL 5\nserver is jboss 4.2.2.GA with openssl 0.9.8e-12.el5_5.7 => VULNERABLE! SSLv3 detected.\nserver is jboss 5.1.0.GA with openssl 0.9.8e-26.el5_9.1 => VULNERABLE! SSLv3 detected.\nserver is jboss EAP6.1.0.GA with openssl 1.0.1e-16.el6_5.4 => VULNERABLE! SSLv3 detected.\n\nclient runs openssl 1.0.1e-16.el6_5.4 on RHEL 6(.5)\nserver is jboss 4.2.2.GA with openssl 0.9.8e-12.el5_5.7 => just passing through...\nerror: Unable to connect to host c0164673.prod.bfa:9443\nserver is jboss 5.1.0.GA with openssl 0.9.8e-26.el5_9.1 => just passing through...\nerror: Unable to connect to host c0164530.prod.bfa:9443\nserver is jboss EAP6.1.0.GA with openssl 1.0.1e-16.el6_5.4 => just passing through...\nerror: Unable to connect to host c0164530.prod.bfa:9443\n\nhowever, this is yielded inside the script\n\n# out=`echo x | openssl s_client -ssl3 -connect c0164529.prod.bfa:9443 2>/dev/null`;echo $out | perl -pe 's|.*Cipher is (.*?) .*|$1|'\nECDHE-RSA-AES256-SHA\n\nand shorter:\n\n# echo x | openssl s_client -ssl3 -connect c0164529.prod.bfa:9443 2>/dev/null;echo $?\nCONNECTED(00000003)\n(...certificate chain here...)\nNew, TLSv1/SSLv3, Cipher is ECDHE-RSA-AES256-SHA\nServer public key is 2048 bit\nSecure Renegotiation IS supported\nCompression: NONE\nExpansion: NONE\nSSL-Session:\n    Protocol  : SSLv3\n    Cipher    : ECDHE-RSA-AES256-SHA\n    Session-ID: 543FA546602F970772A05828E981C983BB6058CA9127E9FB43EE6FB515734ADC\n    Session-ID-ctx:\n    Master-Key: 5FB4F48FEEA29FE469A7A4CAC52B6F90A91FA87EEBA6B5FDC560089FEF8CD56A0E2A835DAC4E97084DE02B8BD62A34F4\n    Key-Arg   : None\n    Krb5 Principal: None\n    PSK identity: None\n    PSK identity hint: None\n    Start Time: 1413457222\n    Timeout   : 7200 (sec)\n    Verify return code: 19 (self signed certificate in certificate chain)\n---\n1\n\n\nIs this fine? I am puzzled, the checker-script tells it is \"unable to connect\", yet there clearly \"connected\" is stated..."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7583082",
+								"comment_count": "40",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-10-16 14:19:37 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 5\n\nVia RHSA-2014:1653 https://rhn.redhat.com/errata/RHSA-2014-1653.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7583251",
+								"comment_count": "41",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-10-16 14:59:27 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2014:1652 https://rhn.redhat.com/errata/RHSA-2014-1652.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7583940",
+								"comment_count": "43",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-10-16 18:59:04 +0000",
+								"thetext": "The openssl packages errata linked in comment 40 and comment 41 do not address the SSL 3.0 protocol issue, to which the CVE-2014-3566 was assigned.  They add support for the TLS_FALLBACK_SCSV, which enables TLS servers to detect forced protocol downgrades against clients that do re-connect protocol version fallback.  Both server and client need to implement this feature, and clients have to actively use it for the protection to work (see comment 14 for details)."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7585406",
+								"comment_count": "44",
+								"who": {
+									"text": "pankajway",
+									"name": "Pankaj Sharma"
+								},
+								"bug_when": "2014-10-17 08:51:26 +0000",
+								"thetext": "Tomas, we rely on the official releases by Red Hat and not on bugzilla comments by anyone.."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7585424",
+								"comment_count": "45",
+								"who": {
+									"text": "pankajway",
+									"name": "Pankaj Sharma"
+								},
+								"bug_when": "2014-10-17 08:56:22 +0000",
+								"thetext": "(In reply to Tomas Hoger from comment #43)\n> The openssl packages errata linked in comment 40 and comment 41 do not\n> address the SSL 3.0 protocol issue, to which the CVE-2014-3566 was assigned.\n> They add support for the TLS_FALLBACK_SCSV, which enables TLS servers to\n> detect forced protocol downgrades against clients that do re-connect\n> protocol version fallback.  Both server and client need to implement this\n> feature, and clients have to actively use it for the protection to work (see\n> comment 14 for details).\n\n\nTomas, we rely on the official releases by Red Hat and not on bugzilla comments by anyone..btw, are you from redhat ?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7585474",
+								"comment_count": "46",
+								"who": {
+									"text": "john.haxby",
+									"name": "john.haxby@oracle.com"
+								},
+								"bug_when": "2014-10-17 09:15:19 +0000",
+								"thetext": "Tomas Hoger is in Red Hat Product Security."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7585484",
+								"comment_count": "47",
+								"who": {
+									"text": "pankajway",
+									"name": "Pankaj Sharma"
+								},
+								"bug_when": "2014-10-17 09:19:21 +0000",
+								"thetext": "John, you are from oracle, how do you know that ? :-)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7587107",
+								"comment_count": "48",
+								"who": {
+									"text": "vladimir.stys",
+									"name": "Dex"
+								},
+								"bug_when": "2014-10-17 14:58:03 +0000",
+								"thetext": "A bit messy POODLE :)\n\nAt https://access.redhat.com/solutions/120383\nin \"Red Hat Enterprise Linux 5 (postfix-2.3.x)\"\nthese setting are implemented in postfix 2.5, correct legacy syntax is:\n\nsmtpd_tls_mandatory_protocols = TLSv1\nsmtp_tls_mandatory_protocols = TLSv1\n\n(In reply to errata-xmlrpc from comment #41)\n\nThere are no RHEL6 packages linked in RHSA-2014:1652\nhttps://rhn.redhat.com/errata/RHSA-2014-1652.html\n\nI guess RHEL6 was mentioned by mistake ?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7587180",
+								"comment_count": "49",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-10-17 15:17:13 +0000",
+								"thetext": "(In reply to Dex from comment #48)\n> There are no RHEL6 packages linked in RHSA-2014:1652\n> https://rhn.redhat.com/errata/RHSA-2014-1652.html\n\nThe erratum lists openssl-1.0.1e-30.el6_6.2 as updated package for various Red Hat Enterprise Linux 6 variants.  Red Hat Enterprise Linux 6 is also in the list of Affected Products near the top of the page."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7592548",
+								"comment_count": "51",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2014-10-20 17:42:52 +0000",
+								"thetext": "Note that upstream python is disabling SSLv3 by default:\n\nhttp://bugs.python.org/issue22638"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7592751",
+								"comment_count": "52",
+								"who": {
+									"text": "vladimir.stys",
+									"name": "Dex"
+								},
+								"bug_when": "2014-10-20 19:05:22 +0000",
+								"thetext": "(In reply to Tomas Hoger from comment #49)\n> (In reply to Dex from comment #48)\n> > There are no RHEL6 packages linked in RHSA-2014:1652\n> > https://rhn.redhat.com/errata/RHSA-2014-1652.html\n> \n> The erratum lists openssl-1.0.1e-30.el6_6.2 as updated package for various\n> Red Hat Enterprise Linux 6 variants.  Red Hat Enterprise Linux 6 is also in\n> the list of Affected Products near the top of the page.\n\nBoth issues resolved .. thanks."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7593616",
+								"comment_count": "53",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-10-21 01:21:12 +0000",
+								"thetext": "With Asterisk AST-2014-011 advisory, SSLv3 is no longer used for res_jabber/res_xmpp, and when no encryption method is specified, it is no longer possible to fall back to SSLv3 or SSLv2:\n\nhttp://downloads.asterisk.org/pub/security/AST-2014-011.html\n\n(Fedora and EPEL bugs: bug 1154894, bug 1154895)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7597977",
+								"comment_count": "54",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-10-22 05:00:40 +0000",
+								"thetext": "libserf 1.3.8 disables SSLv2 and SSLv3:\n\nhttps://serf.googlecode.com/svn/tags/1.3.8/CHANGES\n\n(Fedora and EPEL bugs: bug 1155392, bug 1155393)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7601760",
+								"comment_count": "56",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-10-22 17:16:42 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Storage 2.1\n\nVia RHSA-2014:1692 https://rhn.redhat.com/errata/RHSA-2014-1692.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7644837",
+								"comment_count": "57",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2014-11-05 19:34:49 +0000",
+								"thetext": "Asterisk is susceptible to this as well, as per upstream advisory http://downloads.asterisk.org/pub/security/AST-2014-011.html (it includes patches for Asterisk 11 (Fedora) and Asterisk 1.8 (EPEL 6)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7644866",
+								"comment_count": "58",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2014-11-05 19:44:27 +0000",
+								"thetext": "\nCreated asterisk tracking bugs for this issue:\n\nAffects: fedora-all [bug 1160852]\nAffects: epel-6 [bug 1160853]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7646628",
+								"comment_count": "59",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-11-06 10:23:54 +0000",
+								"thetext": "(In reply to Huzaifa S. Sidhpurwala from comment #3)\n> NSS 3.17 already has a patch for this at:\n> \n> https://hg.mozilla.org/projects/nss/rev/45cb71fd7bca\n> https://bugzilla.mozilla.org/show_bug.cgi?id=1036735\n\nBackport to 3.16:\n\nhttps://hg.mozilla.org/projects/nss/rev/53506619e81a\n\nAdditional bug tracking addition of the TLS_FALLBACK_SCSV support to NSS utilities:\n\nhttps://bugzilla.mozilla.org/show_bug.cgi?id=1083360\nhttps://hg.mozilla.org/projects/nss/rev/34baf87d485d"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7661245",
+								"comment_count": "60",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-11-11 12:59:08 +0000",
+								"thetext": "IBM Java SE updates 5.0 SR16-FP8, 6 SR16-FP2, 6R1 SR8-FP2, 7 SR8, and 7R1 SR2 address this issue by disabling SSL 3.0 by default.  Those updates also implement the following changes:\n\n- Add new system property com.ibm.jsse2.disableSSLv3 that can be used to re-enable SSL 3.0 by setting its value to false.\n- Change semantics of the SSLContext.getInstance(\"SSL\") call - prior to this update, only SSL 3.0 was enabled.  In updated versions, TLS 1.0 and possibly 1.1 and 1.2 are enabled instead.\n\nDetails of the changes can be found in the following IBM article:\n\nhttp://www-01.ibm.com/support/docview.wss?uid=swg21688165"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7663771",
+								"comment_count": "61",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-11-12 03:37:46 +0000",
+								"thetext": "Puppet advisory:\n\nhttp://puppetlabs.com/blog/impact-assessment-sslv3-vulnerability-poodle-attack"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7688586",
+								"comment_count": "62",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-11-19 18:33:00 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Supplementary for Red Hat Enterprise Linux 5\n  Supplementary for Red Hat Enterprise Linux 6\n\nVia RHSA-2014:1877 https://rhn.redhat.com/errata/RHSA-2014-1877.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7688611",
+								"comment_count": "63",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-11-19 18:33:55 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Supplementary for Red Hat Enterprise Linux 5\n\nVia RHSA-2014:1876 https://rhn.redhat.com/errata/RHSA-2014-1876.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7692067",
+								"comment_count": "64",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-11-20 16:19:21 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Supplementary for Red Hat Enterprise Linux 6\n\nVia RHSA-2014:1882 https://rhn.redhat.com/errata/RHSA-2014-1882.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7692185",
+								"comment_count": "65",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-11-20 16:34:18 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Supplementary for Red Hat Enterprise Linux 6\n  Supplementary for Red Hat Enterprise Linux 7\n\nVia RHSA-2014:1880 https://rhn.redhat.com/errata/RHSA-2014-1880.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7692270",
+								"comment_count": "66",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-11-20 16:53:01 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Supplementary for Red Hat Enterprise Linux 5\n  Supplementary for Red Hat Enterprise Linux 6\n\nVia RHSA-2014:1881 https://rhn.redhat.com/errata/RHSA-2014-1881.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7721965",
+								"comment_count": "71",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-12-01 19:24:07 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  JBoss Web Server 2.1.0\n\nVia RHSA-2014:1920 https://rhn.redhat.com/errata/RHSA-2014-1920.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7726669",
+								"comment_count": "72",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2014-12-02 23:04:28 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n  Red Hat Enterprise Linux 6\n  Red Hat Enterprise Linux 5\n\nVia RHSA-2014:1948 https://rhn.redhat.com/errata/RHSA-2014-1948.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7762749",
+								"comment_count": "73",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-12-14 22:05:55 +0000",
+								"thetext": "nodejs-0.10.33-1.el7, libuv-0.10.29-1.el7 has been pushed to the Fedora EPEL 7 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7762768",
+								"comment_count": "74",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-12-14 22:06:56 +0000",
+								"thetext": "nodejs-0.10.33-1.el6, libuv-0.10.29-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7763232",
+								"comment_count": "75",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-12-15 04:31:52 +0000",
+								"thetext": "nodejs-0.10.33-1.fc21, libuv-0.10.29-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7763249",
+								"comment_count": "76",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-12-15 04:34:10 +0000",
+								"thetext": "nodejs-0.10.33-1.fc20, libuv-0.10.29-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7763258",
+								"comment_count": "77",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-12-15 04:35:27 +0000",
+								"thetext": "nodejs-0.10.33-1.fc19, libuv-0.10.29-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7808711",
+								"comment_count": "79",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-01-05 21:32:31 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  JBoss Enterprise Application Platform 6.3\n\nVia RHSA-2015:0012 https://rhn.redhat.com/errata/RHSA-2015-0012.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7808713",
+								"comment_count": "80",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-01-05 21:32:50 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  JBoss Enterprise Web Platform 5.2.0\n\nVia RHSA-2015:0011 https://rhn.redhat.com/errata/RHSA-2015-0011.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7808715",
+								"comment_count": "81",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-01-05 21:33:10 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  JBoss Enterprise Application Platform 5.2.0\n\nVia RHSA-2015:0010 https://rhn.redhat.com/errata/RHSA-2015-0010.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7863027",
+								"comment_count": "82",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-01-20 21:35:48 +0000",
+								"thetext": "The OpenJDK (IT6 1.13.6, IT7 2.5.4, and 8u31-b13) and Oracle JDK (5.0u81, 6u91, 7u75 and 8u31) updates address this issue by disabling SSL 3.0 protocol support by default.  Updates add support for disabling specific SSL/TLS protocol versions using the jdk.tls.disabledAlgorithms security property, and they also update the master security properties file, java.security, to add SSLv3 to the list of algorithms that are disabled by default.\n\nUsers who need to re-enable SSL 3.0 protocol support in OpenJDK or Oracle JDK can do so using one of the following ways:\n\n* Change the master security properties file to not include SSLv3 in the list of disabled algorithms.  The java.security files for each JDK can be found at the following path:\n\n  /usr/lib/jvm/*/jre/lib/security/java.security\n\nThe sub-directory under /usr/lib/jvm contains package name (such as java-1.7.0-openjdk or java-1.7.0-oracle) possibly followed by package version or architecture (depending on the JDK and its version).\n\nNote that the change to the file will affect all applications using given JDK.  Local changes to the file will also cause new java.security versions to be installed as java.security.rpmnew if future updates change packaged version, requiring manual merge of changes.\n\n* Re-enable SSLv3 support only for specific application or applications that require it.  Create a new security properties file that will override the default jdk.tls.disabledAlgorithms setting from the master java.security, and use the java.security.properties system property to make Java read the file in addition to the master security properties file.  Example:\n\n  $ cat enable-ssl3.security \n  jdk.tls.disabledAlgorithms=\n\n  $ java -Djava.security.properties=/path/to/enable-ssl3.security ...\n\nNote that this only works if the master security properties file sets the security.overridePropertiesFile security property to true.  That is the default setting in all OpenJDK and Oracle JDK packages shipped in Red Hat Enterprise Linux."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7863200",
+								"comment_count": "83",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-01-20 22:39:20 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 5\n\nVia RHSA-2015:0068 https://rhn.redhat.com/errata/RHSA-2015-0068.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7867256",
+								"comment_count": "84",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-01-21 22:45:53 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2015:0069 https://rhn.redhat.com/errata/RHSA-2015-0069.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7867274",
+								"comment_count": "85",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-01-21 22:58:52 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:0067 https://rhn.redhat.com/errata/RHSA-2015-0067.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7869279",
+								"comment_count": "86",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-01-22 12:01:37 +0000",
+								"thetext": "OpenJDK upstream fixes, as described in comment 82:\n\nhttp://hg.openjdk.java.net/jdk7u/jdk7u/jdk/rev/0a1fe04693dd\nhttp://hg.openjdk.java.net/jdk8u/jdk8u/jdk/rev/1c0cc3bbe07d\n\n\nOracle Java SE 7u75 and 8u31 release notes, which also mention the change:\n\nhttp://www.oracle.com/technetwork/java/javase/7u75-relnotes-2389086.html\nhttp://www.oracle.com/technetwork/java/javase/8u31-relnotes-2389094.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7871227",
+								"comment_count": "87",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-01-22 21:24:30 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Oracle Java for Red Hat Enterprise Linux 6\n\nVia RHSA-2015:0080 https://rhn.redhat.com/errata/RHSA-2015-0080.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7871265",
+								"comment_count": "88",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-01-22 21:35:05 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Oracle Java for Red Hat Enterprise Linux 7\n  Oracle Java for Red Hat Enterprise Linux 5\n  Oracle Java for Red Hat Enterprise Linux 6\n\nVia RHSA-2015:0079 https://rhn.redhat.com/errata/RHSA-2015-0079.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7878314",
+								"comment_count": "89",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-01-26 14:53:09 +0000",
+								"thetext": "This issue was fixed in IcedTea6 1.13.6 and IcedTea7 2.5.4:\n\nhttp://mail.openjdk.java.net/pipermail/distro-pkg-dev/2015-January/030488.html\nhttp://mail.openjdk.java.net/pipermail/distro-pkg-dev/2015-January/030469.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7878985",
+								"comment_count": "90",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-01-26 17:28:16 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Oracle Java for Red Hat Enterprise Linux 7\n  Oracle Java for Red Hat Enterprise Linux 6\n  Oracle Java for Red Hat Enterprise Linux 5\n\nVia RHSA-2015:0086 https://rhn.redhat.com/errata/RHSA-2015-0086.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7879135",
+								"comment_count": "91",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-01-26 18:12:06 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 5\n  Red Hat Enterprise Linux 6\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:0085 https://rhn.redhat.com/errata/RHSA-2015-0085.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7970888",
+								"comment_count": "93",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-02-24 13:45:39 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Satellite Server v 5.6\n\nVia RHSA-2015:0264 https://rhn.redhat.com/errata/RHSA-2015-0264.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8181439",
+								"comment_count": "99",
+								"who": {
+									"text": "hkario",
+									"name": "Hubert Kario"
+								},
+								"bug_when": "2015-04-27 11:38:00 +0000",
+								"thetext": "Official workaround for the issue has been published by IETF as RFC 7507 \"TLS Fallback Signaling Cipher Suite Value (SCSV) for Preventing Protocol Downgrade Attacks\".\n\nhttps://tools.ietf.org/html/rfc7507"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8510178",
+								"comment_count": "103",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-08-04 17:12:27 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHEL 6 Version of OpenShift Enterprise 2.0\n\nVia RHSA-2015:1546 https://rhn.redhat.com/errata/RHSA-2015-1546.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8510180",
+								"comment_count": "104",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-08-04 17:12:54 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  RHEL 6 Version of OpenShift Enterprise 2.1\n\nVia RHSA-2015:1545 https://rhn.redhat.com/errata/RHSA-2015-1545.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8525220",
+								"comment_count": "105",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-08-10 08:41:06 +0000",
+								"thetext": "GnuTLS got support for RFC 7507 in upstream version 3.4.4:\n\nhttp://lists.gnutls.org/pipermail/gnutls-devel/2015-August/007707.html\n\nRelated upstream commits:\n\nhttps://gitlab.com/gnutls/gnutls/commit/db9a7d810f9ee4c9cc49731f5fd9bdeae68d7eaa\nhttps://gitlab.com/gnutls/gnutls/commit/21f89efad7014a5ee0debd4cd3d59e27774b29e6\nhttps://gitlab.com/gnutls/gnutls/commit/7c5f1955a73778c067786a88a419f337d5d9e5c0\nhttps://gitlab.com/gnutls/gnutls/commit/20a98e817713764b9df5306286091df1b61190d9\nhttps://gitlab.com/gnutls/gnutls/commit/1cca0461d28cb74646f9443d547e5d0ed325d7fc"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7577865",
+						"comment_count": "0",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2014-10-15 04:18:33 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7577866",
+						"comment_count": "1",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2014-10-15 04:18:46 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1152789,1152851\n\n# Description of your update\nnotes=Security fix for CVE-2014-3566\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1152789,1152851"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7753497",
+						"comment_count": "2",
+						"who": {
+							"text": "dac",
+							"name": "David A. Cafaro"
+						},
+						"bug_when": "2014-12-11 02:53:47 +0000",
+						"thetext": "This package probably just needs to be synced up with openssl-1.0.1e-40.fc20, though previously it was sync'd up with fc21 1.0.1e-44 (though release was 1.0.1i)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7787459",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-23 12:10:29 +0000",
+						"thetext": "mingw-openssl-1.0.1j-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/mingw-openssl-1.0.1j-1.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7787463",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-23 12:12:33 +0000",
+						"thetext": "mingw-openssl-1.0.1j-1.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/mingw-openssl-1.0.1j-1.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7790386",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-25 05:32:29 +0000",
+						"thetext": "Package mingw-openssl-1.0.1j-1.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing mingw-openssl-1.0.1j-1.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-17576/mingw-openssl-1.0.1j-1.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7797579",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-02 05:02:07 +0000",
+						"thetext": "mingw-openssl-1.0.1j-1.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7797629",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-02 05:07:03 +0000",
+						"thetext": "mingw-openssl-1.0.1j-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "mingw-openssl-1.0.1j-1.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "mingw32-openssl-static",
+						"version": "1.0.1j",
+						"release": "1.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw64-openssl-static",
+						"version": "1.0.1j",
+						"release": "1.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw64-openssl",
+						"version": "1.0.1j",
+						"release": "1.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw32-openssl-debuginfo",
+						"version": "1.0.1j",
+						"release": "1.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw32-openssl",
+						"version": "1.0.1j",
+						"release": "1.fc21",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw64-openssl-debuginfo",
+						"version": "1.0.1j",
+						"release": "1.fc21",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "mingw-openssl",
+						"version": "1.0.1j",
+						"release": "1.fc21",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 272896,
+			"text": "This update has been submitted for testing by epienbro. ",
+			"timestamp": "2014-12-23 12:12:44",
+			"update_id": 33084,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 272897,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/23292/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-12-23 12:21:48",
+			"update_id": 33084,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 272898,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/23292/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-12-23 12:22:04",
+			"update_id": 33084,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 272899,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2014-12-24 17:35:35",
+			"update_id": 33084,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 272900,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-12-25 05:32:25",
+			"update_id": 33084,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 272901,
+			"text": "This update has reached 7 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2015-01-01 10:24:42",
+			"update_id": 33084,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 272902,
+			"text": "This update has been submitted for stable by epienbro. ",
+			"timestamp": "2015-01-01 11:39:41",
+			"update_id": 33084,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 272903,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/24648/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-01-01 11:51:17",
+			"update_id": 33084,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 272904,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2015-01-01 17:42:27",
+			"update_id": 33084,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 272905,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-01-02 05:06:50",
+			"update_id": 33084,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2015-01-02 05:06:50",
+	"date_stable": "2015-01-02 05:06:50",
+	"date_submitted": "2014-12-23 12:12:36",
+	"date_testing": "2014-12-25 05:32:25",
+	"meets_testing_requirements": true,
+	"notes": "* Synced with native openssl-1.0.1j-3.fc22\r\n* Add support for RFC 5649\r\n* Prevent compiler warning \"Please include winsock2.h before windows.h\" when using the OpenSSL headers\r\n* Fixes various CVE's",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "mingw-openssl-1.0.1j-1.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2014-17576",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2014-17576",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/0b2e2432af444125caa89c1c84824761f3445d04a83c5f6543199d8f2e328199?s=24&d=retro",
+		"email": "erik-fedora@vanpienbroek.nl",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			}
+		],
+		"id": 282,
+		"name": "epienbro",
+		"openid": "epienbro.id.fedoraproject.org"
+	},
+	"version_hash": "07536839c303e7f67394e2f2b4a1756241eea606"
+}

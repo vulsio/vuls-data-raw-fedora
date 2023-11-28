@@ -1,0 +1,504 @@
+{
+	"alias": "FEDORA-EPEL-2022-e04f53ab00",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2003754,
+			"security": true,
+			"title": "python-rencode: rencode 3-byte packet DoS [epel-all]",
+			"bugzilla": {
+				"bug_id": "2003754",
+				"creation_ts": "2021-09-13 15:34:36 +0000",
+				"short_desc": "python-rencode: rencode 3-byte packet DoS [epel-all]",
+				"delta_ts": "2022-02-16 00:37:10 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "2003752",
+						"creation_ts": "2021-09-13 15:34:25 +0000",
+						"short_desc": "python-rencode: rencode 3-byte packet DoS",
+						"delta_ts": "2021-09-13 18:21:10 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "UPSTREAM",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"2003753",
+							"2003754",
+							"2003755",
+							"2003756",
+							"2003757"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "15492206",
+								"comment_count": "0",
+								"who": {
+									"text": "psampaio",
+									"name": "Pedro Sampaio"
+								},
+								"bug_when": "2021-09-13 15:34:25 +0000",
+								"thetext": "1) About Rencode\nRencode is a \"Python module for fast (basic) object serialization\nsimilar to bencode\".\nhttps://github.com/aresch/rencode\nThis library is used as a faster and more efficient data encoder than\nbencode.\nThere are implementations in other languages: Golang, Javascript, Java,\nRuby, dart, etc\nSome of these ports carry the same bug, the Go port does.\n(as an aside - not all of these derived works have preserved the\noriginal copyright and license)\n\n2) Vulnerability\nhttps://github.com/aresch/rencode/pull/29\nGiven malformed input, the rencode parser enters an infinite loop.\nThe shortest rencoded string to trigger this bug is ';\\x2f\\x7f' but\nthere is an infinite number of possibilities.\nAlthough the library is accelerated in Cython, it cannot release the\nglobal interpreter lock so the Python interpreter process is irreparably\nlocked up once the loop is entered.\nThe software becomes unresponsive and consumes CPU until the process\nruns out of memory and is terminated - which can take a *very* long time.\n\n3) Affected software\nThere are at least two active open-source network facing projects using\nthe vulnerable python rencode library in their transport layer: xpra and\ndeluge.\nXpra is a remote desktop access tool - aka \"screen for X11\" and Deluge\nis a bittorrent client.\nThere are other programs out there using this library but they are less\nprominent or not network facing, though there may well be more\nvulnerable software written in other languages.\n\n4) Example DoS against xpra\nXpra uses rencode for structured messages between its processes,\ntypically between clients and servers.\nGiven an xpra process listening on a TCP port, sending this tiny (11\nbytes) malformed packet triggers the DoS:\n'P\\x01\\x00\\x00\\x00\\x00\\x00\\x03;/\\x7f'\nThis does not require any authentication.\nSome packaged installations create a system wide proxy server which runs\nas root and listens on the IANA assigned TCP port 14500.\nOther socket types don't make it any harder to trigger (ie: websockets,\nSSL), only requiring extra packet encapsulation.\nLocal users may also have access to other user's unix domain sockets.\n\n5) Mitigation\nThe easiest way is to remove the Cython accelerated version of rencode:\nrm `python3 -c \"from rencode import _rencode;print(_rencode.__file__)\"`\nAs the pure Python fallback implementation does not have this bug.\n\n6) Disclosure timeline\n2021-08-05 bug discovered, fix provided\n2021-08-06 requested a CVE from mitre\n2021-08-10 fix applied in rencode\n2021-09-07 disclosure\n\nReferences:\n\nhttps://seclists.org/fulldisclosure/2021/Sep/16\nhttps://github.com/aresch/rencode/pull/29"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15492217",
+								"comment_count": "1",
+								"who": {
+									"text": "psampaio",
+									"name": "Pedro Sampaio"
+								},
+								"bug_when": "2021-09-13 15:34:54 +0000",
+								"thetext": "Created deluge tracking bugs for this issue:\n\nAffects: fedora-all [bug 2003757]\n\n\nCreated python-rencode tracking bugs for this issue:\n\nAffects: epel-all [bug 2003754]\nAffects: fedora-all [bug 2003753]\n\n\nCreated xpra tracking bugs for this issue:\n\nAffects: epel-8 [bug 2003756]\nAffects: fedora-all [bug 2003755]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15492656",
+								"comment_count": "2",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2021-09-13 18:21:10 +0000",
+								"thetext": "This CVE Bugzilla entry is for community support informational purposes only as it does not affect a package in a commercially supported Red Hat product. Refer to the dependent bugs for status of those individual community products."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "15492209",
+						"comment_count": "0",
+						"who": {
+							"text": "psampaio",
+							"name": "Pedro Sampaio"
+						},
+						"bug_when": "2021-09-13 15:34:36 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof epel-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora EPEL. While\nonly one tracking bug has been filed, please correct all affected versions\nat the same time.  If you need to fix the versions independent of each\nother, you may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15492210",
+						"comment_count": "1",
+						"who": {
+							"text": "psampaio",
+							"name": "Pedro Sampaio"
+						},
+						"bug_when": "2021-09-13 15:34:38 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=high\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2003752,2003754\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15926362",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-02-07 00:22:46 +0000",
+						"thetext": "FEDORA-EPEL-2022-e04f53ab00 has been submitted as an update to Fedora EPEL 8. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2022-e04f53ab00"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15930750",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-02-08 01:42:30 +0000",
+						"thetext": "FEDORA-EPEL-2022-e04f53ab00 has been pushed to the Fedora EPEL 8 testing repository.\n\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2022-e04f53ab00\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15959413",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-02-16 00:37:10 +0000",
+						"thetext": "FEDORA-EPEL-2022-e04f53ab00 has been pushed to the Fedora EPEL 8 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2004110,
+			"security": true,
+			"title": "CVE-2021-40839 python-rencode: an infinite loop in typecode decoding allowing a remote DoS [epel-all]",
+			"bugzilla": {
+				"bug_id": "2004110",
+				"creation_ts": "2021-09-14 14:00:38 +0000",
+				"short_desc": "CVE-2021-40839 python-rencode: an infinite loop in typecode decoding allowing a remote DoS [epel-all]",
+				"delta_ts": "2022-02-16 00:37:15 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "2004108",
+						"alias": "CVE-2021-40839",
+						"creation_ts": "2021-09-14 14:00:27 +0000",
+						"short_desc": "CVE-2021-40839 python-rencode: an infinite loop in typecode decoding allowing a remote DoS",
+						"delta_ts": "2021-09-14 18:21:41 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "UPSTREAM",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"2004109",
+							"2004110"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "15495005",
+								"comment_count": "0",
+								"who": {
+									"text": "mrehak",
+									"name": "Marian Rehak"
+								},
+								"bug_when": "2021-09-14 14:00:27 +0000",
+								"thetext": "The rencode package through 1.0.6 for Python allows an infinite loop in typecode decoding (such as via ;\\x2f\\x7f), enabling a remote attack that consumes CPU and memory.\n\nExternal Reference:\n\nhttps://seclists.org/fulldisclosure/2021/Sep/16"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15495010",
+								"comment_count": "1",
+								"who": {
+									"text": "mrehak",
+									"name": "Marian Rehak"
+								},
+								"bug_when": "2021-09-14 14:00:46 +0000",
+								"thetext": "Created python-rencode tracking bugs for this issue:\n\nAffects: epel-all [bug 2004110]\nAffects: fedora-all [bug 2004109]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15495907",
+								"comment_count": "2",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2021-09-14 18:21:41 +0000",
+								"thetext": "This CVE Bugzilla entry is for community support informational purposes only as it does not affect a package in a commercially supported Red Hat product. Refer to the dependent bugs for status of those individual community products."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "15495008",
+						"comment_count": "0",
+						"who": {
+							"text": "mrehak",
+							"name": "Marian Rehak"
+						},
+						"bug_when": "2021-09-14 14:00:38 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof epel-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora EPEL. While\nonly one tracking bug has been filed, please correct all affected versions\nat the same time.  If you need to fix the versions independent of each\nother, you may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15495009",
+						"comment_count": "1",
+						"who": {
+							"text": "mrehak",
+							"name": "Marian Rehak"
+						},
+						"bug_when": "2021-09-14 14:00:40 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2004108,2004110\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15926363",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-02-07 00:22:49 +0000",
+						"thetext": "FEDORA-EPEL-2022-e04f53ab00 has been submitted as an update to Fedora EPEL 8. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2022-e04f53ab00"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15930752",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-02-08 01:42:32 +0000",
+						"thetext": "FEDORA-EPEL-2022-e04f53ab00 has been pushed to the Fedora EPEL 8 testing repository.\n\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2022-e04f53ab00\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15959414",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-02-16 00:37:15 +0000",
+						"thetext": "FEDORA-EPEL-2022-e04f53ab00 has been pushed to the Fedora EPEL 8 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "python-rencode-1.0.6-17.el8",
+			"release_id": 34,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "python3-rencode",
+						"version": "1.0.6",
+						"release": "17.el8",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python-rencode-debugsource",
+						"version": "1.0.6",
+						"release": "17.el8",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3-rencode-debuginfo",
+						"version": "1.0.6",
+						"release": "17.el8",
+						"arch": "aarch64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "python3-rencode",
+						"version": "1.0.6",
+						"release": "17.el8",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python-rencode-debugsource",
+						"version": "1.0.6",
+						"release": "17.el8",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3-rencode-debuginfo",
+						"version": "1.0.6",
+						"release": "17.el8",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "python3-rencode",
+						"version": "1.0.6",
+						"release": "17.el8",
+						"arch": "s390x"
+					},
+					{
+						"name": "python-rencode-debugsource",
+						"version": "1.0.6",
+						"release": "17.el8",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3-rencode-debuginfo",
+						"version": "1.0.6",
+						"release": "17.el8",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "python-rencode",
+						"version": "1.0.6",
+						"release": "17.el8",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "python3-rencode",
+						"version": "1.0.6",
+						"release": "17.el8",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python-rencode-debugsource",
+						"version": "1.0.6",
+						"release": "17.el8",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3-rencode-debuginfo",
+						"version": "1.0.6",
+						"release": "17.el8",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 2396504,
+			"text": "This update has been submitted for testing by sergiomb. ",
+			"timestamp": "2022-02-07 00:22:43",
+			"update_id": 377247,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2396505,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2022-02-07 00:22:43",
+			"update_id": 377247,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2398591,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2022-02-08 01:42:46",
+			"update_id": 377247,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2408685,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2022-02-15 01:44:10",
+			"update_id": 377247,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2410616,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2022-02-16 00:37:32",
+			"update_id": 377247,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2022-02-16 00:37:07",
+	"date_stable": "2022-02-16 00:37:07",
+	"date_submitted": "2022-02-07 00:22:42",
+	"date_testing": "2022-02-08 01:42:25",
+	"meets_testing_requirements": true,
+	"notes": "add upstream commits with CVE-2021-40839 fix , which is the same bug issue of \"3-byte packet DoS\"",
+	"pushed": true,
+	"release": {
+		"branch": "epel8",
+		"candidate_tag": "epel8-testing-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "epel8",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 8",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EPEL-8",
+		"override_tag": "epel8-override",
+		"package_manager": "unspecified",
+		"pending_signing_tag": "epel8-signing-pending",
+		"pending_stable_tag": "epel8-pending",
+		"pending_testing_tag": "epel8-testing-pending",
+		"stable_tag": "epel8",
+		"state": "current",
+		"testing_tag": "epel8-testing",
+		"version": "8"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "medium",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "python-rencode-1.0.6-17.el8",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2022-e04f53ab00",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2022-e04f53ab00",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/7704b19ee9a5ceec13acb44db0e3f95bf189b1735143ac708dd8b0ae9ca177d4?s=24&d=retro",
+		"email": "sergio@serjux.com",
+		"groups": [
+			{
+				"name": "nodejs-sig"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "clamav"
+			}
+		],
+		"id": 271,
+		"name": "sergiomb",
+		"openid": "sergiomb.id.fedoraproject.org"
+	},
+	"version_hash": "fef48ece16dfbacd759a33c30e443eba790301f2"
+}

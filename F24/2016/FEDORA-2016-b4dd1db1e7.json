@@ -1,0 +1,1081 @@
+{
+	"alias": "FEDORA-2016-b4dd1db1e7",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1343243,
+			"title": "lxc-net.service is not started during boot because of missing /etc/resolv.conf",
+			"bugzilla": {
+				"bug_id": "1343243",
+				"creation_ts": "2016-06-06 22:28:35 +0000",
+				"short_desc": "lxc-net.service is not started during boot because of missing /etc/resolv.conf",
+				"delta_ts": "2016-12-14 00:51:25 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "9391969",
+						"comment_count": "0",
+						"who": {
+							"text": "adundovi",
+							"name": "Andrej"
+						},
+						"bug_when": "2016-06-06 22:28:35 +0000",
+						"thetext": "Description of problem:\nlxc-net.service should provide a bridge device and a dhcp server for linux containers but it fails to start during the boot process thus blocking containers to start.\n\nVersion-Release number of selected component (if applicable):\nlxc-2.0.0-1.fc24.x86_64\nlxc-libs-2.0.0-1.fc24.x86_64\nlxc-templates-2.0.0-1.fc24.x86_64\n\nSteps to Reproduce:\n1. Install lxc and set-up one container inside of the fresh installation of Fedora 24 (beta/KDE/x64_86);\n2. enable lxc-net service (systemctl enable lxc-net.service);\n3. make the container starts on boot:\nlxc.start.auto = 1\nlxc.group = onboot\n4. reboot\n\nActual results:\nJun 06 23:52:35 localhost lxc-net[1082]: dnsmasq: directory /etc/resolv.conf for resolv-file is missing, cannot poll\nJun 06 23:52:35 localhost dnsmasq[1194]: directory /etc/resolv.conf for resolv-file is missing, cannot poll\nJun 06 23:52:35 localhost dnsmasq[1194]: FAILED to start up\n\nContainer didn't start because lxc-net.service failed to start up.\n\nExpected results:\nTo have containers up and running after booting Fedora.\n\nAdditional info:\n/etc/resolv.conf is created by NetworkManager during the boot sequence (/etc/resolv.conf -> /var/run/NetworkManager/resolv.conf), hence I assume that this is an issue of service ordering in systemd, but I don't see how exactly.\nlxc-net.service is waiting for network-online.target and network-online.target\nis depending on NetworkManager-wait-online.service, i.e. when NetworkManager is ready."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9391980",
+						"comment_count": "1",
+						"who": {
+							"text": "adundovi",
+							"name": "Andrej"
+						},
+						"bug_when": "2016-06-06 22:47:02 +0000",
+						"thetext": "I would also note that the machine where I encounter this issue is a laptop which usually acquire network connection after I log in.\n\nWorking workaround is to put \"NetworkManager.service\" as a dependency in lxc-net.service:\n[Unit]\nAfter=network-online.target NetworkManager.service\n\nThen it works as expected."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9940386",
+						"comment_count": "2",
+						"who": {
+							"text": "thomas.moschny",
+							"name": "Thomas Moschny"
+						},
+						"bug_when": "2016-11-29 19:49:41 +0000",
+						"thetext": "In theory, having\n\n  After=network-online.target\n\nshould already be enough, to ensure (as the name says) that the network is online.\n\nBut (afaict) network-online.target currently only works reliably if systemd-networkd is used.\n\nOn the other hand, depending on NetworkManager as you proposed is also not an option, as not everyone is using NM.\n\nSo, this is something we cannot fix in lxc. Someone has to repair the network-online.target for NM."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9954312",
+						"comment_count": "3",
+						"who": {
+							"text": "adundovi",
+							"name": "Andrej"
+						},
+						"bug_when": "2016-12-04 13:01:03 +0000",
+						"thetext": "Can you please explain more what would be expected behaviour of network-online for this case so that I can open a new bug report?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9954441",
+						"comment_count": "4",
+						"who": {
+							"text": "thomas.moschny",
+							"name": "Thomas Moschny"
+						},
+						"bug_when": "2016-12-04 17:46:19 +0000",
+						"thetext": "So, network-online depends on, and is scheduled after NetworkManager-wait-online (reversely, by setting Before in NM-wait-online). The NM-wait-online service calls /usr/bin/nm-online -s --timeout 30, and the man page says for -s: \"Wait for NetworkManager startup to complete, rather than waiting for network connectivity specifically.\"\n\nTo me, this looks reasonable. However, there must be a reason it doesn't work for you. Is NetworkManager-wait-online enabled?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9954462",
+						"comment_count": "5",
+						"who": {
+							"text": "thomas.moschny",
+							"name": "Thomas Moschny"
+						},
+						"bug_when": "2016-12-04 19:13:14 +0000",
+						"thetext": "Wait, I've read some of the systemd docs again. For network-online to have effect, we might need to add a Wants= dependency to lxc-net.\n\nAlso, ignore my comment about NetworkManager-wait-online being enabled, that shouldn't be necessary.\n\nCould you try and see if adding Wants=network-online.target to the [Unit] section of lxc-net helps?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9954478",
+						"comment_count": "6",
+						"who": {
+							"text": "adundovi",
+							"name": "Andrej"
+						},
+						"bug_when": "2016-12-04 20:15:18 +0000",
+						"thetext": "Yep, that works. Thanks.\n\nThus, this is my lxc-net.service:\n\n[Unit]\nDescription=LXC network bridge setup\nWants=network-online.target\nBefore=lxc.service\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStart=/usr/libexec/lxc/lxc-net start\nExecStop=/usr/libexec/lxc/lxc-net stop\n\n[Install]\nWantedBy=multi-user.targe"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9955636",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-05 11:45:31 +0000",
+						"thetext": "lxc-2.0.6-2.fc24 has been submitted as an update to Fedora 24. https://bodhi.fedoraproject.org/updates/FEDORA-2016-b4dd1db1e7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9955638",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-05 11:45:39 +0000",
+						"thetext": "lxc-2.0.6-2.fc24 has been submitted as an update to Fedora 24. https://bodhi.fedoraproject.org/updates/FEDORA-2016-b4dd1db1e7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9955648",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-05 11:48:49 +0000",
+						"thetext": "lxc-2.0.6-2.fc25 has been submitted as an update to Fedora 25. https://bodhi.fedoraproject.org/updates/FEDORA-2016-868350fe5a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9955649",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-05 11:48:55 +0000",
+						"thetext": "lxc-2.0.6-2.fc25 has been submitted as an update to Fedora 25. https://bodhi.fedoraproject.org/updates/FEDORA-2016-868350fe5a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9955659",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-05 11:51:02 +0000",
+						"thetext": "lxc-2.0.6-2.fc23 has been submitted as an update to Fedora 23. https://bodhi.fedoraproject.org/updates/FEDORA-2016-e5ff0ed40c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9955660",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-05 11:51:07 +0000",
+						"thetext": "lxc-2.0.6-2.fc23 has been submitted as an update to Fedora 23. https://bodhi.fedoraproject.org/updates/FEDORA-2016-e5ff0ed40c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9958394",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-06 03:24:15 +0000",
+						"thetext": "lxc-2.0.6-2.fc25 has been pushed to the Fedora 25 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-868350fe5a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9958450",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-06 03:56:41 +0000",
+						"thetext": "lxc-2.0.6-2.fc23 has been pushed to the Fedora 23 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-e5ff0ed40c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9958477",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-06 03:59:22 +0000",
+						"thetext": "lxc-2.0.6-2.fc24 has been pushed to the Fedora 24 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-b4dd1db1e7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9982266",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-13 20:27:19 +0000",
+						"thetext": "lxc-2.0.6-2.fc25 has been pushed to the Fedora 25 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9982600",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-13 22:53:27 +0000",
+						"thetext": "lxc-2.0.6-2.fc24 has been pushed to the Fedora 24 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9982820",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-14 00:51:25 +0000",
+						"thetext": "lxc-2.0.6-2.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1343940,
+			"title": "missing suid bit in lxc-user-nic binary",
+			"bugzilla": {
+				"bug_id": "1343940",
+				"creation_ts": "2016-06-08 11:27:51 +0000",
+				"short_desc": "missing suid bit in lxc-user-nic binary",
+				"delta_ts": "2016-12-14 00:51:23 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "9397444",
+						"comment_count": "0",
+						"who": {
+							"text": "ayman.khamouma",
+							"name": "Ayman Khamouma"
+						},
+						"bug_when": "2016-06-08 11:27:51 +0000",
+						"thetext": "Description of problem:\n/usr/libexec/lxc/lxc-user-nic is missing the suid bit.\n\nVersion-Release number of selected component (if applicable):\nlxc version 1.1.5\n\nHow reproducible:\ntry running an unprivileged lxc (see: http://blog.attackzero.net/2016/02/adventures-in-containerization-part-2.html)\n\nSteps to Reproduce:\n1. configure an unprivileged lxc like in attackzero's blog\n2. configure network (veth)\n3. start the lxc\n\nActual results:\noperation not permitted (on network configuration)\n\nExpected results:\nguest boot and network properly configured\n\n\nAdditional info:\nadd suid bit to /usr/libexec/lxc/lxc-user-nic to fix the problem.\nPS: see post about this from stephane grabber himself: https://www.stgraber.org/2014/01/17/lxc-1-0-unprivileged-containers/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9928208",
+						"comment_count": "1",
+						"who": {
+							"text": "bcotton",
+							"name": "Fedora End Of Life"
+						},
+						"bug_when": "2016-11-25 09:14:37 +0000",
+						"thetext": "This message is a reminder that Fedora 23 is nearing its end of life.\nApproximately 4 (four) weeks from now Fedora will stop maintaining\nand issuing updates for Fedora 23. It is Fedora's policy to close all\nbug reports from releases that are no longer maintained. At that time\nthis bug will be closed as EOL if it remains open with a Fedora  'version'\nof '23'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora 23 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora, you are encouraged  change the 'version' to a later Fedora \nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9953519",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-03 17:05:32 +0000",
+						"thetext": "lxc-2.0.6-1.fc23 has been submitted as an update to Fedora 23. https://bodhi.fedoraproject.org/updates/FEDORA-2016-e5ff0ed40c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9953521",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-03 17:05:44 +0000",
+						"thetext": "lxc-2.0.6-1.fc25 has been submitted as an update to Fedora 25. https://bodhi.fedoraproject.org/updates/FEDORA-2016-868350fe5a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9953523",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-03 17:05:54 +0000",
+						"thetext": "lxc-2.0.6-1.fc24 has been submitted as an update to Fedora 24. https://bodhi.fedoraproject.org/updates/FEDORA-2016-b4dd1db1e7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9954044",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-04 07:23:44 +0000",
+						"thetext": "lxc-2.0.6-1.fc23 has been pushed to the Fedora 23 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-e5ff0ed40c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9954067",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-04 07:27:03 +0000",
+						"thetext": "lxc-2.0.6-1.fc24 has been pushed to the Fedora 24 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-b4dd1db1e7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9954110",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-04 08:08:22 +0000",
+						"thetext": "lxc-2.0.6-1.fc25 has been pushed to the Fedora 25 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-868350fe5a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9955635",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-05 11:45:24 +0000",
+						"thetext": "lxc-2.0.6-2.fc24 has been submitted as an update to Fedora 24. https://bodhi.fedoraproject.org/updates/FEDORA-2016-b4dd1db1e7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9955647",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-05 11:48:45 +0000",
+						"thetext": "lxc-2.0.6-2.fc25 has been submitted as an update to Fedora 25. https://bodhi.fedoraproject.org/updates/FEDORA-2016-868350fe5a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9955658",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-05 11:50:58 +0000",
+						"thetext": "lxc-2.0.6-2.fc23 has been submitted as an update to Fedora 23. https://bodhi.fedoraproject.org/updates/FEDORA-2016-e5ff0ed40c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9958393",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-06 03:24:12 +0000",
+						"thetext": "lxc-2.0.6-2.fc25 has been pushed to the Fedora 25 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-868350fe5a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9958449",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-06 03:56:39 +0000",
+						"thetext": "lxc-2.0.6-2.fc23 has been pushed to the Fedora 23 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-e5ff0ed40c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9958475",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-06 03:59:20 +0000",
+						"thetext": "lxc-2.0.6-2.fc24 has been pushed to the Fedora 24 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-b4dd1db1e7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9982265",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-13 20:27:15 +0000",
+						"thetext": "lxc-2.0.6-2.fc25 has been pushed to the Fedora 25 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9982599",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-13 22:53:25 +0000",
+						"thetext": "lxc-2.0.6-2.fc24 has been pushed to the Fedora 24 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9982819",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-14 00:51:23 +0000",
+						"thetext": "lxc-2.0.6-2.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1398242,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2016-8649 lxc: lxc-attach to malicious container allows access to host",
+			"bugzilla": {
+				"bug_id": "1398242",
+				"alias": "CVE-2016-8649",
+				"creation_ts": "2016-11-24 10:40:15 +0000",
+				"short_desc": "CVE-2016-8649 lxc: lxc-attach to malicious container allows access to host",
+				"delta_ts": "2019-09-29 14:00:54 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "UPSTREAM",
+				"keywords": "Security",
+				"priority": "high",
+				"bug_severity": "high",
+				"depends_on": [
+					"1398243",
+					"1398245"
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "9919696",
+						"comment_count": "0",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2016-11-24 10:40:15 +0000",
+						"thetext": "\nCVE-2016-8649 was assigned to the issue that allows an attacker inside of an unprivileged container to use an inherited file descriptor, of the host's /proc, to access the rest of the host's filesystem via the openat() family of syscalls. The file descriptor is needed to write to /proc/<PID>/attr/current or /proc/<PID>/attr/exec to set the AppArmor/SELinux label of the attached process.\n\nUpstream bug:\n\nhttps://bugs.launchpad.net/ubuntu/+source/lxc/+bug/1639345\n\nUpstream patch:\n\nhttps://github.com/lxc/lxc/commit/81f466d05f2a89cb4f122ef7f593ff3f279b165c\n\nReferences:\n\nhttp://seclists.org/oss-sec/2016/q4/515"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9919717",
+						"comment_count": "1",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2016-11-24 10:40:56 +0000",
+						"thetext": "\nCreated lxc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1398243]\nAffects: epel-all [bug 1398245]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12822625",
+						"comment_count": "2",
+						"who": {
+							"text": "prodsec-dev",
+							"name": "Product Security DevOps Team"
+						},
+						"bug_when": "2019-06-08 03:02:40 +0000",
+						"thetext": "This CVE Bugzilla entry is for community support informational purposes only as it does not affect a package in a commercially supported Red Hat product. Refer to the dependent bugs for status of those individual community products."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1398243,
+			"security": true,
+			"title": "CVE-2016-8649 lxc: lxc-attach to malicious container allows access to host [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1398243",
+				"creation_ts": "2016-11-24 10:40:33 +0000",
+				"short_desc": "CVE-2016-8649 lxc: lxc-attach to malicious container allows access to host [fedora-all]",
+				"delta_ts": "2016-12-14 00:51:20 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "1398242",
+						"alias": "CVE-2016-8649",
+						"creation_ts": "2016-11-24 10:40:15 +0000",
+						"short_desc": "CVE-2016-8649 lxc: lxc-attach to malicious container allows access to host",
+						"delta_ts": "2019-09-29 14:00:54 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "UPSTREAM",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"1398243",
+							"1398245"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "9919696",
+								"comment_count": "0",
+								"who": {
+									"text": "anemec",
+									"name": "Andrej Nemec"
+								},
+								"bug_when": "2016-11-24 10:40:15 +0000",
+								"thetext": "\nCVE-2016-8649 was assigned to the issue that allows an attacker inside of an unprivileged container to use an inherited file descriptor, of the host's /proc, to access the rest of the host's filesystem via the openat() family of syscalls. The file descriptor is needed to write to /proc/<PID>/attr/current or /proc/<PID>/attr/exec to set the AppArmor/SELinux label of the attached process.\n\nUpstream bug:\n\nhttps://bugs.launchpad.net/ubuntu/+source/lxc/+bug/1639345\n\nUpstream patch:\n\nhttps://github.com/lxc/lxc/commit/81f466d05f2a89cb4f122ef7f593ff3f279b165c\n\nReferences:\n\nhttp://seclists.org/oss-sec/2016/q4/515"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9919717",
+								"comment_count": "1",
+								"who": {
+									"text": "anemec",
+									"name": "Andrej Nemec"
+								},
+								"bug_when": "2016-11-24 10:40:56 +0000",
+								"thetext": "\nCreated lxc tracking bugs for this issue:\n\nAffects: fedora-all [bug 1398243]\nAffects: epel-all [bug 1398245]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12822625",
+								"comment_count": "2",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2019-06-08 03:02:40 +0000",
+								"thetext": "This CVE Bugzilla entry is for community support informational purposes only as it does not affect a package in a commercially supported Red Hat product. Refer to the dependent bugs for status of those individual community products."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "9919704",
+						"comment_count": "0",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2016-11-24 10:40:33 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9919709",
+						"comment_count": "1",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2016-11-24 10:40:41 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1398242,1398243\n\n# Description of your update\nnotes=Security fix for CVE-2016-8649\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9953518",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-03 17:05:26 +0000",
+						"thetext": "lxc-2.0.6-1.fc23 has been submitted as an update to Fedora 23. https://bodhi.fedoraproject.org/updates/FEDORA-2016-e5ff0ed40c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9953520",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-03 17:05:40 +0000",
+						"thetext": "lxc-2.0.6-1.fc25 has been submitted as an update to Fedora 25. https://bodhi.fedoraproject.org/updates/FEDORA-2016-868350fe5a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9953522",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-03 17:05:50 +0000",
+						"thetext": "lxc-2.0.6-1.fc24 has been submitted as an update to Fedora 24. https://bodhi.fedoraproject.org/updates/FEDORA-2016-b4dd1db1e7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9954043",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-04 07:23:40 +0000",
+						"thetext": "lxc-2.0.6-1.fc23 has been pushed to the Fedora 23 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-e5ff0ed40c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9954066",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-04 07:27:00 +0000",
+						"thetext": "lxc-2.0.6-1.fc24 has been pushed to the Fedora 24 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-b4dd1db1e7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9954109",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-04 08:08:19 +0000",
+						"thetext": "lxc-2.0.6-1.fc25 has been pushed to the Fedora 25 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-868350fe5a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9955634",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-05 11:45:17 +0000",
+						"thetext": "lxc-2.0.6-2.fc24 has been submitted as an update to Fedora 24. https://bodhi.fedoraproject.org/updates/FEDORA-2016-b4dd1db1e7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9955646",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-05 11:48:41 +0000",
+						"thetext": "lxc-2.0.6-2.fc25 has been submitted as an update to Fedora 25. https://bodhi.fedoraproject.org/updates/FEDORA-2016-868350fe5a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9955657",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-05 11:50:54 +0000",
+						"thetext": "lxc-2.0.6-2.fc23 has been submitted as an update to Fedora 23. https://bodhi.fedoraproject.org/updates/FEDORA-2016-e5ff0ed40c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9958392",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-06 03:24:09 +0000",
+						"thetext": "lxc-2.0.6-2.fc25 has been pushed to the Fedora 25 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-868350fe5a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9958448",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-06 03:56:36 +0000",
+						"thetext": "lxc-2.0.6-2.fc23 has been pushed to the Fedora 23 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-e5ff0ed40c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9958474",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-06 03:59:17 +0000",
+						"thetext": "lxc-2.0.6-2.fc24 has been pushed to the Fedora 24 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2016-b4dd1db1e7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9982264",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-13 20:27:07 +0000",
+						"thetext": "lxc-2.0.6-2.fc25 has been pushed to the Fedora 25 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9982598",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-13 22:53:22 +0000",
+						"thetext": "lxc-2.0.6-2.fc24 has been pushed to the Fedora 24 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9982818",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2016-12-14 00:51:20 +0000",
+						"thetext": "lxc-2.0.6-2.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "lxc-2.0.6-2.fc24",
+			"release_id": 14,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "python3-lxc",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lxc-devel",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lxc-libs",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lua-lxc",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lxc",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lxc-debuginfo",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "lxc-templates",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "lxc-libs",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "i686"
+					},
+					{
+						"name": "lxc-debuginfo",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "i686"
+					},
+					{
+						"name": "lxc",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "i686"
+					},
+					{
+						"name": "python3-lxc",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "i686"
+					},
+					{
+						"name": "lxc-devel",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "i686"
+					},
+					{
+						"name": "lxc-templates",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "i686"
+					},
+					{
+						"name": "lua-lxc",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "lxc-doc",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "lxc",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "lxc-libs",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lxc-debuginfo",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lxc-templates",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lua-lxc",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3-lxc",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lxc-devel",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lxc",
+						"version": "2.0.6",
+						"release": "2.fc24",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 530293,
+			"text": "This update has been submitted for testing by thm. ",
+			"timestamp": "2016-12-03 17:05:20",
+			"update_id": 74513,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 530740,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2016-12-04 07:27:43",
+			"update_id": 74513,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 531237,
+			"text": "thm edited this update.\n\nNew build(s):\n\n- lxc-2.0.6-2.fc24\n\nRemoved build(s):\n\n- lxc-2.0.6-1.fc24",
+			"timestamp": "2016-12-05 11:45:07",
+			"update_id": 74513,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 531238,
+			"text": "This update has been submitted for testing by thm. ",
+			"timestamp": "2016-12-05 11:45:12",
+			"update_id": 74513,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 531725,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2016-12-06 04:00:51",
+			"update_id": 74513,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 535531,
+			"text": "This update has reached 7 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2016-12-13 06:00:17",
+			"update_id": 74513,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 535600,
+			"text": "This update has been submitted for stable by thm. ",
+			"timestamp": "2016-12-13 06:48:53",
+			"update_id": 74513,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 535871,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2016-12-13 22:53:54",
+			"update_id": 74513,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2016-12-05 11:45:13",
+	"date_pushed": "2016-12-13 17:09:42",
+	"date_stable": "2016-12-13 17:09:42",
+	"date_submitted": "2016-12-03 17:05:20",
+	"date_testing": "2016-12-06 02:26:24",
+	"meets_testing_requirements": true,
+	"notes": "Update LXC to the latest stable version.\n\nSee [here](https://linuxcontainers.org/lxc/news/) for the list of changes.\n",
+	"pushed": true,
+	"release": {
+		"branch": "f24",
+		"candidate_tag": "f24-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f24",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 24",
+		"mail_template": "fedora_errata_template",
+		"name": "F24",
+		"override_tag": "f24-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f24-signing-pending",
+		"pending_stable_tag": "f24-updates-pending",
+		"pending_testing_tag": "f24-updates-testing-pending",
+		"stable_tag": "f24-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f24-updates-testing",
+		"version": "24"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "lxc-2.0.6-2.fc24",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2016-b4dd1db1e7",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2016-b4dd1db1e7",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/9059004173d8a8bfddf2eb8c342af2c655aabe40786c6fffa5b0527680120734?s=24&d=retro",
+		"email": "thomas.moschny@gmx.de",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 101,
+		"name": "thm",
+		"openid": "thm.id.fedoraproject.org"
+	},
+	"version_hash": "490e8b02f3739153a791d92f0a3b6cdc130c65c2"
+}

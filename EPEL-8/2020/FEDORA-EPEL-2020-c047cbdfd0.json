@@ -1,0 +1,681 @@
+{
+	"alias": "FEDORA-EPEL-2020-c047cbdfd0",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 1846006,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2020-12695 hostapd: UPnP SUBSCRIBE misbehavior in WPS AP",
+			"bugzilla": {
+				"bug_id": "1846006",
+				"alias": "CVE-2020-12695",
+				"creation_ts": "2020-06-10 14:54:17 +0000",
+				"short_desc": "CVE-2020-12695 hostapd: UPnP SUBSCRIBE misbehavior in WPS AP",
+				"delta_ts": "2021-05-18 15:04:20 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened, Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1846007",
+					"1846008",
+					"1846588",
+					"1846589",
+					"1861927",
+					"1861928"
+				],
+				"blocked": [
+					{
+						"bug_id": "1846010",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "14008774",
+						"comment_count": "0",
+						"who": {
+							"text": "gsuckevi",
+							"name": "Guilherme de Almeida Suckevicz"
+						},
+						"bug_when": "2020-06-10 14:54:17 +0000",
+						"thetext": "The Open Connectivity Foundation UPnP specification before 2020-04-17 does not forbid the acceptance of a subscription request with a delivery URL on a different network segment than the fully qualified event-subscription URL, aka the CallStranger issue.\n\nReferences:\nhttp://www.openwall.com/lists/oss-security/2020/06/08/2\nhttps://www.kb.cert.org/vuls/id/339275\nhttps://github.com/yunuscadirci/CallStranger\nhttps://www.callstranger.com"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14008781",
+						"comment_count": "1",
+						"who": {
+							"text": "gsuckevi",
+							"name": "Guilherme de Almeida Suckevicz"
+						},
+						"bug_when": "2020-06-10 14:54:38 +0000",
+						"thetext": "Created hostapd tracking bugs for this issue:\n\nAffects: epel-all [bug 1846008]\nAffects: fedora-all [bug 1846007]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14013495",
+						"comment_count": "2",
+						"who": {
+							"text": "tcullum",
+							"name": "Todd Cullum"
+						},
+						"bug_when": "2020-06-11 18:17:08 +0000",
+						"thetext": "General Flaw summary:\nDevices host UPnP servers in order to supply information to UPnP clients and allow them to send commands to the UPnP server. For example, a device (such as a printer, camera, or video game console) running a UPnP client can send an HTTP request of method M-SEARCH over UDP to the broadcast IP. This will cause UPnP servers on the network to reply with device information such as make, model, services offered, and URLs where commands can be sent to the server for further actions. UPnP also allows the client application to send an HTTP request of method SUBSCRIBE. This request allows the client to subscribe to events. In the SUBSCRIBE request, the client supplies a CALLBACK URL, which is where the server needs to send event notifications, in the form of NOTIFY requests back to the client. In fact, the specification allows for an unlimited number of URLs to be supplied as the CALLBACK URL. If a reply is not received from the first URL, the server moves to the second, third, and so on... Knowing this, the CallStranger flaw leverages:\n\n1. When subscribing to UPnP-enabled device server events, a callback URL is supplied by the client to the server.\n2. This URL is not limited in length by the UPnP specification\n3. Unlimited number of URLs can be supplied in succession.\n4. If TCP ports are closed at the current URL, the server will send n number of TCP SYN packets to keep trying for a while*\n5. After multiple failures to connect, the server will again try this at the next URL. This allows for attempts on arbitrary many URLs/HTTPservers**\n6. There is also no limitation on the data supplied in the callback URL. E.G. 127.0.0.1:port/unlimiteddatahere . This can be used to put excessive load on bandwidth and the server, as well as slam another service with lots of data.\n7. The final feature is that the UPnP specification allowed these callback URL requests to be sent to hosts outside of the network, meaning that a UPnP client that is inside a local network could force a UPnP server in that network to send data outside of the network, which could be used to exfiltrate data and/or perform a DDoS attack in, e.g. a botnet. This could be accomplished if a client specified the callback URL as some resource on the Internet, for example.\n\n* This also allows for SYN flooding. The exact number of SYN packets sent depends on OS and specific machine configurations.\n\n** This can be leveraged to perform a port scan because an attacker knows that a port is open if no request is made to a subsequent URL in the CALLBACK url list.\n\nThus, the flaw could allow for DoS/DDoS attacks, data exfiltration, and port scanning. It should also be noted that there are numerous UPnP servers which listen on the Internet, instead of just on local networks, allowing for SUBSCRIBE and NOTIFY requests to be negotiated from/to outside the network.\n\nAlthough the UPnP specification allowed the vectors mentioned above, there are other mitigations that can be put in place to prevent exploitation of this flaw, that we will list under the Mitigations heading. On April 17, 2020, the UPnP specification was updated[1] with:\n\n\"The subscription request containing a delivery URL not on the same network segment as the fully qualified event subscription URL shall not be accepted.\"\n\n1. http://openconnectivity.org/developer/specifications/upnp-resources/upnp/#architectural"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14014070",
+						"comment_count": "4",
+						"who": {
+							"text": "tcullum",
+							"name": "Todd Cullum"
+						},
+						"bug_when": "2020-06-11 21:58:12 +0000",
+						"thetext": "The wpa_supplicant build configuration does not build with CONFIG_WPS_UPNP=y or CONFIG_WPS_ER=y in RHEL 5, 6, 7, or 8. Thus the UPnP functionality is not enabled as shipped."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14014197",
+						"comment_count": "5",
+						"who": {
+							"text": "prodsec-dev",
+							"name": "Product Security DevOps Team"
+						},
+						"bug_when": "2020-06-11 23:20:25 +0000",
+						"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2020-12695"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14014324",
+						"comment_count": "7",
+						"who": {
+							"text": "tcullum",
+							"name": "Todd Cullum"
+						},
+						"bug_when": "2020-06-12 01:34:13 +0000",
+						"thetext": "Mitigation:\n\nTo mitigate this flaw, close off the UPnP UDP port (usually 1900) and UPnP service ports from the Internet using a firewall. It's important to note that UPnP service ports vary based on the device, so device documentation should be consulted. Do not expose UPnP servers to the Internet. Exploitation of this flaw relies on HTTP SUBSCRIBE and NOTIFY requests, which can be blocked using a network security appliance, as another mitigation option."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14037019",
+						"comment_count": "11",
+						"who": {
+							"text": "tcullum",
+							"name": "Todd Cullum"
+						},
+						"bug_when": "2020-06-19 17:23:48 +0000",
+						"thetext": "Statement:\n\nThis flaw does not affect the wpa_supplicant package as shipped with Red Hat Enterprise Linux 5, 6, 7, and 8. wpa_supplicant's WiFi Protected Setup (WPS) External Registrar functionality, which uses UPnP to act as a registrar for a WiFi access point, and hostapd's WPS UPnP functionality, are disabled in the build configuration. Additionally, wpa_supplicant's P2P functionality does not support UPnP as shipped in Red Hat Enterprise Linux 5, 6, 7 and 8."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15075409",
+						"comment_count": "15",
+						"who": {
+							"text": "prodsec-dev",
+							"name": "Product Security DevOps Team"
+						},
+						"bug_when": "2021-05-18 14:34:04 +0000",
+						"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2020-12695"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15076327",
+						"comment_count": "16",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2021-05-18 15:04:20 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2021:1789 https://access.redhat.com/errata/RHSA-2021:1789"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1846007,
+			"security": true,
+			"title": "CVE-2020-12695 hostapd: UPnP SUBSCRIBE misbehavior in WPS AP [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1846007",
+				"creation_ts": "2020-06-10 14:54:23 +0000",
+				"short_desc": "CVE-2020-12695 hostapd: UPnP SUBSCRIBE misbehavior in WPS AP [fedora-all]",
+				"delta_ts": "2020-07-10 00:29:04 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1846006",
+						"alias": "CVE-2020-12695",
+						"creation_ts": "2020-06-10 14:54:17 +0000",
+						"short_desc": "CVE-2020-12695 hostapd: UPnP SUBSCRIBE misbehavior in WPS AP",
+						"delta_ts": "2021-05-18 15:04:20 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Reopened, Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1846007",
+							"1846008",
+							"1846588",
+							"1846589",
+							"1861927",
+							"1861928"
+						],
+						"blocked": [
+							{
+								"bug_id": "1846010",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "14008774",
+								"comment_count": "0",
+								"who": {
+									"text": "gsuckevi",
+									"name": "Guilherme de Almeida Suckevicz"
+								},
+								"bug_when": "2020-06-10 14:54:17 +0000",
+								"thetext": "The Open Connectivity Foundation UPnP specification before 2020-04-17 does not forbid the acceptance of a subscription request with a delivery URL on a different network segment than the fully qualified event-subscription URL, aka the CallStranger issue.\n\nReferences:\nhttp://www.openwall.com/lists/oss-security/2020/06/08/2\nhttps://www.kb.cert.org/vuls/id/339275\nhttps://github.com/yunuscadirci/CallStranger\nhttps://www.callstranger.com"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14008781",
+								"comment_count": "1",
+								"who": {
+									"text": "gsuckevi",
+									"name": "Guilherme de Almeida Suckevicz"
+								},
+								"bug_when": "2020-06-10 14:54:38 +0000",
+								"thetext": "Created hostapd tracking bugs for this issue:\n\nAffects: epel-all [bug 1846008]\nAffects: fedora-all [bug 1846007]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14013495",
+								"comment_count": "2",
+								"who": {
+									"text": "tcullum",
+									"name": "Todd Cullum"
+								},
+								"bug_when": "2020-06-11 18:17:08 +0000",
+								"thetext": "General Flaw summary:\nDevices host UPnP servers in order to supply information to UPnP clients and allow them to send commands to the UPnP server. For example, a device (such as a printer, camera, or video game console) running a UPnP client can send an HTTP request of method M-SEARCH over UDP to the broadcast IP. This will cause UPnP servers on the network to reply with device information such as make, model, services offered, and URLs where commands can be sent to the server for further actions. UPnP also allows the client application to send an HTTP request of method SUBSCRIBE. This request allows the client to subscribe to events. In the SUBSCRIBE request, the client supplies a CALLBACK URL, which is where the server needs to send event notifications, in the form of NOTIFY requests back to the client. In fact, the specification allows for an unlimited number of URLs to be supplied as the CALLBACK URL. If a reply is not received from the first URL, the server moves to the second, third, and so on... Knowing this, the CallStranger flaw leverages:\n\n1. When subscribing to UPnP-enabled device server events, a callback URL is supplied by the client to the server.\n2. This URL is not limited in length by the UPnP specification\n3. Unlimited number of URLs can be supplied in succession.\n4. If TCP ports are closed at the current URL, the server will send n number of TCP SYN packets to keep trying for a while*\n5. After multiple failures to connect, the server will again try this at the next URL. This allows for attempts on arbitrary many URLs/HTTPservers**\n6. There is also no limitation on the data supplied in the callback URL. E.G. 127.0.0.1:port/unlimiteddatahere . This can be used to put excessive load on bandwidth and the server, as well as slam another service with lots of data.\n7. The final feature is that the UPnP specification allowed these callback URL requests to be sent to hosts outside of the network, meaning that a UPnP client that is inside a local network could force a UPnP server in that network to send data outside of the network, which could be used to exfiltrate data and/or perform a DDoS attack in, e.g. a botnet. This could be accomplished if a client specified the callback URL as some resource on the Internet, for example.\n\n* This also allows for SYN flooding. The exact number of SYN packets sent depends on OS and specific machine configurations.\n\n** This can be leveraged to perform a port scan because an attacker knows that a port is open if no request is made to a subsequent URL in the CALLBACK url list.\n\nThus, the flaw could allow for DoS/DDoS attacks, data exfiltration, and port scanning. It should also be noted that there are numerous UPnP servers which listen on the Internet, instead of just on local networks, allowing for SUBSCRIBE and NOTIFY requests to be negotiated from/to outside the network.\n\nAlthough the UPnP specification allowed the vectors mentioned above, there are other mitigations that can be put in place to prevent exploitation of this flaw, that we will list under the Mitigations heading. On April 17, 2020, the UPnP specification was updated[1] with:\n\n\"The subscription request containing a delivery URL not on the same network segment as the fully qualified event subscription URL shall not be accepted.\"\n\n1. http://openconnectivity.org/developer/specifications/upnp-resources/upnp/#architectural"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14014070",
+								"comment_count": "4",
+								"who": {
+									"text": "tcullum",
+									"name": "Todd Cullum"
+								},
+								"bug_when": "2020-06-11 21:58:12 +0000",
+								"thetext": "The wpa_supplicant build configuration does not build with CONFIG_WPS_UPNP=y or CONFIG_WPS_ER=y in RHEL 5, 6, 7, or 8. Thus the UPnP functionality is not enabled as shipped."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14014197",
+								"comment_count": "5",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2020-06-11 23:20:25 +0000",
+								"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2020-12695"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14014324",
+								"comment_count": "7",
+								"who": {
+									"text": "tcullum",
+									"name": "Todd Cullum"
+								},
+								"bug_when": "2020-06-12 01:34:13 +0000",
+								"thetext": "Mitigation:\n\nTo mitigate this flaw, close off the UPnP UDP port (usually 1900) and UPnP service ports from the Internet using a firewall. It's important to note that UPnP service ports vary based on the device, so device documentation should be consulted. Do not expose UPnP servers to the Internet. Exploitation of this flaw relies on HTTP SUBSCRIBE and NOTIFY requests, which can be blocked using a network security appliance, as another mitigation option."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14037019",
+								"comment_count": "11",
+								"who": {
+									"text": "tcullum",
+									"name": "Todd Cullum"
+								},
+								"bug_when": "2020-06-19 17:23:48 +0000",
+								"thetext": "Statement:\n\nThis flaw does not affect the wpa_supplicant package as shipped with Red Hat Enterprise Linux 5, 6, 7, and 8. wpa_supplicant's WiFi Protected Setup (WPS) External Registrar functionality, which uses UPnP to act as a registrar for a WiFi access point, and hostapd's WPS UPnP functionality, are disabled in the build configuration. Additionally, wpa_supplicant's P2P functionality does not support UPnP as shipped in Red Hat Enterprise Linux 5, 6, 7 and 8."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15075409",
+								"comment_count": "15",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2021-05-18 14:34:04 +0000",
+								"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2020-12695"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15076327",
+								"comment_count": "16",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2021-05-18 15:04:20 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2021:1789 https://access.redhat.com/errata/RHSA-2021:1789"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "14008775",
+						"comment_count": "0",
+						"who": {
+							"text": "gsuckevi",
+							"name": "Guilherme de Almeida Suckevicz"
+						},
+						"bug_when": "2020-06-10 14:54:23 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14008776",
+						"comment_count": "1",
+						"who": {
+							"text": "gsuckevi",
+							"name": "Guilherme de Almeida Suckevicz"
+						},
+						"bug_when": "2020-06-10 14:54:26 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1846006,1846007\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14050822",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-06-24 18:00:25 +0000",
+						"thetext": "FEDORA-2020-df3e1cfde9 has been submitted as an update to Fedora 32. https://bodhi.fedoraproject.org/updates/FEDORA-2020-df3e1cfde9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14050944",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-06-24 18:16:32 +0000",
+						"thetext": "FEDORA-EPEL-2020-c047cbdfd0 has been submitted as an update to Fedora EPEL 8. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2020-c047cbdfd0"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14051819",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-06-25 01:04:04 +0000",
+						"thetext": "FEDORA-2020-df3e1cfde9 has been pushed to the Fedora 32 testing repository.\nIn short time you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2020-df3e1cfde9`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-df3e1cfde9\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14051853",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-06-25 01:12:04 +0000",
+						"thetext": "FEDORA-EPEL-2020-c047cbdfd0 has been pushed to the Fedora EPEL 8 testing repository.\n\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2020-c047cbdfd0\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14076285",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-07-03 01:18:27 +0000",
+						"thetext": "FEDORA-2020-df3e1cfde9 has been pushed to the Fedora 32 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14093477",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-07-10 00:29:04 +0000",
+						"thetext": "FEDORA-EPEL-2020-c047cbdfd0 has been pushed to the Fedora EPEL 8 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "hostapd-2.9-4.el8",
+			"release_id": 34,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "hostapd",
+						"version": "2.9",
+						"release": "4.el8",
+						"arch": "aarch64"
+					},
+					{
+						"name": "hostapd-logwatch",
+						"version": "2.9",
+						"release": "4.el8",
+						"arch": "aarch64"
+					},
+					{
+						"name": "hostapd-debugsource",
+						"version": "2.9",
+						"release": "4.el8",
+						"arch": "aarch64"
+					},
+					{
+						"name": "hostapd-debuginfo",
+						"version": "2.9",
+						"release": "4.el8",
+						"arch": "aarch64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "hostapd-debugsource",
+						"version": "2.9",
+						"release": "4.el8",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "hostapd-logwatch",
+						"version": "2.9",
+						"release": "4.el8",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "hostapd-debuginfo",
+						"version": "2.9",
+						"release": "4.el8",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "hostapd",
+						"version": "2.9",
+						"release": "4.el8",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "hostapd-debugsource",
+						"version": "2.9",
+						"release": "4.el8",
+						"arch": "s390x"
+					},
+					{
+						"name": "hostapd-debuginfo",
+						"version": "2.9",
+						"release": "4.el8",
+						"arch": "s390x"
+					},
+					{
+						"name": "hostapd",
+						"version": "2.9",
+						"release": "4.el8",
+						"arch": "s390x"
+					},
+					{
+						"name": "hostapd-logwatch",
+						"version": "2.9",
+						"release": "4.el8",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "hostapd",
+						"version": "2.9",
+						"release": "4.el8",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "hostapd",
+						"version": "2.9",
+						"release": "4.el8",
+						"arch": "x86_64"
+					},
+					{
+						"name": "hostapd-logwatch",
+						"version": "2.9",
+						"release": "4.el8",
+						"arch": "x86_64"
+					},
+					{
+						"name": "hostapd-debugsource",
+						"version": "2.9",
+						"release": "4.el8",
+						"arch": "x86_64"
+					},
+					{
+						"name": "hostapd-debuginfo",
+						"version": "2.9",
+						"release": "4.el8",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 1430450,
+			"text": "This update has been submitted for testing by linville. ",
+			"timestamp": "2020-06-24 18:16:29",
+			"update_id": 215249,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1430451,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2020-06-24 18:16:29",
+			"update_id": 215249,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1430452,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2020-06-24 18:16:29",
+			"update_id": 215249,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1430480,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2020-06-24 18:59:18",
+			"update_id": 215249,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1430897,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2020-06-25 01:12:05",
+			"update_id": 215249,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1450211,
+			"text": "This update can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2020-07-09 01:13:07",
+			"update_id": 215249,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1450212,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2020-07-09 01:13:07",
+			"update_id": 215249,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1451340,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2020-07-10 00:29:05",
+			"update_id": 215249,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2020-07-10 00:28:52",
+	"date_stable": "2020-07-10 00:28:52",
+	"date_submitted": "2020-06-24 18:16:29",
+	"date_testing": "2020-06-25 01:11:54",
+	"meets_testing_requirements": true,
+	"notes": "Fix CVE-2020-12695 (UPnP SUBSCRIBE misbehavior in hostapd WPS AP)",
+	"pushed": true,
+	"release": {
+		"branch": "epel8",
+		"candidate_tag": "epel8-testing-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "epel8",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 8",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EPEL-8",
+		"override_tag": "epel8-override",
+		"package_manager": "unspecified",
+		"pending_signing_tag": "epel8-signing-pending",
+		"pending_stable_tag": "epel8-pending",
+		"pending_testing_tag": "epel8-testing-pending",
+		"stable_tag": "epel8",
+		"state": "current",
+		"testing_tag": "epel8-testing",
+		"version": "8"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "medium",
+	"stable_days": 14,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "hostapd-2.9-4.el8",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2020-c047cbdfd0",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2020-c047cbdfd0",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/df02ca0ce6119bc48e2e021a1d8001f21d52ff809f4a45b4571017c567c12166?s=24&d=retro",
+		"email": "linville@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "gitkernel"
+			},
+			{
+				"name": "ols-submissions"
+			}
+		],
+		"id": 259,
+		"name": "linville",
+		"openid": "linville.id.fedoraproject.org"
+	},
+	"version_hash": "ec8fbae69807ba9b80230e2bbb8ac51867f5c790"
+}

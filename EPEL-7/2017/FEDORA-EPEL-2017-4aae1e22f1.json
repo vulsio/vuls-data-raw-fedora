@@ -1,0 +1,964 @@
+{
+	"alias": "FEDORA-EPEL-2017-4aae1e22f1",
+	"bugs": [
+		{
+			"bug_id": 1202859,
+			"title": "systemd is cleaning up processes from  \"external\" cgroups",
+			"bugzilla": {
+				"bug_id": "1202859",
+				"creation_ts": "2015-03-17 15:07:10 +0000",
+				"short_desc": "systemd is cleaning up processes from  \"external\" cgroups",
+				"delta_ts": "2018-02-25 13:04:31 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened",
+				"priority": "unspecified",
+				"bug_severity": "high",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8050431",
+						"comment_count": "0",
+						"who": {
+							"text": "nospam13",
+							"name": "Alexey Kurnosov"
+						},
+						"bug_when": "2015-03-17 15:07:10 +0000",
+						"thetext": "Description of problem:\nIn some circumstances systemd moves all tasks from it`s own cgroups \n\nVersion-Release number of selected component (if applicable):\nScientific Linux release 7.1 rolling (Nitrogen)\n\nHow reproducible:\nAlways \n\nSteps to Reproduce:\n1. Login over ssh as a root (without intermediate users).\n2. \n[root@v01 ~]# date\nTue Mar 17 17:34:25 MSK 2015\n[root@v01 ~]# bash\n[root@v01 ~]# for d in  /sys/fs/cgroup/memory; do mkdir \"$d/test-1\"; echo $$ > \"$d/test-1/tasks\"; done\n[root@v01 ~]# while wc -l   /sys/fs/cgroup/memory/test-1/tasks | grep -qv '^0'; do sleep 1; done; date\n3. Open another console\n4.\n[root@v01 ~]# date\nTue Mar 17 17:34:45 MSK 2015\n[root@v01 ~]# echo '*/1 * * * * root /usr/bin/echo 1 > /dev/null' > /etc/cron.d/test\n[root@v01 ~]# systemctl enable atd.service #does not matter what service \n[root@v01 ~]# date\nTue Mar 17 17:34:55 MSK 2015\n\nActual results:\non the first console the script stoped:\nTue Mar 17 17:35:02 MSK 2015\n[root@v01 ~]# grep $$ /sys/fs/cgroup/memory/tasks\n4901\n\nExpected results:\nOn the first console the script is still running\n\nAdditional info:\nIf process runs from a derived root session and moved to a some cgroup, whenever systemd is received \"enable service\" event and if there is a cron event scheduled, when a cron task runs systemd moves all tasks from \"external\" cgroups to the root cgroup. That is an unacceptable behavior (i lost couple work days for debuging).\nP.S. the OS is not actually RHEL, but i believe the bug is applied to RHEL as well."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8051031",
+						"comment_count": "2",
+						"who": {
+							"text": "nospam13",
+							"name": "Alexey Kurnosov"
+						},
+						"bug_when": "2015-03-17 17:34:52 +0000",
+						"thetext": "\nsystemd version: systemd-208-20.el7.x86_64\nP.P.S. the bug randomly occurrences with other work flow, described above way just one 100% reproduced."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8053959",
+						"comment_count": "3",
+						"who": {
+							"text": "msekleta",
+							"name": "Michal Sekletar"
+						},
+						"bug_when": "2015-03-18 12:28:35 +0000",
+						"thetext": "In RHEL7 cgroup tree in memory controller is managed by systemd. You should not expect that manual changes you make will be preserved. In justified cases there maybe more cgroup managers, but they have cooperate with systemd. For example libvirtd. Also see documentation for option Delegate in systemd.resource-control (5).\n\nNothing to fix here -> NOTABUG."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8054238",
+						"comment_count": "4",
+						"who": {
+							"text": "nospam13",
+							"name": "Alexey Kurnosov"
+						},
+						"bug_when": "2015-03-18 13:31:54 +0000",
+						"thetext": "\nI hit the bug during setup an LXC container (lxc-1.0.7-1.el7.x86_64 from official EPEL repo). So are you saying LXC is incompatible with systemd?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8054358",
+						"comment_count": "5",
+						"who": {
+							"text": "lnykryn",
+							"name": "Lukáš Nykrýn"
+						},
+						"bug_when": "2015-03-18 13:56:01 +0000",
+						"thetext": "It seems that lxc does not register its containers in machined, which means that they will not use Delegate stuff.\nhttp://www.freedesktop.org/wiki/Software/systemd/writing-vm-managers/\n\nBy the way why are you using lxc? If I am not mistaken we are supporting libvirt lxc.\n\nOr you can use systemd-nspawn :-)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8058876",
+						"comment_count": "6",
+						"who": {
+							"text": "nospam13",
+							"name": "Alexey Kurnosov"
+						},
+						"bug_when": "2015-03-19 14:37:16 +0000",
+						"thetext": "\n>It seems that lxc does not register its containers in machined, which means that they will not use Delegate stuff.\n\nJudging by github commit history \"Delegate stuff\" added in LXC 1.1. Looks like without this feature LXC is completely useless on 7.x systems. Do you have plans to include LXC 1.1 in EPEL?\n\n>By the way why are you using lxc? If I am not mistaken we are supporting libvirt lxc.\nWhen i looked on libvirt it was a some way outdated (Lack of capability setting, impossible tune many important settings on a container). In general LXC is much more flexible."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8178903",
+						"comment_count": "7",
+						"who": {
+							"text": "thomas.moschny",
+							"name": "Thomas Moschny"
+						},
+						"bug_when": "2015-04-26 07:41:00 +0000",
+						"thetext": "(In reply to Alexey Kurnosov from comment #6)\n> >It seems that lxc does not register its containers in machined, which means that they will not use Delegate stuff.\n> \n> Judging by github commit history \"Delegate stuff\" added in LXC 1.1. Looks\n> like without this feature LXC is completely useless on 7.x systems.\n\nAre you speaking of this commit? https://github.com/lxc/lxc/pull/382/commits\nIf yes, it should be easy to try it out.\n\n> Do you have plans to include LXC 1.1 in EPEL?\n\nNot really. Upstream website says:\n\n  For production environment, try to stick to LXC 1.0.x as this is the long\n  term, stable release which we will support until April 2019."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8178904",
+						"comment_count": "8",
+						"who": {
+							"text": "thomas.moschny",
+							"name": "Thomas Moschny"
+						},
+						"bug_when": "2015-04-26 07:44:18 +0000",
+						"thetext": "Forgot to add this:\n\nFor testing purposes, I have lxc 1.1 RPMs here:\n\nhttp://copr.fedoraproject.org/coprs/thm/lxc1.1/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8179638",
+						"comment_count": "9",
+						"who": {
+							"text": "nospam13",
+							"name": "Alexey Kurnosov"
+						},
+						"bug_when": "2015-04-26 18:09:12 +0000",
+						"thetext": "\n>Are you speaking of this commit? https://github.com/lxc/lxc/pull/382/commits\nYes\n\n>If yes, it should be easy to try it out.\nI fixed it for me by creating lxc@.service with Delegate=yes, enabling/starting/stopping containers from systemctl and put it in my local repo.\n\n> For production environment, try to stick to LXC 1.0.x as this is the long\n>  term, stable release which we will support until April 2019.\nIt is very strange. Stick to a package which absolutely does not work out of box. At least they should provide a patch to fix it (and include in the EPEL builds)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8752910",
+						"comment_count": "10",
+						"who": {
+							"text": "psz",
+							"name": "Paul Szabo"
+						},
+						"bug_when": "2015-10-26 02:25:32 +0000",
+						"thetext": "I wonder if the Debian bug\nhttp://bugs.debian.org/803013\nis related, and whether that patch proposed there\nhttps://bugs.debian.org/cgi-bin/bugreport.cgi?filename=PSz.patch;att=1;msg=5;bug=803013\nwould solve this issue.\n\nCheers, Paul\n\nPaul Szabo   psz@maths.usyd.edu.au   http://www.maths.usyd.edu.au/u/psz/\nSchool of Mathematics and Statistics   University of Sydney    Australia"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10495376",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-10 15:07:55 +0000",
+						"thetext": "lxc-1.0.10-2.el7 has been submitted as an update to Fedora EPEL 7. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2017-4aae1e22f1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10496135",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-11 23:54:33 +0000",
+						"thetext": "lxc-1.0.10-2.el7 has been pushed to the Fedora EPEL 7 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2017-4aae1e22f1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10646725",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-07-30 19:50:37 +0000",
+						"thetext": "lxc-1.0.10-2.el7 has been pushed to the Fedora EPEL 7 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1411256,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2016-10124 lxc: Escaping to parent session using TIOCSTI ioctl in lxc-attach",
+			"bugzilla": {
+				"bug_id": "1411256",
+				"alias": "CVE-2016-10124",
+				"creation_ts": "2017-01-09 09:32:26 +0000",
+				"short_desc": "CVE-2016-10124 lxc: Escaping to parent session using TIOCSTI ioctl in lxc-attach",
+				"delta_ts": "2021-10-21 11:49:13 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1411257"
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10044505",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2017-01-09 09:32:26 +0000",
+						"thetext": "An issue was discovered in Linux Containers (LXC) before 2016-02-22. When executing a program via lxc-attach, the nonpriv session can escape to the parent session by using the TIOCSTI ioctl to push characters into the terminal's input buffer, allowing an attacker to escape the container.\n\nExternal References:\n\nhttps://github.com/lxc/lxc/commit/e986ea3dfa4a2957f71ae9bfaed406dd6e1ffff6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10044508",
+						"comment_count": "1",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2017-01-09 09:32:50 +0000",
+						"thetext": "\nCreated lxc tracking bugs for this issue:\n\nAffects: epel-all [bug 1411257]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10646713",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-07-30 19:46:37 +0000",
+						"thetext": "lxc-1.0.10-2.el6 has been pushed to the Fedora EPEL 6 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10646723",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-07-30 19:50:30 +0000",
+						"thetext": "lxc-1.0.10-2.el7 has been pushed to the Fedora EPEL 7 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1411257,
+			"security": true,
+			"title": "CVE-2016-10124 lxc: Escaping to parent session using TIOCSTI ioctl in lxc-attach [epel-all]",
+			"bugzilla": {
+				"bug_id": "1411257",
+				"creation_ts": "2017-01-09 09:32:38 +0000",
+				"short_desc": "CVE-2016-10124 lxc: Escaping to parent session using TIOCSTI ioctl in lxc-attach [epel-all]",
+				"delta_ts": "2018-02-25 13:06:40 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1411256",
+						"alias": "CVE-2016-10124",
+						"creation_ts": "2017-01-09 09:32:26 +0000",
+						"short_desc": "CVE-2016-10124 lxc: Escaping to parent session using TIOCSTI ioctl in lxc-attach",
+						"delta_ts": "2021-10-21 11:49:13 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1411257"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "10044505",
+								"comment_count": "0",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2017-01-09 09:32:26 +0000",
+								"thetext": "An issue was discovered in Linux Containers (LXC) before 2016-02-22. When executing a program via lxc-attach, the nonpriv session can escape to the parent session by using the TIOCSTI ioctl to push characters into the terminal's input buffer, allowing an attacker to escape the container.\n\nExternal References:\n\nhttps://github.com/lxc/lxc/commit/e986ea3dfa4a2957f71ae9bfaed406dd6e1ffff6"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10044508",
+								"comment_count": "1",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2017-01-09 09:32:50 +0000",
+								"thetext": "\nCreated lxc tracking bugs for this issue:\n\nAffects: epel-all [bug 1411257]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10646713",
+								"comment_count": "2",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2017-07-30 19:46:37 +0000",
+								"thetext": "lxc-1.0.10-2.el6 has been pushed to the Fedora EPEL 6 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10646723",
+								"comment_count": "3",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2017-07-30 19:50:30 +0000",
+								"thetext": "lxc-1.0.10-2.el7 has been pushed to the Fedora EPEL 7 stable repository. If problems still persist, please make note of it in this bug report."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10044506",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2017-01-09 09:32:38 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora EPEL.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora EPEL. While\nonly one tracking bug has been filed, please correct all affected versions\nat the same time.  If you need to fix the versions independent of each\nother, you may clone this bug as appropriate.\n    \n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10044507",
+						"comment_count": "1",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2017-01-09 09:32:47 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1411256,1411257\n\n# Description of your update\nnotes=Security fix for CVE-2016-10124\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10495375",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-10 15:07:48 +0000",
+						"thetext": "lxc-1.0.10-2.el7 has been submitted as an update to Fedora EPEL 7. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2017-4aae1e22f1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10495378",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-10 15:16:39 +0000",
+						"thetext": "lxc-1.0.10-2.el6 has been submitted as an update to Fedora EPEL 6. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2017-23f4cb5d02"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10496129",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-11 23:50:40 +0000",
+						"thetext": "lxc-1.0.10-2.el6 has been pushed to the Fedora EPEL 6 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2017-23f4cb5d02"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10496134",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-11 23:54:30 +0000",
+						"thetext": "lxc-1.0.10-2.el7 has been pushed to the Fedora EPEL 7 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2017-4aae1e22f1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10646712",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-07-30 19:46:34 +0000",
+						"thetext": "lxc-1.0.10-2.el6 has been pushed to the Fedora EPEL 6 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10646724",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-07-30 19:50:35 +0000",
+						"thetext": "lxc-1.0.10-2.el7 has been pushed to the Fedora EPEL 7 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1431557,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2017-5985 lxc: lxc-user-nic didn't verify network namespace ownership",
+			"bugzilla": {
+				"bug_id": "1431557",
+				"alias": "CVE-2017-5985",
+				"creation_ts": "2017-03-13 09:44:02 +0000",
+				"short_desc": "CVE-2017-5985 lxc: lxc-user-nic didn't verify network namespace ownership",
+				"delta_ts": "2021-10-21 11:52:03 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1431558",
+					"1431559"
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10232248",
+						"comment_count": "0",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-03-13 09:44:02 +0000",
+						"thetext": "\nIt was found that lxc-user-nic could potentially have been tricked into operating on a network namespace over which the caller did not hold privilege.\n\nReferences:\n\nhttp://seclists.org/oss-sec/2017/q1/576\nhttps://lists.linuxcontainers.org/pipermail/lxc-users/2017-March/012925.html\n\nUpstream bug:\n\nhttps://bugs.launchpad.net/ubuntu/+source/lxc/+bug/1654676\n\nUpstream patch:\n\nhttps://github.com/lxc/lxc/commit/16af238036a5464ae8f2420ed3af214f0de875f9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10232256",
+						"comment_count": "1",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-03-13 09:44:53 +0000",
+						"thetext": "Created lxc tracking bugs for this issue:\n\nAffects: epel-6 [bug 1431559]\nAffects: epel-7 [bug 1431558]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10646715",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-07-30 19:46:45 +0000",
+						"thetext": "lxc-1.0.10-2.el6 has been pushed to the Fedora EPEL 6 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10646721",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-07-30 19:50:23 +0000",
+						"thetext": "lxc-1.0.10-2.el7 has been pushed to the Fedora EPEL 7 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1431558,
+			"security": true,
+			"title": "CVE-2017-5985 lxc: lxc-user-nic didn't verify network namespace ownership [epel-7]",
+			"bugzilla": {
+				"bug_id": "1431558",
+				"creation_ts": "2017-03-13 09:44:46 +0000",
+				"short_desc": "CVE-2017-5985 lxc: lxc-user-nic didn't verify network namespace ownership [epel-7]",
+				"delta_ts": "2018-02-25 13:07:36 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1431557",
+						"alias": "CVE-2017-5985",
+						"creation_ts": "2017-03-13 09:44:02 +0000",
+						"short_desc": "CVE-2017-5985 lxc: lxc-user-nic didn't verify network namespace ownership",
+						"delta_ts": "2021-10-21 11:52:03 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1431558",
+							"1431559"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "10232248",
+								"comment_count": "0",
+								"who": {
+									"text": "anemec",
+									"name": "Andrej Nemec"
+								},
+								"bug_when": "2017-03-13 09:44:02 +0000",
+								"thetext": "\nIt was found that lxc-user-nic could potentially have been tricked into operating on a network namespace over which the caller did not hold privilege.\n\nReferences:\n\nhttp://seclists.org/oss-sec/2017/q1/576\nhttps://lists.linuxcontainers.org/pipermail/lxc-users/2017-March/012925.html\n\nUpstream bug:\n\nhttps://bugs.launchpad.net/ubuntu/+source/lxc/+bug/1654676\n\nUpstream patch:\n\nhttps://github.com/lxc/lxc/commit/16af238036a5464ae8f2420ed3af214f0de875f9"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10232256",
+								"comment_count": "1",
+								"who": {
+									"text": "anemec",
+									"name": "Andrej Nemec"
+								},
+								"bug_when": "2017-03-13 09:44:53 +0000",
+								"thetext": "Created lxc tracking bugs for this issue:\n\nAffects: epel-6 [bug 1431559]\nAffects: epel-7 [bug 1431558]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10646715",
+								"comment_count": "2",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2017-07-30 19:46:45 +0000",
+								"thetext": "lxc-1.0.10-2.el6 has been pushed to the Fedora EPEL 6 stable repository. If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10646721",
+								"comment_count": "3",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2017-07-30 19:50:23 +0000",
+								"thetext": "lxc-1.0.10-2.el7 has been pushed to the Fedora EPEL 7 stable repository. If problems still persist, please make note of it in this bug report."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "10232251",
+						"comment_count": "0",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-03-13 09:44:46 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof epel-7.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10232254",
+						"comment_count": "1",
+						"who": {
+							"text": "anemec",
+							"name": "Andrej Nemec"
+						},
+						"bug_when": "2017-03-13 09:44:51 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1431557\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10495374",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-10 15:07:40 +0000",
+						"thetext": "lxc-1.0.10-2.el7 has been submitted as an update to Fedora EPEL 7. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2017-4aae1e22f1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10496133",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-06-11 23:54:27 +0000",
+						"thetext": "lxc-1.0.10-2.el7 has been pushed to the Fedora EPEL 7 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2017-4aae1e22f1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "10646722",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2017-07-30 19:50:28 +0000",
+						"thetext": "lxc-1.0.10-2.el7 has been pushed to the Fedora EPEL 7 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "lxc-1.0.10-2.el7",
+			"release_id": 8,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "lxc-devel",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lxc",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python34-lxc",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lxc-extra",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lua-lxc",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lxc-debuginfo",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lxc-libs",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "aarch64"
+					},
+					{
+						"name": "lxc-templates",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "aarch64"
+					}
+				],
+				"noarch": [
+					{
+						"name": "lxc-doc",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "noarch"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "lxc",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lua-lxc",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lxc-devel",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lxc-debuginfo",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "ppc64"
+					},
+					{
+						"name": "python34-lxc",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lxc-extra",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lxc-templates",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "ppc64"
+					},
+					{
+						"name": "lxc-libs",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "ppc64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "lxc-templates",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lxc",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lxc-extra",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python34-lxc",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lxc-devel",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lxc-libs",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lxc-debuginfo",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "lua-lxc",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "ppc64le"
+					}
+				],
+				"src": [
+					{
+						"name": "lxc",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "python34-lxc",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lxc-templates",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lxc-extra",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lxc-libs",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lxc",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lxc-devel",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lxc-debuginfo",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "x86_64"
+					},
+					{
+						"name": "lua-lxc",
+						"version": "1.0.10",
+						"release": "2.el7",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"comments": [
+		{
+			"id": 620183,
+			"text": "This update has been submitted for testing by thm. ",
+			"timestamp": "2017-06-10 15:07:33",
+			"update_id": 89728,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 620504,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2017-06-11 23:54:38",
+			"update_id": 89728,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 627181,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2017-06-26 00:00:44",
+			"update_id": 89728,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 640983,
+			"text": "This update has been submitted for stable by thm. ",
+			"timestamp": "2017-07-29 09:57:56",
+			"update_id": 89728,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 641278,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2017-07-30 19:51:01",
+			"update_id": 89728,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2017-07-30 18:25:02",
+	"date_stable": "2017-07-30 18:25:02",
+	"date_submitted": "2017-06-10 15:07:33",
+	"date_testing": "2017-06-11 23:34:37",
+	"meets_testing_requirements": true,
+	"notes": "Update the LXC EPEL package to the latest stable LXC 1.0 release.\n\nThe upstream changelog is [here](https://linuxcontainers.org/lxc/news/#lxc-1010-release-announcement-11th-of-may-2017).",
+	"pushed": true,
+	"release": {
+		"branch": "epel7",
+		"candidate_tag": "epel7-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "epel7",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 7",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EPEL-7",
+		"override_tag": "epel7-override",
+		"package_manager": "unspecified",
+		"pending_signing_tag": "epel7-signing-pending",
+		"pending_stable_tag": "epel7-pending",
+		"pending_testing_tag": "epel7-testing-pending",
+		"stable_tag": "epel7",
+		"state": "current",
+		"testing_tag": "epel7-testing",
+		"version": "7"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "lxc-1.0.10-2.el7",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2017-4aae1e22f1",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2017-4aae1e22f1",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/9059004173d8a8bfddf2eb8c342af2c655aabe40786c6fffa5b0527680120734?s=24&d=retro",
+		"email": "thomas.moschny@gmx.de",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 101,
+		"name": "thm",
+		"openid": "thm.id.fedoraproject.org"
+	},
+	"version_hash": "c53714c3d132aaa2e2e8649ac4437e96056852bd"
+}

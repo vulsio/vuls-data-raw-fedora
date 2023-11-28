@@ -1,0 +1,3343 @@
+{
+	"alias": "FEDORA-2018-12f92ff831",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1563858,
+			"parent": true,
+			"security": true,
+			"title": "php: Dumpable FPM child processes allow bypassing opcache access controls",
+			"bugzilla": {
+				"bug_id": "1563858",
+				"alias": "CVE-2018-10545",
+				"creation_ts": "2018-04-04 23:09:18 +0000",
+				"short_desc": "CVE-2018-10545 php: Dumpable FPM child processes allow bypassing opcache access controls",
+				"delta_ts": "2021-12-10 15:54:34 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1563859",
+					"1563860",
+					"1598571",
+					"1598572",
+					"1598573"
+				],
+				"blocked": [
+					{
+						"bug_id": "1563865",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2019:2519",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11449102",
+						"comment_count": "0",
+						"who": {
+							"text": "lpardo",
+							"name": "Laura Pardo"
+						},
+						"bug_when": "2018-04-04 23:09:18 +0000",
+						"thetext": "A flaw was found in PHP versions 5.6 and 7.x. After changing UID and GID, PHP-FPM sets pool worker processes to be dumpable. This allows a local user with the same UID and GID to attach to the PHP-FPM workers and gain access to any restricted resources that are not supposed to be allowed. As a result sensitive configuration data for other accounts can be accessed directly in the PHP worker process's memory.\n\n\nReferences:\nhttps://bugs.php.net/bug.php?id=75605\n\nPatch:\nhttps://bugs.php.net/patch-display.php?bug_id=75605&patch=bug75605-patch-for-5-6&revision=latest\nhttps://bugs.php.net/patch-display.php?bug_id=75605&patch=bug75605-patch-for-7-0&revision=latest"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11449108",
+						"comment_count": "1",
+						"who": {
+							"text": "lpardo",
+							"name": "Laura Pardo"
+						},
+						"bug_when": "2018-04-04 23:10:13 +0000",
+						"thetext": "Created php tracking bugs for this issue:\n\nAffects: fedora-all [bug 1563860]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11771547",
+						"comment_count": "9",
+						"who": {
+							"text": "sgayou",
+							"name": "Scott Gayou"
+						},
+						"bug_when": "2018-07-05 20:25:53 +0000",
+						"thetext": "Statement:\n\nRed Hat Product Security has rated this issue as having a security impact of Low, and a future update may address this flaw."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11774032",
+						"comment_count": "10",
+						"who": {
+							"text": "sgayou",
+							"name": "Scott Gayou"
+						},
+						"bug_when": "2018-07-06 16:26:34 +0000",
+						"thetext": "PHP's opcache contains sensitive shared memory used to cache php bytecode. This memory pool is shared by children of the php-fpm process (workers) who are spawned by root then change uid/guid to another user. When this happens, the dumpable process flag gets set back to /proc/sys/fs/suid_dumpable (0).\n\nphp-fpm needs to be able to ptrace these processes for functionality related reasons. However, as php-fpm already runs as root, setting this flag is redundant and has the side-effect of allowing lower privileged users to dump the worker processes which can contain sensitive memory.\n\nFor example, if a php-fpm worker spawned as apache:apache, the apache user could then ptrace the process and get access to other workers memory via the opcache. Exploiting this would require already being on the system -- shared hosting seems like the most obvious case.\n\nHere's a vulnerable php-fpm with a worker running as apache:\n\nbash-4.2$ whoami\napache\nbash-4.2$ ps\n  PID TTY          TIME CMD\n27985 pts/0    00:00:00 php-fpm\n27986 pts/0    00:00:00 php-fpm\n27987 pts/0    00:00:00 php-fpm\n27988 pts/0    00:00:00 php-fpm\n27989 pts/0    00:00:00 php-fpm\n27993 pts/0    00:00:00 bash\n27995 pts/0    00:00:00 ps\nbash-4.2$ gcore 27989\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/lib64/libthread_db.so.1\".\n0x00007f3b0ecdcb40 in __accept_nocancel () from /lib64/libc.so.6\nSaved corefile core.27989\n\nHere's a run after I patched it as user nobody:\n\nbash-4.2$ whoami\nnobody\nbash-4.2$ ps\n  PID TTY          TIME CMD\n27821 pts/1    00:00:00 php-fpm\n27822 pts/1    00:00:00 php-fpm\n27831 pts/1    00:00:00 bash\n27842 pts/1    00:00:00 ps\nbash-4.2$ gcore 27822\nptrace: Operation not permitted.\nYou can't do that without a process to debug.\nThe program is not being run.\ngcore: failed to create core.27822\n\nSo before we can dump as the user, after we cannot."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13080386",
+						"comment_count": "11",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2019-08-19 08:41:04 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.4 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.5 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.6 EUS\n\nVia RHSA-2019:2519 https://access.redhat.com/errata/RHSA-2019:2519"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13080469",
+						"comment_count": "12",
+						"who": {
+							"text": "prodsec-dev",
+							"name": "Product Security DevOps Team"
+						},
+						"bug_when": "2019-08-19 08:47:08 +0000",
+						"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2018-10545"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1563860,
+			"security": true,
+			"title": "php: Dumpable FPM child processes allow bypassing opcache access controls [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1563860",
+				"creation_ts": "2018-04-04 23:10:04 +0000",
+				"short_desc": "CVE-2018-10545 php: Dumpable FPM child processes allow bypassing opcache access controls [fedora-all]",
+				"delta_ts": "2018-05-02 09:36:33 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1563858",
+						"alias": "CVE-2018-10545",
+						"creation_ts": "2018-04-04 23:09:18 +0000",
+						"short_desc": "CVE-2018-10545 php: Dumpable FPM child processes allow bypassing opcache access controls",
+						"delta_ts": "2021-12-10 15:54:34 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1563859",
+							"1563860",
+							"1598571",
+							"1598572",
+							"1598573"
+						],
+						"blocked": [
+							{
+								"bug_id": "1563865",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2019:2519",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "11449102",
+								"comment_count": "0",
+								"who": {
+									"text": "lpardo",
+									"name": "Laura Pardo"
+								},
+								"bug_when": "2018-04-04 23:09:18 +0000",
+								"thetext": "A flaw was found in PHP versions 5.6 and 7.x. After changing UID and GID, PHP-FPM sets pool worker processes to be dumpable. This allows a local user with the same UID and GID to attach to the PHP-FPM workers and gain access to any restricted resources that are not supposed to be allowed. As a result sensitive configuration data for other accounts can be accessed directly in the PHP worker process's memory.\n\n\nReferences:\nhttps://bugs.php.net/bug.php?id=75605\n\nPatch:\nhttps://bugs.php.net/patch-display.php?bug_id=75605&patch=bug75605-patch-for-5-6&revision=latest\nhttps://bugs.php.net/patch-display.php?bug_id=75605&patch=bug75605-patch-for-7-0&revision=latest"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11449108",
+								"comment_count": "1",
+								"who": {
+									"text": "lpardo",
+									"name": "Laura Pardo"
+								},
+								"bug_when": "2018-04-04 23:10:13 +0000",
+								"thetext": "Created php tracking bugs for this issue:\n\nAffects: fedora-all [bug 1563860]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11771547",
+								"comment_count": "9",
+								"who": {
+									"text": "sgayou",
+									"name": "Scott Gayou"
+								},
+								"bug_when": "2018-07-05 20:25:53 +0000",
+								"thetext": "Statement:\n\nRed Hat Product Security has rated this issue as having a security impact of Low, and a future update may address this flaw."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11774032",
+								"comment_count": "10",
+								"who": {
+									"text": "sgayou",
+									"name": "Scott Gayou"
+								},
+								"bug_when": "2018-07-06 16:26:34 +0000",
+								"thetext": "PHP's opcache contains sensitive shared memory used to cache php bytecode. This memory pool is shared by children of the php-fpm process (workers) who are spawned by root then change uid/guid to another user. When this happens, the dumpable process flag gets set back to /proc/sys/fs/suid_dumpable (0).\n\nphp-fpm needs to be able to ptrace these processes for functionality related reasons. However, as php-fpm already runs as root, setting this flag is redundant and has the side-effect of allowing lower privileged users to dump the worker processes which can contain sensitive memory.\n\nFor example, if a php-fpm worker spawned as apache:apache, the apache user could then ptrace the process and get access to other workers memory via the opcache. Exploiting this would require already being on the system -- shared hosting seems like the most obvious case.\n\nHere's a vulnerable php-fpm with a worker running as apache:\n\nbash-4.2$ whoami\napache\nbash-4.2$ ps\n  PID TTY          TIME CMD\n27985 pts/0    00:00:00 php-fpm\n27986 pts/0    00:00:00 php-fpm\n27987 pts/0    00:00:00 php-fpm\n27988 pts/0    00:00:00 php-fpm\n27989 pts/0    00:00:00 php-fpm\n27993 pts/0    00:00:00 bash\n27995 pts/0    00:00:00 ps\nbash-4.2$ gcore 27989\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/lib64/libthread_db.so.1\".\n0x00007f3b0ecdcb40 in __accept_nocancel () from /lib64/libc.so.6\nSaved corefile core.27989\n\nHere's a run after I patched it as user nobody:\n\nbash-4.2$ whoami\nnobody\nbash-4.2$ ps\n  PID TTY          TIME CMD\n27821 pts/1    00:00:00 php-fpm\n27822 pts/1    00:00:00 php-fpm\n27831 pts/1    00:00:00 bash\n27842 pts/1    00:00:00 ps\nbash-4.2$ gcore 27822\nptrace: Operation not permitted.\nYou can't do that without a process to debug.\nThe program is not being run.\ngcore: failed to create core.27822\n\nSo before we can dump as the user, after we cannot."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "13080386",
+								"comment_count": "11",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2019-08-19 08:41:04 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.4 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.5 EUS\n  Red Hat Software Collections for Red Hat Enterprise Linux 7.6 EUS\n\nVia RHSA-2019:2519 https://access.redhat.com/errata/RHSA-2019:2519"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "13080469",
+								"comment_count": "12",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2019-08-19 08:47:08 +0000",
+								"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2018-10545"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11449105",
+						"comment_count": "0",
+						"who": {
+							"text": "lpardo",
+							"name": "Laura Pardo"
+						},
+						"bug_when": "2018-04-04 23:10:04 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11449107",
+						"comment_count": "1",
+						"who": {
+							"text": "lpardo",
+							"name": "Laura Pardo"
+						},
+						"bug_when": "2018-04-04 23:10:09 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1563858,1563860\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11449614",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-05 04:46:54 +0000",
+						"thetext": "php-7.1.16-1.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-12f92ff831"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11449615",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-05 04:47:04 +0000",
+						"thetext": "php-7.1.16-1.fc26 has been submitted as an update to Fedora 26. https://bodhi.fedoraproject.org/updates/FEDORA-2018-c71dd2e199"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11454862",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-06 14:36:43 +0000",
+						"thetext": "php-7.1.16-1.fc26 has been pushed to the Fedora 26 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11454981",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-04-06 15:01:41 +0000",
+						"thetext": "php-7.1.16-1.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "php-7.1.16-1.fc27",
+			"release_id": 17,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "php-pdo-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-intl-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-enchant",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-interbase-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-embedded",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-recode-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-odbc-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-enchant-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-tidy-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-opcache-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-odbc",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-pdo-dblib",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-pspell",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-devel",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-ldap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-snmp-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-common-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-dba",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-debugsource",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-xml-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-gmp-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-fpm",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-tidy",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-soap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-xmlrpc",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-dbg",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-interbase",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-mbstring-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-mcrypt-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-pspell-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-pgsql",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-bcmath",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-dba-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-mysqlnd-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-cli",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-mcrypt",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-process-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-bcmath-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-xmlrpc-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-gd",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-json-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-pdo-dblib-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-json",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-common",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-imap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-gd-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-recode",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-pgsql-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-cli-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-fpm-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-embedded-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-pdo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-snmp",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-opcache",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-process",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-gmp",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-mysqlnd",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-xml",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-mbstring",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-ldap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-soap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-dbg-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-intl",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-imap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "php-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "php-pdo-dblib",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-intl-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-odbc",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-gmp-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-xmlrpc",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-cli",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-intl",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-soap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-xml",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-mbstring-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-recode",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-snmp",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-xmlrpc-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-json",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-odbc-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-interbase",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-imap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-recode-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-dba-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-ldap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-pspell-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-mcrypt",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-bcmath",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-gmp",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-pgsql",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-pdo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-tidy",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-debugsource",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-common-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-snmp-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-ldap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-opcache-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-dbg-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-pdo-dblib-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-enchant",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-mbstring",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-fpm",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-bcmath-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-common",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-opcache",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-tidy-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-embedded-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-process",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-mysqlnd-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-gd-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-enchant-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-pspell",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-process-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-embedded",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-pgsql-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-devel",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-interbase-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-imap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-dbg",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-pdo-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-mcrypt-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-xml-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-json-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-cli-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-mysqlnd",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-fpm-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-gd",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-soap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "php-dba",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "php-imap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-process-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-dbg-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-gd-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-process",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-xml-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-fpm",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-debugsource",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-common-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-bcmath-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-enchant-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-pgsql-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-mbstring",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-interbase",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-cli",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-snmp",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-recode-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-embedded-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-soap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-json",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-opcache-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-mysqlnd",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-gmp",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-pgsql",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-pspell-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-devel",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-opcache",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-recode",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-embedded",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-mcrypt-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-pdo-dblib",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-cli-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-soap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-tidy-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-xml",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-snmp-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-imap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-xmlrpc",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-bcmath",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-gd",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-dbg",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-enchant",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-intl-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-odbc",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-dba-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-ldap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-ldap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-common",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-interbase-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-pdo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-pdo-dblib-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-tidy",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-gmp-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-dba",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-mysqlnd-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-odbc-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-mcrypt",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-json-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-pspell",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-mbstring-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-fpm-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-xmlrpc-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-pdo-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "php-intl",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "i686"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "php-opcache-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-gmp-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-dba",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-fpm",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-ldap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-gd-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-soap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-bcmath-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-dba-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-mbstring-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-gmp",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-mcrypt",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-xmlrpc",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-pdo-dblib",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-enchant-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-dbg",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-interbase",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-cli",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-fpm-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-json",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-imap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-process",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-xml",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-process-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-gd",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-embedded-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-tidy-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-pdo-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-odbc",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-pspell-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-snmp-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-pgsql-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-mcrypt-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-soap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-recode",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-ldap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-tidy",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-odbc-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-opcache",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-pdo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-json-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-common",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-xml-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-enchant",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-dbg-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-pdo-dblib-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-devel",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-bcmath",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-cli-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-intl",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-mysqlnd-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-intl-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-common-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-embedded",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-pgsql",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-xmlrpc-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-pspell",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-mysqlnd",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-snmp",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-debugsource",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-mbstring",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-imap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-recode-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "php-interbase-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "php-xml",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-common-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-gmp-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-process",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-xmlrpc-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-embedded",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-pspell",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-intl-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-gd-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-opcache",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-interbase",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-snmp",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-fpm-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-ldap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-fpm",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-pdo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-devel",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-tidy-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-mbstring",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-pdo-dblib-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-recode-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-gd",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-dba-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-mcrypt-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-enchant-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-mysqlnd-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-mbstring-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-cli",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-mysqlnd",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-pspell-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-intl",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-soap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-interbase-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-bcmath",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-dba",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-json",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-cli-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-gmp",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-pdo-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-pgsql-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-recode",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-common",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-embedded-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-imap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-pgsql",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-opcache-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-xml-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-mcrypt",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-pdo-dblib",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-process-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-odbc-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-xmlrpc",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-dbg-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-imap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-ldap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-bcmath-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-debugsource",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-json-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-enchant",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-dbg",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-tidy",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-odbc",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-soap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "php-snmp-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "php",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-cli",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-dbg",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-fpm",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-common",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-devel",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-opcache",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-imap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-ldap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-pdo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-mysqlnd",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-pgsql",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-process",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-odbc",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-soap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-interbase",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-snmp",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-xml",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-xmlrpc",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-mbstring",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-gd",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-bcmath",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-gmp",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-dba",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-mcrypt",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-tidy",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-pdo-dblib",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-embedded",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-pspell",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-recode",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-intl",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-enchant",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-json",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-debugsource",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-cli-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-dbg-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-fpm-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-common-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-opcache-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-imap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-ldap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-pdo-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-mysqlnd-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-pgsql-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-process-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-odbc-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-soap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-interbase-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-snmp-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-xml-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-xmlrpc-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-mbstring-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-gd-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-bcmath-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-gmp-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-dba-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-mcrypt-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-tidy-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-pdo-dblib-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-embedded-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-pspell-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-recode-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-intl-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-enchant-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "php-json-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "php",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "php-dba-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-tidy",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-opcache",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-bcmath",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-cli-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-soap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-snmp-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-recode-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-pspell",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-common",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-intl",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-recode",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-process",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-gmp",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-enchant",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-dba",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-ldap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-dbg-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-mysqlnd-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-soap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-xml-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-mysqlnd",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-interbase-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-pgsql-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-xml",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-intl-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-pdo-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-imap",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-pdo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-debugsource",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-devel",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-gmp-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-cli",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-gd",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-dbg",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-opcache-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-common-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-pgsql",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-snmp",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-mbstring-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-odbc-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-enchant-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-embedded",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-tidy-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-mbstring",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-odbc",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-fpm",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-pdo-dblib-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-mcrypt-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-bcmath-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-fpm-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-ldap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-xmlrpc-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-embedded-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-json-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-imap-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-json",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-interbase",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-gd-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-process-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-pdo-dblib",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-pspell-debuginfo",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-xmlrpc",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-mcrypt",
+						"version": "7.1.16",
+						"release": "1.fc27",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 754695,
+			"text": "This update has been submitted for testing by remi. ",
+			"timestamp": "2018-03-28 12:41:03",
+			"update_id": 111139,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 754697,
+			"text": "This update has obsoleted [php-7.1.16~RC1-1.fc27](https://bodhi.fedoraproject.org/updates/FEDORA-2018-5b458a66d7), and has inherited its bugs and notes.",
+			"timestamp": "2018-03-28 12:41:05",
+			"update_id": 111139,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 754698,
+			"text": "remi edited this update.",
+			"timestamp": "2018-03-28 12:41:50",
+			"update_id": 111139,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 755214,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2018-03-29 00:45:21",
+			"update_id": 111139,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 758580,
+			"karma": 1,
+			"text": "no regressions noted",
+			"timestamp": "2018-04-01 22:45:55",
+			"update_id": 111139,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/d826994e83ce867281f73d85986dd475938841874b75a83a82cdb184f6af8749?s=24&d=retro",
+				"email": "rosset.filipe@gmail.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "l10n"
+					},
+					{
+						"name": "cvsl10n"
+					},
+					{
+						"name": "fedora-br"
+					}
+				],
+				"id": 124,
+				"name": "filiperosset",
+				"openid": "filiperosset.id.fedoraproject.org"
+			},
+			"user_id": 124
+		},
+		{
+			"id": 760891,
+			"text": "remi edited this update.",
+			"timestamp": "2018-04-05 04:46:49",
+			"update_id": 111139,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 760957,
+			"text": "This update has reached 7 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2018-04-05 06:00:37",
+			"update_id": 111139,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 761029,
+			"text": "This update has been submitted for batched by remi. ",
+			"timestamp": "2018-04-05 07:08:59",
+			"update_id": 111139,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 761848,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2018-04-06 03:01:13",
+			"update_id": 111139,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 762158,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2018-04-06 15:02:56",
+			"update_id": 111139,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2018-04-05 04:46:49",
+	"date_pushed": "2018-04-06 15:00:04",
+	"date_stable": "2018-04-06 15:00:04",
+	"date_submitted": "2018-03-28 12:41:03",
+	"date_testing": "2018-03-29 00:42:26",
+	"karma": 1,
+	"meets_testing_requirements": true,
+	"notes": "**PHP version 7.1.16** (29 Mar 2018)\n\n**Core:**\n\n* Fixed bug php#76025 (Segfault while throwing exception in error_handler). (Dmitry, Laruence)\n* Fixed bug php#76044 ('date: illegal option -- -' in ./configure on FreeBSD). (Anatol)\n\n**FPM:**\n\n* Fixed bug php#75605 (Dumpable FPM child processes allow bypassing opcache access controls). (Jakub Zelenka)\n\n**GD:**\n\n* Fixed bug php#73957 (signed integer conversion in imagescale()). (cmb)\n\n**ODBC:**\n\n* Fixed bug php#76088 (ODBC functions are not available by default on Windows). (cmb)\n\n**Opcache:**\n\n* Fixed bug php#76074 (opcache corrupts variable in for-loop). (Bob)\n\n**Phar:**\n\n* Fixed bug php#76085 (Segmentation fault in buildFromIterator when directory name contains a \\n). (Laruence)\n\n**Standard:**\n\n* Fixed bug php#74139 (mail.add_x_header default inconsistent with docs). (cmb)\n* Fixed bug php#76068 (parse_ini_string fails to parse \"[foo]\\nbar=1|>baz\" with segfault). (Anatol)\n\n",
+	"pushed": true,
+	"release": {
+		"branch": "f27",
+		"candidate_tag": "f27-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f27",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 27",
+		"mail_template": "fedora_errata_template",
+		"name": "F27",
+		"override_tag": "f27-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f27-signing-pending",
+		"pending_stable_tag": "f27-updates-pending",
+		"pending_testing_tag": "f27-updates-testing-pending",
+		"stable_tag": "f27-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f27-updates-testing",
+		"version": "27"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "passed",
+	"title": "php-7.1.16-1.fc27",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2018-12f92ff831",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2018-12f92ff831",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/33ddfefecc66c71eb7d6eb60503cf7f665d3bceb22e2f8e3af2704260a995ab2?s=24&d=retro",
+		"email": "fedora@famillecollet.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "centosproject-email-aliases"
+			},
+			{
+				"name": "sig-sclo"
+			}
+		],
+		"id": 94,
+		"name": "remi",
+		"openid": "remi.id.fedoraproject.org"
+	},
+	"version_hash": "7890b9fe35a41b8edb7d7cc368d7422e991d2289"
+}

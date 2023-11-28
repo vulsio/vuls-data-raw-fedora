@@ -1,0 +1,774 @@
+{
+	"alias": "FEDORA-EPEL-2013-12426",
+	"bugs": [
+		{
+			"bug_id": 1000722,
+			"parent": true,
+			"security": true,
+			"title": "ngircd: failure to drop supplementary groups",
+			"bugzilla": {
+				"bug_id": "1000722",
+				"creation_ts": "2013-08-24 16:51:30 +0000",
+				"short_desc": "ngircd: failure to drop supplementary groups",
+				"delta_ts": "2019-09-29 13:07:30 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "CURRENTRELEASE",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1044619",
+					"1044620"
+				],
+				"blocked": [
+					{
+						"bug_id": "1001205",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6242316",
+						"comment_count": "0",
+						"who": {
+							"text": "misc",
+							"name": "Michael S."
+						},
+						"bug_when": "2013-08-24 16:51:30 +0000",
+						"thetext": "ngircd do not drop supplementary groups when run, which mean it is still running with partially elevated privileges.\n\nUsing the default config :\n\n# ngircd -n\n[12357:4    0] Can't read MOTD file \"/etc/ngircd.motd\": No such file or directory\n[12357:4    0] No administrative information configured but required by RFC!\n[12357:5    0] ngIRCd 20.2-IDENT+IPv6+IRCPLUS+SSL+SYSLOG+TCPWRAP+ZLIB-x86_64/redhat/linux-gnu started.\n[12357:6    0] Using configuration file \"/etc/ngircd.conf\" ...\n[12357:6    0] Running as user ngircd(468), group ngircd(452), with PID 12357.\n[12357:6    0] Not running with changed root directory.\n[12357:6    0] IO subsystem: epoll (hint size 100, initial maxfd 100, masterfd 3).\n[12357:6    0] Now listening on [127.0.0.1]:6667 (socket 6).\n\nOn another terminal\n\n$ grep Group /proc/12357/status\nGroups:\t0 1 2 3 4 6 10 \n\nthat's root, bin, daemon, sys, adm, disk and wheel. The last one is IMHO quite problematic.\n\nIndeed, looking at the code, it fail to call initgrp to make sure the supplementary group are dropped. \n\nThis is not a issue on systemd since it start with a empty environment, but is a issue on RHEL 6 ( likely for EPEL ).\n\nI didn't notify upstream yet, nor asked for a CVE, and do not have a patch ready now, but I will be working on a patch if time permit. Following what was done on https://bugzilla.redhat.com/show_bug.cgi?id=894626 , I marked it as a security issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6246576",
+						"comment_count": "1",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2013-08-26 17:21:12 +0000",
+						"thetext": "Hi, Michael.  Please do let upstream know about this issue.  If they're unaware of it, I can certainly assign a CVE on their behalf.  I do see they just released 20.3 which fixed a DoS condition, so they should be quite responsive to this flaw as well."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6246989",
+						"comment_count": "2",
+						"who": {
+							"text": "misc",
+							"name": "Michael S."
+						},
+						"bug_when": "2013-08-26 20:24:13 +0000",
+						"thetext": "Will do.\n\nNot sure if that deserve a CVE since there is no direct privileges escalation, and I found quite a lot of similar problem in Fedora ( using rpmlint and checking manually ). Last time I found one ( for haproxy ), we concluded this was just a failure to harden the system and didn't gave a CVE."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6569285",
+						"comment_count": "3",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2013-11-28 16:50:19 +0000",
+						"thetext": "Hi, Michael.  Did upstream ever respond to this?\n\nI'm also fine with treating it as hardening rather than a security flaw."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6569709",
+						"comment_count": "4",
+						"who": {
+							"text": "misc",
+							"name": "Michael S."
+						},
+						"bug_when": "2013-11-28 22:41:22 +0000",
+						"thetext": "upstream applied and released without CVE ( it was on 27/08 ). So i think this can be closed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6633587",
+						"comment_count": "5",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2013-12-18 17:08:16 +0000",
+						"thetext": "Right, this was fixed in ngIRCd 21-rc1 as per http://ngircd.barton.de/doc/ChangeLog :\n\n- Correctly discard supplementary groups on server startup.\n\nBoth Fedora 19 and 20 have this new version.\n\nUpstream commits that may be suitable for EPEL:\n\nhttp://arthur.barton.de/cgi-bin/gitweb.cgi?p=ngircd.git;a=commitdiff;h=e009ccbe66f67a4c5344d6a1f415c50b699765ad\nhttp://arthur.barton.de/cgi-bin/gitweb.cgi?p=ngircd.git;a=commitdiff;h=41f75b69740bd205864bd34afbb65ab0a3776136\n\n(the first is the actual fix, the second is also required)\n\nEven though we are treating this as hardening, I'm going to file a tracking bug for EPEL as I think it would be worthwhile to get in there."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6633592",
+						"comment_count": "6",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2013-12-18 17:09:10 +0000",
+						"thetext": "\nCreated ngircd tracking bugs for this issue:\n\nAffects: fedora-all [bug 1044619]\nAffects: epel-all [bug 1044620]"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1044620,
+			"security": true,
+			"title": "ngircd: failure to drop supplementary groups [epel-all]",
+			"bugzilla": {
+				"bug_id": "1044620",
+				"creation_ts": "2013-12-18 17:08:59 +0000",
+				"short_desc": "ngircd: failure to drop supplementary groups [epel-all]",
+				"delta_ts": "2014-01-02 23:13:40 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1000722",
+						"creation_ts": "2013-08-24 16:51:30 +0000",
+						"short_desc": "ngircd: failure to drop supplementary groups",
+						"delta_ts": "2019-09-29 13:07:30 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "CURRENTRELEASE",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1044619",
+							"1044620"
+						],
+						"blocked": [
+							{
+								"bug_id": "1001205",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "6242316",
+								"comment_count": "0",
+								"who": {
+									"text": "misc",
+									"name": "Michael S."
+								},
+								"bug_when": "2013-08-24 16:51:30 +0000",
+								"thetext": "ngircd do not drop supplementary groups when run, which mean it is still running with partially elevated privileges.\n\nUsing the default config :\n\n# ngircd -n\n[12357:4    0] Can't read MOTD file \"/etc/ngircd.motd\": No such file or directory\n[12357:4    0] No administrative information configured but required by RFC!\n[12357:5    0] ngIRCd 20.2-IDENT+IPv6+IRCPLUS+SSL+SYSLOG+TCPWRAP+ZLIB-x86_64/redhat/linux-gnu started.\n[12357:6    0] Using configuration file \"/etc/ngircd.conf\" ...\n[12357:6    0] Running as user ngircd(468), group ngircd(452), with PID 12357.\n[12357:6    0] Not running with changed root directory.\n[12357:6    0] IO subsystem: epoll (hint size 100, initial maxfd 100, masterfd 3).\n[12357:6    0] Now listening on [127.0.0.1]:6667 (socket 6).\n\nOn another terminal\n\n$ grep Group /proc/12357/status\nGroups:\t0 1 2 3 4 6 10 \n\nthat's root, bin, daemon, sys, adm, disk and wheel. The last one is IMHO quite problematic.\n\nIndeed, looking at the code, it fail to call initgrp to make sure the supplementary group are dropped. \n\nThis is not a issue on systemd since it start with a empty environment, but is a issue on RHEL 6 ( likely for EPEL ).\n\nI didn't notify upstream yet, nor asked for a CVE, and do not have a patch ready now, but I will be working on a patch if time permit. Following what was done on https://bugzilla.redhat.com/show_bug.cgi?id=894626 , I marked it as a security issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6246576",
+								"comment_count": "1",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2013-08-26 17:21:12 +0000",
+								"thetext": "Hi, Michael.  Please do let upstream know about this issue.  If they're unaware of it, I can certainly assign a CVE on their behalf.  I do see they just released 20.3 which fixed a DoS condition, so they should be quite responsive to this flaw as well."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6246989",
+								"comment_count": "2",
+								"who": {
+									"text": "misc",
+									"name": "Michael S."
+								},
+								"bug_when": "2013-08-26 20:24:13 +0000",
+								"thetext": "Will do.\n\nNot sure if that deserve a CVE since there is no direct privileges escalation, and I found quite a lot of similar problem in Fedora ( using rpmlint and checking manually ). Last time I found one ( for haproxy ), we concluded this was just a failure to harden the system and didn't gave a CVE."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6569285",
+								"comment_count": "3",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2013-11-28 16:50:19 +0000",
+								"thetext": "Hi, Michael.  Did upstream ever respond to this?\n\nI'm also fine with treating it as hardening rather than a security flaw."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6569709",
+								"comment_count": "4",
+								"who": {
+									"text": "misc",
+									"name": "Michael S."
+								},
+								"bug_when": "2013-11-28 22:41:22 +0000",
+								"thetext": "upstream applied and released without CVE ( it was on 27/08 ). So i think this can be closed."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6633587",
+								"comment_count": "5",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2013-12-18 17:08:16 +0000",
+								"thetext": "Right, this was fixed in ngIRCd 21-rc1 as per http://ngircd.barton.de/doc/ChangeLog :\n\n- Correctly discard supplementary groups on server startup.\n\nBoth Fedora 19 and 20 have this new version.\n\nUpstream commits that may be suitable for EPEL:\n\nhttp://arthur.barton.de/cgi-bin/gitweb.cgi?p=ngircd.git;a=commitdiff;h=e009ccbe66f67a4c5344d6a1f415c50b699765ad\nhttp://arthur.barton.de/cgi-bin/gitweb.cgi?p=ngircd.git;a=commitdiff;h=41f75b69740bd205864bd34afbb65ab0a3776136\n\n(the first is the actual fix, the second is also required)\n\nEven though we are treating this as hardening, I'm going to file a tracking bug for EPEL as I think it would be worthwhile to get in there."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6633592",
+								"comment_count": "6",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2013-12-18 17:09:10 +0000",
+								"thetext": "\nCreated ngircd tracking bugs for this issue:\n\nAffects: fedora-all [bug 1044619]\nAffects: epel-all [bug 1044620]"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6633590",
+						"comment_count": "0",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2013-12-18 17:08:59 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora EPEL.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen creating a Bodhi update request, please use the bodhi submission link\nnoted in the next comment(s).  This will include the bug IDs of this\ntracking bug as well as the relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nBodhi notes field when available.\n\nPlease note: this issue affects multiple supported versions of Fedora EPEL.\nOnly one tracking bug has been filed; please ensure that it is only closed\nwhen all affected versions are fixed.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6633591",
+						"comment_count": "1",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2013-12-18 17:09:08 +0000",
+						"thetext": "\nPlease use the following update submission link to create the Bodhi\nrequest for this issue as it contains the top-level parent bug(s) as well\nas this tracking bug.  This will ensure that all associated bugs get\nupdated when new packages are pushed to stable.\n\nPlease also ensure that the \"Close bugs when update is stable\" option\nremains checked.\n\nBodhi update submission link:\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1000722,1044620"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6633675",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-18 17:33:27 +0000",
+						"thetext": "ngircd-21-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/ngircd-21-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6638141",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-12-19 17:11:35 +0000",
+						"thetext": "Package ngircd-21-1.el6:\n* should fix your issue,\n* was pushed to the Fedora EPEL 6 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=epel-testing ngircd-21-1.el6'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2013-12426/ngircd-21-1.el6\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6669075",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-02 23:13:40 +0000",
+						"thetext": "ngircd-21-1.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "ngircd-21-1.el6",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"i686": [
+					{
+						"name": "ngircd",
+						"version": "21",
+						"release": "1.el6",
+						"arch": "i686"
+					},
+					{
+						"name": "ngircd-debuginfo",
+						"version": "21",
+						"release": "1.el6",
+						"arch": "i686"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "ngircd-debuginfo",
+						"version": "21",
+						"release": "1.el6",
+						"arch": "ppc64"
+					},
+					{
+						"name": "ngircd",
+						"version": "21",
+						"release": "1.el6",
+						"arch": "ppc64"
+					}
+				],
+				"src": [
+					{
+						"name": "ngircd",
+						"version": "21",
+						"release": "1.el6",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "ngircd-debuginfo",
+						"version": "21",
+						"release": "1.el6",
+						"arch": "x86_64"
+					},
+					{
+						"name": "ngircd",
+						"version": "21",
+						"release": "1.el6",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 202749,
+			"text": "This update has been submitted for testing by kevin. ",
+			"timestamp": "2013-12-18 17:33:29",
+			"update_id": 26097,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 202750,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 testing updates repository.",
+			"timestamp": "2013-12-19 14:42:14",
+			"update_id": 26097,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 202751,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2013-12-19 17:11:36",
+			"update_id": 26097,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 202752,
+			"karma": 1,
+			"text": "Works here",
+			"timestamp": "2013-12-19 18:41:34",
+			"update_id": 26097,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/b6fd449fcea49e2de27dacf226d46a01a0c8a44918672843e45bf5ac0bd0060b?s=24&d=retro",
+				"email": "orion@nwra.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "astro-sig"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "epel-packagers-sig"
+					},
+					{
+						"name": "scitech_sig"
+					},
+					{
+						"name": "packaging-committee"
+					},
+					{
+						"name": "scitech"
+					},
+					{
+						"name": "clamav"
+					}
+				],
+				"id": 97,
+				"name": "orion",
+				"openid": "orion.id.fedoraproject.org"
+			},
+			"user_id": 97
+		},
+		{
+			"id": 202753,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2014-01-02 19:48:06",
+			"update_id": 26097,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 202754,
+			"text": "This update has been submitted for stable by kevin. ",
+			"timestamp": "2014-01-02 19:51:19",
+			"update_id": 26097,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 202755,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 stable updates repository.",
+			"timestamp": "2014-01-02 21:20:18",
+			"update_id": 26097,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 202756,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2014-01-02 23:13:53",
+			"update_id": 26097,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2014-01-02 23:13:53",
+	"date_stable": "2014-01-02 23:13:53",
+	"date_submitted": "2013-12-18 17:33:00",
+	"date_testing": "2013-12-19 17:11:36",
+	"karma": 1,
+	"meets_testing_requirements": true,
+	"notes": "Update to upstream version 21. \r\n\r\nFixes a security issue. See http://ngircd.barton.de/doc/NEWS for more detailed changes. ",
+	"pushed": true,
+	"release": {
+		"branch": "el6",
+		"candidate_tag": "dist-6E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "dist-6E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 6",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-6",
+		"override_tag": "dist-6E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-6E-epel",
+		"state": "archived",
+		"testing_tag": "dist-6E-epel-testing",
+		"version": "6"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "ngircd-21-1.el6",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2013-12426",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2013-12426",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/1a7d8c43c8b89789a33a3266b0e20be7759a502ff38b74ff724a4db6aa33ede8?s=24&d=retro",
+		"email": "kevin@scrye.com",
+		"groups": [
+			{
+				"name": "proventesters"
+			},
+			{
+				"name": "security_respons"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "bodhiadmin"
+			},
+			{
+				"name": "infra-sig"
+			},
+			{
+				"name": "sysadmin-main"
+			},
+			{
+				"name": "releng-team"
+			},
+			{
+				"name": "sysadmin-dba"
+			},
+			{
+				"name": "sysadmin-jenkins"
+			},
+			{
+				"name": "freemedia"
+			},
+			{
+				"name": "gitspin-kickstarts"
+			},
+			{
+				"name": "wikiadmin"
+			},
+			{
+				"name": "aws-iam"
+			},
+			{
+				"name": "wikiedit"
+			},
+			{
+				"name": "epel-wranglers"
+			},
+			{
+				"name": "sysadmin-cloud"
+			},
+			{
+				"name": "sysadmin-backup"
+			},
+			{
+				"name": "upstream-test"
+			},
+			{
+				"name": "irc-support-operators"
+			},
+			{
+				"name": "sysadmin-osbs"
+			},
+			{
+				"name": "aws-s3"
+			},
+			{
+				"name": "bzrpython-fedora"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "aws"
+			},
+			{
+				"name": "fi-apprentice"
+			},
+			{
+				"name": "sysadmin-accounts"
+			},
+			{
+				"name": "msftazure"
+			},
+			{
+				"name": "server-wg"
+			},
+			{
+				"name": "sysadmin-secondary"
+			},
+			{
+				"name": "fedora-hams"
+			},
+			{
+				"name": "signers"
+			},
+			{
+				"name": "sysadmin-devel"
+			},
+			{
+				"name": "aws-copr"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "sysadmin-spin"
+			},
+			{
+				"name": "sysadmin-logs"
+			},
+			{
+				"name": "sysadmin-tools"
+			},
+			{
+				"name": "cvsadmin"
+			},
+			{
+				"name": "sysadmin-releng"
+			},
+			{
+				"name": "sysadmin-hosted"
+			},
+			{
+				"name": "sysadmin-openshift"
+			},
+			{
+				"name": "aws-master"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "sysadmin-gallery"
+			},
+			{
+				"name": "accounts"
+			},
+			{
+				"name": "sysadmin-veteran"
+			},
+			{
+				"name": "gitfedbot"
+			},
+			{
+				"name": "fesco"
+			},
+			{
+				"name": "sysadmin-survey"
+			},
+			{
+				"name": "web"
+			},
+			{
+				"name": "sysadmin-coreos"
+			},
+			{
+				"name": "cvsfedora"
+			},
+			{
+				"name": "aws-billing"
+			},
+			{
+				"name": "aws-s3-readonly"
+			},
+			{
+				"name": "admins"
+			},
+			{
+				"name": "epel-cabal"
+			},
+			{
+				"name": "sysadmin-dns"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "sysadmin-noc"
+			},
+			{
+				"name": "sysadmin-qa"
+			},
+			{
+				"name": "hosted-content"
+			},
+			{
+				"name": "sysadmin-cvs"
+			},
+			{
+				"name": "torrentadmin"
+			},
+			{
+				"name": "gitfedora-web"
+			},
+			{
+				"name": "sysadmin-darkserver"
+			},
+			{
+				"name": "gitcsi"
+			},
+			{
+				"name": "gitformulas"
+			},
+			{
+				"name": "sysadmin-web"
+			},
+			{
+				"name": "sysadmin-ask"
+			},
+			{
+				"name": "communishift"
+			},
+			{
+				"name": "vendor-support"
+			},
+			{
+				"name": "sysadmin-calendar"
+			},
+			{
+				"name": "aws-fedoramirror"
+			},
+			{
+				"name": "aws-infra"
+			},
+			{
+				"name": "sysadmin-packages"
+			},
+			{
+				"name": "sysadmin"
+			},
+			{
+				"name": "hetznercloud"
+			},
+			{
+				"name": "epel-packagers-sig"
+			}
+		],
+		"id": 137,
+		"name": "kevin",
+		"openid": "kevin.id.fedoraproject.org"
+	},
+	"version_hash": "690be2371f3ad1b6bdd4146a12c4fa24a5288b0b"
+}

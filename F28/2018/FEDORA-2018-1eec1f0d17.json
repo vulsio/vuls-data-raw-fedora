@@ -1,0 +1,1995 @@
+{
+	"alias": "FEDORA-2018-1eec1f0d17",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1608390,
+			"title": "eu-strip might corrupted section header table",
+			"bugzilla": {
+				"bug_id": "1608390",
+				"creation_ts": "2018-07-25 12:33:46 +0000",
+				"short_desc": "eu-strip might corrupted section header table",
+				"delta_ts": "2018-10-02 16:01:43 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"external_bugs": {
+					"text": "1608549",
+					"name": "Red Hat Bugzilla"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11842006",
+						"comment_count": "0",
+						"who": {
+							"text": "fweimer",
+							"name": "Florian Weimer"
+						},
+						"bug_when": "2018-07-25 12:33:46 +0000",
+						"thetext": "Description of problem:\n\nbinutils reports:\n\nThere are 8647 section headers, starting at offset 0x107e90f0:\n\nSection Headers:\n  [Nr] Name              Type             Address           Offset\n       Size              EntSize          Flags  Link  Info  Align\n  [ 0] <A1>@^M)<FE>^B^G<DD><C4>^E^M<F7> NULL             0000000000000000  00000000\n       0000000000000000  0000000000000000           0     0     0\n\nThere shouldn't be any section names with control characters.\n\nVersion-Release number of selected component (if applicable):\n\nmame-0.200-1.fc29.x86_64\n\nHow reproducible:\n\nAlways.\n\nSteps to Reproduce:\n1. readelf -S /usr/bin/mame | head\n\nActual results:\n\nSection table is corrupted.\n\nExpected results:\n\nNeat output with section names such as .text."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11842020",
+						"comment_count": "1",
+						"who": {
+							"text": "belegdol",
+							"name": "Julian Sikorski"
+						},
+						"bug_when": "2018-07-25 12:37:36 +0000",
+						"thetext": "Thanks for reporting! Do you have any pointers what might be causing this and where to start looking? At the first sight it looks like something way above my pay grade :o"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11842033",
+						"comment_count": "2",
+						"who": {
+							"text": "fweimer",
+							"name": "Florian Weimer"
+						},
+						"bug_when": "2018-07-25 12:43:02 +0000",
+						"thetext": "With mame-0.199-2.fc29.x86_64, I do not see the problem:\n\n$ readelf -S /usr/bin/mame\nThere are 32 section headers, starting at offset 0xe74d210:\n\nSection Headers:\n  [Nr] Name              Type             Address           Offset\n       Size              EntSize          Flags  Link  Info  Align\n  [ 0]                   NULL             0000000000000000  00000000\n       0000000000000000  0000000000000000           0     0     0\n  [ 1] .interp           PROGBITS         0000000000000350  00000350\n       000000000000001c  0000000000000000   A       0     0     1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11842042",
+						"comment_count": "3",
+						"who": {
+							"text": "belegdol",
+							"name": "Julian Sikorski"
+						},
+						"bug_when": "2018-07-25 12:46:18 +0000",
+						"thetext": "Could you try 0.199-4? It was built only a few days back so if something is off with the build system it could be useful information. Thanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11842227",
+						"comment_count": "4",
+						"who": {
+							"text": "fweimer",
+							"name": "Florian Weimer"
+						},
+						"bug_when": "2018-07-25 13:36:32 +0000",
+						"thetext": "(In reply to Julian Sikorski from comment #3)\n> Could you try 0.199-4? It was built only a few days back so if something is\n> off with the build system it could be useful information. Thanks!\n\nmame-0.199-4.fc29.x86_64 is already corrupted."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11842269",
+						"comment_count": "5",
+						"who": {
+							"text": "belegdol",
+							"name": "Julian Sikorski"
+						},
+						"bug_when": "2018-07-25 13:44:16 +0000",
+						"thetext": "This points to builds problems as changes between -2 and -4 are minimal. -3 is just a rebuild of -2 if you would like to check. I somehow suspect annobin as it has been causing problems with sections already.\nNick, would you mind having a look? Thanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11842281",
+						"comment_count": "6",
+						"who": {
+							"text": "fweimer",
+							"name": "Florian Weimer"
+						},
+						"bug_when": "2018-07-25 13:46:33 +0000",
+						"thetext": "mame-0.199-3.fc29.x86_64 is corrupted as well, so this would point to a toolchain issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11842287",
+						"comment_count": "7",
+						"who": {
+							"text": "fweimer",
+							"name": "Florian Weimer"
+						},
+						"bug_when": "2018-07-25 13:48:23 +0000",
+						"thetext": "Mark noted some dwz crashes in the build log:\n\nextracting debug info from /builddir/build/BUILDROOT/mame-0.199-1.fc27.x86_64/usr/bin/chdman\nextracting debug info from /builddir/build/BUILDROOT/mame-0.199-1.fc27.x86_64/usr/bin/floptool\nmunmap_chunk(): invalid pointer\n/usr/lib/rpm/find-debuginfo.sh: line 231:  6729 Aborted                 (core dumped) eu-strip --remove-comment $r $g ${keep_remove_args} -f \"$1\" \"$2\"\ndwz: dwz.c:9899: read_dwarf: Assertion `data != NULL && data->d_buf != NULL' failed.\n/usr/lib/rpm/find-debuginfo.sh: line 522:  6748 Aborted                 (core dumped) dwz $dwz_opts ${dwz_files[@]}\n/usr/lib/rpm/sepdebugcrcfix: Updated 7 CRC32s, 9 CRC32s did match.\n\nThis is from <https://kojipkgs.fedoraproject.org//packages/mame/0.199/1.fc27/data/logs/x86_64/build.log>, so the issue goes *way* back.  It could be that the more recent corruption is indirectly related to that."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11843325",
+						"comment_count": "8",
+						"who": {
+							"text": "belegdol",
+							"name": "Julian Sikorski"
+						},
+						"bug_when": "2018-07-25 16:54:33 +0000",
+						"thetext": "I checked the previous build logs for dwz crashes and found the following: while 0.199 and higher have those across all Fedora releases and at least on x86_64 and aarch64, 0.198 and 0.197 were not affected by the dwz crash - at least on rawhide."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11843343",
+						"comment_count": "9",
+						"who": {
+							"text": "belegdol",
+							"name": "Julian Sikorski"
+						},
+						"bug_when": "2018-07-25 17:05:53 +0000",
+						"thetext": "I also had a closer look at 0.200-1.fc29 and it turns out that dwz only crashes on aarch64 and x86_64, but not on armv7hl, s390x or i686. Incidentally this matches the architectures which have the default symbols level left at -g2:\n\n%ifarch %{arm} %{ix86} riscv64 s390x\nRPM_OPT_FLAGS=$(echo $RPM_OPT_FLAGS | sed \"s@-g@-g1@\")\n\nMoreover, prior to 0.199 -g1 was being used across the board. mame is a big project, looks like compiling it with -g stretches dwz beyond its capabilities.\nFlorian, do you have the ability to check the binary using readelf on any of the architectures on which dwz does not crash? I do not have any VMs set up at the moment unfortunately."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11843387",
+						"comment_count": "10",
+						"who": {
+							"text": "fweimer",
+							"name": "Florian Weimer"
+						},
+						"bug_when": "2018-07-25 17:29:17 +0000",
+						"thetext": "(In reply to Julian Sikorski from comment #9)\n\n> Florian, do you have the ability to check the binary using readelf on any of\n> the architectures on which dwz does not crash? I do not have any VMs set up\n> at the moment unfortunately.\n\nYou can use eu-readelf from elfutils for cross-architecture checking (or use cross-binutils).  eu-readelf -S shows basically the same corrupted output."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11843411",
+						"comment_count": "11",
+						"who": {
+							"text": "belegdol",
+							"name": "Julian Sikorski"
+						},
+						"bug_when": "2018-07-25 17:39:19 +0000",
+						"thetext": "Looks like it is really arch-specific:\n$ readelf -S mame-i686 \nThere are 8648 section headers, starting at offset 0xfe2fb1c:\n\nSection Headers:\n  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al\n  [ 0]                   NULL            00000000 000000 000000 00      0   0  0\n  [ 1] .interp           PROGBITS        000001b4 0001b4 000013 00   A  0   0  1\n  [ 2] .note.ABI-tag     NOTE            000001c8 0001c8 000020 00   A  0   0  4\n  [ 3] .note.gnu.build-i NOTE            000001e8 0001e8 000024 00   A  0   0  4\n  [ 4] .gnu.hash         GNU_HASH        0000020c 00020c 0001d0 04   A  5   0  4\n  [ 5] .dynsym           DYNSYM          000003dc 0003dc 005270 10   A  6   1  4\n  [ 6] .dynstr           STRTAB          0000564c 00564c 008dde 00   A  0   0  1\n  [ 7] .gnu.version      VERSYM          0000e42a 00e42a 000a4e 02   A  5   0  2\n  [ 8] .gnu.version_r    VERNEED         0000ee78 00ee78 000420 00   A  6  13  4\n  [ 9] .rel.dyn          REL             0000f298 00f298 c67578 08   A  5   0  4\n  [10] .rel.plt          REL             00c76810 c76810 001f40 08  AI  5  25  4\n  [11] .init             PROGBITS        00c79000 c79000 000020 00  AX  0   0  4\n  [12] .plt              PROGBITS        00c79020 c79020 003e90 04  AX  0   0 16\n  [13] .text             PROGBITS        00c7ceb0 c7ceb0 7a86908 00  AX  0   0 16\n\nIs this a bug in dwz? Or should I dial the symbols back to -g1 and call it a day?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11844782",
+						"comment_count": "12",
+						"who": {
+							"text": "belegdol",
+							"name": "Julian Sikorski"
+						},
+						"bug_when": "2018-07-26 05:35:27 +0000",
+						"thetext": "I checked further and the corrupted section header table in mame-0.200-1.fc29 completely overlaps with dwz crashes: corrupted on aarch64 and x86_64, fine on armv7hl, i686 and s390x. Using -g (as opposed to downgrading to -g1) is what seems to be causing the crash."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11848755",
+						"comment_count": "13",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2018-07-26 23:20:27 +0000",
+						"thetext": "I am mostly convinced this is caused by eu-strip, which is ran before dwz.\n\neu-strip doesn't correctly handle a large number (> 65280) of sections.\nIt might still be that dwz also has a bug, but it doesn't have a fighting chance if it gets handed a corrupted file by eu-strip.\n\nSo I think this is a sub-bug of https://bugzilla.redhat.com/show_bug.cgi?id=1608549#c20 as Adam already pointed out."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11849430",
+						"comment_count": "14",
+						"who": {
+							"text": "belegdol",
+							"name": "Julian Sikorski"
+						},
+						"bug_when": "2018-07-27 05:01:21 +0000",
+						"thetext": "Is it worth investigating why there are so many sections in the first place? mame-0.199-1.fc28 has 32 whereas 0.200-1.fc29 (even ones where they are not corrupted) have much more than that. For example, armv7hl has 8644 sections but all except 0-26 and 8642-8644 are .gnu.build.attrib"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11850425",
+						"comment_count": "15",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2018-07-27 11:51:39 +0000",
+						"thetext": "(In reply to Julian Sikorski from comment #14)\n> Is it worth investigating why there are so many sections in the first place?\n\nYes, sorry. We actually do know. It is annobin. And it isn't technically a bad thing. Except that various tools cannot handle thousands of sections. You can work around it for now by adding %undefine _annotated_build to you spec."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11850430",
+						"comment_count": "16",
+						"who": {
+							"text": "fweimer",
+							"name": "Florian Weimer"
+						},
+						"bug_when": "2018-07-27 11:55:40 +0000",
+						"thetext": "(In reply to Mark Wielaard from comment #15)\n> (In reply to Julian Sikorski from comment #14)\n> > Is it worth investigating why there are so many sections in the first place?\n> \n> Yes, sorry. We actually do know. It is annobin. And it isn't technically a\n> bad thing. Except that various tools cannot handle thousands of sections.\n> You can work around it for now by adding %undefine _annotated_build to you\n> spec.\n\nThis shouldn't be necessary.  Newer binutils will produce just one section in the output.\n\nHowever, we are currently dealing with some binutils breakage related to this change, so the new build will have to wait for a bit."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11850981",
+						"comment_count": "17",
+						"who": {
+							"text": "fweimer",
+							"name": "Florian Weimer"
+						},
+						"bug_when": "2018-07-27 15:03:36 +0000",
+						"thetext": "/usr/bin/mame in mame-0.200-2.fc29.i686.rpm looks like this:\n\nThere are 32 section headers, starting at offset 0xfdae320:\n\nSection Headers:\n[Nr] Name                 Type         Addr     Off    Size   ES Flags Lk Inf Al\n[ 0]                      NULL         00000000 000000 000000  0        0   0  0\n[ 1] .interp              PROGBITS     000001b4 0001b4 000013  0 A      0   0  1\n[ 2] .note.ABI-tag        NOTE         000001c8 0001c8 000020  0 A      0   0  4\n[ 3] .note.gnu.build-id   NOTE         000001e8 0001e8 000024  0 A      0   0  4\n[ 4] .gnu.hash            GNU_HASH     0000020c 00020c 0001d0  4 A      5   0  4\n[ 5] .dynsym              DYNSYM       000003dc 0003dc 005270 16 A      6   1  4\n[ 6] .dynstr              STRTAB       0000564c 00564c 008dde  0 A      0   0  1\n[ 7] .gnu.version         GNU_versym   0000e42a 00e42a 000a4e  2 A      5   0  2\n[ 8] .gnu.version_r       GNU_verneed  0000ee78 00ee78 000420  0 A      6  13  4\n[ 9] .rel.dyn             REL          0000f298 00f298 c67578  8 A      5   0  4\n[10] .rel.plt             REL          00c76810 c76810 001f40  8 AI     5  26  4\n[11] .init                PROGBITS     00c79000 c79000 000020  0 AX     0   0  4\n[12] .plt                 PROGBITS     00c79020 c79020 003e90  4 AX     0   0 16\n[13] .text                PROGBITS     00c7ceb0 c7ceb0 7a86908  0 AX     0   0 16\n[14] .fini                PROGBITS     087037b8 87037b8 000014  0 AX     0   0  4\n[15] .rodata              PROGBITS     08704000 8704000 2073f64  0 A      0   0 32\n[16] .qtversion           PROGBITS     0a777f68 a777f68 000008  0 A      0   0  8\n[17] .gnu.build.attributes NOTE         0a777f70 de759c4 19f28e4  0        0   0  4\n[18] .eh_frame_hdr        PROGBITS     0a777f70 a777f70 354c04  0 A      0   0  4\n[19] .eh_frame            PROGBITS     0aaccb74 aaccb74 20ac700  0 A      0   0  4\n[20] .gcc_except_table    PROGBITS     0cb79274 cb79274 3183cc  0 A      0   0  4\n[21] .tbss                NOBITS       0ce928d4 ce918d4 00000c  0 WAT    0   0  4\n[22] .init_array          INIT_ARRAY   0ce928d4 ce918d4 005cc8  4 WA     0   0  4\n[23] .fini_array          FINI_ARRAY   0ce9859c ce9759c 000004  4 WA     0   0  4\n[24] .data.rel.ro         PROGBITS     0ce985a0 ce975a0 daad44  0 WA     0   0 32\n[25] .dynamic             DYNAMIC      0dc432e4 dc422e4 0001d8  8 WA     6   0  4\n[26] .got                 PROGBITS     0dc434bc dc424bc 002b40  4 WA     0   0  4\n[27] .data                PROGBITS     0dc46000 dc45000 2309c4  0 WA     0   0 32\n[28] .bss                 NOBITS       0de769e0 de759c4 71c5a8  0 WA     0   0 32\n[29] .gnu_debuglink       PROGBITS     00000000 f8682a8 000024  0        0   0  4\n[30] .gnu_debugdata       PROGBITS     00000000 f8682cc 545f10  0        0   0  1\n[31] .shstrtab            STRTAB       00000000 fdae1dc 000143  0        0   0  1\n\nSo things should be back to normal, relatively speaking.  That 27 MiB notes section is still very worrisome."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11851149",
+						"comment_count": "18",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2018-07-27 15:54:09 +0000",
+						"thetext": "(In reply to Florian Weimer from comment #17)\n> /usr/bin/mame in mame-0.200-2.fc29.i686.rpm looks like this:\n> \n> There are 32 section headers, starting at offset 0xfdae320:\n> [...]\n> So things should be back to normal, relatively speaking.\n\nThat is good. I still will fix eu-strip so we won't trip over this in the future if for some reason we do have to deal with many sections.\n\n>  That 27 MiB notes section is still very worrisome.\n\nYes. And ELF NOTES will be copied (not stripped) in the .debug file too (because they are expected to be small and useful in both the regular and debug file). So that is actually twice as bad. But that does seem to be a bug for annobin."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11851793",
+						"comment_count": "19",
+						"who": {
+							"text": "belegdol",
+							"name": "Julian Sikorski"
+						},
+						"bug_when": "2018-07-27 18:44:03 +0000",
+						"thetext": "On x86_64 dwz still crashes but the section header table seems to survive this:\n\n$ readelf -S mame\nThere are 31 section headers, starting at offset 0xec0be88:\n\nSection Headers:\n  [Nr] Name              Type             Address           Offset\n       Size              EntSize          Flags  Link  Info  Align\n  [ 0]                   NULL             0000000000000000  00000000\n       0000000000000000  0000000000000000           0     0     0\n  [ 1] .interp           PROGBITS         00000000000002e0  000002e0\n       000000000000001c  0000000000000000   A       0     0     1\n  [ 2] .note.ABI-tag     NOTE             00000000000002fc  000002fc\n       0000000000000020  0000000000000000   A       0     0     4\n  [ 3] .note.gnu.build-i NOTE             000000000000031c  0000031c\n       0000000000000024  0000000000000000   A       0     0     4\n  [ 4] .gnu.hash         GNU_HASH         0000000000000340  00000340\n       00000000000003d8  0000000000000000   A       5     0     8\n  [ 5] .dynsym           DYNSYM           0000000000000718  00000718\n       0000000000007aa0  0000000000000018   A       6     1     8\n  [ 6] .dynstr           STRTAB           00000000000081b8  000081b8\n       0000000000008ca1  0000000000000000   A       0     0     1\n  [ 7] .gnu.version      VERSYM           0000000000010e5a  00010e5a\n       0000000000000a38  0000000000000002   A       5     0     2\n  [ 8] .gnu.version_r    VERNEED          0000000000011898  00011898\n       0000000000000390  0000000000000000   A       6    13     8\n  [ 9] .rela.dyn         RELA             0000000000011c28  00011c28\n       000000000252c000  0000000000000018   A       5     0     8\n  [10] .rela.plt         RELA             000000000253dc28  0253dc28\n       0000000000005d00  0000000000000018  AI       5    26     8\n  [11] .init             PROGBITS         0000000002544000  02544000\n       0000000000000017  0000000000000000  AX       0     0     4\n  [12] .plt              PROGBITS         0000000002544020  02544020\n       0000000000003e10  0000000000000010  AX       0     0     16\n  [13] .text             PROGBITS         0000000002547e30  02547e30\n       0000000007492c84  0000000000000000  AX       0     0     16\n  [14] .fini             PROGBITS         00000000099daab4  099daab4\n       0000000000000009  0000000000000000  AX       0     0     4\n  [15] .rodata           PROGBITS         00000000099db000  099db000\n       0000000002134e84  0000000000000000   A       0     0     32\n  [16] .qtversion        PROGBITS         000000000bb0fe88  0bb0fe88\n       0000000000000010  0000000000000000   A       0     0     8\n  [17] .gnu.build.attrib NOTE             000000000bb0fe98  0bb0fe98\n       0000000001b5bac0  0000000000000000           0     0     4\n  [18] .eh_frame_hdr     PROGBITS         000000000bb0fe98  0bb0fe98\n       0000000000354df4  0000000000000000   A       0     0     4\n  [19] .eh_frame         PROGBITS         000000000be64c90  0be64c90\n       0000000001032c20  0000000000000000   A       0     0     8\n  [20] .gcc_except_table PROGBITS         000000000ce978b0  0ce978b0\n       0000000000306924  0000000000000000   A       0     0     4\n  [21] .tbss             NOBITS           000000000d19f348  0d19e348\n       0000000000000014  0000000000000000 WAT       0     0     8\n  [22] .init_array       INIT_ARRAY       000000000d19f348  0d19e348\n       000000000000b990  0000000000000008  WA       0     0     8\n  [23] .fini_array       FINI_ARRAY       000000000d1aacd8  0d1a9cd8\n       0000000000000008  0000000000000008  WA       0     0     8\n  [24] .data.rel.ro      PROGBITS         000000000d1aace0  0d1a9ce0\n       0000000001603e18  0000000000000000  WA       0     0     32\n  [25] .dynamic          DYNAMIC          000000000e7aeaf8  0e7adaf8\n       00000000000003b0  0000000000000010  WA       6     0     8\n  [26] .got              PROGBITS         000000000e7aeea8  0e7adea8\n       0000000000002140  0000000000000008  WA       0     0     8\n  [27] .data             PROGBITS         000000000e7b1000  0e7b0000\n       000000000045bd2c  0000000000000000  WA       0     0     32\n  [28] .bss              NOBITS           000000000ec0cd40  0ec0bd2c\n       0000000000bc9410  0000000000000000  WA       0     0     32\n  [29] .gnu_debuglink    PROGBITS         0000000000000000  0ec0bd2c\n       0000000000000024  0000000000000000           0     0     4\n  [30] .shstrtab         STRTAB           0000000000000000  0ec0bd50\n       0000000000000136  0000000000000000"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11878933",
+						"comment_count": "20",
+						"who": {
+							"text": "nickc",
+							"name": "Nick Clifton"
+						},
+						"bug_when": "2018-08-06 12:27:03 +0000",
+						"thetext": "FYI - I have now made a few small improvements to objcopy's --merge-notes option.  With this improved version I was able to shrink the size of the .gnu.build.attributes section in the mame executable down from 0x1b2bb08 to 0x751e38.  This is about a 60% reduction, which is good, but there is still room for improvement."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11909744",
+						"comment_count": "21",
+						"who": {
+							"text": "jkurik",
+							"name": "Jan Kurik"
+						},
+						"bug_when": "2018-08-14 11:02:14 +0000",
+						"thetext": "This bug appears to have been reported against 'rawhide' during the Fedora 29 development cycle.\nChanging version to '29'."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12017314",
+						"comment_count": "22",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-14 13:23:11 +0000",
+						"thetext": "elfutils-0.174-1.fc29 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2018-32c8599fe1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12018464",
+						"comment_count": "23",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-14 20:01:16 +0000",
+						"thetext": "elfutils-0.174-1.fc29 has been pushed to the Fedora 29 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-32c8599fe1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12063596",
+						"comment_count": "24",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-29 09:17:55 +0000",
+						"thetext": "elfutils-0.174-1.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-1eec1f0d17"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12064232",
+						"comment_count": "25",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-30 03:03:39 +0000",
+						"thetext": "elfutils-0.174-1.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-1eec1f0d17"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12065128",
+						"comment_count": "26",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-30 23:24:55 +0000",
+						"thetext": "elfutils-0.174-1.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12071399",
+						"comment_count": "27",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-10-02 16:01:43 +0000",
+						"thetext": "elfutils-0.174-1.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1623752,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2018-16062 elfutils: Heap-based buffer over-read in libdw/dwarf_getaranges.c:dwarf_getaranges() via crafted file",
+			"bugzilla": {
+				"bug_id": "1623752",
+				"alias": "CVE-2018-16062",
+				"creation_ts": "2018-08-30 06:21:21 +0000",
+				"short_desc": "CVE-2018-16062 elfutils: Heap-based buffer over-read in libdw/dwarf_getaranges.c:dwarf_getaranges() via crafted file",
+				"delta_ts": "2019-09-29 14:57:29 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1623753",
+					"1623754",
+					"1625260",
+					"1625515",
+					"1625516"
+				],
+				"blocked": [
+					{
+						"bug_id": "1623755",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2019:2197",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11968325",
+						"comment_count": "0",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-08-30 06:21:21 +0000",
+						"thetext": "Elfutils is vulnerable to a heap-based buffer over-read in the libdw/dwarf_getaranges.c:dwarf_getaranges() function. An attacker could exploit this to cause a crash in the eu-addr2line command via a crafted file.\n\n\nUpstream Bug:\n\nhttps://sourceware.org/bugzilla/show_bug.cgi?id=23541\n\n\nUpstream Patch:\n\nhttps://sourceware.org/git/?p=elfutils.git;a=commit;h=29e31978ba51c1051743a503ee325b5ebc03d7e9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11968330",
+						"comment_count": "1",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-08-30 06:21:55 +0000",
+						"thetext": "Created elfutils tracking bugs for this issue:\n\nAffects: fedora-all [bug 1623753]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11968344",
+						"comment_count": "3",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-08-30 06:27:41 +0000",
+						"thetext": "Reproduced on F28 with elfutils-0.173-1.fc28.x86_64:\n\n# eu-addr2line -e addr2line-buffer-over-flow1 -- 500 50 10 -1000\n??:0\n=================================================================\n==30==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x60f0000001dc at pc 0x7f006dcdede6 bp 0x7ffe3f369f40 sp 0x7ffe3f369f30\nREAD of size 1 at 0x60f0000001dc thread T0\n    #0 0x7f006dcdede5 in __libdw_find_attr /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libdw/memory-access.h:97\n    #1 0x7f006dcdb67b in dwarf_attr (/lib64/libdw.so.1+0x2667b)\n    #2 0x7f006dd05e85 in __libdw_intern_next_unit /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libdw/libdw_findcu.c:187\n    #3 0x7f006dd06417 in __libdw_findcu /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libdw/libdw_findcu.c:250\n    #4 0x7f006dcfdb13 in dwarf_getaranges (/lib64/libdw.so.1+0x48b13)\n    #5 0x7f006dd4309c in addrarange cu.c:54\n    #6 0x7f006dd4309c in __libdwfl_addrcu cu.c:313\n    #7 0x7f006dd449b9 in dwfl_module_getsrc (/lib64/libdw.so.1+0x8f9b9)\n    #8 0x5572d99886e7  (/usr/bin/eu-addr2line+0x66e7)\n    #9 0x5572d9986b82  (/usr/bin/eu-addr2line+0x4b82)\n    #10 0x7f006d34424a in __libc_start_main (/lib64/libc.so.6+0x2324a)\n    #11 0x5572d9986fb9  (/usr/bin/eu-addr2line+0x4fb9)\n\n0x60f0000001dc is located 0 bytes to the right of 172-byte region [0x60f000000130,0x60f0000001dc)\nallocated by thread T0 here:\n    #0 0x7f006e094c48 in malloc (/lib64/libasan.so.5+0xeec48)\n    #1 0x7f006da91863 in convert_data /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libelf/elf_getdata.c:149\n    #2 0x7f006da91863 in __libelf_set_data_list_rdlock /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libelf/elf_getdata.c:431\n    #3 0x7f006da91ce8 in __elf_getdata_rdlock /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libelf/elf_getdata.c:538\n    #4 0x7f006dcd6960 in check_section /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libdw/dwarf_begin_elf.c:167\n    #5 0x7f006dcd78b2 in global_read /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libdw/dwarf_begin_elf.c:310\n    #6 0x7f006dd3633e in load_dw dwfl_module_getdwarf.c:1340\n    #7 0x7f006dd369a7 in find_dw dwfl_module_getdwarf.c:1390\n    #8 0x7f006dd44996 in dwfl_module_getsrc (/lib64/libdw.so.1+0x8f996)\n    #9 0x5572d99886e7  (/usr/bin/eu-addr2line+0x66e7)\n    #10 0x5572d9986b82  (/usr/bin/eu-addr2line+0x4b82)\n    #11 0x7f006d34424a in __libc_start_main (/lib64/libc.so.6+0x2324a)\n\nSUMMARY: AddressSanitizer: heap-buffer-overflow /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libdw/memory-access.h:97 in __libdw_find_attr\nShadow bytes around the buggy address:\n  0x0c1e7fff7fe0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x0c1e7fff7ff0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x0c1e7fff8000: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00\n  0x0c1e7fff8010: 00 00 00 00 00 00 00 00 00 00 00 00 00 fa fa fa\n  0x0c1e7fff8020: fa fa fa fa fa fa 00 00 00 00 00 00 00 00 00 00\n=>0x0c1e7fff8030: 00 00 00 00 00 00 00 00 00 00 00[04]fa fa fa fa\n  0x0c1e7fff8040: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x0c1e7fff8050: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x0c1e7fff8060: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x0c1e7fff8070: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x0c1e7fff8080: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13032460",
+						"comment_count": "7",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2019-08-06 12:27:00 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2019:2197 https://access.redhat.com/errata/RHSA-2019:2197"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13035071",
+						"comment_count": "8",
+						"who": {
+							"text": "prodsec-dev",
+							"name": "Product Security DevOps Team"
+						},
+						"bug_when": "2019-08-06 13:19:11 +0000",
+						"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2018-16062"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1623753,
+			"security": true,
+			"title": "CVE-2018-16062 elfutils: Heap-based buffer over-read in libdw/dwarf_getaranges.c:dwarf_getaranges() via crafted file [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1623753",
+				"creation_ts": "2018-08-30 06:21:43 +0000",
+				"short_desc": "CVE-2018-16062 elfutils: Heap-based buffer over-read in libdw/dwarf_getaranges.c:dwarf_getaranges() via crafted file [fedora-all]",
+				"delta_ts": "2018-10-02 16:01:49 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1623752",
+						"alias": "CVE-2018-16062",
+						"creation_ts": "2018-08-30 06:21:21 +0000",
+						"short_desc": "CVE-2018-16062 elfutils: Heap-based buffer over-read in libdw/dwarf_getaranges.c:dwarf_getaranges() via crafted file",
+						"delta_ts": "2019-09-29 14:57:29 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1623753",
+							"1623754",
+							"1625260",
+							"1625515",
+							"1625516"
+						],
+						"blocked": [
+							{
+								"bug_id": "1623755",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2019:2197",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "11968325",
+								"comment_count": "0",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2018-08-30 06:21:21 +0000",
+								"thetext": "Elfutils is vulnerable to a heap-based buffer over-read in the libdw/dwarf_getaranges.c:dwarf_getaranges() function. An attacker could exploit this to cause a crash in the eu-addr2line command via a crafted file.\n\n\nUpstream Bug:\n\nhttps://sourceware.org/bugzilla/show_bug.cgi?id=23541\n\n\nUpstream Patch:\n\nhttps://sourceware.org/git/?p=elfutils.git;a=commit;h=29e31978ba51c1051743a503ee325b5ebc03d7e9"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11968330",
+								"comment_count": "1",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2018-08-30 06:21:55 +0000",
+								"thetext": "Created elfutils tracking bugs for this issue:\n\nAffects: fedora-all [bug 1623753]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11968344",
+								"comment_count": "3",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2018-08-30 06:27:41 +0000",
+								"thetext": "Reproduced on F28 with elfutils-0.173-1.fc28.x86_64:\n\n# eu-addr2line -e addr2line-buffer-over-flow1 -- 500 50 10 -1000\n??:0\n=================================================================\n==30==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x60f0000001dc at pc 0x7f006dcdede6 bp 0x7ffe3f369f40 sp 0x7ffe3f369f30\nREAD of size 1 at 0x60f0000001dc thread T0\n    #0 0x7f006dcdede5 in __libdw_find_attr /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libdw/memory-access.h:97\n    #1 0x7f006dcdb67b in dwarf_attr (/lib64/libdw.so.1+0x2667b)\n    #2 0x7f006dd05e85 in __libdw_intern_next_unit /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libdw/libdw_findcu.c:187\n    #3 0x7f006dd06417 in __libdw_findcu /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libdw/libdw_findcu.c:250\n    #4 0x7f006dcfdb13 in dwarf_getaranges (/lib64/libdw.so.1+0x48b13)\n    #5 0x7f006dd4309c in addrarange cu.c:54\n    #6 0x7f006dd4309c in __libdwfl_addrcu cu.c:313\n    #7 0x7f006dd449b9 in dwfl_module_getsrc (/lib64/libdw.so.1+0x8f9b9)\n    #8 0x5572d99886e7  (/usr/bin/eu-addr2line+0x66e7)\n    #9 0x5572d9986b82  (/usr/bin/eu-addr2line+0x4b82)\n    #10 0x7f006d34424a in __libc_start_main (/lib64/libc.so.6+0x2324a)\n    #11 0x5572d9986fb9  (/usr/bin/eu-addr2line+0x4fb9)\n\n0x60f0000001dc is located 0 bytes to the right of 172-byte region [0x60f000000130,0x60f0000001dc)\nallocated by thread T0 here:\n    #0 0x7f006e094c48 in malloc (/lib64/libasan.so.5+0xeec48)\n    #1 0x7f006da91863 in convert_data /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libelf/elf_getdata.c:149\n    #2 0x7f006da91863 in __libelf_set_data_list_rdlock /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libelf/elf_getdata.c:431\n    #3 0x7f006da91ce8 in __elf_getdata_rdlock /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libelf/elf_getdata.c:538\n    #4 0x7f006dcd6960 in check_section /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libdw/dwarf_begin_elf.c:167\n    #5 0x7f006dcd78b2 in global_read /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libdw/dwarf_begin_elf.c:310\n    #6 0x7f006dd3633e in load_dw dwfl_module_getdwarf.c:1340\n    #7 0x7f006dd369a7 in find_dw dwfl_module_getdwarf.c:1390\n    #8 0x7f006dd44996 in dwfl_module_getsrc (/lib64/libdw.so.1+0x8f996)\n    #9 0x5572d99886e7  (/usr/bin/eu-addr2line+0x66e7)\n    #10 0x5572d9986b82  (/usr/bin/eu-addr2line+0x4b82)\n    #11 0x7f006d34424a in __libc_start_main (/lib64/libc.so.6+0x2324a)\n\nSUMMARY: AddressSanitizer: heap-buffer-overflow /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libdw/memory-access.h:97 in __libdw_find_attr\nShadow bytes around the buggy address:\n  0x0c1e7fff7fe0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x0c1e7fff7ff0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x0c1e7fff8000: fa fa fa fa fa fa fa fa 00 00 00 00 00 00 00 00\n  0x0c1e7fff8010: 00 00 00 00 00 00 00 00 00 00 00 00 00 fa fa fa\n  0x0c1e7fff8020: fa fa fa fa fa fa 00 00 00 00 00 00 00 00 00 00\n=>0x0c1e7fff8030: 00 00 00 00 00 00 00 00 00 00 00[04]fa fa fa fa\n  0x0c1e7fff8040: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x0c1e7fff8050: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x0c1e7fff8060: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x0c1e7fff8070: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x0c1e7fff8080: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "13032460",
+								"comment_count": "7",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2019-08-06 12:27:00 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2019:2197 https://access.redhat.com/errata/RHSA-2019:2197"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "13035071",
+								"comment_count": "8",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2019-08-06 13:19:11 +0000",
+								"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2018-16062"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11968327",
+						"comment_count": "0",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-08-30 06:21:43 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11968328",
+						"comment_count": "1",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-08-30 06:21:49 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1623752,1623753\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12017317",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-14 13:23:26 +0000",
+						"thetext": "elfutils-0.174-1.fc29 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2018-32c8599fe1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12018467",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-14 20:01:31 +0000",
+						"thetext": "elfutils-0.174-1.fc29 has been pushed to the Fedora 29 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-32c8599fe1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12063597",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-29 09:18:02 +0000",
+						"thetext": "elfutils-0.174-1.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-1eec1f0d17"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12064233",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-30 03:03:44 +0000",
+						"thetext": "elfutils-0.174-1.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-1eec1f0d17"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12065131",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-30 23:25:34 +0000",
+						"thetext": "elfutils-0.174-1.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12071400",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-10-02 16:01:49 +0000",
+						"thetext": "elfutils-0.174-1.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1625050,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2018-16402 elfutils: Double-free due to double decompression of sections in crafted ELF causes crash",
+			"bugzilla": {
+				"bug_id": "1625050",
+				"alias": "CVE-2018-16402",
+				"creation_ts": "2018-09-04 04:26:47 +0000",
+				"short_desc": "CVE-2018-16402 elfutils: Double-free due to double decompression of sections in crafted ELF causes crash",
+				"delta_ts": "2020-04-14 17:41:11 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1625051",
+					"1625052",
+					"1625399",
+					"1625400",
+					"1625401",
+					"1822312"
+				],
+				"blocked": [
+					{
+						"bug_id": "1625054",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2020:1471",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11979179",
+						"comment_count": "0",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-09-04 04:26:47 +0000",
+						"thetext": "Elfutils through version 0.173 is vulnerable to a double-free in the libelf/elf_end.c:elf_end() function due to the decompression of section data multiple times.. An attacker could exploit this to cause a crash or possibly have unspecified other impact via a crafted ELF.\n\n\nUpstream Bug:\n\nhttps://sourceware.org/bugzilla/show_bug.cgi?id=23528\n\n\nUpstream Patch:\n\nhttps://sourceware.org/git/?p=elfutils.git;a=patch;h=56b18521fb8d46d40fc090c0de9d11a08bc982fa"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11979183",
+						"comment_count": "1",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-09-04 04:27:37 +0000",
+						"thetext": "Created elfutils tracking bugs for this issue:\n\nAffects: fedora-all [bug 1625051]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11985476",
+						"comment_count": "4",
+						"who": {
+							"text": "sgayou",
+							"name": "Scott Gayou"
+						},
+						"bug_when": "2018-09-04 19:46:04 +0000",
+						"thetext": "Reproduced on 7+ quite easily. Did not reproduce on 5/6. 6 was running 0.164."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11985522",
+						"comment_count": "6",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2018-09-04 20:03:42 +0000",
+						"thetext": "(In reply to Scott Gayou from comment #4)\n> Reproduced on 7+ quite easily. Did not reproduce on 5/6. 6 was running 0.164.\n\nThat makes sense, support for compressed ELF sections was introduced in elfutils 0.165."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13032461",
+						"comment_count": "9",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2019-08-06 12:27:02 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2019:2197 https://access.redhat.com/errata/RHSA-2019:2197"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13035073",
+						"comment_count": "10",
+						"who": {
+							"text": "prodsec-dev",
+							"name": "Product Security DevOps Team"
+						},
+						"bug_when": "2019-08-06 13:19:14 +0000",
+						"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2018-16402"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13800051",
+						"comment_count": "12",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2020-04-14 17:41:09 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7.6 Extended Update Support\n\nVia RHSA-2020:1471 https://access.redhat.com/errata/RHSA-2020:1471"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1625051,
+			"security": true,
+			"title": "CVE-2018-16402 elfutils: Double-free due to double decompression of sections in crafted ELF causes crash [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1625051",
+				"creation_ts": "2018-09-04 04:27:25 +0000",
+				"short_desc": "CVE-2018-16402 elfutils: Double-free due to double decompression of sections in crafted ELF causes crash [fedora-all]",
+				"delta_ts": "2018-10-02 16:01:54 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1625050",
+						"alias": "CVE-2018-16402",
+						"creation_ts": "2018-09-04 04:26:47 +0000",
+						"short_desc": "CVE-2018-16402 elfutils: Double-free due to double decompression of sections in crafted ELF causes crash",
+						"delta_ts": "2020-04-14 17:41:11 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1625051",
+							"1625052",
+							"1625399",
+							"1625400",
+							"1625401",
+							"1822312"
+						],
+						"blocked": [
+							{
+								"bug_id": "1625054",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2020:1471",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "11979179",
+								"comment_count": "0",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2018-09-04 04:26:47 +0000",
+								"thetext": "Elfutils through version 0.173 is vulnerable to a double-free in the libelf/elf_end.c:elf_end() function due to the decompression of section data multiple times.. An attacker could exploit this to cause a crash or possibly have unspecified other impact via a crafted ELF.\n\n\nUpstream Bug:\n\nhttps://sourceware.org/bugzilla/show_bug.cgi?id=23528\n\n\nUpstream Patch:\n\nhttps://sourceware.org/git/?p=elfutils.git;a=patch;h=56b18521fb8d46d40fc090c0de9d11a08bc982fa"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11979183",
+								"comment_count": "1",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2018-09-04 04:27:37 +0000",
+								"thetext": "Created elfutils tracking bugs for this issue:\n\nAffects: fedora-all [bug 1625051]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11985476",
+								"comment_count": "4",
+								"who": {
+									"text": "sgayou",
+									"name": "Scott Gayou"
+								},
+								"bug_when": "2018-09-04 19:46:04 +0000",
+								"thetext": "Reproduced on 7+ quite easily. Did not reproduce on 5/6. 6 was running 0.164."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11985522",
+								"comment_count": "6",
+								"who": {
+									"text": "mjw",
+									"name": "Mark Wielaard"
+								},
+								"bug_when": "2018-09-04 20:03:42 +0000",
+								"thetext": "(In reply to Scott Gayou from comment #4)\n> Reproduced on 7+ quite easily. Did not reproduce on 5/6. 6 was running 0.164.\n\nThat makes sense, support for compressed ELF sections was introduced in elfutils 0.165."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "13032461",
+								"comment_count": "9",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2019-08-06 12:27:02 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2019:2197 https://access.redhat.com/errata/RHSA-2019:2197"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "13035073",
+								"comment_count": "10",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2019-08-06 13:19:14 +0000",
+								"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2018-16402"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "13800051",
+								"comment_count": "12",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2020-04-14 17:41:09 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7.6 Extended Update Support\n\nVia RHSA-2020:1471 https://access.redhat.com/errata/RHSA-2020:1471"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11979180",
+						"comment_count": "0",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-09-04 04:27:25 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11979181",
+						"comment_count": "1",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-09-04 04:27:30 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1625050,1625051\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11979189",
+						"comment_count": "2",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-09-04 04:30:45 +0000",
+						"thetext": "Reproduces on F28 with elfutils-0.173-1.fc28.x86_64:\n\n# eu-nm CVE-2018-16402 2>&1 | ./asan_symbolizer.py \neu-nm: CVE-2018-16402: entry size in section 1 `(null)' is not what we expect\n=================================================================\n==44==ERROR: AddressSanitizer: attempting double-free on 0x604000000390 in thread T0:\n    #0 0x7f8fab1f4880 in __interceptor_free (/lib64/libasan.so.5+0xee880)\n    #1 0x7f8faabdf884 in elf_end (/lib64/libelf.so.1+0xd884)\n    #2 0x7f8faae81dc5 in free_file dwfl_module.c:57\n    #3 0x7f8faae821f2 in __libdwfl_module_free dwfl_module.c:113\n    #4 0x7f8faae8195b in dwfl_end (/lib64/libdw.so.1+0x6c95b)\n    #0 0x5592a1cb900c in ?? /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/nm.c:1495\n    #1 0x5592a1cbb055 in ?? /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/nm.c:1579\n    #2 0x5592a1cbbee2 in ?? /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/nm.c:375\n    #3 0x5592a1cb5538 in ?? /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/nm.c:250\n    #9 0x7f8faa08824a in __libc_start_main (/lib64/libc.so.6+0x2324a)\n    #4 0x5592a1cb57f9 in ?? ??:0\n\n0x604000000390 is located 0 bytes inside of 36-byte region [0x604000000390,0x6040000003b4)\nfreed by thread T0 here:\n    #0 0x7f8fab1f4880 in __interceptor_free (/lib64/libasan.so.5+0xee880)\n    #1 0x7f8faac07f97 in __libelf_reset_rawdata /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libelf/elf_compress.c:325\n    #2 0x7f8faac08455 in elf_compress (/lib64/libelf.so.1+0x36455)\n    #3 0x7f8faae86d33 in relocate_section relocate.c:507\n    #4 0x7f8faae87c0a in __libdwfl_relocate relocate.c:752\n    #5 0x7f8faae96309 in load_dw dwfl_module_getdwarf.c:1335\n    #6 0x7f8faae969a7 in find_dw dwfl_module_getdwarf.c:1390\n    #5 0x5592a1cb5e3f in getdbg_dwflmod /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/nm.c:1191\n    #8 0x7f8faae8d254 in dwfl_getmodules (/lib64/libdw.so.1+0x78254)\n    #6 0x5592a1cb9a1d in show_symbols /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/nm.c:1277\n    #7 0x5592a1cbb055 in handle_elf /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/nm.c:1579\n    #8 0x5592a1cbbee2 in process_file /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/nm.c:375\n    #9 0x5592a1cb5538 in main /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/nm.c:250\n    #13 0x7f8faa08824a in __libc_start_main (/lib64/libc.so.6+0x2324a)\n\npreviously allocated by thread T0 here:\n    #0 0x7f8fab1f4c48 in malloc (/lib64/libasan.so.5+0xeec48)\n    #1 0x7f8faac075fa in __libelf_decompress /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libelf/elf_compress.c:223\n    #2 0x7f8faac09288 in elf_compress_gnu (/lib64/libelf.so.1+0x37288)\n    #3 0x7f8faae86dab in relocate_section relocate.c:504\n    #4 0x7f8faae87c0a in __libdwfl_relocate relocate.c:752\n    #5 0x7f8faae96309 in load_dw dwfl_module_getdwarf.c:1335\n    #6 0x7f8faae969a7 in find_dw dwfl_module_getdwarf.c:1390\n    #10 0x5592a1cb5e3f in getdbg_dwflmod /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/nm.c:1191\n    #8 0x7f8faae8d254 in dwfl_getmodules (/lib64/libdw.so.1+0x78254)\n    #11 0x5592a1cb9a1d in show_symbols /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/nm.c:1277\n    #12 0x5592a1cbb055 in handle_elf /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/nm.c:1579\n    #13 0x5592a1cbbee2 in process_file /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/nm.c:375\n    #14 0x5592a1cb5538 in main /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/nm.c:250\n    #13 0x7f8faa08824a in __libc_start_main (/lib64/libc.so.6+0x2324a)\n\nSUMMARY: AddressSanitizer: double-free (/lib64/libasan.so.5+0xee880) in __interceptor_free\n==44==ABORTING"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12017315",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-14 13:23:17 +0000",
+						"thetext": "elfutils-0.174-1.fc29 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2018-32c8599fe1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12018465",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-14 20:01:21 +0000",
+						"thetext": "elfutils-0.174-1.fc29 has been pushed to the Fedora 29 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-32c8599fe1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12063598",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-29 09:18:06 +0000",
+						"thetext": "elfutils-0.174-1.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-1eec1f0d17"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12064234",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-30 03:03:48 +0000",
+						"thetext": "elfutils-0.174-1.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-1eec1f0d17"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12065129",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-30 23:25:00 +0000",
+						"thetext": "elfutils-0.174-1.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12071401",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-10-02 16:01:54 +0000",
+						"thetext": "elfutils-0.174-1.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1625055,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2018-16403 elfutils: Heap-based buffer over-read in libdw/dwarf_getabbrev.c and libwd/dwarf_hasattr.c causes crash",
+			"bugzilla": {
+				"bug_id": "1625055",
+				"alias": "CVE-2018-16403",
+				"creation_ts": "2018-09-04 04:45:51 +0000",
+				"short_desc": "CVE-2018-16403 elfutils: Heap-based buffer over-read in libdw/dwarf_getabbrev.c and libwd/dwarf_hasattr.c causes crash",
+				"delta_ts": "2019-09-29 14:57:29 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1625056",
+					"1625057",
+					"1625418",
+					"1625419",
+					"1625420"
+				],
+				"blocked": [
+					{
+						"bug_id": "1625054",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2019:2197",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11979206",
+						"comment_count": "0",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-09-04 04:45:51 +0000",
+						"thetext": "Elfutils through version 0.173 is vulnerable to a heap-based buffer over-read due to incorrect checks for the end of attribute lists in the libdw/dwarf_getabbrev.c:__libdw_getabbrev() and libdw/dwarf_hasattr.c:dwarf_hasattr() functions. An attacker could exploit this to cause a crash via a crafted ELF.\n\n\nUpstream Bug:\n\nhttps://sourceware.org/bugzilla/show_bug.cgi?id=23529\n\n\nUpstream Patch:\n\nhttps://sourceware.org/git/?p=elfutils.git;a=patch;h=6983e59b727458a6c64d9659c85f08218bc4fcda"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11979210",
+						"comment_count": "1",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-09-04 04:46:40 +0000",
+						"thetext": "Created elfutils tracking bugs for this issue:\n\nAffects: fedora-all [bug 1625056]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13032462",
+						"comment_count": "6",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2019-08-06 12:27:04 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2019:2197 https://access.redhat.com/errata/RHSA-2019:2197"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13035075",
+						"comment_count": "7",
+						"who": {
+							"text": "prodsec-dev",
+							"name": "Product Security DevOps Team"
+						},
+						"bug_when": "2019-08-06 13:19:17 +0000",
+						"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2018-16403"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1625056,
+			"security": true,
+			"title": "CVE-2018-16403 elfutils: Heap-based buffer over-read in libdw/dwarf_getabbrev.c and libwd/dwarf_hasattr.c causes crash [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1625056",
+				"creation_ts": "2018-09-04 04:46:28 +0000",
+				"short_desc": "CVE-2018-16403 elfutils: Heap-based buffer over-read in libdw/dwarf_getabbrev.c and libwd/dwarf_hasattr.c causes crash [fedora-all]",
+				"delta_ts": "2018-10-02 16:01:58 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1625055",
+						"alias": "CVE-2018-16403",
+						"creation_ts": "2018-09-04 04:45:51 +0000",
+						"short_desc": "CVE-2018-16403 elfutils: Heap-based buffer over-read in libdw/dwarf_getabbrev.c and libwd/dwarf_hasattr.c causes crash",
+						"delta_ts": "2019-09-29 14:57:29 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1625056",
+							"1625057",
+							"1625418",
+							"1625419",
+							"1625420"
+						],
+						"blocked": [
+							{
+								"bug_id": "1625054",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2019:2197",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "11979206",
+								"comment_count": "0",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2018-09-04 04:45:51 +0000",
+								"thetext": "Elfutils through version 0.173 is vulnerable to a heap-based buffer over-read due to incorrect checks for the end of attribute lists in the libdw/dwarf_getabbrev.c:__libdw_getabbrev() and libdw/dwarf_hasattr.c:dwarf_hasattr() functions. An attacker could exploit this to cause a crash via a crafted ELF.\n\n\nUpstream Bug:\n\nhttps://sourceware.org/bugzilla/show_bug.cgi?id=23529\n\n\nUpstream Patch:\n\nhttps://sourceware.org/git/?p=elfutils.git;a=patch;h=6983e59b727458a6c64d9659c85f08218bc4fcda"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11979210",
+								"comment_count": "1",
+								"who": {
+									"text": "sfowler",
+									"name": "Sam Fowler"
+								},
+								"bug_when": "2018-09-04 04:46:40 +0000",
+								"thetext": "Created elfutils tracking bugs for this issue:\n\nAffects: fedora-all [bug 1625056]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "13032462",
+								"comment_count": "6",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2019-08-06 12:27:04 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2019:2197 https://access.redhat.com/errata/RHSA-2019:2197"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "13035075",
+								"comment_count": "7",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2019-08-06 13:19:17 +0000",
+								"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2018-16403"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11979207",
+						"comment_count": "0",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-09-04 04:46:28 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11979208",
+						"comment_count": "1",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-09-04 04:46:34 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1625055,1625056\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11979216",
+						"comment_count": "2",
+						"who": {
+							"text": "sfowler",
+							"name": "Sam Fowler"
+						},
+						"bug_when": "2018-09-04 04:48:41 +0000",
+						"thetext": "Reproduces on F28 with elfutils-0.173-1.fc28.x86_64:\n\n# eu-readelf -w CVE-2018-16403 2>&1 | ./asan_symbolizer.py\n\nDWARF section [ 5] '.debug_info' at offset 0x8a:\n [Offset]\n Compilation unit at offset 0:\n Version: 2, Abbreviation section offset: 0, Address size: 8, Offset size: 4\neu-readelf: cannot get tag of DIE at offset [b] in section '.debug_info': invalid DWARF\n=================================================================\n==53==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x606000000656 at pc 0x7fb7931fea62 bp 0x7ffce2f30cc0 sp 0x7ffce2f30cb0\nREAD of size 1 at 0x606000000656 thread T0\n    #0 0x7fb7931fea61 in dwarf_getabbrevattr_data (/lib64/libdw.so.1+0x37a61)\n    #0 0x55a4827b86a1 in ?? /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/readelf.c:5046\n    #1 0x55a4827ca27f in ?? /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/readelf.c:11144\n    #2 0x55a4827d2111 in ?? /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/readelf.c:997\n    #3 0x55a4827d5a01 in ?? /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/readelf.c:761\n    #5 0x7fb79323f254 in dwfl_getmodules (/lib64/libdw.so.1+0x78254)\n    #4 0x55a4827b5dfd in ?? /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/readelf.c:869\n    #5 0x55a4827ae848 in ?? /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/readelf.c:351\n    #8 0x7fb7927cc24a in __libc_start_main (/lib64/libc.so.6+0x2324a)\n    #6 0x55a4827aee49 in ?? ??:0\n\n0x606000000656 is located 0 bytes to the right of 54-byte region [0x606000000620,0x606000000656)\nallocated by thread T0 here:\n    #0 0x7fb7935a6c48 in malloc (/lib64/libasan.so.5+0xeec48)\n    #1 0x7fb792fa38b7 in convert_data /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libelf/elf_getdata.c:164\n    #2 0x7fb792fa38b7 in __libelf_set_data_list_rdlock /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libelf/elf_getdata.c:431\n    #3 0x7fb792fa3ce8 in __elf_getdata_rdlock /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libelf/elf_getdata.c:538\n    #4 0x7fb7931e8960 in check_section /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libdw/dwarf_begin_elf.c:167\n    #5 0x7fb7931e98b2 in global_read /usr/src/debug/elfutils-0.173-1.fc28.x86_64/libdw/dwarf_begin_elf.c:310\n    #6 0x7fb79324833e in load_dw dwfl_module_getdwarf.c:1340\n    #7 0x7fb7932489a7 in find_dw dwfl_module_getdwarf.c:1390\naddr2line: Dwarf Error: Offset (1330118656) greater than or equal to .debug_str size (57456).\naddr2line: Dwarf Error: Offset (1330118656) greater than or equal to .debug_str size (57456).\naddr2line: Dwarf Error: Offset (1330118656) greater than or equal to .debug_str size (57456).\naddr2line: Dwarf Error: Offset (1330118656) greater than or equal to .debug_str size (57456).\naddr2line: Dwarf Error: Offset (1330118656) greater than or equal to .debug_str size (57456).\naddr2line: Dwarf Error: Offset (1330118656) greater than or equal to .debug_str size (57456).\n    #7 0x55a4827c9736 in print_debug /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/readelf.c:10875\n    #8 0x55a4827d2111 in process_elf_file /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/readelf.c:997\n    #9 0x55a4827d5a01 in process_dwflmod /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/readelf.c:761\n    #11 0x7fb79323f254 in dwfl_getmodules (/lib64/libdw.so.1+0x78254)\n    #10 0x55a4827b5dfd in process_file /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/readelf.c:869\n    #11 0x55a4827ae848 in main /usr/src/debug/elfutils-0.173-1.fc28.x86_64/src/readelf.c:351\n    #14 0x7fb7927cc24a in __libc_start_main (/lib64/libc.so.6+0x2324a)\n\nSUMMARY: AddressSanitizer: heap-buffer-overflow (/lib64/libdw.so.1+0x37a61) in dwarf_getabbrevattr_data\nShadow bytes around the buggy address:\n  0x0c0c7fff8070: 00 00 00 00 00 00 00 fa fa fa fa fa 00 00 00 00\n  0x0c0c7fff8080: 00 00 00 fa fa fa fa fa fd fd fd fd fd fd fd fa\n  0x0c0c7fff8090: fa fa fa fa fd fd fd fd fd fd fd fa fa fa fa fa\n  0x0c0c7fff80a0: fd fd fd fd fd fd fd fa fa fa fa fa fd fd fd fd\n  0x0c0c7fff80b0: fd fd fd fa fa fa fa fa fd fd fd fd fd fd fd fa\n=>0x0c0c7fff80c0: fa fa fa fa 00 00 00 00 00 00[06]fa fa fa fa fa\n  0x0c0c7fff80d0: 00 00 00 00 00 00 00 fa fa fa fa fa fd fd fd fd\n  0x0c0c7fff80e0: fd fd fd fa fa fa fa fa fd fd fd fd fd fd fd fa\n  0x0c0c7fff80f0: fa fa fa fa fd fd fd fd fd fd fd fa fa fa fa fa\n  0x0c0c7fff8100: fd fd fd fd fd fd fd fa fa fa fa fa fd fd fd fd\n  0x0c0c7fff8110: fd fd fd fa fa fa fa fa fd fd fd fd fd fd fd fa"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12017316",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-14 13:23:21 +0000",
+						"thetext": "elfutils-0.174-1.fc29 has been submitted as an update to Fedora 29. https://bodhi.fedoraproject.org/updates/FEDORA-2018-32c8599fe1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12018466",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-14 20:01:26 +0000",
+						"thetext": "elfutils-0.174-1.fc29 has been pushed to the Fedora 29 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-32c8599fe1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12063599",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-29 09:18:13 +0000",
+						"thetext": "elfutils-0.174-1.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-1eec1f0d17"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12064235",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-30 03:03:52 +0000",
+						"thetext": "elfutils-0.174-1.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-1eec1f0d17"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12065130",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-09-30 23:25:18 +0000",
+						"thetext": "elfutils-0.174-1.fc29 has been pushed to the Fedora 29 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12071402",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-10-02 16:01:58 +0000",
+						"thetext": "elfutils-0.174-1.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "elfutils-0.174-1.fc28",
+			"release_id": 21,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "elfutils-libelf-devel-static",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "elfutils-libelf-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "elfutils",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "elfutils-devel-static",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "elfutils-libs",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "elfutils-libs-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "elfutils-libelf-devel",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "elfutils-libelf",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "elfutils-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "elfutils-debugsource",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "elfutils-devel",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "elfutils-devel-static",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-libs-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-libelf-devel-static",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-libelf",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-libelf-devel",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-debugsource",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-devel",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-libs",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-libelf-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "elfutils-libs-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-devel-static",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-libs",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-debugsource",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-libelf-devel",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-libelf-devel-static",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-libelf",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-libelf-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-devel",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "elfutils-default-yama-scope",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "noarch"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "elfutils-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "elfutils-devel",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "elfutils-libelf",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "elfutils-libs-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "elfutils-libs",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "elfutils-debugsource",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "elfutils-libelf-devel",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "elfutils-libelf-devel-static",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "elfutils-libelf-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "elfutils-devel-static",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "elfutils",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "elfutils-debugsource",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "elfutils-libs-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "elfutils-libelf-devel",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "elfutils-libelf-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "elfutils-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "elfutils",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "elfutils-devel-static",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "elfutils-libelf",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "elfutils-devel",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "elfutils-libelf-devel-static",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "elfutils-libs",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "elfutils",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "elfutils-libs",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "elfutils-devel",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "elfutils-devel-static",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "elfutils-libelf",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "elfutils-libelf-devel",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "elfutils-libelf-devel-static",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "elfutils-debugsource",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "elfutils-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "elfutils-libs-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "elfutils-libelf-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "elfutils",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "elfutils-devel-static",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-libs",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-libs-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-debugsource",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-libelf",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-libelf-devel-static",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-devel",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-libelf-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-debuginfo",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-libelf-devel",
+						"version": "0.174",
+						"release": "1.fc28",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 841312,
+			"text": "This update has been submitted for testing by mjw. ",
+			"timestamp": "2018-09-29 09:17:51",
+			"update_id": 123644,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 841629,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2018-09-30 03:04:17",
+			"update_id": 123644,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 841775,
+			"karma": 1,
+			"text": "Works great!  LGTM!  =)",
+			"timestamp": "2018-09-30 15:01:43",
+			"update_id": 123644,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/307632fc7188138f052f244345e779451863879298f2e6d73023011a05b1f1f6?s=24&d=retro",
+				"email": "besser82.fpo@gmail.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "designteam"
+					},
+					{
+						"name": "shogun-ca"
+					},
+					{
+						"name": "alt-gtk-de-sig"
+					}
+				],
+				"id": 206,
+				"name": "besser82",
+				"openid": "besser82.id.fedoraproject.org"
+			},
+			"user_id": 206
+		},
+		{
+			"id": 841782,
+			"karma": 1,
+			"text": "works for me",
+			"timestamp": "2018-09-30 17:34:32",
+			"update_id": 123644,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/c82951c2d404ca0cfea20f51b040175ba4d1624f51e8ec366e75565b672e943d?s=24&d=retro",
+				"email": "h.reindl@thelounge.net",
+				"id": 182,
+				"name": "hreindl",
+				"openid": "hreindl.id.fedoraproject.org"
+			},
+			"user_id": 182
+		},
+		{
+			"id": 842322,
+			"karma": 1,
+			"text": "No issues noted while building kernels.",
+			"timestamp": "2018-10-01 14:47:35",
+			"update_id": 123644,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/fbb28238d8e88f4a6ca70e8409ab425f0139e2596b4f9c411d1da55f4c4fe3c1?s=24&d=retro",
+				"email": "mhayden@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "fesco"
+					},
+					{
+						"name": "gitfedora-security-team"
+					},
+					{
+						"name": "aws-fedora-ci"
+					},
+					{
+						"name": "cloud-sig"
+					}
+				],
+				"id": 536,
+				"name": "mhayden",
+				"openid": "mhayden.id.fedoraproject.org"
+			},
+			"user_id": 536
+		},
+		{
+			"id": 842323,
+			"text": "This update has been submitted for batched by bodhi. ",
+			"timestamp": "2018-10-01 14:47:36",
+			"update_id": 123644,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 842537,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2018-10-02 03:02:14",
+			"update_id": 123644,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 842729,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2018-10-02 16:02:24",
+			"update_id": 123644,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2018-10-02 16:00:51",
+	"date_stable": "2018-10-02 16:00:51",
+	"date_submitted": "2018-09-29 09:17:51",
+	"date_testing": "2018-09-30 03:03:03",
+	"karma": 3,
+	"meets_testing_requirements": true,
+	"notes": "Fixes CVE-2018-16062, CVE-2018-16402 and CVE-2018-16403. unstrip: Handle SHT_GROUP sections. strip: Handle mixed (out of order) allocated/non-allocated sections. elfcompress: Don't rewrite input file if no section data needs updating.  Try harder to keep same file mode bits (suid) on rewrite. libelf, libdw and all tools now handle extended shnum and shstrndx correctly.",
+	"pushed": true,
+	"release": {
+		"branch": "f28",
+		"candidate_tag": "f28-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f28",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 28",
+		"mail_template": "fedora_errata_template",
+		"name": "F28",
+		"override_tag": "f28-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f28-signing-pending",
+		"pending_stable_tag": "f28-updates-pending",
+		"pending_testing_tag": "f28-updates-testing-pending",
+		"stable_tag": "f28-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f28-updates-testing",
+		"version": "28"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "elfutils-0.174-1.fc28",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2018-1eec1f0d17",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2018-1eec1f0d17",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/0f32874b1ae3083205c874c83cd2d21715c89b8645483f353e90ae499c67c944?s=24&d=retro",
+		"email": "fedora@wildebeest.org",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "cla_redhat"
+			},
+			{
+				"name": "gitelfutils"
+			}
+		],
+		"id": 944,
+		"name": "mjw",
+		"openid": "mjw.id.fedoraproject.org"
+	},
+	"version_hash": "37a62da76a0ce83f53dc5c89f42b38b8a94afc07"
+}

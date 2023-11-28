@@ -1,0 +1,768 @@
+{
+	"alias": "FEDORA-2015-8226",
+	"bugs": [
+		{
+			"bug_id": 1123870,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-0383 OpenJDK: insecure hsperfdata temporary file handling (Hotspot, 8050807)",
+			"bugzilla": {
+				"bug_id": "1123870",
+				"alias": "CVE-2015-0383",
+				"creation_ts": "2014-07-28 13:48:26 +0000",
+				"short_desc": "CVE-2015-0383 OpenJDK: insecure hsperfdata temporary file handling (Hotspot, 8050807)",
+				"delta_ts": "2023-05-12 23:29:40 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1012121",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1179762",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2015:0086",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7332787",
+						"comment_count": "0",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-07-28 13:48:26 +0000",
+						"thetext": "Multiple flaws were discovered in the way the Hotspot Java Virtual Machine, that is part of OpenJDK and Oracle Java SE, handled performance data temporary files.  On Linux systems, these files are created in /tmp/hsperfdata_<user> directories.  However, the code did not properly check permissions and ownership of existing directories, making it possible for local attackers, able to create /tmp/hsperfdata_victim directory before victim user creates it, to remove or overwrite arbitrary files with the permissions of the victim user.\n\nThere already exists the function is_directory_secure() that is used to check if existing /tmp/hsperfdata_<user> directory is safe to use.  It ensures it really is directory and that it isn't group or world writable.  However, no ownership check is performed.\n\nhttp://hg.openjdk.java.net/jdk7u/jdk7u/hotspot/file/f8795cb3f5c1/src/os/linux/vm/perfMemory_linux.cpp#l200\n\nThe missing ownership check, combined with a race to replace an attacker-owned hsperfdata directory with a symlink, can be used to remove arbitrary files in cleanup_sharedmem_resources() (which is called from mmap_create_shared()).\n\nhttp://hg.openjdk.java.net/jdk7u/jdk7u/hotspot/file/f8795cb3f5c1/src/os/linux/vm/perfMemory_linux.cpp#l488\n\nArbitrary file overwrite is possible via create_sharedmem_resources() via a symlink in an attacker-owned hsperdata_victim directory.\n\nhttp://hg.openjdk.java.net/jdk7u/jdk7u/hotspot/file/f8795cb3f5c1/src/os/linux/vm/perfMemory_linux.cpp#l601\n\nThis issue is partially mitigated by the fact that attacker needs to create /tmp/hsperdata_victim directory before victim user first runs JVM, as the hsperfdata directory is not removed on JVM exit, only JVM id / pid file is removed.  On systems that use tmpfs for /tmp, or use other ways to clean up /tmp directory on every reboot, this mitigation is likely to have very limited impact.\n\nAnother way to mitigate this issue is to run java with -XX:-UsePerfData option, which disables the performance monitoring feature and prevents creation of hsperfdata directory and files.  This prevents tools as jstat (JVM statistics monitoring tool) from being able to get performance data."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7332797",
+						"comment_count": "1",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-07-28 13:51:27 +0000",
+						"thetext": "Note that hsperfdata directory is always created in /tmp.  The java.io.tmpdir property was honored as some point in past, but the change was reverted as it prevented monitoring tools form being able to find performance data:\n\nhttp://bugs.java.com/view_bug.do?bug_id=6447182\nhttp://bugs.java.com/view_bug.do?bug_id=6938627\nhttp://hg.openjdk.java.net/jdk7u/jdk7u/hotspot/rev/a2ea687fdc7c\n\nhttp://bugs.java.com/view_bug.do?bug_id=7009828\nhttp://hg.openjdk.java.net/jdk7u/jdk7u/hotspot/rev/34d64ad817f4"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7332840",
+						"comment_count": "2",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-07-28 14:00:41 +0000",
+						"thetext": "The jstat tool also uses rather fragile method to locate performance data file for the specified JVM id / pid.  It check all /tmp/hsperfdata_* directories, and uses the newest /tmp/hsperfdata_*/<pid> file.  Therefore, local attacker can easily make jstat open incorrect (attacker-owned) file and supply incorrect performance statistics data."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7333372",
+						"comment_count": "5",
+						"who": {
+							"text": "jvanek",
+							"name": "jiri vanek"
+						},
+						"bug_when": "2014-07-28 16:34:51 +0000",
+						"thetext": "hmm. Isn't this http://mail.openjdk.java.net/pipermail/hotspot-dev/2014-May/013965.html the same?\n\nSee the discussion why they revoke the fix...."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7333964",
+						"comment_count": "6",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-07-28 19:33:27 +0000",
+						"thetext": "This is different issue, as this affects hsperfdata directory that is created by default on every JVM run (unless explicitly disabled as described in comment 0).  The concern you raised is about log files created on JVM crash, and is related to the file permissions and the leak of sensitive data.  Upstream responded that the use of proper umask is the expected way to avoid the problem.  I do not know if this guidance is provided anywhere in the documentation, but I agree that defaulting to more restrictive permissions at least when dumping to /tmp is reasonable.\n\nThis issue is about other type of issues in handling of temporary files that lead to arbitrary file overwrites and removal, and that can not be avoided by restrictive umask setting."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7852184",
+						"comment_count": "9",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-01-16 12:52:08 +0000",
+						"thetext": "Acknowledgment:\n\nThis issue was discovered by Red Hat."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7863106",
+						"comment_count": "10",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-01-20 22:07:02 +0000",
+						"thetext": "Public now via Oracle Critical Patch Update - January 2015.  Fixed in Oracle Java SE 5.0u81, 6u91, 7u75, and 8u31.\n\nExternal References:\n\nhttp://www.oracle.com/technetwork/topics/security/cpujan2015-1972971.html#AppendixJAVA"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7863199",
+						"comment_count": "11",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-01-20 22:39:17 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 5\n\nVia RHSA-2015:0068 https://rhn.redhat.com/errata/RHSA-2015-0068.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7867255",
+						"comment_count": "12",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-01-21 22:45:50 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2015:0069 https://rhn.redhat.com/errata/RHSA-2015-0069.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7867273",
+						"comment_count": "13",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-01-21 22:58:50 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:0067 https://rhn.redhat.com/errata/RHSA-2015-0067.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7868788",
+						"comment_count": "14",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-01-22 09:59:17 +0000",
+						"thetext": "Upstream OpenJDK commits:\n\nhttp://hg.openjdk.java.net/jdk7u/jdk7u/hotspot/rev/f2c4a1559fce\nhttp://hg.openjdk.java.net/jdk8u/jdk8u/hotspot/rev/d7b6bdd51abe"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7871226",
+						"comment_count": "15",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-01-22 21:24:27 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Oracle Java for Red Hat Enterprise Linux 6\n\nVia RHSA-2015:0080 https://rhn.redhat.com/errata/RHSA-2015-0080.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7871264",
+						"comment_count": "16",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-01-22 21:35:03 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Oracle Java for Red Hat Enterprise Linux 7\n  Oracle Java for Red Hat Enterprise Linux 5\n  Oracle Java for Red Hat Enterprise Linux 6\n\nVia RHSA-2015:0079 https://rhn.redhat.com/errata/RHSA-2015-0079.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7878308",
+						"comment_count": "17",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-01-26 14:53:03 +0000",
+						"thetext": "This issue was fixed in IcedTea6 1.13.6 and IcedTea7 2.5.4:\n\nhttp://mail.openjdk.java.net/pipermail/distro-pkg-dev/2015-January/030488.html\nhttp://mail.openjdk.java.net/pipermail/distro-pkg-dev/2015-January/030469.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7878983",
+						"comment_count": "18",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-01-26 17:28:13 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Oracle Java for Red Hat Enterprise Linux 7\n  Oracle Java for Red Hat Enterprise Linux 6\n  Oracle Java for Red Hat Enterprise Linux 5\n\nVia RHSA-2015:0086 https://rhn.redhat.com/errata/RHSA-2015-0086.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7879134",
+						"comment_count": "19",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-01-26 18:12:03 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 5\n  Red Hat Enterprise Linux 6\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:0085 https://rhn.redhat.com/errata/RHSA-2015-0085.html"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 1,
+			"nvr": "java-1.8.0-openjdk-1.8.0.45-38.b14.fc22",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "java-1.8.0-openjdk-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "java-1.8.0-openjdk-accessibility",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "java-1.8.0-openjdk",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "java-1.8.0-openjdk-src",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "java-1.8.0-openjdk-src-debug",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-src",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless-debug",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-debug",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-accessibility-debug",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-debug",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-debug",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-accessibility",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "java-1.8.0-openjdk-javadoc",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "noarch"
+					},
+					{
+						"name": "java-1.8.0-openjdk-javadoc-debug",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "java-1.8.0-openjdk",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "java-1.8.0-openjdk-headless",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-debug",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-src-debug",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-debug",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless-debug",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-debug",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-src",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-accessibility",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-accessibility-debug",
+						"epoch": 1,
+						"version": "1.8.0.45",
+						"release": "38.b14.fc22",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 293698,
+			"text": "This update has been submitted for testing by jvanek. ",
+			"timestamp": "2015-05-14 09:17:14",
+			"update_id": 35111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 293699,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/70008/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-05-14 09:32:00",
+			"update_id": 35111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 293700,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/70008/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-05-14 09:33:19",
+			"update_id": 35111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 293701,
+			"karma": 1,
+			"timestamp": "2015-05-14 13:13:18",
+			"update_id": 35111,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/054959f4db5d1ad8f22cae1ba73e26ebfd3edd6690c21cc7ee00608f294ff22a?s=24&d=retro",
+				"email": "cserpentis@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 739,
+				"name": "cserpentis",
+				"openid": "cserpentis.id.fedoraproject.org"
+			},
+			"user_id": 739
+		},
+		{
+			"id": 293702,
+			"text": "This update is currently being pushed to the Fedora 22 testing updates repository.",
+			"timestamp": "2015-05-14 17:53:29",
+			"update_id": 35111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 293703,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-05-14 22:21:47",
+			"update_id": 35111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 293704,
+			"karma": 1,
+			"text": "Works",
+			"timestamp": "2015-05-15 20:55:32",
+			"update_id": 35111,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/11c0c655ac86d42a77ec9b0e1bc2b8d40dc866fed523b2992c02d79fe007808b?s=24&d=retro",
+				"email": "dan.dim@seznam.cz",
+				"groups": [
+					{}
+				],
+				"id": 202,
+				"name": "dandim",
+				"openid": "dandim.id.fedoraproject.org"
+			},
+			"user_id": 202
+		},
+		{
+			"id": 293705,
+			"text": "This update has reached 3 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2015-05-18 00:39:09",
+			"update_id": 35111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 293706,
+			"text": "This update has been submitted for stable by jvanek. ",
+			"timestamp": "2015-05-18 09:17:13",
+			"update_id": 35111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 293707,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/71095/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-05-18 09:34:56",
+			"update_id": 35111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 293708,
+			"text": "This update is currently being pushed to the Fedora 22 stable updates repository.",
+			"timestamp": "2015-05-22 21:01:05",
+			"update_id": 35111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 293709,
+			"text": "This update is currently being pushed to the Fedora 22 stable updates repository.",
+			"timestamp": "2015-05-22 21:23:30",
+			"update_id": 35111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 293710,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-05-26 03:54:21",
+			"update_id": 35111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2015-05-26 03:54:21",
+	"date_stable": "2015-05-26 03:54:21",
+	"date_submitted": "2015-05-14 09:17:10",
+	"date_testing": "2015-05-14 22:21:47",
+	"karma": 2,
+	"meets_testing_requirements": true,
+	"notes": "updated to 8u45-b14. fixes rhbz#1123870",
+	"pushed": true,
+	"release": {
+		"branch": "f22",
+		"candidate_tag": "f22-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f22",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 22",
+		"mail_template": "fedora_errata_template",
+		"name": "F22",
+		"override_tag": "f22-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f22-updates-pending",
+		"pending_testing_tag": "f22-updates-testing-pending",
+		"stable_tag": "f22-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f22-updates-testing",
+		"version": "22"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "java-1.8.0-openjdk-1.8.0.45-38.b14.fc22",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-8226",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-8226",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/472c71a4877159e56b011c2cd0bcec9c0805d2fc01d96f0c4ffd860cf63490cf?s=24&d=retro",
+		"email": "jvanek@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "cla_redhat"
+			},
+			{
+				"name": "hgsystem-switch-java"
+			},
+			{
+				"name": "hgcopy_jdk_configs"
+			}
+		],
+		"id": 409,
+		"name": "jvanek",
+		"openid": "jvanek.id.fedoraproject.org"
+	},
+	"version_hash": "9de89dc951bf80fbf881c50b029af9cebbf1f162"
+}

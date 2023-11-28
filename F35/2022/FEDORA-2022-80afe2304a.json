@@ -1,0 +1,1358 @@
+{
+	"alias": "FEDORA-2022-80afe2304a",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2036462,
+			"feedback": [
+				{
+					"bug_id": 2036462,
+					"comment": {
+						"id": 2629472,
+						"karma": 1,
+						"timestamp": "2022-07-23 17:48:22",
+						"update_id": 428008,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/b4420197ec5b7dbb9956aaa28d3083f1a9cb2b6318e90eb9f1532447435019c4?s=24&d=retro",
+							"email": "boycottsystemd@yahoo.com",
+							"groups": [
+								{
+									"name": "ipausers"
+								}
+							],
+							"id": 4054,
+							"name": "boycottsystemd1",
+							"openid": "boycottsystemd1.id.fedoraproject.org"
+						},
+						"user_id": 4054
+					},
+					"comment_id": 2629472
+				}
+			],
+			"title": "rh1991003 patch breaks sun.security.pkcs11.wrapper.PKCS11.getInstance()",
+			"bugzilla": {
+				"bug_id": "2036462",
+				"creation_ts": "2022-01-02 00:11:07 +0000",
+				"short_desc": "rh1991003 patch breaks sun.security.pkcs11.wrapper.PKCS11.getInstance()",
+				"delta_ts": "2023-09-15 01:50:49 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "15805553",
+						"comment_count": "0",
+						"who": {
+							"text": "fran",
+							"name": "Francisco de la Peña"
+						},
+						"bug_when": "2022-01-02 00:11:07 +0000",
+						"thetext": "Created attachment 1848563\nTest class to reproduce the building/running issue\n\nDescription of problem:\n\nThe sun.security.pkcs11.wrapper.PKCS11 class contains a public method, getInstance with 4 arguments. The patch related to bug 1991003, modifies this method by adding an additional 5th argument, fipsKeyImporter, of type MethodHandle.\n\nhttps://src.fedoraproject.org/rpms/java-1.8.0-openjdk/blob/f35/f/rh1991003-enable_fips_keys_import.patch#_446\n\nPossibly due to an oversight, the patch lacks public API compatible method with the same argument count to use with existing software. Due to this, existing applications could fail, showing exceptions like the following:\n\njava.lang.NoSuchMethodError: sun.security.pkcs11.wrapper.PKCS11.getInstance(Ljava/lang/String;Ljava/lang/String;Lsun/security/pkcs11/wrapper/CK_C_INITIALIZE_ARGS;Z)Lsun/security/pkcs11/wrapper/PKCS11;\n\n\nVersion-Release number of selected component (if applicable):\n\njava-1.8.0-openjdk-1.8.0.312.b07-2.fc35\n\nAnd likely the equivalent in other versions (11, etc.).\n\n\nHow reproducible:\n\nAlways.\n\n\nSteps to Reproduce:\n1. Create a file Test.java with the following:\n\nclass Test {\n    public static void main(String[] args) throws Exception {\n        sun.security.pkcs11.wrapper.CK_C_INITIALIZE_ARGS initArgs = new sun.security.pkcs11.wrapper.CK_C_INITIALIZE_ARGS();\n        initArgs.flags = 0;\n        sun.security.pkcs11.wrapper.PKCS11 pkcs11 = sun.security.pkcs11.wrapper.PKCS11.getInstance(\"/usr/lib64/opensc-pkcs11.so\", \"C_GetFunctionList\", initArgs, false);\n\n        long[] slotList = pkcs11.C_GetSlotList(true);\n        for (long slot : slotList) {\n            sun.security.pkcs11.wrapper.CK_TOKEN_INFO tokenInfo = pkcs11.C_GetTokenInfo(slot);\n            System.out.println(\"Slot info:\\n\" + tokenInfo.toString());\n        }\n    }\n}\n\n2. save and compile with: javac Test.java\n\n\nActual results:\n\ntest.java:5: error: method getInstance in class PKCS11 cannot be applied to given types;\n        sun.security.pkcs11.wrapper.PKCS11 pkcs11 = sun.security.pkcs11.wrapper.PKCS11.getInstance(\"/usr/lib64/opensc-pkcs11.so\", \"C_GetFunctionList\", initArgs, false);\n                                                                                      ^\n  required: String,String,CK_C_INITIALIZE_ARGS,boolean,MethodHandle\n  found: String,String,CK_C_INITIALIZE_ARGS,boolean\n  reason: actual and formal argument lists differ in length\n1 error\n\n\nExpected results:\n\nIt builds as is.\n\n\nAdditional info:\n\nThe affected API is widely used by applications needing to handle available tokens and their slots also for handle public certificates on tokens without requiring login.\n\nIf you add a null as a 5th argument, it builds. But will fail to run on JREs not affected by the patch.\n\nIf you build the source from a JDK not affected by the patch and run the class with java Test on an affected JRE, it will fail as mentioned in the \"Description of problem\" section."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15805554",
+						"comment_count": "1",
+						"who": {
+							"text": "fran",
+							"name": "Francisco de la Peña"
+						},
+						"bug_when": "2022-01-02 00:36:12 +0000",
+						"thetext": "A possible simple fix for this would be method overloading by creating a method with four arguments calling the one with five arguments with a null for the fifth argument."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15806034",
+						"comment_count": "2",
+						"who": {
+							"text": "fran",
+							"name": "Francisco de la Peña"
+						},
+						"bug_when": "2022-01-02 19:56:12 +0000",
+						"thetext": "Comment on attachment 1848563\nTest class to reproduce the building/running issue\n\n>class Test {\n>    public static void main(String[] args) throws Exception {\n>        sun.security.pkcs11.wrapper.CK_C_INITIALIZE_ARGS initArgs = new sun.security.pkcs11.wrapper.CK_C_INITIALIZE_ARGS();\n>        initArgs.flags = 0;\n>        sun.security.pkcs11.wrapper.PKCS11 pkcs11 = sun.security.pkcs11.wrapper.PKCS11.getInstance(\"/usr/lib64/opensc-pkcs11.so\", \"C_GetFunctionList\", initArgs, false);\n>\n>        long[] slotList = pkcs11.C_GetSlotList(true);\n>        for (long slot : slotList) {\n>            sun.security.pkcs11.wrapper.CK_TOKEN_INFO tokenInfo = pkcs11.C_GetTokenInfo(slot);\n>            System.out.println(\"Slot info:\\n\" + tokenInfo.toString());\n>        }\n>    }\n>}"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15806035",
+						"comment_count": "3",
+						"who": {
+							"text": "fran",
+							"name": "Francisco de la Peña"
+						},
+						"bug_when": "2022-01-02 19:59:46 +0000",
+						"thetext": "Created attachment 1848630\nFixed version with 4 args as intended"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15806036",
+						"comment_count": "4",
+						"who": {
+							"text": "fran",
+							"name": "Francisco de la Peña"
+						},
+						"bug_when": "2022-01-02 20:01:43 +0000",
+						"thetext": "Created attachment 1848631\nFixed version with 4 args as intended (ignore the previous attachment, it was a .class file)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15882902",
+						"comment_count": "5",
+						"who": {
+							"text": "fran",
+							"name": "Francisco de la Peña"
+						},
+						"bug_when": "2022-01-26 03:00:50 +0000",
+						"thetext": "To clarify, the issue breaks programs even without enabling FIPS mode. RHEL 8/9 is affected, too. Confirmed the issue affects java-11-openjdk and java-latest-openjdk, too."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15933873",
+						"comment_count": "6",
+						"who": {
+							"text": "ahughes",
+							"name": "Andrew John Hughes"
+						},
+						"bug_when": "2022-02-08 17:36:16 +0000",
+						"thetext": "Yes, looks like this should be easily fixable. I'll get a fix into the JDKs."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16333650",
+						"comment_count": "7",
+						"who": {
+							"text": "mbalao",
+							"name": "Martin Balao"
+						},
+						"bug_when": "2022-06-08 14:48:50 +0000",
+						"thetext": "As commented in an internal email:\n\nThe sun.security.pkcs11.wrapper package is not public. This API is internal and not available for applications or libraries direct use. In JDK-8, that can be inferred from the namespace. In later releases, that is blocked by module encapsulation. The method \"getInstance\" is package-public because the class SunPKCS11 (which is in a different package, sun.security.pkcs11) needs access.\n\nWhile we can overload the method with a backward-compatible signature (as suggested in comment 1 [1]), relying on internal APIs is strongly discouraged.\n\nWith that said, can we get a pointer to the code that uses this API? I wonder what's the reason behind, which JDK releases does the code support and if it's still done that way in its latest release.\n\nMartin.-\n\n--\n[1] - https://bugzilla.redhat.com/show_bug.cgi?id=2036462#c1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16333893",
+						"comment_count": "8",
+						"who": {
+							"text": "fran",
+							"name": "Francisco de la Peña"
+						},
+						"bug_when": "2022-06-08 15:51:32 +0000",
+						"thetext": "Java public PKCS#11 API does not allow enumerating certificates without login. At most, you can get a lot list number, but not checking contents to determinate which slot should use. This is an issue when more than one slot is connected and increases the risk of using a PIN for the wrong token and getting locked. \n\nUnfortunately, we are aware of multiple implementations (mostly from Government from several countries) using sun wrapper because it allows this without JNI. There are multiple sites with smart card access and java web start for accessing or signing on websites using them and they likely can't fix their software.\n\nSince Java 16, it is still possible to access sun classes by passing the command line argument: --add-exports jdk.crypto.cryptoki/sun.security.pkcs11.wrapper=ALL-UNNAMED\n\nThere are even cases using it this way to circumvent the restriction on newer Java versions for launching standalone JARs without passing args, e.g. for Web Start. It could even work on (currently unmaintained) icedtea-web as the latest F35 version didn't provide the upstream fix for supporting relevant fixes such multi-release JAR support or prefixed jnlp.*/javaws.* for -Dargs to match those supported by Oracle's javaws:\n\nclass Test {\n    public static void doMain() { /* \"real\" main content goes here */ }\n\n    public static void main(String[] args) throws Throwable {\n        if (System.getProperty(\"java.version\").startsWith(\"1.\")) doMain();\n        else {\n            for(String s : args) {\n                if(s.equals(\"run\")) {\n                    doMain();\n                    return;\n                }\n            }\n            new ProcessBuilder().inheritIO().command(\"java\",\n                \"--add-exports\", \"jdk.crypto.cryptoki/sun.security.pkcs11.wrapper=ALL-UNNAMED\",\n                \"-jar\", MethodHandles.lookup().lookupClass().getProtectionDomain().getCodeSource().getLocation().toURI().getPath(),\n                \"run\").start().waitFor();\n        }\n    }\n}\n\nHere's a complete example with Sun's wrapper features:\n\nimport java.io.ByteArrayInputStream;\nimport java.lang.invoke.MethodHandles;\nimport java.security.cert.CertificateFactory;\nimport java.security.cert.X509Certificate;\nimport java.text.SimpleDateFormat;\nimport javax.naming.ldap.LdapName;\nimport javax.naming.ldap.Rdn;\nimport sun.security.pkcs11.wrapper.CK_ATTRIBUTE;\nimport sun.security.pkcs11.wrapper.CK_C_INITIALIZE_ARGS;\nimport sun.security.pkcs11.wrapper.CK_INFO;\nimport sun.security.pkcs11.wrapper.CK_SLOT_INFO;\nimport sun.security.pkcs11.wrapper.CK_TOKEN_INFO;\nimport sun.security.pkcs11.wrapper.PKCS11;\nimport sun.security.pkcs11.wrapper.PKCS11Exception;\nimport static sun.security.pkcs11.wrapper.PKCS11Constants.CKA_CLASS;\nimport static sun.security.pkcs11.wrapper.PKCS11Constants.CKA_ID;\nimport static sun.security.pkcs11.wrapper.PKCS11Constants.CKA_VALUE;\nimport static sun.security.pkcs11.wrapper.PKCS11Constants.CKF_OS_LOCKING_OK;\nimport static sun.security.pkcs11.wrapper.PKCS11Constants.CKF_SERIAL_SESSION;\nimport static sun.security.pkcs11.wrapper.PKCS11Constants.CKF_TOKEN_PRESENT;\nimport static sun.security.pkcs11.wrapper.PKCS11Constants.CKO_CERTIFICATE;\nimport static sun.security.pkcs11.wrapper.PKCS11Constants.CKR_TOKEN_NOT_RECOGNIZED;\n\nclass Test {\n    public static void doMain() throws Throwable {\n        String lib = \"/usr/lib64/opensc-pkcs11.so\";\n        String functionList = \"C_GetFunctionList\";\n        CK_C_INITIALIZE_ARGS pInitArgs = new CK_C_INITIALIZE_ARGS();\n        PKCS11 pkcs11;\n        try {\n            pInitArgs.flags = CKF_OS_LOCKING_OK;\n            pkcs11 = PKCS11.getInstance(lib, functionList, pInitArgs, false);\n        } catch (PKCS11Exception e) {\n            pInitArgs.flags = 0;\n            pkcs11 = PKCS11.getInstance(lib, functionList, pInitArgs, false);\n        }\n        CK_INFO info = pkcs11.C_GetInfo();\n        System.out.println(\"Interface: \" + new String(info.libraryDescription).trim());\n        Boolean tokenPresent = true;\n        for (long slotID : pkcs11.C_GetSlotList(tokenPresent)) {\n            CK_SLOT_INFO slotInfo = pkcs11.C_GetSlotInfo(slotID);\n            System.out.println(\"Slot \" + slotID + \": \" + new String(slotInfo.slotDescription).trim());\n            if ((slotInfo.flags & CKF_TOKEN_PRESENT) != 0) { // Not required if tokenPresent = true, condition could be removed if true, it's just for testing empty slot enumeration\n                try { // TODO: check if slotID could be reused after switching card. Try CK_SESSION_INFO sessionInfo = pkcs11.C_GetSessionInfo(hSession); and catch PCKCS11Exception meaning invalid session instead.\n                    CK_TOKEN_INFO tokenInfo = pkcs11.C_GetTokenInfo(slotID);\n                    System.out.println(\"Token: \" + new String(tokenInfo.label).trim() + \" (\" + new String(tokenInfo.serialNumber).trim() + \")\");\n                    CK_ATTRIBUTE[] pTemplate = { new CK_ATTRIBUTE(CKA_CLASS, CKO_CERTIFICATE) };\n                    long ulMaxObjectCount = 32;\n                    long hSession = pkcs11.C_OpenSession(slotID, CKF_SERIAL_SESSION, null, null); // TODO verify slot session just after getting PIN but just before login\n                    pkcs11.C_FindObjectsInit(hSession, pTemplate);\n                    long[] phObject = pkcs11.C_FindObjects(hSession, ulMaxObjectCount);\n                    pkcs11.C_FindObjectsFinal(hSession);\n                    for (long object : phObject) {\n                        CK_ATTRIBUTE[] pTemplate2 = { new CK_ATTRIBUTE(CKA_VALUE), new CK_ATTRIBUTE(CKA_ID) }; // if you add more attributes, update the iterator jump\n                        pkcs11.C_GetAttributeValue(hSession, object, pTemplate2);\n                        for (int i = 0; i < pTemplate2.length; i = i + 2) { // iterator jump value to read just certificates at pTemplate[0], pTemplate[2]...\n                            X509Certificate certificate = (X509Certificate)CertificateFactory.getInstance(\"X.509\").generateCertificate(new ByteArrayInputStream((byte[])pTemplate2[i].pValue));\n                            boolean[] keyUsage = certificate.getKeyUsage();\n                            if (certificate.getBasicConstraints() == -1 && keyUsage[0] && keyUsage[1]) {\n                                LdapName ldapName = new LdapName(certificate.getSubjectX500Principal().getName(\"RFC1779\"));\n                                String firstName = \"\", lastName = \"\", identification = \"\";\n                                for (Rdn rdn : ldapName.getRdns()) {\n                                    if (rdn.getType().equals(\"OID.2.5.4.5\")) identification = rdn.getValue().toString();\n                                    if (rdn.getType().equals(\"OID.2.5.4.4\")) lastName = rdn.getValue().toString();\n                                    if (rdn.getType().equals(\"OID.2.5.4.42\")) firstName = rdn.getValue().toString();\n                                }\n                                String expires = new SimpleDateFormat(\"yyyy-MM-dd\").format(certificate.getNotAfter());\n                                System.out.println(firstName + \" \" + lastName + \" (\" + identification + \") \" + certificate.getSerialNumber().toString(16) + \" [Token serial number: \" + new String(tokenInfo.serialNumber) + \"] (Expires: \" + expires+ \")\");\n                                Object keyIdentifier = pTemplate2[i + 1]/* .pValue */; // TODO use pValue to get the value for comparison when using it to match with private key!\n                                System.out.println(\"Public/Private key pair identifier: \" + keyIdentifier); // After logging in with PIN, find the matching private key pValue.\n                            }\n                            // TODO Don't assume there's a single valid certificate per token\n                        }\n                    }\n                    pkcs11.C_CloseSession(hSession);\n                } catch (PKCS11Exception e) {\n                    if (e.getErrorCode() == CKR_TOKEN_NOT_RECOGNIZED) {\n                        System.err.println(\"Slot reports token is present but not recognized by the cryptoki library\");\n                    } else throw e;\n                }\n            } else System.out.println(\"No token present in this slot\"); // Not required if tokenPresent = true, condition could be removed\n        }\n    }\n\n    public static void main(String[] args) throws Throwable {\n        if (System.getProperty(\"java.version\").startsWith(\"1.\")) doMain();\n        else {\n            for(String s : args) {\n                if(s.equals(\"run\")) {\n                    doMain();\n                    return;\n                }\n            } // Launch JAR from JAR with own args for Java 16+ compatibility\n            new ProcessBuilder().inheritIO().command(\"java\",\n                \"--add-exports\", \"jdk.crypto.cryptoki/sun.security.pkcs11.wrapper=ALL-UNNAMED\",\n                \"-jar\", MethodHandles.lookup().lookupClass().getProtectionDomain().getCodeSource().getLocation().toURI().getPath(),\n                \"run\").start().waitFor(); // TODO test with icedtea-web (2.0 alpha builds) with Java > 8\n        }\n    }\n}"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16334154",
+						"comment_count": "9",
+						"who": {
+							"text": "sgehwolf",
+							"name": "Severin Gehwolf"
+						},
+						"bug_when": "2022-06-08 16:54:47 +0000",
+						"thetext": "One library is https://github.com/Keyfactor/ejbca-ce\n\nThe most recent one has adapted to the added MethodHandle signature:\nhttps://github.com/Keyfactor/ejbca-ce/commit/de34790d08c76a6d1a05008493593c0e2a1cd98d\n\nOld code is unaware of this:\nhttps://github.com/Keyfactor/ejbca-ce/blob/745fe7364d5e81b82203a8a2f56bba17c066ef19/modules/cesecore-common/src/org/cesecore/keys/token/p11/Pkcs11Wrapper.java#L103"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16471539",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-07-19 10:03:18 +0000",
+						"thetext": "FEDORA-2022-4d338824b7 has been submitted as an update to Fedora 35. https://bodhi.fedoraproject.org/updates/FEDORA-2022-4d338824b7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16474470",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-07-20 01:53:04 +0000",
+						"thetext": "FEDORA-2022-4d338824b7 has been pushed to the Fedora 35 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --refresh --advisory=FEDORA-2022-4d338824b7`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2022-4d338824b7\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16491978",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-07-26 15:15:24 +0000",
+						"thetext": "FEDORA-2022-80afe2304a has been pushed to the Fedora 35 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --refresh --advisory=FEDORA-2022-80afe2304a`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2022-80afe2304a\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16517784",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2022-08-03 01:48:54 +0000",
+						"thetext": "FEDORA-2022-80afe2304a has been pushed to the Fedora 35 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17634764",
+						"comment_count": "16",
+						"who": {
+							"text": "bugzilla",
+							"name": "Red Hat Bugzilla"
+						},
+						"bug_when": "2023-09-15 01:50:49 +0000",
+						"thetext": "The needinfo request[s] on this closed bug have been removed as they have been unresolved for 365 days"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 1,
+			"nvr": "java-1.8.0-openjdk-1.8.0.342.b07-1.fc35",
+			"release_id": 51,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "java-1.8.0-openjdk-headless-fastdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless-fastdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless-slowdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-src-fastdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-src-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-src",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-fastdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-debugsource",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-fastdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-fastdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-slowdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-fastdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-slowdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-slowdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-fastdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-fastdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "java-1.8.0-openjdk-src",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "java-1.8.0-openjdk-debugsource",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "java-1.8.0-openjdk-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "java-1.8.0-openjdk",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "java-1.8.0-openjdk-headless-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless-slowdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-src",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-src-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-debugsource",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-slowdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-slowdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-slowdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-openjfx",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-openjfx-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-openjfx-devel",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					},
+					{
+						"name": "java-1.8.0-openjdk-openjfx-devel-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "java-1.8.0-openjdk-javadoc",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "noarch"
+					},
+					{
+						"name": "java-1.8.0-openjdk-javadoc-zip",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "noarch"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "java-1.8.0-openjdk-headless-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless-fastdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless-fastdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless-slowdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-src-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-src-fastdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-src",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-fastdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-debugsource",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-fastdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-fastdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-slowdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-fastdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-slowdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-slowdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-fastdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "java-1.8.0-openjdk-fastdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "java-1.8.0-openjdk-headless-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "s390x"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "s390x"
+					},
+					{
+						"name": "java-1.8.0-openjdk-src",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "s390x"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "s390x"
+					},
+					{
+						"name": "java-1.8.0-openjdk-debugsource",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "s390x"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "s390x"
+					},
+					{
+						"name": "java-1.8.0-openjdk-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "s390x"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "s390x"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "s390x"
+					},
+					{
+						"name": "java-1.8.0-openjdk",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "java-1.8.0-openjdk",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "java-1.8.0-openjdk-headless-fastdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless-fastdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless-slowdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-headless",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-src-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-src-fastdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-src",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-fastdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-debugsource",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-fastdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-fastdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-slowdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-devel-fastdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-slowdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-slowdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-demo-fastdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-fastdebug-debuginfo",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-openjfx",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-openjfx-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-openjfx-fastdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-openjfx-devel",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-openjfx-devel-slowdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					},
+					{
+						"name": "java-1.8.0-openjdk-openjfx-devel-fastdebug",
+						"epoch": 1,
+						"version": "1.8.0.342.b07",
+						"release": "1.fc35",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 2631111,
+			"text": "This update has been submitted for testing by ahughes. ",
+			"timestamp": "2022-07-25 14:55:41",
+			"update_id": 429331,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2631112,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2022-07-25 14:55:42",
+			"update_id": 429331,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2631114,
+			"text": "This update has obsoleted [java-1.8.0-openjdk-1.8.0.332.b09-2.fc35](https://bodhi.fedoraproject.org/updates/FEDORA-2022-4d338824b7), and has inherited its bugs and notes.",
+			"timestamp": "2022-07-25 14:55:42",
+			"update_id": 429331,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2631115,
+			"text": "ahughes edited this update.",
+			"timestamp": "2022-07-25 14:56:28",
+			"update_id": 429331,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2653513,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2022-07-26 15:15:42",
+			"update_id": 429331,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2664771,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2022-08-02 15:16:39",
+			"update_id": 429331,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2665543,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2022-08-03 01:49:20",
+			"update_id": 429331,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2022-07-25 14:56:28",
+	"date_pushed": "2022-08-03 01:48:48",
+	"date_stable": "2022-08-03 01:48:48",
+	"date_submitted": "2022-07-25 14:55:41",
+	"date_testing": "2022-07-26 15:15:14",
+	"display_name": "OpenjDK 8u342 for Fedora 35",
+	"meets_testing_requirements": true,
+	"notes": "# New in release OpenJDK 8u342 (2022-07-19)\n\n* The release announcement can be found at: https://bitly.com/openjdk8u342\n* Full release details can be found at https://builds.shipilev.net/backports-monitor/release-notes-openjdk8u342.txt\n\n## Security Fixes\n\n  - JDK-8272243: Improve DER parsing\n  - JDK-8272249: Better properties of loaded Properties\n  - JDK-8277608: Address IP Addressing\n  - JDK-8281859, CVE-2022-21540: Improve class compilation\n  - JDK-8281866, CVE-2022-21541: Enhance MethodHandle invocations\n  - JDK-8283190: Improve MIDI processing\n  - JDK-8284370: Improve zlib usage\n  - JDK-8285407, CVE-2022-34169: Improve Xalan supports\n\n## FIPS Changes\n\n* [RH2007331](https://bugzilla.redhat.com/show_bug.cgi?id=2007331): SecretKey generate/import operations don't add the CKA_SIGN attribute in FIPS mode\n* [RH2051605](https://bugzilla.redhat.com/show_bug.cgi?id=2051605): Detect NSS at Runtime for FIPS detection\n* [RH2036462](https://bugzilla.redhat.com/show_bug.cgi?id=2036462): sun.security.pkcs11.wrapper.PKCS11.getInstance breakage\n* [RH2090378](https://bugzilla.redhat.com/show_bug.cgi?id=2090378): Revert to disabling system security properties and FIPS mode support together\n* Depend on `crypto-policies` package at build-time and run-time\n\n## Other Changes\n\n* Add javaver- and origin-specific javadoc and javadoczip alternatives (thanks to FeRD (Frank Dana) <ferdnyc@gmail.com>)\n\n## JDK-8215293: Customizing PKCS12 keystore Generation\n\nNew system and security properties have been added to enable users to customize the generation of PKCS #12 keystores. This includes algorithms and parameters for key protection, certificate protection, and MacData. The detailed explanation and possible values for these properties can be found in the \"PKCS12 KeyStore properties\" section of the `java.security` file.\n\nAlso, support for the following SHA-2 based HmacPBE algorithms has been added to the SunJCE provider:\n\n* HmacPBESHA224\n* HmacPBESHA256\n* HmacPBESHA384\n* HmacPBESHA512\n* HmacPBESHA512/224\n* HmacPBESHA512/256\n",
+	"pushed": true,
+	"release": {
+		"branch": "f35",
+		"candidate_tag": "f35-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f35",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 35",
+		"mail_template": "fedora_errata_template",
+		"name": "F35",
+		"override_tag": "f35-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f35-signing-pending",
+		"pending_stable_tag": "f35-updates-pending",
+		"pending_testing_tag": "f35-updates-testing-pending",
+		"stable_tag": "f35-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f35-updates-testing",
+		"version": "35"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "high",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "java-1.8.0-openjdk-1.8.0.342.b07-1.fc35",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2022-80afe2304a",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2022-80afe2304a",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/c2a5383084daaca5d7a8bf05cc7b91104fbdb16f21693fc8a9ce7942028887f0?s=24&d=retro",
+		"email": "ahughes@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "cla_redhat"
+			}
+		],
+		"id": 2491,
+		"name": "ahughes",
+		"openid": "ahughes.id.fedoraproject.org"
+	},
+	"version_hash": "f11003ab5ca52cd40d6c0eb60d54fc62210551ae"
+}

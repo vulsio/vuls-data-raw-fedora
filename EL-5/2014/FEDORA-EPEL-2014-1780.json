@@ -1,0 +1,1465 @@
+{
+	"alias": "FEDORA-EPEL-2014-1780",
+	"bugs": [
+		{
+			"bug_id": 995870,
+			"title": "Zarafa does not (yet?) support MariaDB",
+			"bugzilla": {
+				"bug_id": "995870",
+				"creation_ts": "2013-08-11 16:57:33 +0000",
+				"short_desc": "Zarafa does not (yet?) support MariaDB",
+				"delta_ts": "2014-07-28 03:25:26 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6201343",
+						"comment_count": "0",
+						"who": {
+							"text": "torbjorn",
+							"name": "Torbjorn Jansson"
+						},
+						"bug_when": "2013-08-11 16:57:33 +0000",
+						"thetext": "Description of problem:\npackage php-mapi have dependency problems making it impossible to install zarafa on fedora 19\n\nHow reproducible:\nyum install php-mapi\nor\nyum install zarafa\n\n\nActual results:\nError: Package: php-mapi-7.0.13-1.fc19.x86_64 (fedora)\n           Requires: php(zend-abi) = 20100525-x86-64\n           Installed: php-common-5.5.1-1.fc19.x86_64 (@updates)\n               php(zend-abi) = 20121212-64\n           Available: php-common-5.5.0-0.10.RC3.fc19.i686 (fedora)\n               php(zend-abi) = 20121212-32\nError: Package: php-mapi-7.0.13-1.fc19.x86_64 (fedora)\n           Requires: php(api) = 20100412-x86-64\n           Installed: php-common-5.5.1-1.fc19.x86_64 (@updates)\n               php(api) = 20121113-64\n           Available: php-common-5.5.0-0.10.RC3.fc19.i686 (fedora)\n               php(api) = 20121113-32\n You could try using --skip-broken to work around the problem\n You could try running: rpm -Va --nofiles --nodigest\n\n\nExpected results:\nexpected result is that the packages got installed by yum.\n\nAdditional info:"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6201400",
+						"comment_count": "1",
+						"who": {
+							"text": "redhat-bugzilla",
+							"name": "Robert Scheck"
+						},
+						"bug_when": "2013-08-11 17:54:26 +0000",
+						"thetext": "Please try and rate the new packages in updates-testing. Thank you!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6202152",
+						"comment_count": "2",
+						"who": {
+							"text": "torbjorn",
+							"name": "Torbjorn Jansson"
+						},
+						"bug_when": "2013-08-12 05:57:29 +0000",
+						"thetext": "did a little bit of testing.\nall zarafa packages installed ok from the upates-testing repo and also webaccess apache config appears to have been fixed to work with latest apache (fc18 version of zarafa results in access denied on the webaccess due to missing permission option in the config file)\n\nbut zarafa-webaccess still have some issues.\noutput from http://localhost/webaccess\n---\nDirectory Error: TMP_PATH doesn't exists\nPlease make sure this directory exists and is writable for PHP/Apache\nZarafa WebAccess can't start because of incompatible configuration.\n\nPlease correct above errors, a good start is by checking your '/etc/php.ini' file.\n\nOr if you wish, you can disable this config check by editing the file '/usr/share/zarafa-webaccess/config.php', but this is not recommend.\n---\nTMP_PATH appears to come from /etc/zarafa/webaccess/config.php and it points to /var/lib/zarafa-webaccess/tmp\nfolder appears to exist and apache error log shows:\n---\nPHP Warning:  include(config.php): failed to open stream: Permission denied in /usr/share/zarafa-webaccess/index.php on line 63\nPHP Warning:  include(): Failed opening 'config.php' for inclusion (include_path='.:/usr/share/pear:/usr/share/php') in /usr/share/zarafa-webaccess/index.php on line 63\nPHP Notice:  Use of undefined constant COOKIE_NAME - assumed 'COOKIE_NAME' in /usr/share/zarafa-webaccess/index.php on line 82\nPHP Notice:  Use of undefined constant TMP_PATH - assumed 'TMP_PATH' in /usr/share/zarafa-webaccess/server/class.configcheck.php on line 91\n---"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6202240",
+						"comment_count": "3",
+						"who": {
+							"text": "redhat-bugzilla",
+							"name": "Robert Scheck"
+						},
+						"bug_when": "2013-08-12 06:42:26 +0000",
+						"thetext": "I wonder why /usr/share/zarafa-webaccess/index.php can not include config.php\nas this is the main issue (and causes all the other errors).\n\nCan you re-check the permissions on /etc/zarafa and /etc/zarafa/webaccess? It\nalso could be a SELinux thing, thus try permissive for a moment."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6204789",
+						"comment_count": "4",
+						"who": {
+							"text": "torbjorn",
+							"name": "Torbjorn Jansson"
+						},
+						"bug_when": "2013-08-12 17:43:54 +0000",
+						"thetext": "selinux was already off when i tested it.\ni restarted the computer and now i get to the logon page of zarafa webaccess.\nperhaps i forgot to restart httpd or something on the first try.\n\nafter creating a user with zarafa-admin i try to logon via webaccess.\nlogon accepts account and starts to show the webaccess interface but everything is empty (no folders or mails) and all i get is a spinning circle that it is doing something.\n\n/var/log/zarafa/server.log is filling up with sql errors similar to this:\n\nMon Aug 12 19:36:08 2013: SQL [00000014] result failed: BIGINT UNSIGNED value is out of range in '(`zarafa`.`properties`.`tag` - 0x8501)', Query: \"SELECT 0,properties.tag,properties.type,properties.val_ulong,properties.val_string,properties.val_binary,properties.val_double,properties.val_longint,properties.val_hi,properties.val_lo, hierarchyid, names.nameid, names.namestring, names.guid FROM properties FORCE INDEX (PRIMARY) LEFT JOIN names ON (properties.tag-0x8501)=names.id WHERE hierarchyid=5 AND (tag <= 0x8500 OR names.id IS NOT NULL)\"\n\nthis type of error showed up right after the first start of zarafa-server, after it said \"Database is created\" in the log"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6204959",
+						"comment_count": "5",
+						"who": {
+							"text": "redhat-bugzilla",
+							"name": "Robert Scheck"
+						},
+						"bug_when": "2013-08-12 18:33:42 +0000",
+						"thetext": "https://forums.zarafa.com/showthread.php?7980-SQL-error-on-Zarafa-7-1-with-MariaDB-5-5-25"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6204969",
+						"comment_count": "6",
+						"who": {
+							"text": "redhat-bugzilla",
+							"name": "Robert Scheck"
+						},
+						"bug_when": "2013-08-12 18:37:35 +0000",
+						"thetext": "Created attachment 785843\nzarafa-7.1.4-mariadb-tag-not-unsigned.patch\n\nUntested patch suggested by others in the Zarafa community"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6302118",
+						"comment_count": "7",
+						"who": {
+							"text": "jlind",
+							"name": "Jon"
+						},
+						"bug_when": "2013-09-12 18:03:03 +0000",
+						"thetext": "Anyone upgrading to Fedora 19 should be aware:\n\nI found following information on Features/ReplaceMySQLwithMariaDB\n\n* \"exclude=mariadb*\" should be used during the upgrade from F18 to F19. Then it should be removed\n*  If you really need to install community-mysql client library and/or devel files (packaged as community-mysql-libs, community-mysql-devel) instead of mariadb packages, note that you will have to keep mariadb-libs (which is the only package that doesn't conflict with community-mysql) to be able to use packages depending on mariadb client packages.\n\nmariadb-libs have to be installed, although you are using community-mysql*."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6302289",
+						"comment_count": "8",
+						"who": {
+							"text": "redhat-bugzilla",
+							"name": "Robert Scheck"
+						},
+						"bug_when": "2013-09-12 19:02:53 +0000",
+						"thetext": "The soon upcoming Zarafa 7.1.6 will have changed dependencies till Zarafa is\nsomewhen supporting MariaDB. Pushing out Zarafa 7.1.5 nevertheless is more to\naddress the completely broken stuff from 7.0.x times."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6630270",
+						"comment_count": "9",
+						"who": {
+							"text": "redhat-bugzilla",
+							"name": "Robert Scheck"
+						},
+						"bug_when": "2013-12-17 23:46:12 +0000",
+						"thetext": "Created attachment 838035\nzarafa-7.1.5-sql_mode.patch\n\nThis patch looks more promising, however there is still no upstream decision\nor fix so far."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6641221",
+						"comment_count": "10",
+						"who": {
+							"text": "redhat-bugzilla",
+							"name": "Robert Scheck"
+						},
+						"bug_when": "2013-12-20 09:38:59 +0000",
+						"thetext": "Upstream ticket: https://jira.zarafa.com/browse/ZCP-11934"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7271952",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-08 05:41:13 +0000",
+						"thetext": "zarafa-7.1.10-1.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-7896/zarafa-7.1.10-1.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7271953",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-08 05:41:33 +0000",
+						"thetext": "zarafa-7.1.10-1.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-7889/zarafa-7.1.10-1.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7271954",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-08 05:41:47 +0000",
+						"thetext": "zarafa-7.1.10-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2014-1782/zarafa-7.1.10-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7271957",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-08 05:42:07 +0000",
+						"thetext": "zarafa-7.1.10-1.el5, php53-mapi-7.1.10-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2014-1780/zarafa-7.1.10-1.el5,php53-mapi-7.1.10-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7283007",
+						"comment_count": "15",
+						"who": {
+							"text": "redhat-bugzilla",
+							"name": "Robert Scheck"
+						},
+						"bug_when": "2014-07-10 21:48:22 +0000",
+						"thetext": "In theory, Zarafa 7.1.10 should add support for MariaDB. Practically it\ndoes unfortunately not. The result with MariaDB 5.5.38 with a simple MAPI\nlogin via e.g. WebAccess:\n\nJul 10 23:40:40 tux zarafa-server[24633]: SQL [00000002] result failed: BIGINT UNSIGNED value is out of range in '(`zarafa`.`properties`.`tag` - 0x8501)', Query: \"SELECT 0,properties.tag,properties.type,properties.val_ulong,properties.val_string,properties.val_binary,properties.val_double,properties.val_longint,properties.val_hi,properties.val_lo, hierarchyid, names.nameid, names.namestring, names.guid FROM properties FORCE INDEX (PRIMARY) LEFT JOIN names ON (properties.tag-0x8501)=names.id WHERE hierarchyid=3 AND (tag <= 0x8500 OR names.id IS NOT NULL)\"\nJul 10 23:40:40 tux zarafa-server[24633]: SQL [00000004] result failed: BIGINT UNSIGNED value is out of range in '(`zarafa`.`properties`.`tag` - 0x8501)', Query: \"SELECT 0,properties.tag,properties.type,properties.val_ulong,properties.val_string,properties.val_binary,properties.val_double,properties.val_longint,properties.val_hi,properties.val_lo, hierarchyid, names.nameid, names.namestring, names.guid FROM properties FORCE INDEX (PRIMARY) LEFT JOIN names ON (properties.tag-0x8501)=names.id WHERE hierarchyid=4 AND (tag <= 0x8500 OR names.id IS NOT NULL)\"\nJul 10 23:40:40 tux zarafa-server[24633]: SQL [00000006] result failed: BIGINT UNSIGNED value is out of range in '(`zarafa`.`properties`.`tag` - 0x8501)', Query: \"SELECT 0,properties.tag,properties.type,properties.val_ulong,properties.val_string,properties.val_binary,properties.val_double,properties.val_longint,properties.val_hi,properties.val_lo, hierarchyid, names.nameid, names.namestring, names.guid FROM properties FORCE INDEX (PRIMARY) LEFT JOIN names ON (properties.tag-0x8501)=names.id WHERE hierarchyid=4 AND (tag <= 0x8500 OR names.id IS NOT NULL)\""
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7286189",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-12 02:21:30 +0000",
+						"thetext": "Package zarafa-7.1.10-2.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing zarafa-7.1.10-2.fc20'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-7896/zarafa-7.1.10-2.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7330511",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-27 17:39:58 +0000",
+						"thetext": "zarafa-7.1.10-2.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7330516",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-27 17:40:23 +0000",
+						"thetext": "zarafa-7.1.10-2.el5, php53-mapi-7.1.10-2.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7331015",
+						"comment_count": "19",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-28 03:24:37 +0000",
+						"thetext": "zarafa-7.1.10-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7331023",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-28 03:25:26 +0000",
+						"thetext": "zarafa-7.1.10-2.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1073618,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-0103 zarafa: passwords stored in cleartext on server",
+			"bugzilla": {
+				"bug_id": "1073618",
+				"alias": "CVE-2014-0103",
+				"creation_ts": "2014-03-06 19:48:12 +0000",
+				"short_desc": "CVE-2014-0103 zarafa: passwords stored in cleartext on server",
+				"delta_ts": "2019-09-29 13:14:52 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1104803",
+					"1104804"
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6889687",
+						"comment_count": "0",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2014-03-06 19:48:12 +0000",
+						"thetext": "Robert Scheck reported that Zarafa's WebAccess stored session information, including login credentials, on-disk in PHP session files.  This session file would contain a user's username and password to the Zarafa IMAP server.\n\nIf Zarafa WebAccess was run on a shared hosting site (multiple web sites on the same server), and an administrator of another server, with the ability to upload arbitrary scripts to the server, they could use this to obtain these IMAP credentials due to both sites being run by the same Apache user, and the PHP session files being owned by the same.\n\nIn a non-shared hosting environment, or one using something like SuEXEC, where the PHP session files are owned by individual users on a per-site basis, this would not be an issue.  In that case, only a local user able to read these files (either as root or as the user running the Apache web server) would be able to view the credentials."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6928276",
+						"comment_count": "2",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2014-03-18 23:56:12 +0000",
+						"thetext": "Upstream has indicated that:\n\n\"\nThe encryption is implemented in the webapp (1.6) and webaccess. The user password are encrypted using openssl_encrypt / _decrypt The key is obtained form the webapp.conf file.\n\nIt is true that once you obtain root acces it is possible to obtain the encryption key, and you are able to decrypt the user password. But once you have root access, it is always possible to obtain the user passwords.\n\"\n\nNote that these fixed versions are not yet available."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6969486",
+						"comment_count": "3",
+						"who": {
+							"text": "redhat-bugzilla",
+							"name": "Robert Scheck"
+						},
+						"bug_when": "2014-03-31 15:17:14 +0000",
+						"thetext": "Upstream released WebAccess 7.1.9-44333 a few minutes ago - which is still\nvulnerable. WebApp 1.6 has not been released so far (the latest version is\n1.5 which is still the same version like at initially opening this RHBZ)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7146321",
+						"comment_count": "4",
+						"who": {
+							"text": "redhat-bugzilla",
+							"name": "Robert Scheck"
+						},
+						"bug_when": "2014-06-04 10:18:21 +0000",
+						"thetext": "Upstream released WebAccess 7.1.10-44973 yesterday. That release contains the\nfix mentioned in comment #2. Unfortunately the functions openssl_encrypt and\nopenssl_decrypt are only available starting with PHP 5.3, thus Fedora EPEL 5\nwill still be vulnerable as RHEL 5 is shipping PHP 5.1. WebApp 1.5-44025 (as\nshipped/bundled by upstream with Zarafa 7.1.10-44973) is still vulnerable and\ndoes not include the fix. As of writing I can not see that changelog mentions\nthat fix, too."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7146373",
+						"comment_count": "5",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-06-04 10:39:52 +0000",
+						"thetext": "(In reply to Robert Scheck from comment #4)\n> Unfortunately the functions openssl_encrypt and openssl_decrypt are only\n> available starting with PHP 5.3, thus Fedora EPEL 5 will still be vulnerable\n> as RHEL 5 is shipping PHP 5.1.\n\nRed Hat Enterprise Linux 5 also provides PHP 5.3 via php53 packages."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7146413",
+						"comment_count": "6",
+						"who": {
+							"text": "redhat-bugzilla",
+							"name": "Robert Scheck"
+						},
+						"bug_when": "2014-06-04 10:50:43 +0000",
+						"thetext": "(In reply to Tomas Hoger from comment #5)\n> Red Hat Enterprise Linux 5 also provides PHP 5.3 via php53 packages.\n\nThat is correct, but not everybody might be able to use them easily - some\npackages might have requirements for the original PHP packages. And PHP 5.1\nand 5.3 are IIRC not ABI compatible once it comes to e.g. PHP modules."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7147990",
+						"comment_count": "7",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2014-06-04 17:47:02 +0000",
+						"thetext": "(In reply to Robert Scheck from comment #6)\n> (In reply to Tomas Hoger from comment #5)\n> > Red Hat Enterprise Linux 5 also provides PHP 5.3 via php53 packages.\n> \n> That is correct, but not everybody might be able to use them easily - some\n> packages might have requirements for the original PHP packages. And PHP 5.1\n> and 5.3 are IIRC not ABI compatible once it comes to e.g. PHP modules.\n\nThen I suppose we would have to make a local modification to our Zarafa package to use some different functions as it's not reasonable to backport these functions to earlier versions of PHP simply for use by something in EPEL5.\n\nYou may want to bring that up with upstream if they care about compatibility with older versions."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7147996",
+						"comment_count": "8",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2014-06-04 17:47:36 +0000",
+						"thetext": "\nCreated zarafa tracking bugs for this issue:\n\nAffects: fedora-all [bug 1104803]\nAffects: epel-all [bug 1104804]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7148687",
+						"comment_count": "9",
+						"who": {
+							"text": "redhat-bugzilla",
+							"name": "Robert Scheck"
+						},
+						"bug_when": "2014-06-04 22:28:42 +0000",
+						"thetext": "(In reply to Vincent Danen from comment #7)\n> You may want to bring that up with upstream if they care about compatibility\n> with older versions.\n\nI informed upstream about that (because they still support RHEL 5 and SLES\n10 which both ship PHP < 5.3 by default) in general and meanwhile also sent\na patch suggestion that uses php-mcrypt if php-openssl is not available."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7149382",
+						"comment_count": "10",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-06-05 06:45:59 +0000",
+						"thetext": "For the sake of completeness, php-mcrypt is not available in Red Hat Enterprise Linux, only via php-extras in EPEL."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7149579",
+						"comment_count": "11",
+						"who": {
+							"text": "redhat-bugzilla",
+							"name": "Robert Scheck"
+						},
+						"bug_when": "2014-06-05 07:37:10 +0000",
+						"thetext": "Right, but for Zarafa in EPEL 5 this IMHO shouldn't be an issue: Multiple\nnon-optional Zarafa dependencies can be only satisfied using EPEL such as\nboost141, clucene, kyotocabinet, libical and libvmime. My patch suggestion\nis to prefer php-openssl and only use php-mcrypt alternatively. But thank\nyou very much for thinking about it and mentioning this :)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7330509",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-27 17:39:55 +0000",
+						"thetext": "zarafa-7.1.10-2.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7330514",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-27 17:40:20 +0000",
+						"thetext": "zarafa-7.1.10-2.el5, php53-mapi-7.1.10-2.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7331016",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-28 03:24:40 +0000",
+						"thetext": "zarafa-7.1.10-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7331024",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-28 03:25:28 +0000",
+						"thetext": "zarafa-7.1.10-2.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7334072",
+						"comment_count": "16",
+						"who": {
+							"text": "redhat-bugzilla",
+							"name": "Robert Scheck"
+						},
+						"bug_when": "2014-07-28 20:16:37 +0000",
+						"thetext": "This flaw is only solved for EPEL 5 users running zarafa-webaccess using php53;\nupstream is working on a fix for Zarafa 7.1.12 to cover also PHP < 5.3."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1104804,
+			"security": true,
+			"title": "CVE-2014-0103 zarafa: passwords stored in cleartext on server [epel-all]",
+			"bugzilla": {
+				"bug_id": "1104804",
+				"creation_ts": "2014-06-04 17:47:32 +0000",
+				"short_desc": "CVE-2014-0103 zarafa: passwords stored in cleartext on server [epel-all]",
+				"delta_ts": "2015-04-26 19:36:59 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1073618",
+						"alias": "CVE-2014-0103",
+						"creation_ts": "2014-03-06 19:48:12 +0000",
+						"short_desc": "CVE-2014-0103 zarafa: passwords stored in cleartext on server",
+						"delta_ts": "2019-09-29 13:14:52 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1104803",
+							"1104804"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "6889687",
+								"comment_count": "0",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2014-03-06 19:48:12 +0000",
+								"thetext": "Robert Scheck reported that Zarafa's WebAccess stored session information, including login credentials, on-disk in PHP session files.  This session file would contain a user's username and password to the Zarafa IMAP server.\n\nIf Zarafa WebAccess was run on a shared hosting site (multiple web sites on the same server), and an administrator of another server, with the ability to upload arbitrary scripts to the server, they could use this to obtain these IMAP credentials due to both sites being run by the same Apache user, and the PHP session files being owned by the same.\n\nIn a non-shared hosting environment, or one using something like SuEXEC, where the PHP session files are owned by individual users on a per-site basis, this would not be an issue.  In that case, only a local user able to read these files (either as root or as the user running the Apache web server) would be able to view the credentials."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6928276",
+								"comment_count": "2",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2014-03-18 23:56:12 +0000",
+								"thetext": "Upstream has indicated that:\n\n\"\nThe encryption is implemented in the webapp (1.6) and webaccess. The user password are encrypted using openssl_encrypt / _decrypt The key is obtained form the webapp.conf file.\n\nIt is true that once you obtain root acces it is possible to obtain the encryption key, and you are able to decrypt the user password. But once you have root access, it is always possible to obtain the user passwords.\n\"\n\nNote that these fixed versions are not yet available."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6969486",
+								"comment_count": "3",
+								"who": {
+									"text": "redhat-bugzilla",
+									"name": "Robert Scheck"
+								},
+								"bug_when": "2014-03-31 15:17:14 +0000",
+								"thetext": "Upstream released WebAccess 7.1.9-44333 a few minutes ago - which is still\nvulnerable. WebApp 1.6 has not been released so far (the latest version is\n1.5 which is still the same version like at initially opening this RHBZ)."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7146321",
+								"comment_count": "4",
+								"who": {
+									"text": "redhat-bugzilla",
+									"name": "Robert Scheck"
+								},
+								"bug_when": "2014-06-04 10:18:21 +0000",
+								"thetext": "Upstream released WebAccess 7.1.10-44973 yesterday. That release contains the\nfix mentioned in comment #2. Unfortunately the functions openssl_encrypt and\nopenssl_decrypt are only available starting with PHP 5.3, thus Fedora EPEL 5\nwill still be vulnerable as RHEL 5 is shipping PHP 5.1. WebApp 1.5-44025 (as\nshipped/bundled by upstream with Zarafa 7.1.10-44973) is still vulnerable and\ndoes not include the fix. As of writing I can not see that changelog mentions\nthat fix, too."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7146373",
+								"comment_count": "5",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-06-04 10:39:52 +0000",
+								"thetext": "(In reply to Robert Scheck from comment #4)\n> Unfortunately the functions openssl_encrypt and openssl_decrypt are only\n> available starting with PHP 5.3, thus Fedora EPEL 5 will still be vulnerable\n> as RHEL 5 is shipping PHP 5.1.\n\nRed Hat Enterprise Linux 5 also provides PHP 5.3 via php53 packages."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7146413",
+								"comment_count": "6",
+								"who": {
+									"text": "redhat-bugzilla",
+									"name": "Robert Scheck"
+								},
+								"bug_when": "2014-06-04 10:50:43 +0000",
+								"thetext": "(In reply to Tomas Hoger from comment #5)\n> Red Hat Enterprise Linux 5 also provides PHP 5.3 via php53 packages.\n\nThat is correct, but not everybody might be able to use them easily - some\npackages might have requirements for the original PHP packages. And PHP 5.1\nand 5.3 are IIRC not ABI compatible once it comes to e.g. PHP modules."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7147990",
+								"comment_count": "7",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2014-06-04 17:47:02 +0000",
+								"thetext": "(In reply to Robert Scheck from comment #6)\n> (In reply to Tomas Hoger from comment #5)\n> > Red Hat Enterprise Linux 5 also provides PHP 5.3 via php53 packages.\n> \n> That is correct, but not everybody might be able to use them easily - some\n> packages might have requirements for the original PHP packages. And PHP 5.1\n> and 5.3 are IIRC not ABI compatible once it comes to e.g. PHP modules.\n\nThen I suppose we would have to make a local modification to our Zarafa package to use some different functions as it's not reasonable to backport these functions to earlier versions of PHP simply for use by something in EPEL5.\n\nYou may want to bring that up with upstream if they care about compatibility with older versions."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7147996",
+								"comment_count": "8",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2014-06-04 17:47:36 +0000",
+								"thetext": "\nCreated zarafa tracking bugs for this issue:\n\nAffects: fedora-all [bug 1104803]\nAffects: epel-all [bug 1104804]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7148687",
+								"comment_count": "9",
+								"who": {
+									"text": "redhat-bugzilla",
+									"name": "Robert Scheck"
+								},
+								"bug_when": "2014-06-04 22:28:42 +0000",
+								"thetext": "(In reply to Vincent Danen from comment #7)\n> You may want to bring that up with upstream if they care about compatibility\n> with older versions.\n\nI informed upstream about that (because they still support RHEL 5 and SLES\n10 which both ship PHP < 5.3 by default) in general and meanwhile also sent\na patch suggestion that uses php-mcrypt if php-openssl is not available."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7149382",
+								"comment_count": "10",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-06-05 06:45:59 +0000",
+								"thetext": "For the sake of completeness, php-mcrypt is not available in Red Hat Enterprise Linux, only via php-extras in EPEL."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7149579",
+								"comment_count": "11",
+								"who": {
+									"text": "redhat-bugzilla",
+									"name": "Robert Scheck"
+								},
+								"bug_when": "2014-06-05 07:37:10 +0000",
+								"thetext": "Right, but for Zarafa in EPEL 5 this IMHO shouldn't be an issue: Multiple\nnon-optional Zarafa dependencies can be only satisfied using EPEL such as\nboost141, clucene, kyotocabinet, libical and libvmime. My patch suggestion\nis to prefer php-openssl and only use php-mcrypt alternatively. But thank\nyou very much for thinking about it and mentioning this :)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7330509",
+								"comment_count": "12",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-07-27 17:39:55 +0000",
+								"thetext": "zarafa-7.1.10-2.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7330514",
+								"comment_count": "13",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-07-27 17:40:20 +0000",
+								"thetext": "zarafa-7.1.10-2.el5, php53-mapi-7.1.10-2.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7331016",
+								"comment_count": "14",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-07-28 03:24:40 +0000",
+								"thetext": "zarafa-7.1.10-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7331024",
+								"comment_count": "15",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-07-28 03:25:28 +0000",
+								"thetext": "zarafa-7.1.10-2.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7334072",
+								"comment_count": "16",
+								"who": {
+									"text": "redhat-bugzilla",
+									"name": "Robert Scheck"
+								},
+								"bug_when": "2014-07-28 20:16:37 +0000",
+								"thetext": "This flaw is only solved for EPEL 5 users running zarafa-webaccess using php53;\nupstream is working on a fix for Zarafa 7.1.12 to cover also PHP < 5.3."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7147994",
+						"comment_count": "0",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2014-06-04 17:47:32 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora EPEL.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen creating a Bodhi update request, use the bodhi submission link noted\nin the next comment(s).  This will include the bug IDs of this tracking\nbug as well as the relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nBodhi notes field when available.\n\nNOTE: this issue affects multiple supported versions of Fedora EPEL. While\nonly one tracking bug has been filed, please correct all affected versions\nat the same time.  If you need to fix the versions independent of each\nother, you may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7147995",
+						"comment_count": "1",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2014-06-04 17:47:35 +0000",
+						"thetext": "\nUse the following update submission link to create the Bodhi request for\nthis issue as it contains the top-level parent bug(s) as well as this\ntracking bug.  This will ensure that all associated bugs get updated when\nnew packages are pushed to stable.\n\nIMPORTANT: ensure that the \"Close bugs when update is stable\" option\nremains checked.\n\nBodhi update submission link:\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1073618,1104804"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7247255",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-06-29 17:14:52 +0000",
+						"thetext": "zarafa-7.1.10-1.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/zarafa-7.1.10-1.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7247257",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-06-29 17:16:05 +0000",
+						"thetext": "zarafa-7.1.10-1.el5,php53-mapi-7.1.10-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/zarafa-7.1.10-1.el5,php53-mapi-7.1.10-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7330510",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-27 17:39:56 +0000",
+						"thetext": "zarafa-7.1.10-2.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7330515",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-07-27 17:40:21 +0000",
+						"thetext": "zarafa-7.1.10-2.el5, php53-mapi-7.1.10-2.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8120850",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-07 19:52:34 +0000",
+						"thetext": "zarafa-7.1.12-1.el5 has been submitted as an update for Fedora EPEL 5.\nhttps://admin.fedoraproject.org/updates/zarafa-7.1.12-1.el5"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8124773",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-08 19:04:08 +0000",
+						"thetext": "Package zarafa-7.1.12-1.el5:\n* should fix your issue,\n* was pushed to the Fedora EPEL 5 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=epel-testing zarafa-7.1.12-1.el5'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-EPEL-2015-5694/zarafa-7.1.12-1.el5\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8179660",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-26 19:36:59 +0000",
+						"thetext": "zarafa-7.1.12-1.el5, php53-mapi-7.1.12-1.el5 has been pushed to the Fedora EPEL 5 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "php53-mapi-7.1.10-2.el5",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"i386": [
+					{
+						"name": "php53-mapi-debuginfo",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "php53-mapi",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					}
+				],
+				"ppc": [
+					{
+						"name": "php53-mapi-debuginfo",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "php53-mapi",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					}
+				],
+				"src": [
+					{
+						"name": "php53-mapi",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "php53-mapi-debuginfo",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php53-mapi",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					}
+				]
+			}
+		},
+		{
+			"epoch": 0,
+			"nvr": "zarafa-7.1.10-2.el5",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"i386": [
+					{
+						"name": "zarafa-devel",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "zarafa-monitor",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "libmapi",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "zarafa-spooler",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "zarafa-debuginfo",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "python-MAPI",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "zarafa-client",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "zarafa-contacts",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "zarafa-gateway",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "php-mapi",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "zarafa-server",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "zarafa-dagent",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "zarafa-webaccess",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "zarafa-search",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "zarafa-utils",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "zarafa",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "zarafa-common",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "zarafa-ical",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					},
+					{
+						"name": "zarafa-archiver",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "i386"
+					}
+				],
+				"ppc": [
+					{
+						"name": "zarafa-devel",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "zarafa-archiver",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "zarafa-client",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "zarafa-ical",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "zarafa-search",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "php-mapi",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "zarafa-common",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "zarafa",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "zarafa-gateway",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "python-MAPI",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "zarafa-contacts",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "zarafa-spooler",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "zarafa-webaccess",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "zarafa-utils",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "zarafa-debuginfo",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "zarafa-monitor",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "libmapi",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "zarafa-dagent",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					},
+					{
+						"name": "zarafa-server",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "ppc"
+					}
+				],
+				"src": [
+					{
+						"name": "zarafa",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "zarafa-dagent",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "zarafa-gateway",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "zarafa-common",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "zarafa-monitor",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libmapi",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "php-mapi",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "zarafa-client",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "zarafa-utils",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "zarafa-contacts",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "zarafa-server",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "zarafa-webaccess",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "zarafa-spooler",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "zarafa-ical",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "zarafa",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "zarafa-devel",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "zarafa-archiver",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "zarafa-debuginfo",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python-MAPI",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					},
+					{
+						"name": "zarafa-search",
+						"version": "7.1.10",
+						"release": "2.el5",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 56765,
+			"text": "This update has been submitted for testing by robert. ",
+			"timestamp": "2014-06-29 17:16:19",
+			"update_id": 8050,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 56766,
+			"text": "This update is currently being pushed to the Fedora EPEL 5 testing updates repository.",
+			"timestamp": "2014-06-30 01:47:54",
+			"update_id": 8050,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 56767,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-06-30 03:37:12",
+			"update_id": 8050,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 56768,
+			"text": "robert has edited this update. New build(s): zarafa-7.1.10-2.el5, php53-mapi-7.1.10-2.el5. Removed build(s): zarafa-7.1.10-1.el5, php53-mapi-7.1.10-1.el5.",
+			"timestamp": "2014-07-10 22:53:38",
+			"update_id": 8050,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 56769,
+			"text": "This update has been submitted for testing by robert. ",
+			"timestamp": "2014-07-10 22:53:57",
+			"update_id": 8050,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 56770,
+			"text": "This update is currently being pushed to the Fedora EPEL 5 testing updates repository.",
+			"timestamp": "2014-07-11 16:59:17",
+			"update_id": 8050,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 56771,
+			"text": "This update is currently being pushed to the Fedora EPEL 5 testing updates repository.",
+			"timestamp": "2014-07-11 17:53:19",
+			"update_id": 8050,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 56772,
+			"text": "This update is currently being pushed to the Fedora EPEL 5 testing updates repository.",
+			"timestamp": "2014-07-11 18:15:37",
+			"update_id": 8050,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 56773,
+			"text": "This update is currently being pushed to the Fedora EPEL 5 testing updates repository.",
+			"timestamp": "2014-07-11 18:19:27",
+			"update_id": 8050,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 56774,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-07-11 20:39:41",
+			"update_id": 8050,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 56775,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2014-07-25 23:17:14",
+			"update_id": 8050,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 56776,
+			"text": "This update has been submitted for stable by robert. ",
+			"timestamp": "2014-07-27 12:44:58",
+			"update_id": 8050,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 56777,
+			"text": "This update is currently being pushed to the Fedora EPEL 5 stable updates repository.",
+			"timestamp": "2014-07-27 16:04:16",
+			"update_id": 8050,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 56778,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2014-07-27 17:40:21",
+			"update_id": 8050,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2014-07-10 22:53:52",
+	"date_pushed": "2014-07-27 17:40:21",
+	"date_stable": "2014-07-27 17:40:21",
+	"date_submitted": "2014-06-29 17:16:08",
+	"date_testing": "2014-07-11 20:39:41",
+	"meets_testing_requirements": true,
+	"notes": "Zarafa Collaboration Platform 7.1.10 final [44973]\r\n==================================================\r\n\r\n\r\n\r\nGeneral\r\n-------\r\n\r\nThis release brings a few new features while maintaining stability. This release is identical to the RC since no reports have arrived upstream and additional testing has not shown up any issues.\r\n\r\n\r\nBackend\r\n-------\r\n\r\n  - ZCP-12380: Avoid violating RFC 3501 at partial IMAP fetch request \r\n  - ZCP-12337: Provide support for offline S/MIME public certificates \r\n  - ZCP-12226: ZWS breaks opensource build \r\n  - ZCP-12219: Enhance MariaDB support by modifying sql_mode \r\n  - ZCP-12162: Implement \"Reinvite\" for Zarafa ical \r\n  - ZCP-11730: zarafa-mailbox-permissions man page error \r\n  - ZCP-11835: zarafa-set-oof does not accept argument \"-n\"\r\n  - ZCP-12115: support ubuntu 14.04\r\n  - ZCP-12142: Patch: Option to disable all plaintext authentications unless SSL/TLS is used\r\n  - ZCP-12162: Implement \"Reinvite\" for Zarafa ical\r\n  - ZCP-12200: Patch: POP3 RESP-CODES and AUTH-RESP-CODE support in Zarafa-Gateway\r\n  - ZCP-12013: Log the reason why a socket error was thrown\r\n  - ZCP-12219: Enhance MariaDB support by modifying sql_mode\r\n  - ZCP-12227: Enhance DAgent log level prios\r\n  - ZCP-12232: Patch: POP3 CAPA (CAPABILITIES) support in Zarafa-Gateway\r\n  - ZCP-12234: Include email adress when forwarding mails with a rule (community contribution)\r\n  - ZCP-12270: Change maintainer line for debian packages\r\n  - ZCP-12338: Allow administrators to backup archive stores (show GUID via zarafa-admin)\r\n  - ZCP-12339: Personal archive store not opened if archive server name in ADS does not match the casing of the actual name.\r\n  - ZCP-12340: Patch: Repair broken ssl_enable_v2 setting for Zarafa 7.1.x\r\n  - ZCP-12342: Zarafa-backup creates empty folders for skipped companies\r\n  - ZCP-9899: Update GSoap to 2.8.x",
+	"pushed": true,
+	"release": {
+		"branch": "el5",
+		"candidate_tag": "dist-5E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "dist-5E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 5",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-5",
+		"override_tag": "dist-5E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-5E-epel",
+		"state": "archived",
+		"testing_tag": "dist-5E-epel-testing",
+		"version": "5"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "php53-mapi-7.1.10-2.el5 zarafa-7.1.10-2.el5",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2014-1780",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2014-1780",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/74d863c618d1ff08d6ed19e90c58349761e8a5fa7888ce464063fc2809ba7dc2?s=24&d=retro",
+		"email": "redhat@linuxnetz.de",
+		"groups": [
+			{
+				"name": "proventesters"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "ambassadors"
+			},
+			{
+				"name": "campusambassadors"
+			},
+			{
+				"name": "gitfedora-web"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "advocates"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "gitsecurity-spin"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "gitfama"
+			},
+			{
+				"name": "epel-packagers-sig"
+			},
+			{
+				"name": "web"
+			},
+			{
+				"name": "clamav"
+			}
+		],
+		"id": 172,
+		"name": "robert",
+		"openid": "robert.id.fedoraproject.org"
+	},
+	"version_hash": "2b2f86f961f65151c5b93675c5ea9ddc81d0201e"
+}

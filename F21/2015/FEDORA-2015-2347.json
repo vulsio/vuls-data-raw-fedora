@@ -1,0 +1,2041 @@
+{
+	"alias": "FEDORA-2015-2347",
+	"bugs": [
+		{
+			"bug_id": 1179856,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-5352 krb5: gss_process_context_token() incorrectly frees context (MITKRB5-SA-2015-001)",
+			"bugzilla": {
+				"bug_id": "1179856",
+				"alias": "CVE-2014-5352",
+				"creation_ts": "2015-01-07 16:34:19 +0000",
+				"short_desc": "CVE-2014-5352 krb5: gss_process_context_token() incorrectly frees context (MITKRB5-SA-2015-001)",
+				"delta_ts": "2023-05-12 16:23:38 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1181208",
+					"1182882",
+					"1182883",
+					"1188869"
+				],
+				"blocked": [
+					{
+						"bug_id": "1121513",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1179866",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2015:0794",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7815813",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-07 16:34:19 +0000",
+						"thetext": "Upstream reports that in the MIT krb5 libgssapi_krb5 library, after\ngss_process_context_token() is used to process a valid context\ndeletion token, the caller is left with a security context handle\ncontaining a dangling pointer.  Further uses of this handle will\nresult in use-after-free and double-free memory access violations.\nlibgssrpc server applications such as kadmind are vulnerable as they\ncan be instructed to call gss_process_context_token().\n\nThe krb5 mechanism implementation of gss_process_context_token(), upon\nsuccessfully validating a deletion token, frees the security context\nstructure.  This behavior is incorrect as the API has no way to alert\nthe caller that the security context was deleted.  The application is\nleft with a valid pointer to a mechglue security context structure,\ncontaining a dangling pointer to a freed krb5 security context\nstructure.  Any further use of this handle will result in a\nuse-after-free violation and eventually a double-free when the handle\nis deleted with gss_delete_sec_context().  This vulnerability could\ntheoretically lead to the execution of malicious code, but that is\nbelieved to be difficult.\n\nApplications which call gss_process_context_token() are believed to be\nrare, but the server code in the old flavor of libgssrpc GSS-API\nauthentication can be induced to call gss_process_context_token().\n\nIn release krb5-1.9 and earlier, the krb5 GSS mechanism contained\npointer validation code which should prevent subsequent dereferences\nof the freed pointer.  In these earlier releases, the vulnerability is\nbelieved to be limited to a memory leak because\ngss_delete_sec_context() will not free the mechglue security context\nstructure.\n\nSuggested path to fix this vulnerability as well as CVE-2014-9421, \nCVE-2014-9422 and CVE-2014-9423 is attached."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7815882",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-07 17:00:05 +0000",
+						"thetext": "Created attachment 977438\nkrb5.patch\n\nThis patch is against release krb5-1.13. \nIt will apply to krb5-1.12 and krb5-1.11 with some fuzz if the t_prf.c hunk is removed, and to krb5-1.10 if the mglueP.h hunk is also removed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7815891",
+						"comment_count": "2",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-07 17:02:52 +0000",
+						"thetext": "Acknowledgements:\n\nRed Hat would like to thank the MIT Kerberos project for reporting this issue. The MIT Kerberos project acknowledges Nico Williams for assisting with the analysis of CVE-2014-5352."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7835389",
+						"comment_count": "3",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-12 15:13:44 +0000",
+						"thetext": "According to MIT, kadmind in all released versions of MIT krb5 is vulnerable. Third-party server applications using libgssrpc from all releases of MIT krb5 are vulnerable if they enable the AUTH_GSSAPI authentication flavor. Third-party client and server applications using GSS-API libraries from all releases of MIT krb5 are vulnerable if they directly call gss_process_context_token(). Such applications are believed to be rare. Releases krb5-1.9 and prior may be less vulnerable due to pointer validation code within the krb5 GSS-API mechanism; applications using those releases may instead only experience a memory leak"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7835933",
+						"comment_count": "6",
+						"who": {
+							"text": "rmainz",
+							"name": "Roland Mainz"
+						},
+						"bug_when": "2015-01-12 16:47:48 +0000",
+						"thetext": "Created attachment 979243\nBackport of krb5.patch to krb5-1.12.2-final"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7836109",
+						"comment_count": "7",
+						"who": {
+							"text": "rmainz",
+							"name": "Roland Mainz"
+						},
+						"bug_when": "2015-01-12 17:29:39 +0000",
+						"thetext": "Created attachment 979249\nBackport of krb5.patch to krb5-1.11.5-final"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7836216",
+						"comment_count": "8",
+						"who": {
+							"text": "rmainz",
+							"name": "Roland Mainz"
+						},
+						"bug_when": "2015-01-12 17:59:12 +0000",
+						"thetext": "Created attachment 979263\nBackport of krb5.patch to krb5-1.10.7-final"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7905464",
+						"comment_count": "10",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2015-02-03 21:17:46 +0000",
+						"thetext": "External References:\n\nhttp://web.mit.edu/Kerberos/advisories/MITKRB5-SA-2015-001.txt"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7905503",
+						"comment_count": "11",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2015-02-03 21:38:12 +0000",
+						"thetext": "\nCreated krb5 tracking bugs for this issue:\n\nAffects: fedora-all [bug 1188869]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7909184",
+						"comment_count": "12",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-02-04 19:43:58 +0000",
+						"thetext": "Upstream commit:\n\nhttps://github.com/krb5/krb5/commit/82dc33da50338ac84c7b4102dc6513d897d0506a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7988153",
+						"comment_count": "13",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-03-02 09:17:49 +0000",
+						"thetext": "Statement:\n\nRed Hat Enterprise Linux 5 is now in Production 3 Phase of the support and maintenance life cycle. This has been rated as having Moderate security impact and is not currently planned to be addressed in future updates. For additional information, refer to the Red Hat Enterprise Linux Life Cycle: https://access.redhat.com/support/policy/updates/errata/."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8011010",
+						"comment_count": "14",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-03-05 10:01:36 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:0439 https://rhn.redhat.com/errata/RHSA-2015-0439.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8022227",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 08:18:18 +0000",
+						"thetext": "krb5-1.11.5-18.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8037711",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-12 16:33:38 +0000",
+						"thetext": "krb5-1.12.2-14.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8125752",
+						"comment_count": "18",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-04-09 05:09:24 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2015:0794 https://rhn.redhat.com/errata/RHSA-2015-0794.html"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1179857,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-9421 krb5: kadmind doubly frees partial deserialization results (MITKRB5-SA-2015-001)",
+			"bugzilla": {
+				"bug_id": "1179857",
+				"alias": "CVE-2014-9421",
+				"creation_ts": "2015-01-07 16:39:43 +0000",
+				"short_desc": "CVE-2014-9421 krb5: kadmind doubly frees partial deserialization results (MITKRB5-SA-2015-001)",
+				"delta_ts": "2023-05-12 13:55:18 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1181208",
+					"1182882",
+					"1182883",
+					"1188869"
+				],
+				"blocked": [
+					{
+						"bug_id": "1121513",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1179866",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2015:0794",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7815821",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-07 16:39:43 +0000",
+						"thetext": "Upstream reports that if the MIT krb5 kadmind daemon receives invalid XDR\ndata from an authenticated user, it may perform use-after-free and\ndouble-free memory access violations while cleaning up the partial\ndeserialization results.  Other libgssrpc server applications may also\nbe vulnerable if they contain insufficiently defensive XDR functions.\n\nAn authenticated attacker could cause kadmind or other\nvulnerable server application to crash or to execute arbitrary code.\nExploiting a double-free event to execute arbitrary code is believed\nto be difficult.\n\nlibgssrpc applications use the XDR serialization format.  XDR data is\nserialized, deserialized, and freed using an application function,\noften generated by the rpcgen command.  If an application receives\nincorrectly serialized data from the client, the XDR function will\nreturn false to report a deserialization failure, perhaps leaving\nbehind partial deserialization results.  To avoid a memory leak, these\npartial results must be freed with another invocation of the XDR\nfunction.\n\nIn a server application, this cleanup is performed automatically by\nsvc_getargs().  If the AUTH_GSSAPI authentication flavor is used, the\ncleanup is also erroneously performed by the internal unwrap function,\nso the XDR function is invoked twice to clean up the partial results.\n\nXDR functions can be defensive about being invoked twice for cleanup\nby assigning pointer values to NULL after freeing them.  Most XDR\nfunctions do this, but the XDR functions within libkadm5 for principal\nnames and tag-length data do not.  When these functions are invoked\ntwice by libgssrpc to clean up a value, the second invocations perform\nuse-after-free and double-free memory access violations.  These XDR\nfunctions are only exposed to an authenticated attacker.  This\nvulnerability could theoretically lead to the execution of malicious\ncode, but that is believed to be difficult.\n\nClient applications are not believed to be vulnerable because\nclnt_call() and client stub functions do not free partial\ndeserialization results.\n\nSuggested patch to fix this vulnerability as well as \nCVE-2014-5352, CVE-2014-9422 and CVE-2014-9423 is attached to https://bugzilla.redhat.com/show_bug.cgi?id=1179856"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7815895",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-07 17:03:11 +0000",
+						"thetext": "Acknowledgements:\n\nRed Hat would like to thank the MIT Kerberos project for reporting this issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7835409",
+						"comment_count": "2",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-12 15:17:42 +0000",
+						"thetext": "According to MIT, kadmind is vulnerable in all released versions of MIT krb5. Third-party server applications using libgssrpc are vulnerable if they enable the AUTH_GSSAPI authentication flavor and contain insufficiently defensive XDR functions"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7905468",
+						"comment_count": "5",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2015-02-03 21:18:29 +0000",
+						"thetext": "External References:\n\nhttp://web.mit.edu/Kerberos/advisories/MITKRB5-SA-2015-001.txt"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7905505",
+						"comment_count": "6",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2015-02-03 21:38:25 +0000",
+						"thetext": "\nCreated krb5 tracking bugs for this issue:\n\nAffects: fedora-all [bug 1188869]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7909176",
+						"comment_count": "7",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-02-04 19:41:55 +0000",
+						"thetext": "Upstream commit:\n\nhttps://github.com/krb5/krb5/commit/a197e92349a4aa2141b5dff12e9dd44c2a2166e3"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7988149",
+						"comment_count": "8",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-03-02 09:17:24 +0000",
+						"thetext": "Statement:\n\nRed Hat Enterprise Linux 5 is now in Production 3 Phase of the support and maintenance life cycle. This has been rated as having Moderate security impact and is not currently planned to be addressed in future updates. For additional information, refer to the Red Hat Enterprise Linux Life Cycle: https://access.redhat.com/support/policy/updates/errata/."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8011011",
+						"comment_count": "9",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-03-05 10:01:40 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:0439 https://rhn.redhat.com/errata/RHSA-2015-0439.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8022228",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 08:18:20 +0000",
+						"thetext": "krb5-1.11.5-18.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8037713",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-12 16:33:42 +0000",
+						"thetext": "krb5-1.12.2-14.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8125754",
+						"comment_count": "14",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-04-09 05:09:27 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2015:0794 https://rhn.redhat.com/errata/RHSA-2015-0794.html"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1179861,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-9422 krb5: kadmind incorrectly validates server principal name (MITKRB5-SA-2015-001)",
+			"bugzilla": {
+				"bug_id": "1179861",
+				"alias": "CVE-2014-9422",
+				"creation_ts": "2015-01-07 16:47:59 +0000",
+				"short_desc": "CVE-2014-9422 krb5: kadmind incorrectly validates server principal name (MITKRB5-SA-2015-001)",
+				"delta_ts": "2023-05-12 13:56:21 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1181208",
+					"1182882",
+					"1182883",
+					"1188869"
+				],
+				"blocked": [
+					{
+						"bug_id": "1121513",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1179866",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2015:0794",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7815847",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-07 16:47:59 +0000",
+						"thetext": "Upstream reports that the MIT krb5 kadmind daemon incorrectly accepts\nauthentications to two-component server principals whose first\ncomponent is a left substring of \"kadmin\" or whose realm is a left\nprefix of the default realm.\n\nAn attacker who possess the key of a particularly named\nprincipal (such as \"kad/root\") could impersonate any user to kadmind\nand perform administrative actions as that user.\n\nWhen kadmind receives a request using the RPCSEC_GSS authentication\nflavor, it queries the GSS-API security context for the server\nprincipal name and attempts to verify that it is a two-component\nprincipal name where the first component is \"kadmin\", the second\ncomponent is not \"history\", and the realm is the default realm.\n\nThe validation function incorrectly uses strcmp() to compare the\nlength-counted principal name components against null-terminated C\nstrings for \"kadmin\", \"history\", and the default realm.  These\ncomparisons erroneously succeed for left substrings of the of the\ndesired C strings, so for example a first principal name component of\n\"ka\" would be accepted.\n\nkadmind can receive authentications to any server principal entry in\nthe Kerberos database (excluding entries with either the DISALLOW_SVR\nor DISALLOW_ALL_TIX flags set).  If the database contains an\nerroneously matching principal entry such as \"ka/x\", and an attacker\nknows the key for that entry, the attacker can conduct an escalation\nof privilege attack by forging tickets from any client principal name\nto that server principal.  By picking a client principal name with\nadministrative privileges, the attacker could perform arbitrary\nadministrative operations on the Kerberos database.\n\nSuggested patch to fix this issue, as well as CVE-2014-5352, CVE-2014-9421\nand CVE-2014-9423 is attached to https://bugzilla.redhat.com/show_bug.cgi?id=1179856"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7815894",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-07 17:03:04 +0000",
+						"thetext": "Acknowledgements:\n\nRed Hat would like to thank the MIT Kerberos project for reporting this issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7835417",
+						"comment_count": "2",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-12 15:18:43 +0000",
+						"thetext": "According to MIT kadmind is vulnerable in all released versions of MIT krb5."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7905471",
+						"comment_count": "5",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2015-02-03 21:19:48 +0000",
+						"thetext": "External References:\n\nhttp://web.mit.edu/Kerberos/advisories/MITKRB5-SA-2015-001.txt"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7905507",
+						"comment_count": "6",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2015-02-03 21:38:36 +0000",
+						"thetext": "\nCreated krb5 tracking bugs for this issue:\n\nAffects: fedora-all [bug 1188869]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7909185",
+						"comment_count": "7",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-02-04 19:44:31 +0000",
+						"thetext": "Upstream commit:\n\nhttps://github.com/krb5/krb5/commit/6609658db0799053fbef0d7d0aa2f1fd68ef32d8"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7988145",
+						"comment_count": "8",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-03-02 09:16:12 +0000",
+						"thetext": "Statement:\n\nRed Hat Enterprise Linux 5 is now in Production 3 Phase of the support and maintenance life cycle. This has been rated as having Moderate security impact and is not currently planned to be addressed in future updates. For additional information, refer to the Red Hat Enterprise Linux Life Cycle: https://access.redhat.com/support/policy/updates/errata/."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8011012",
+						"comment_count": "9",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-03-05 10:01:43 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:0439 https://rhn.redhat.com/errata/RHSA-2015-0439.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8022230",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 08:18:23 +0000",
+						"thetext": "krb5-1.11.5-18.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8024534",
+						"comment_count": "12",
+						"who": {
+							"text": "rmainz",
+							"name": "Roland Mainz"
+						},
+						"bug_when": "2015-03-09 17:05:02 +0000",
+						"thetext": "(In reply to Ganesh from comment #10)\n> RHEL 6 is never mentioned on this Bug. Customer saw that these affect RHEL 6\n> however. Do we have plan to release a fix for 6?\n\nIt's part of krb5-1.10.3-35.el6_6 (RHEL6.6.z) ..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8037001",
+						"comment_count": "13",
+						"who": {
+							"text": "chris.cumbaa.ctr",
+							"name": "Chris Cumbaa"
+						},
+						"bug_when": "2015-03-12 14:08:35 +0000",
+						"thetext": "> This issue has been addressed in the following products:\n> \n>   Red Hat Enterprise Linux 7\n> \n> Via RHSA-2015:0439 https://rhn.redhat.com/errata/RHSA-2015-0439.html\n\nIt's been a week since the fix for RHEL7 was published and still no mention of RHEL6. Is it in-process?(In reply to errata-xmlrpc from comment #9)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8037114",
+						"comment_count": "14",
+						"who": {
+							"text": "rmainz",
+							"name": "Roland Mainz"
+						},
+						"bug_when": "2015-03-12 14:35:06 +0000",
+						"thetext": "(In reply to Chris Cumbaa from comment #13)\n> > This issue has been addressed in the following products:\n> > \n> >   Red Hat Enterprise Linux 7\n> > \n> > Via RHSA-2015:0439 https://rhn.redhat.com/errata/RHSA-2015-0439.html\n> \n> It's been a week since the fix for RHEL7 was published and still no mention\n> of RHEL6. Is it in-process?\n\nSee comment #12 ..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8037714",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-12 16:33:45 +0000",
+						"thetext": "krb5-1.12.2-14.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8125755",
+						"comment_count": "16",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-04-09 05:09:29 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2015:0794 https://rhn.redhat.com/errata/RHSA-2015-0794.html"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1179863,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-9423 krb5: libgssrpc server applications leak uninitialized bytes (MITKRB5-SA-2015-001)",
+			"bugzilla": {
+				"bug_id": "1179863",
+				"alias": "CVE-2014-9423",
+				"creation_ts": "2015-01-07 16:51:24 +0000",
+				"short_desc": "CVE-2014-9423 krb5: libgssrpc server applications leak uninitialized bytes (MITKRB5-SA-2015-001)",
+				"delta_ts": "2023-05-12 13:53:13 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1181208",
+					"1188869"
+				],
+				"blocked": [
+					{
+						"bug_id": "1179866",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2015:0439",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7815858",
+						"comment_count": "0",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-07 16:51:24 +0000",
+						"thetext": "Upstream reports that libgssrpc applications including kadmind output four or\neight bytes of uninitialized memory to the network as part of an\nunused \"handle\" field in replies to clients.\n\nAn attacker could attempt to glean sensitive\ninformation from the four or eight bytes of uninitialized data output\nby kadmind or other libgssrpc server application.  Because MIT krb5\ngenerally sanitizes memory containing krb5 keys before freeing it, it\nis unlikely that kadmind would leak Kerberos key information, but it\nis not impossible.\n\nRFC 2203 defines structures for the RPCSEC_GSS authentication flavor.\nThe rpc_gss_init_res structure which conveys responses to the client\ncontains an opaque \"handle\" field which is supposed to be used to\nidentify the GSS-API security context.  The client mirrors this field\nback to the server in the \"handle\" field of rpc_gss_cred_vers_1_t in\nsubsequent requests.\n\nThe MIT krb5 implementation of RPCSEC_GSS does not use the handle to\nfind the GSS-API context, but it still provides a handle value to the\nclient.  To provide this value, it copies the first eight or sixteen\nbytes out of the GSS-API security context handle.  (The number of\nbytes depends on the platform's pointer size; it is eight bytes on a\n32-bit platform and sixteen bytes on a 64-bit platform.)\n\nIn release krb5-1.11, an unused \"interposer\" field was added to the\nmechglue GSS security context structure as the second pointer field.\nBecause this field is unused, it remains uninitialized, so the second\nhalf of the bytes copied from the GSS security context handle are\nuninitialized.\n\nThe contents of the uninitialized bytes could contain any heap data\npreviously freed by the application or any library it uses.  The MIT\nKerberos libraries and kadmind are generally careful to zero out\nsensitive data such as Kerberos key data before freeing it, but there\nis nevertheless a risk of leakage of a small amount of sensitive data\nto the network.\n\nSuggested patch to fix this issue, as well as CVE-2014-5352, CVE-2014-9421\nand CVE-2014-9422 is attached to https://bugzilla.redhat.com/show_bug.cgi?id=1179856"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7815892",
+						"comment_count": "1",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-07 17:02:58 +0000",
+						"thetext": "Acknowledgements:\n\nRed Hat would like to thank the MIT Kerberos project for reporting this issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7835424",
+						"comment_count": "2",
+						"who": {
+							"text": "vkaigoro",
+							"name": "Vasyl Kaigorodov"
+						},
+						"bug_when": "2015-01-12 15:19:29 +0000",
+						"thetext": "According to MIT, server software (including third-party applications) using libgssrpc from release krb5-1.11 and later are vulnerable."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7835878",
+						"comment_count": "4",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2015-01-12 16:30:25 +0000",
+						"thetext": "krb5 as shipped with Red Hat Enterprise Linux 5 and 6 are not affected by this as the flaw as noted in the upstream advisory was introduced in 1.11."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7905472",
+						"comment_count": "5",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2015-02-03 21:20:36 +0000",
+						"thetext": "External References:\n\nhttp://web.mit.edu/Kerberos/advisories/MITKRB5-SA-2015-001.txt"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7905478",
+						"comment_count": "6",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2015-02-03 21:22:17 +0000",
+						"thetext": "Statement:\n\nThis issue did not affect the versions of krb5 as shipped with Red Hat Enterprise Linux 5 and 6 as the flaw was introduced in a later version (1.11)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7905509",
+						"comment_count": "7",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2015-02-03 21:38:47 +0000",
+						"thetext": "\nCreated krb5 tracking bugs for this issue:\n\nAffects: fedora-all [bug 1188869]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7909186",
+						"comment_count": "8",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-02-04 19:44:58 +0000",
+						"thetext": "Upstream commit:\n\nhttps://github.com/krb5/krb5/commit/5bb8a6b9c9eb8dd22bc9526751610aaa255ead9c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8011013",
+						"comment_count": "9",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-03-05 10:01:46 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:0439 https://rhn.redhat.com/errata/RHSA-2015-0439.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8022232",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 08:18:27 +0000",
+						"thetext": "krb5-1.11.5-18.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8037715",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-12 16:33:47 +0000",
+						"thetext": "krb5-1.12.2-14.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1188869,
+			"security": true,
+			"title": "CVE-2014-5352 CVE-2014-9421 CVE-2014-9423 CVE-2014-9422 krb5: various flaws [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1188869",
+				"creation_ts": "2015-02-03 21:38:07 +0000",
+				"short_desc": "CVE-2014-5352 CVE-2014-9421 CVE-2014-9423 CVE-2014-9422 krb5: various flaws [fedora-all]",
+				"delta_ts": "2015-09-08 17:27:26 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1179856",
+						"alias": "CVE-2014-5352",
+						"creation_ts": "2015-01-07 16:34:19 +0000",
+						"short_desc": "CVE-2014-5352 krb5: gss_process_context_token() incorrectly frees context (MITKRB5-SA-2015-001)",
+						"delta_ts": "2023-05-12 16:23:38 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1181208",
+							"1182882",
+							"1182883",
+							"1188869"
+						],
+						"blocked": [
+							{
+								"bug_id": "1121513",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1179866",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:0794",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7815813",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-01-07 16:34:19 +0000",
+								"thetext": "Upstream reports that in the MIT krb5 libgssapi_krb5 library, after\ngss_process_context_token() is used to process a valid context\ndeletion token, the caller is left with a security context handle\ncontaining a dangling pointer.  Further uses of this handle will\nresult in use-after-free and double-free memory access violations.\nlibgssrpc server applications such as kadmind are vulnerable as they\ncan be instructed to call gss_process_context_token().\n\nThe krb5 mechanism implementation of gss_process_context_token(), upon\nsuccessfully validating a deletion token, frees the security context\nstructure.  This behavior is incorrect as the API has no way to alert\nthe caller that the security context was deleted.  The application is\nleft with a valid pointer to a mechglue security context structure,\ncontaining a dangling pointer to a freed krb5 security context\nstructure.  Any further use of this handle will result in a\nuse-after-free violation and eventually a double-free when the handle\nis deleted with gss_delete_sec_context().  This vulnerability could\ntheoretically lead to the execution of malicious code, but that is\nbelieved to be difficult.\n\nApplications which call gss_process_context_token() are believed to be\nrare, but the server code in the old flavor of libgssrpc GSS-API\nauthentication can be induced to call gss_process_context_token().\n\nIn release krb5-1.9 and earlier, the krb5 GSS mechanism contained\npointer validation code which should prevent subsequent dereferences\nof the freed pointer.  In these earlier releases, the vulnerability is\nbelieved to be limited to a memory leak because\ngss_delete_sec_context() will not free the mechglue security context\nstructure.\n\nSuggested path to fix this vulnerability as well as CVE-2014-9421, \nCVE-2014-9422 and CVE-2014-9423 is attached."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7815882",
+								"comment_count": "1",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-01-07 17:00:05 +0000",
+								"thetext": "Created attachment 977438\nkrb5.patch\n\nThis patch is against release krb5-1.13. \nIt will apply to krb5-1.12 and krb5-1.11 with some fuzz if the t_prf.c hunk is removed, and to krb5-1.10 if the mglueP.h hunk is also removed."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7815891",
+								"comment_count": "2",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-01-07 17:02:52 +0000",
+								"thetext": "Acknowledgements:\n\nRed Hat would like to thank the MIT Kerberos project for reporting this issue. The MIT Kerberos project acknowledges Nico Williams for assisting with the analysis of CVE-2014-5352."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7835389",
+								"comment_count": "3",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-01-12 15:13:44 +0000",
+								"thetext": "According to MIT, kadmind in all released versions of MIT krb5 is vulnerable. Third-party server applications using libgssrpc from all releases of MIT krb5 are vulnerable if they enable the AUTH_GSSAPI authentication flavor. Third-party client and server applications using GSS-API libraries from all releases of MIT krb5 are vulnerable if they directly call gss_process_context_token(). Such applications are believed to be rare. Releases krb5-1.9 and prior may be less vulnerable due to pointer validation code within the krb5 GSS-API mechanism; applications using those releases may instead only experience a memory leak"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7835933",
+								"comment_count": "6",
+								"who": {
+									"text": "rmainz",
+									"name": "Roland Mainz"
+								},
+								"bug_when": "2015-01-12 16:47:48 +0000",
+								"thetext": "Created attachment 979243\nBackport of krb5.patch to krb5-1.12.2-final"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7836109",
+								"comment_count": "7",
+								"who": {
+									"text": "rmainz",
+									"name": "Roland Mainz"
+								},
+								"bug_when": "2015-01-12 17:29:39 +0000",
+								"thetext": "Created attachment 979249\nBackport of krb5.patch to krb5-1.11.5-final"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7836216",
+								"comment_count": "8",
+								"who": {
+									"text": "rmainz",
+									"name": "Roland Mainz"
+								},
+								"bug_when": "2015-01-12 17:59:12 +0000",
+								"thetext": "Created attachment 979263\nBackport of krb5.patch to krb5-1.10.7-final"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7905464",
+								"comment_count": "10",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2015-02-03 21:17:46 +0000",
+								"thetext": "External References:\n\nhttp://web.mit.edu/Kerberos/advisories/MITKRB5-SA-2015-001.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7905503",
+								"comment_count": "11",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2015-02-03 21:38:12 +0000",
+								"thetext": "\nCreated krb5 tracking bugs for this issue:\n\nAffects: fedora-all [bug 1188869]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7909184",
+								"comment_count": "12",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-02-04 19:43:58 +0000",
+								"thetext": "Upstream commit:\n\nhttps://github.com/krb5/krb5/commit/82dc33da50338ac84c7b4102dc6513d897d0506a"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7988153",
+								"comment_count": "13",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-03-02 09:17:49 +0000",
+								"thetext": "Statement:\n\nRed Hat Enterprise Linux 5 is now in Production 3 Phase of the support and maintenance life cycle. This has been rated as having Moderate security impact and is not currently planned to be addressed in future updates. For additional information, refer to the Red Hat Enterprise Linux Life Cycle: https://access.redhat.com/support/policy/updates/errata/."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8011010",
+								"comment_count": "14",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-03-05 10:01:36 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:0439 https://rhn.redhat.com/errata/RHSA-2015-0439.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8022227",
+								"comment_count": "16",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-09 08:18:18 +0000",
+								"thetext": "krb5-1.11.5-18.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8037711",
+								"comment_count": "17",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-12 16:33:38 +0000",
+								"thetext": "krb5-1.12.2-14.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8125752",
+								"comment_count": "18",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-04-09 05:09:24 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2015:0794 https://rhn.redhat.com/errata/RHSA-2015-0794.html"
+							}
+						]
+					},
+					{
+						"bug_id": "1179857",
+						"alias": "CVE-2014-9421",
+						"creation_ts": "2015-01-07 16:39:43 +0000",
+						"short_desc": "CVE-2014-9421 krb5: kadmind doubly frees partial deserialization results (MITKRB5-SA-2015-001)",
+						"delta_ts": "2023-05-12 13:55:18 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1181208",
+							"1182882",
+							"1182883",
+							"1188869"
+						],
+						"blocked": [
+							{
+								"bug_id": "1121513",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1179866",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:0794",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7815821",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-01-07 16:39:43 +0000",
+								"thetext": "Upstream reports that if the MIT krb5 kadmind daemon receives invalid XDR\ndata from an authenticated user, it may perform use-after-free and\ndouble-free memory access violations while cleaning up the partial\ndeserialization results.  Other libgssrpc server applications may also\nbe vulnerable if they contain insufficiently defensive XDR functions.\n\nAn authenticated attacker could cause kadmind or other\nvulnerable server application to crash or to execute arbitrary code.\nExploiting a double-free event to execute arbitrary code is believed\nto be difficult.\n\nlibgssrpc applications use the XDR serialization format.  XDR data is\nserialized, deserialized, and freed using an application function,\noften generated by the rpcgen command.  If an application receives\nincorrectly serialized data from the client, the XDR function will\nreturn false to report a deserialization failure, perhaps leaving\nbehind partial deserialization results.  To avoid a memory leak, these\npartial results must be freed with another invocation of the XDR\nfunction.\n\nIn a server application, this cleanup is performed automatically by\nsvc_getargs().  If the AUTH_GSSAPI authentication flavor is used, the\ncleanup is also erroneously performed by the internal unwrap function,\nso the XDR function is invoked twice to clean up the partial results.\n\nXDR functions can be defensive about being invoked twice for cleanup\nby assigning pointer values to NULL after freeing them.  Most XDR\nfunctions do this, but the XDR functions within libkadm5 for principal\nnames and tag-length data do not.  When these functions are invoked\ntwice by libgssrpc to clean up a value, the second invocations perform\nuse-after-free and double-free memory access violations.  These XDR\nfunctions are only exposed to an authenticated attacker.  This\nvulnerability could theoretically lead to the execution of malicious\ncode, but that is believed to be difficult.\n\nClient applications are not believed to be vulnerable because\nclnt_call() and client stub functions do not free partial\ndeserialization results.\n\nSuggested patch to fix this vulnerability as well as \nCVE-2014-5352, CVE-2014-9422 and CVE-2014-9423 is attached to https://bugzilla.redhat.com/show_bug.cgi?id=1179856"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7815895",
+								"comment_count": "1",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-01-07 17:03:11 +0000",
+								"thetext": "Acknowledgements:\n\nRed Hat would like to thank the MIT Kerberos project for reporting this issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7835409",
+								"comment_count": "2",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-01-12 15:17:42 +0000",
+								"thetext": "According to MIT, kadmind is vulnerable in all released versions of MIT krb5. Third-party server applications using libgssrpc are vulnerable if they enable the AUTH_GSSAPI authentication flavor and contain insufficiently defensive XDR functions"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7905468",
+								"comment_count": "5",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2015-02-03 21:18:29 +0000",
+								"thetext": "External References:\n\nhttp://web.mit.edu/Kerberos/advisories/MITKRB5-SA-2015-001.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7905505",
+								"comment_count": "6",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2015-02-03 21:38:25 +0000",
+								"thetext": "\nCreated krb5 tracking bugs for this issue:\n\nAffects: fedora-all [bug 1188869]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7909176",
+								"comment_count": "7",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-02-04 19:41:55 +0000",
+								"thetext": "Upstream commit:\n\nhttps://github.com/krb5/krb5/commit/a197e92349a4aa2141b5dff12e9dd44c2a2166e3"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7988149",
+								"comment_count": "8",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-03-02 09:17:24 +0000",
+								"thetext": "Statement:\n\nRed Hat Enterprise Linux 5 is now in Production 3 Phase of the support and maintenance life cycle. This has been rated as having Moderate security impact and is not currently planned to be addressed in future updates. For additional information, refer to the Red Hat Enterprise Linux Life Cycle: https://access.redhat.com/support/policy/updates/errata/."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8011011",
+								"comment_count": "9",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-03-05 10:01:40 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:0439 https://rhn.redhat.com/errata/RHSA-2015-0439.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8022228",
+								"comment_count": "11",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-09 08:18:20 +0000",
+								"thetext": "krb5-1.11.5-18.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8037713",
+								"comment_count": "13",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-12 16:33:42 +0000",
+								"thetext": "krb5-1.12.2-14.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8125754",
+								"comment_count": "14",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-04-09 05:09:27 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2015:0794 https://rhn.redhat.com/errata/RHSA-2015-0794.html"
+							}
+						]
+					},
+					{
+						"bug_id": "1179861",
+						"alias": "CVE-2014-9422",
+						"creation_ts": "2015-01-07 16:47:59 +0000",
+						"short_desc": "CVE-2014-9422 krb5: kadmind incorrectly validates server principal name (MITKRB5-SA-2015-001)",
+						"delta_ts": "2023-05-12 13:56:21 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1181208",
+							"1182882",
+							"1182883",
+							"1188869"
+						],
+						"blocked": [
+							{
+								"bug_id": "1121513",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1179866",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:0794",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7815847",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-01-07 16:47:59 +0000",
+								"thetext": "Upstream reports that the MIT krb5 kadmind daemon incorrectly accepts\nauthentications to two-component server principals whose first\ncomponent is a left substring of \"kadmin\" or whose realm is a left\nprefix of the default realm.\n\nAn attacker who possess the key of a particularly named\nprincipal (such as \"kad/root\") could impersonate any user to kadmind\nand perform administrative actions as that user.\n\nWhen kadmind receives a request using the RPCSEC_GSS authentication\nflavor, it queries the GSS-API security context for the server\nprincipal name and attempts to verify that it is a two-component\nprincipal name where the first component is \"kadmin\", the second\ncomponent is not \"history\", and the realm is the default realm.\n\nThe validation function incorrectly uses strcmp() to compare the\nlength-counted principal name components against null-terminated C\nstrings for \"kadmin\", \"history\", and the default realm.  These\ncomparisons erroneously succeed for left substrings of the of the\ndesired C strings, so for example a first principal name component of\n\"ka\" would be accepted.\n\nkadmind can receive authentications to any server principal entry in\nthe Kerberos database (excluding entries with either the DISALLOW_SVR\nor DISALLOW_ALL_TIX flags set).  If the database contains an\nerroneously matching principal entry such as \"ka/x\", and an attacker\nknows the key for that entry, the attacker can conduct an escalation\nof privilege attack by forging tickets from any client principal name\nto that server principal.  By picking a client principal name with\nadministrative privileges, the attacker could perform arbitrary\nadministrative operations on the Kerberos database.\n\nSuggested patch to fix this issue, as well as CVE-2014-5352, CVE-2014-9421\nand CVE-2014-9423 is attached to https://bugzilla.redhat.com/show_bug.cgi?id=1179856"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7815894",
+								"comment_count": "1",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-01-07 17:03:04 +0000",
+								"thetext": "Acknowledgements:\n\nRed Hat would like to thank the MIT Kerberos project for reporting this issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7835417",
+								"comment_count": "2",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-01-12 15:18:43 +0000",
+								"thetext": "According to MIT kadmind is vulnerable in all released versions of MIT krb5."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7905471",
+								"comment_count": "5",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2015-02-03 21:19:48 +0000",
+								"thetext": "External References:\n\nhttp://web.mit.edu/Kerberos/advisories/MITKRB5-SA-2015-001.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7905507",
+								"comment_count": "6",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2015-02-03 21:38:36 +0000",
+								"thetext": "\nCreated krb5 tracking bugs for this issue:\n\nAffects: fedora-all [bug 1188869]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7909185",
+								"comment_count": "7",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-02-04 19:44:31 +0000",
+								"thetext": "Upstream commit:\n\nhttps://github.com/krb5/krb5/commit/6609658db0799053fbef0d7d0aa2f1fd68ef32d8"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7988145",
+								"comment_count": "8",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-03-02 09:16:12 +0000",
+								"thetext": "Statement:\n\nRed Hat Enterprise Linux 5 is now in Production 3 Phase of the support and maintenance life cycle. This has been rated as having Moderate security impact and is not currently planned to be addressed in future updates. For additional information, refer to the Red Hat Enterprise Linux Life Cycle: https://access.redhat.com/support/policy/updates/errata/."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8011012",
+								"comment_count": "9",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-03-05 10:01:43 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:0439 https://rhn.redhat.com/errata/RHSA-2015-0439.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8022230",
+								"comment_count": "11",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-09 08:18:23 +0000",
+								"thetext": "krb5-1.11.5-18.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8024534",
+								"comment_count": "12",
+								"who": {
+									"text": "rmainz",
+									"name": "Roland Mainz"
+								},
+								"bug_when": "2015-03-09 17:05:02 +0000",
+								"thetext": "(In reply to Ganesh from comment #10)\n> RHEL 6 is never mentioned on this Bug. Customer saw that these affect RHEL 6\n> however. Do we have plan to release a fix for 6?\n\nIt's part of krb5-1.10.3-35.el6_6 (RHEL6.6.z) ..."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8037001",
+								"comment_count": "13",
+								"who": {
+									"text": "chris.cumbaa.ctr",
+									"name": "Chris Cumbaa"
+								},
+								"bug_when": "2015-03-12 14:08:35 +0000",
+								"thetext": "> This issue has been addressed in the following products:\n> \n>   Red Hat Enterprise Linux 7\n> \n> Via RHSA-2015:0439 https://rhn.redhat.com/errata/RHSA-2015-0439.html\n\nIt's been a week since the fix for RHEL7 was published and still no mention of RHEL6. Is it in-process?(In reply to errata-xmlrpc from comment #9)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8037114",
+								"comment_count": "14",
+								"who": {
+									"text": "rmainz",
+									"name": "Roland Mainz"
+								},
+								"bug_when": "2015-03-12 14:35:06 +0000",
+								"thetext": "(In reply to Chris Cumbaa from comment #13)\n> > This issue has been addressed in the following products:\n> > \n> >   Red Hat Enterprise Linux 7\n> > \n> > Via RHSA-2015:0439 https://rhn.redhat.com/errata/RHSA-2015-0439.html\n> \n> It's been a week since the fix for RHEL7 was published and still no mention\n> of RHEL6. Is it in-process?\n\nSee comment #12 ..."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8037714",
+								"comment_count": "15",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-12 16:33:45 +0000",
+								"thetext": "krb5-1.12.2-14.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8125755",
+								"comment_count": "16",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-04-09 05:09:29 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2015:0794 https://rhn.redhat.com/errata/RHSA-2015-0794.html"
+							}
+						]
+					},
+					{
+						"bug_id": "1179863",
+						"alias": "CVE-2014-9423",
+						"creation_ts": "2015-01-07 16:51:24 +0000",
+						"short_desc": "CVE-2014-9423 krb5: libgssrpc server applications leak uninitialized bytes (MITKRB5-SA-2015-001)",
+						"delta_ts": "2023-05-12 13:53:13 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1181208",
+							"1188869"
+						],
+						"blocked": [
+							{
+								"bug_id": "1179866",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:0439",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7815858",
+								"comment_count": "0",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-01-07 16:51:24 +0000",
+								"thetext": "Upstream reports that libgssrpc applications including kadmind output four or\neight bytes of uninitialized memory to the network as part of an\nunused \"handle\" field in replies to clients.\n\nAn attacker could attempt to glean sensitive\ninformation from the four or eight bytes of uninitialized data output\nby kadmind or other libgssrpc server application.  Because MIT krb5\ngenerally sanitizes memory containing krb5 keys before freeing it, it\nis unlikely that kadmind would leak Kerberos key information, but it\nis not impossible.\n\nRFC 2203 defines structures for the RPCSEC_GSS authentication flavor.\nThe rpc_gss_init_res structure which conveys responses to the client\ncontains an opaque \"handle\" field which is supposed to be used to\nidentify the GSS-API security context.  The client mirrors this field\nback to the server in the \"handle\" field of rpc_gss_cred_vers_1_t in\nsubsequent requests.\n\nThe MIT krb5 implementation of RPCSEC_GSS does not use the handle to\nfind the GSS-API context, but it still provides a handle value to the\nclient.  To provide this value, it copies the first eight or sixteen\nbytes out of the GSS-API security context handle.  (The number of\nbytes depends on the platform's pointer size; it is eight bytes on a\n32-bit platform and sixteen bytes on a 64-bit platform.)\n\nIn release krb5-1.11, an unused \"interposer\" field was added to the\nmechglue GSS security context structure as the second pointer field.\nBecause this field is unused, it remains uninitialized, so the second\nhalf of the bytes copied from the GSS security context handle are\nuninitialized.\n\nThe contents of the uninitialized bytes could contain any heap data\npreviously freed by the application or any library it uses.  The MIT\nKerberos libraries and kadmind are generally careful to zero out\nsensitive data such as Kerberos key data before freeing it, but there\nis nevertheless a risk of leakage of a small amount of sensitive data\nto the network.\n\nSuggested patch to fix this issue, as well as CVE-2014-5352, CVE-2014-9421\nand CVE-2014-9422 is attached to https://bugzilla.redhat.com/show_bug.cgi?id=1179856"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7815892",
+								"comment_count": "1",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-01-07 17:02:58 +0000",
+								"thetext": "Acknowledgements:\n\nRed Hat would like to thank the MIT Kerberos project for reporting this issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7835424",
+								"comment_count": "2",
+								"who": {
+									"text": "vkaigoro",
+									"name": "Vasyl Kaigorodov"
+								},
+								"bug_when": "2015-01-12 15:19:29 +0000",
+								"thetext": "According to MIT, server software (including third-party applications) using libgssrpc from release krb5-1.11 and later are vulnerable."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7835878",
+								"comment_count": "4",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2015-01-12 16:30:25 +0000",
+								"thetext": "krb5 as shipped with Red Hat Enterprise Linux 5 and 6 are not affected by this as the flaw as noted in the upstream advisory was introduced in 1.11."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7905472",
+								"comment_count": "5",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2015-02-03 21:20:36 +0000",
+								"thetext": "External References:\n\nhttp://web.mit.edu/Kerberos/advisories/MITKRB5-SA-2015-001.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7905478",
+								"comment_count": "6",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2015-02-03 21:22:17 +0000",
+								"thetext": "Statement:\n\nThis issue did not affect the versions of krb5 as shipped with Red Hat Enterprise Linux 5 and 6 as the flaw was introduced in a later version (1.11)."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7905509",
+								"comment_count": "7",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2015-02-03 21:38:47 +0000",
+								"thetext": "\nCreated krb5 tracking bugs for this issue:\n\nAffects: fedora-all [bug 1188869]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7909186",
+								"comment_count": "8",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-02-04 19:44:58 +0000",
+								"thetext": "Upstream commit:\n\nhttps://github.com/krb5/krb5/commit/5bb8a6b9c9eb8dd22bc9526751610aaa255ead9c"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8011013",
+								"comment_count": "9",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-03-05 10:01:46 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:0439 https://rhn.redhat.com/errata/RHSA-2015-0439.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8022232",
+								"comment_count": "10",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-09 08:18:27 +0000",
+								"thetext": "krb5-1.11.5-18.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8037715",
+								"comment_count": "11",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-12 16:33:47 +0000",
+								"thetext": "krb5-1.12.2-14.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7905501",
+						"comment_count": "0",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2015-02-03 21:38:07 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7905502",
+						"comment_count": "1",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2015-02-03 21:38:11 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1179856,1188869\n\n# Description of your update\nnotes=Security fix for CVE-2014-5352\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1179856,1188869"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7905504",
+						"comment_count": "2",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2015-02-03 21:38:24 +0000",
+						"thetext": "\nAdding parent bug 1179857 (for CVE-2014-9421).  Please use this new fedpkg update template when submitting the update:\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1188869,1179856,1179857\n\n# Description of your update\nnotes=Security fix for CVE-2014-5352, CVE-2014-9421\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1188869,1179856,1179857"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7905506",
+						"comment_count": "3",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2015-02-03 21:38:35 +0000",
+						"thetext": "\nAdding parent bug 1179861 (for CVE-2014-9422).  Please use this new fedpkg update template when submitting the update:\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1188869,1179856,1179857,1179861\n\n# Description of your update\nnotes=Security fix for CVE-2014-5352, CVE-2014-9421, CVE-2014-9422\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1188869,1179856,1179857,1179861"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7905508",
+						"comment_count": "4",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2015-02-03 21:38:46 +0000",
+						"thetext": "\nAdding parent bug 1179863 (for CVE-2014-9423).  Please use this new fedpkg update template when submitting the update:\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1188869,1179856,1179857,1179861,1179863\n\n# Description of your update\nnotes=Security fix for CVE-2014-5352, CVE-2014-9421, CVE-2014-9422, CVE-2014-9423\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1188869,1179856,1179857,1179861,1179863"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7945069",
+						"comment_count": "5",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-02-17 13:06:03 +0000",
+						"thetext": "Should be fixed in 1.11.5-18 (F20) and 1.12.2-14 (F21), but not submitted as bodhi update."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7961010",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-19 22:39:20 +0000",
+						"thetext": "krb5-1.12.2-14.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/krb5-1.12.2-14.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7961014",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-19 22:41:17 +0000",
+						"thetext": "krb5-1.11.5-18.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/krb5-1.11.5-18.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7961024",
+						"comment_count": "8",
+						"who": {
+							"text": "rmainz",
+							"name": "Roland Mainz"
+						},
+						"bug_when": "2015-02-19 22:47:34 +0000",
+						"thetext": "(In reply to Tomas Hoger from comment #5)\n> Should be fixed in 1.11.5-18 (F20) and 1.12.2-14 (F21), but not submitted as\n> bodhi update.\n\nErm... I did issue an $ fedkg update # for F21 and F20... I remember since I had to ask on IRC which password $ fedpkg update # again uses... I also double-checked ~/.sh_history (ksh93 history file) and the fedpkg update comment shows up there three times after the $ fedpkg build # commands...\n\n... in any case I issued fedpkg update again:\n\n# For F22\n[test001@dhcp-80-169 krb5]$ fedpkg update\nCreating a new update for  krb5-1.13-8.fc22 \nkrb5-1.13-8.fc22 not tagged as an update candidate\n\n# for F21\n[test001@dhcp-80-169 krb5]$ cd ../../f21/krb5\n[test001@dhcp-80-169 krb5]$ fedpkg update\nCreating a new update for  krb5-1.12.2-14.fc21 \nUpdate successfully created\n================================================================================\n     krb5-1.12.2-14.fc21\n================================================================================\n    Release: Fedora 21\n     Status: pending\n       Type: security\n      Karma: 0\n    Request: testing\n       Bugs: 1188869 - CVE-2014-5352 CVE-2014-9421 CVE-2014-9423 CVE-2014-9422\n           : krb5: various flaws [fedora-all]\n           : 1179856 - CVE-2014-5352 krb5:\n           : gss_process_context_token() incorrectly frees context\n           : (MITKRB5-SA-2015-001)\n           : 1179857 - CVE-2014-9421 krb5: kadmind doubly frees\n           : partial deserialization results (MITKRB5-SA-2015-001)\n           : 1179861 - CVE-2014-9422 krb5: kadmind incorrectly\n           : validates server principal name (MITKRB5-SA-2015-001)\n           : 1179863 - CVE-2014-9423 krb5: libgssrpc server\n           : applications leak uninitialized bytes\n           : (MITKRB5-SA-2015-001)\n      Notes: Security fix for CVE-2014-5352, CVE-2014-9421, CVE-2014-9422,\n           : CVE-2014-9423\n  Submitter: gisburn\n  Submitted: 2015-02-19 22:39:13\n   Comments: bodhi - 2015-02-19 22:39:24 (karma 0)\n             This update has been submitted for testing by gisburn.\n\n  https://admin.fedoraproject.org/updates/krb5-1.12.2-14.fc21\n\n# for F20:\n[test001@dhcp-80-169 krb5]$ cd ../../f20/krb5/\n[test001@dhcp-80-169 krb5]$ fedpkg update\nCreating a new update for  krb5-1.11.5-18.fc20 \nUpdate successfully created. This update has obsoleted krb5-1.11.5-16.fc20, and has inherited its bugs and notes.\n================================================================================\n     krb5-1.11.5-18.fc20\n================================================================================\n    Release: Fedora 20\n     Status: pending\n       Type: security\n      Karma: 0\n    Request: testing\n       Bugs: 1188869 - CVE-2014-5352 CVE-2014-9421 CVE-2014-9423 CVE-2014-9422\n           : krb5: various flaws [fedora-all]\n           : 1179856 - CVE-2014-5352 krb5:\n           : gss_process_context_token() incorrectly frees context\n           : (MITKRB5-SA-2015-001)\n           : 1179857 - CVE-2014-9421 krb5: kadmind doubly frees\n           : partial deserialization results (MITKRB5-SA-2015-001)\n           : 1179861 - CVE-2014-9422 krb5: kadmind incorrectly\n           : validates server principal name (MITKRB5-SA-2015-001)\n           : 1179863 - CVE-2014-9423 krb5: libgssrpc server\n           : applications leak uninitialized bytes\n           : (MITKRB5-SA-2015-001)\n           : 1145425 - CVE-2014-5351 krb5: current keys returned\n           : when randomizing the keys for a service principal\n           : 1145426 - CVE-2014-5351 krb5: current keys returned\n           : when randomizing the keys for a service principal\n           : [fedora-all]\n      Notes: Security fix for CVE-2014-5352, CVE-2014-9421, CVE-2014-9422,\n           : CVE-2014-9423 Security fix for CVE-2014-5351\n  Submitter: gisburn\n  Submitted: 2015-02-19 22:40:12\n   Comments: bodhi - 2015-02-19 22:41:24 (karma 0)\n             This update has been submitted for testing by gisburn.\n\n  https://admin.fedoraproject.org/updates/krb5-1.11.5-18.fc20\n\n... is this correct now ?\n\nP.S.: How can we track why the original update request didn't work (timeframe can be narrowed down to the hour when the builds finished) ?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7964505",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-21 04:23:35 +0000",
+						"thetext": "Package krb5-1.12.2-14.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing krb5-1.12.2-14.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-2347/krb5-1.12.2-14.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8022225",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-09 08:18:06 +0000",
+						"thetext": "krb5-1.11.5-18.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8037708",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-12 16:33:36 +0000",
+						"thetext": "krb5-1.12.2-14.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "krb5-1.12.2-14.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "krb5-libs",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "krb5-pkinit",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "krb5-debuginfo",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "krb5-server",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "krb5-server-ldap",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "krb5-workstation",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "krb5-devel",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "krb5-server-ldap",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "krb5-debuginfo",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "krb5-devel",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "krb5-pkinit",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "krb5-libs",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "krb5-workstation",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "krb5-server",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "krb5",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "krb5-pkinit",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "krb5-devel",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "krb5-workstation",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "krb5-server-ldap",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "krb5-debuginfo",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "krb5-libs",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "krb5-server",
+						"version": "1.12.2",
+						"release": "14.fc21",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 91145,
+			"text": "This update has been submitted for testing by gisburn. ",
+			"timestamp": "2015-02-19 22:39:24",
+			"update_id": 12542,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 91146,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2015-02-20 17:33:40",
+			"update_id": 12542,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 91147,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-02-21 04:23:39",
+			"update_id": 12542,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 91148,
+			"karma": 1,
+			"text": "no regressions noted",
+			"timestamp": "2015-02-27 20:53:43",
+			"update_id": 12542,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/d826994e83ce867281f73d85986dd475938841874b75a83a82cdb184f6af8749?s=24&d=retro",
+				"email": "rosset.filipe@gmail.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "l10n"
+					},
+					{
+						"name": "cvsl10n"
+					},
+					{
+						"name": "fedora-br"
+					}
+				],
+				"id": 124,
+				"name": "filiperosset",
+				"openid": "filiperosset.id.fedoraproject.org"
+			},
+			"user_id": 124
+		},
+		{
+			"id": 91149,
+			"text": "Critical path update approved",
+			"timestamp": "2015-02-27 20:53:44",
+			"update_id": 12542,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 91150,
+			"karma": 1,
+			"text": "works for me",
+			"timestamp": "2015-03-01 17:46:19",
+			"update_id": 12542,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/c82951c2d404ca0cfea20f51b040175ba4d1624f51e8ec366e75565b672e943d?s=24&d=retro",
+				"email": "h.reindl@thelounge.net",
+				"id": 182,
+				"name": "hreindl",
+				"openid": "hreindl.id.fedoraproject.org"
+			},
+			"user_id": 182
+		},
+		{
+			"id": 91151,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2015-03-07 09:55:18",
+			"update_id": 12542,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 91152,
+			"karma": 1,
+			"text": "works for me",
+			"timestamp": "2015-03-10 10:45:16",
+			"update_id": 12542,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/8bede7eae5a18bbb10b7da207b0d75614581b913621b9737da28fe43fedfad7c?s=24&d=retro",
+				"email": "akurtako@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "eclipse-sig"
+					}
+				],
+				"id": 214,
+				"name": "akurtakov",
+				"openid": "akurtakov.id.fedoraproject.org"
+			},
+			"user_id": 214
+		},
+		{
+			"id": 91153,
+			"text": "This update has reached the stable karma threshold and will be pushed to the stable updates repository",
+			"timestamp": "2015-03-10 10:45:19",
+			"update_id": 12542,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 91154,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/46687/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-03-10 10:47:10",
+			"update_id": 12542,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 91155,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/46688/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-03-10 10:49:00",
+			"update_id": 12542,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 91156,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/46688/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-03-10 10:49:20",
+			"update_id": 12542,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 91157,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2015-03-10 13:38:43",
+			"update_id": 12542,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 91158,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-03-12 16:33:49",
+			"update_id": 12542,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 91159,
+			"karma": -1,
+			"text": "Gr, bug 1122324 not fixed.",
+			"timestamp": "2015-03-17 12:54:10",
+			"update_id": 12542,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/42031845a8ff0b38b4526ec9d949f33f7e2e3af2252f467d59a03a9088571b78?s=24&d=retro",
+				"email": "dwmw2@infradead.org",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 486,
+				"name": "dwmw2",
+				"openid": "dwmw2.id.fedoraproject.org"
+			},
+			"user_id": 486
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2015-03-12 16:33:49",
+	"date_stable": "2015-03-12 16:33:49",
+	"date_submitted": "2015-02-19 22:39:13",
+	"date_testing": "2015-02-21 04:23:39",
+	"karma": 2,
+	"meets_testing_requirements": true,
+	"notes": "Security fix for CVE-2014-5352, CVE-2014-9421, CVE-2014-9422, CVE-2014-9423",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "krb5-1.12.2-14.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-2347",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-2347",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/853b05f5ced37bea58a4df278af953147abbda28d2fb46486eead51acb48cc9d?s=24&d=retro",
+		"id": 1195,
+		"name": "gisburn",
+		"openid": "gisburn.id.fedoraproject.org"
+	},
+	"version_hash": "ee43c1e52b16558ec8d703ac67f70b421de4c5e0"
+}

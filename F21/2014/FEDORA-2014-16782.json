@@ -1,0 +1,651 @@
+{
+	"alias": "FEDORA-2014-16782",
+	"bugs": [
+		{
+			"bug_id": 1168463,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-9116 mutt: incorrect use of mutt_substrdup() in write_one_header()",
+			"bugzilla": {
+				"bug_id": "1168463",
+				"alias": "CVE-2014-9116",
+				"creation_ts": "2014-11-27 04:05:25 +0000",
+				"short_desc": "CVE-2014-9116 mutt: incorrect use of mutt_substrdup() in write_one_header()",
+				"delta_ts": "2021-02-17 05:57:47 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "WONTFIX",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1168464"
+				],
+				"blocked": [
+					{
+						"bug_id": "1168468",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7712304",
+						"comment_count": "0",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-11-27 04:05:25 +0000",
+						"thetext": "A heap-based buffer overflow flaw was reported in the mutt_substrdup() function in Mutt. Opening a specially-crafted mail message could cause mutt to crash or, potentially, execute arbitrary code.\n\nCVE request:\n\nhttp://www.openwall.com/lists/oss-security/2014/11/27/5\n\nIn testing on Fedora, \"set weed=no\" had to be set in the user's .muttrc before the issue presented."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7712309",
+						"comment_count": "1",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-11-27 04:05:58 +0000",
+						"thetext": "\nCreated mutt tracking bugs for this issue:\n\nAffects: fedora-all [bug 1168464]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7712317",
+						"comment_count": "2",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-11-27 04:16:34 +0000",
+						"thetext": "MITRE assigned CVE-2014-9116 to this issue:\n\nhttp://www.openwall.com/lists/oss-security/2014/11/27/9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7714670",
+						"comment_count": "4",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-11-27 16:05:46 +0000",
+						"thetext": "(In reply to Murray McAllister from comment #0)\n> A heap-based buffer overflow flaw was reported in the mutt_substrdup()\n> function in Mutt.\n\nI would not call it a flaw in mutt_substrdup(), but rather in a caller that passes end < begin to mutt_substrdup().  In this case, it's write_one_header().  It seems this code had several problems in the past.\n\nThe version of mutt as shipped with Red Hat Enterprise Linux 6 crashes on the mailbox from the original Debian bug report:\n\nhttps://bugs.debian.org/cgi-bin/bugreport.cgi?bug=771125\n\nHowever, the cause is different from the cause of crash in more recent mutt versions.  The mutt version in Red Hat Enterprise Linux 6 did not properly check if mail header contains ':' separator, which could cause a NULL pointer dereference (actually, 0x2 pointer is passed to mutt_substrdup() as begin).  This makes mutt_substrdup() write (memcpy) near NULL, causing mutt to crash.\n\nThe code is:\n\n   1787     t = strchr (start, ':');\n   1788     if (t > end)\n   1789     {\n   1790       dprint (1, (debugfile, \"mwoh: warning: header not in \"\n   1791 \t\t  \"'key: value' format!\\n\"));\n   1792       return 0;\n   1793     }\n    ...\n   1800     {\n   1801       tagbuf = mutt_substrdup (start, t);\n   1802       valbuf = mutt_substrdup (t + 2, end);\n   1803     }\n\nUpstream bug and commit that added t != NULL check:\n\nhttp://dev.mutt.org/trac/ticket/3483\nhttp://dev.mutt.org/trac/changeset/f01b306ebe0e\n\nAt some point (but before the above t != NULL check was added), the code was changed to not use static t+2 to point to the header value, but skip zero or more white spaces after ':'.  Upstream bug and commit:\n\nhttp://dev.mutt.org/trac/ticket/3385\nhttp://dev.mutt.org/trac/changeset/0a29e3f4f4b9\n\nThe version of mutt as shipped in Red Hat Enterprise Linux 7 has the both above changes, so the code looks as:\n\n   1801     t = strchr (start, ':');\n   1802     if (t == NULL || t > end)\n   1803     {\n   1804       dprint (1, (debugfile, \"mwoh: warning: header not in \"\n   1805 \t\t  \"'key: value' format!\\n\"));\n   1806       return 0;\n   1807     }\n    ...\n   1814     {\n   1815       tagbuf = mutt_substrdup (start, t);\n   1816       ++t; /* skip over the colon separating the header field name and value */\n   1817       SKIPWS(t); /* skip over any leading whitespace */\n   1818       valbuf = mutt_substrdup (t, end);\n   1819     }\n\nand SKIPWS is:\n\n     83 # define SKIPWS(c) while (*(c) && isspace ((unsigned char) *(c))) c++;\n\nAs this skips newlines, it can lead to mutt_substrdup() called with end < begin.  The problem was already reported upstream and fixed by changing the code to only skip space and tab, but not newlines:\n\nhttp://dev.mutt.org/trac/ticket/3609\nhttp://dev.mutt.org/trac/changeset/897dcc62e4aa\n\nApparently, the fix was regressed when skip_email_wsp() was added, which made write_one_header() skip newlines again:\n\nhttp://dev.mutt.org/trac/changeset/f251d523ca5a\n\n\nThe impact of this problem is limited to crash.  This is what mutt_substrdup() does:\n\n    814   size_t len;\n    815   char *p;\n    816 \n    817   if (end)\n    818     len = end - begin;\n    819   else\n    820     len = strlen (begin);\n    821 \n    822   p = safe_malloc (len + 1);\n    823   memcpy (p, begin, len);\n\nThe mailbox file form the Debian bug causes mutt_substrdup() to be called with begin = end + 1, leading to len being SIZE_MAX.  safe_malloc() is called with size 0, which makes it return NULL.  The memcpy() called next attempts to write to memory starting at NULL, which leads to crash.\n\nIt is possible to adjust the mailbox to use begin = end + 2 (or more).  That would lead to safe_malloc() called with size that is near SIZE_MAX.  Such allocation does not succeed and causes mutt to abort with \"Out of memory!\" error.  If changed to use begin = end + n, where n is large enough to not trigger memory allocation failure, there will be no buffer over write, but likely a buffer over read, which is likely to trigger mutt crash.  There may be limits elsewhere in the code making it impossible to make n large enough."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7715786",
+						"comment_count": "6",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-11-28 07:17:55 +0000",
+						"thetext": "Created upstream ticket:\n\nhttp://dev.mutt.org/trac/ticket/3716"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7717769",
+						"comment_count": "7",
+						"who": {
+							"text": "rz",
+							"name": "Richard Z."
+						},
+						"bug_when": "2014-11-29 11:18:21 +0000",
+						"thetext": "for me it crashes even with \"set weed=yes\"\n\nDon't think that a segfault is low priority."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7717773",
+						"comment_count": "8",
+						"who": {
+							"text": "rz",
+							"name": "Richard Z."
+						},
+						"bug_when": "2014-11-29 11:24:29 +0000",
+						"thetext": "noticed that with my settings the crash happens only when looking at the headers with \"h\". So weed=yes will help only as long as nobody looks at the header at best."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7813577",
+						"comment_count": "10",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-01-07 07:34:04 +0000",
+						"thetext": "Fixed upstream now via:\n\nhttp://dev.mutt.org/trac/changeset/0aebf1df43598b442ac75ae4fe17875351854db0\n\nThe fix reverts the change applied via f251d523ca5a (see comment 4 above)."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1168464,
+			"security": true,
+			"title": "mutt: heap-based buffer overflow in mutt_substrdup() [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1168464",
+				"creation_ts": "2014-11-27 04:05:49 +0000",
+				"short_desc": "mutt: heap-based buffer overflow in mutt_substrdup() [fedora-all]",
+				"delta_ts": "2015-02-15 03:01:58 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "1168463",
+						"alias": "CVE-2014-9116",
+						"creation_ts": "2014-11-27 04:05:25 +0000",
+						"short_desc": "CVE-2014-9116 mutt: incorrect use of mutt_substrdup() in write_one_header()",
+						"delta_ts": "2021-02-17 05:57:47 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "WONTFIX",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1168464"
+						],
+						"blocked": [
+							{
+								"bug_id": "1168468",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7712304",
+								"comment_count": "0",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-11-27 04:05:25 +0000",
+								"thetext": "A heap-based buffer overflow flaw was reported in the mutt_substrdup() function in Mutt. Opening a specially-crafted mail message could cause mutt to crash or, potentially, execute arbitrary code.\n\nCVE request:\n\nhttp://www.openwall.com/lists/oss-security/2014/11/27/5\n\nIn testing on Fedora, \"set weed=no\" had to be set in the user's .muttrc before the issue presented."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7712309",
+								"comment_count": "1",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-11-27 04:05:58 +0000",
+								"thetext": "\nCreated mutt tracking bugs for this issue:\n\nAffects: fedora-all [bug 1168464]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7712317",
+								"comment_count": "2",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-11-27 04:16:34 +0000",
+								"thetext": "MITRE assigned CVE-2014-9116 to this issue:\n\nhttp://www.openwall.com/lists/oss-security/2014/11/27/9"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7714670",
+								"comment_count": "4",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-11-27 16:05:46 +0000",
+								"thetext": "(In reply to Murray McAllister from comment #0)\n> A heap-based buffer overflow flaw was reported in the mutt_substrdup()\n> function in Mutt.\n\nI would not call it a flaw in mutt_substrdup(), but rather in a caller that passes end < begin to mutt_substrdup().  In this case, it's write_one_header().  It seems this code had several problems in the past.\n\nThe version of mutt as shipped with Red Hat Enterprise Linux 6 crashes on the mailbox from the original Debian bug report:\n\nhttps://bugs.debian.org/cgi-bin/bugreport.cgi?bug=771125\n\nHowever, the cause is different from the cause of crash in more recent mutt versions.  The mutt version in Red Hat Enterprise Linux 6 did not properly check if mail header contains ':' separator, which could cause a NULL pointer dereference (actually, 0x2 pointer is passed to mutt_substrdup() as begin).  This makes mutt_substrdup() write (memcpy) near NULL, causing mutt to crash.\n\nThe code is:\n\n   1787     t = strchr (start, ':');\n   1788     if (t > end)\n   1789     {\n   1790       dprint (1, (debugfile, \"mwoh: warning: header not in \"\n   1791 \t\t  \"'key: value' format!\\n\"));\n   1792       return 0;\n   1793     }\n    ...\n   1800     {\n   1801       tagbuf = mutt_substrdup (start, t);\n   1802       valbuf = mutt_substrdup (t + 2, end);\n   1803     }\n\nUpstream bug and commit that added t != NULL check:\n\nhttp://dev.mutt.org/trac/ticket/3483\nhttp://dev.mutt.org/trac/changeset/f01b306ebe0e\n\nAt some point (but before the above t != NULL check was added), the code was changed to not use static t+2 to point to the header value, but skip zero or more white spaces after ':'.  Upstream bug and commit:\n\nhttp://dev.mutt.org/trac/ticket/3385\nhttp://dev.mutt.org/trac/changeset/0a29e3f4f4b9\n\nThe version of mutt as shipped in Red Hat Enterprise Linux 7 has the both above changes, so the code looks as:\n\n   1801     t = strchr (start, ':');\n   1802     if (t == NULL || t > end)\n   1803     {\n   1804       dprint (1, (debugfile, \"mwoh: warning: header not in \"\n   1805 \t\t  \"'key: value' format!\\n\"));\n   1806       return 0;\n   1807     }\n    ...\n   1814     {\n   1815       tagbuf = mutt_substrdup (start, t);\n   1816       ++t; /* skip over the colon separating the header field name and value */\n   1817       SKIPWS(t); /* skip over any leading whitespace */\n   1818       valbuf = mutt_substrdup (t, end);\n   1819     }\n\nand SKIPWS is:\n\n     83 # define SKIPWS(c) while (*(c) && isspace ((unsigned char) *(c))) c++;\n\nAs this skips newlines, it can lead to mutt_substrdup() called with end < begin.  The problem was already reported upstream and fixed by changing the code to only skip space and tab, but not newlines:\n\nhttp://dev.mutt.org/trac/ticket/3609\nhttp://dev.mutt.org/trac/changeset/897dcc62e4aa\n\nApparently, the fix was regressed when skip_email_wsp() was added, which made write_one_header() skip newlines again:\n\nhttp://dev.mutt.org/trac/changeset/f251d523ca5a\n\n\nThe impact of this problem is limited to crash.  This is what mutt_substrdup() does:\n\n    814   size_t len;\n    815   char *p;\n    816 \n    817   if (end)\n    818     len = end - begin;\n    819   else\n    820     len = strlen (begin);\n    821 \n    822   p = safe_malloc (len + 1);\n    823   memcpy (p, begin, len);\n\nThe mailbox file form the Debian bug causes mutt_substrdup() to be called with begin = end + 1, leading to len being SIZE_MAX.  safe_malloc() is called with size 0, which makes it return NULL.  The memcpy() called next attempts to write to memory starting at NULL, which leads to crash.\n\nIt is possible to adjust the mailbox to use begin = end + 2 (or more).  That would lead to safe_malloc() called with size that is near SIZE_MAX.  Such allocation does not succeed and causes mutt to abort with \"Out of memory!\" error.  If changed to use begin = end + n, where n is large enough to not trigger memory allocation failure, there will be no buffer over write, but likely a buffer over read, which is likely to trigger mutt crash.  There may be limits elsewhere in the code making it impossible to make n large enough."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7715786",
+								"comment_count": "6",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-11-28 07:17:55 +0000",
+								"thetext": "Created upstream ticket:\n\nhttp://dev.mutt.org/trac/ticket/3716"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7717769",
+								"comment_count": "7",
+								"who": {
+									"text": "rz",
+									"name": "Richard Z."
+								},
+								"bug_when": "2014-11-29 11:18:21 +0000",
+								"thetext": "for me it crashes even with \"set weed=yes\"\n\nDon't think that a segfault is low priority."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7717773",
+								"comment_count": "8",
+								"who": {
+									"text": "rz",
+									"name": "Richard Z."
+								},
+								"bug_when": "2014-11-29 11:24:29 +0000",
+								"thetext": "noticed that with my settings the crash happens only when looking at the headers with \"h\". So weed=yes will help only as long as nobody looks at the header at best."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7813577",
+								"comment_count": "10",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-01-07 07:34:04 +0000",
+								"thetext": "Fixed upstream now via:\n\nhttp://dev.mutt.org/trac/changeset/0aebf1df43598b442ac75ae4fe17875351854db0\n\nThe fix reverts the change applied via f251d523ca5a (see comment 4 above)."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7712307",
+						"comment_count": "0",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-11-27 04:05:49 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7712308",
+						"comment_count": "1",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-11-27 04:05:56 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1168463,1168464\n\n# Description of your update\nnotes=Security fix for \n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1168463,1168464"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7739564",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-06 14:57:31 +0000",
+						"thetext": "mutt-1.5.23-7.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/mutt-1.5.23-7.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751594",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 15:12:15 +0000",
+						"thetext": "mutt-1.5.23-4.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/mutt-1.5.23-4.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7757340",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-12 04:00:44 +0000",
+						"thetext": "Package mutt-1.5.23-4.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing mutt-1.5.23-4.fc20'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-16494/mutt-1.5.23-4.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7938285",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-15 02:56:56 +0000",
+						"thetext": "mutt-1.5.23-4.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7938313",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-02-15 03:01:58 +0000",
+						"thetext": "mutt-1.5.23-7.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "mutt-1.5.23-7.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "mutt-debuginfo",
+						"epoch": 5,
+						"version": "1.5.23",
+						"release": "7.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "mutt",
+						"epoch": 5,
+						"version": "1.5.23",
+						"release": "7.fc21",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "mutt",
+						"epoch": 5,
+						"version": "1.5.23",
+						"release": "7.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "mutt-debuginfo",
+						"epoch": 5,
+						"version": "1.5.23",
+						"release": "7.fc21",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "mutt",
+						"epoch": 5,
+						"version": "1.5.23",
+						"release": "7.fc21",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "mutt-debuginfo",
+						"epoch": 5,
+						"version": "1.5.23",
+						"release": "7.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "mutt",
+						"epoch": 5,
+						"version": "1.5.23",
+						"release": "7.fc21",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 249272,
+			"text": "This update has been submitted for testing by mmuzila. ",
+			"timestamp": "2014-12-06 14:57:52",
+			"update_id": 30703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 249273,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/18780/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-12-06 15:13:39",
+			"update_id": 30703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 249274,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/18780/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-12-06 15:13:57",
+			"update_id": 30703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 249275,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2014-12-11 05:15:38",
+			"update_id": 30703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 249276,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-12-12 04:34:40",
+			"update_id": 30703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 249277,
+			"text": "This update has reached 7 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2014-12-19 06:27:27",
+			"update_id": 30703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 249278,
+			"karma": 1,
+			"text": "works for me",
+			"timestamp": "2015-01-27 20:00:33",
+			"update_id": 30703,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/b986133dfbd8f4dba7dafdc81798845ea7e7639b8929767d0f5eaae66c4f4da2?s=24&d=retro",
+				"email": "dev@der-flo.net",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 311,
+				"name": "flo",
+				"openid": "flo.id.fedoraproject.org"
+			},
+			"user_id": 311
+		},
+		{
+			"id": 249279,
+			"text": "This update has been submitted for stable by mmuzila. ",
+			"timestamp": "2015-02-13 09:26:30",
+			"update_id": 30703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 249280,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/36935/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-02-13 09:46:31",
+			"update_id": 30703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 249281,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2015-02-14 03:20:00",
+			"update_id": 30703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 249282,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2015-02-14 03:31:13",
+			"update_id": 30703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 249283,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-02-15 03:02:01",
+			"update_id": 30703,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2015-02-15 03:02:01",
+	"date_stable": "2015-02-15 03:02:01",
+	"date_submitted": "2014-12-06 14:57:34",
+	"date_testing": "2014-12-12 04:34:40",
+	"karma": 1,
+	"meets_testing_requirements": true,
+	"notes": "Security fix for",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "mutt-1.5.23-7.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2014-16782",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2014-16782",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/0918a91da1cd0e3f4284047d872543ac9c2b37ce6ad989dfb2c4735d3fb4c07d?s=24&d=retro",
+		"email": "mmuzila@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "db-sig"
+			}
+		],
+		"id": 1635,
+		"name": "mmuzila",
+		"openid": "mmuzila.id.fedoraproject.org"
+	},
+	"version_hash": "8f90be88f0debbf01f2612f3c988fad0c54482a8"
+}

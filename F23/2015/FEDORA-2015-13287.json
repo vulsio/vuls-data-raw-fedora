@@ -1,0 +1,1655 @@
+{
+	"alias": "FEDORA-2015-13287",
+	"bugs": [
+		{
+			"bug_id": 1250020,
+			"feedback": [
+				{
+					"bug_id": 1250020,
+					"comment": {
+						"id": 314384,
+						"karma": 1,
+						"karma_critpath": 1,
+						"text": "Works for me",
+						"timestamp": "2015-08-24 09:59:50",
+						"update_id": 8174,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/d2961abadbc61ac02ca743308c188aa38757b1751e713948c0e71ea034847140?s=24&d=retro",
+							"email": "chr77@protonmail.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								}
+							],
+							"id": 308,
+							"name": "chr77",
+							"openid": "chr77.id.fedoraproject.org"
+						},
+						"user_id": 308
+					},
+					"comment_id": 314384
+				},
+				{
+					"bug_id": 1250020,
+					"comment": {
+						"id": 314918,
+						"karma": 1,
+						"karma_critpath": 1,
+						"text": ".",
+						"timestamp": "2015-08-25 09:11:22",
+						"update_id": 8174,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/59992dace52d139450ee0f5b7a5cc1559825f576b38f86551e5b0b3dfaa5618b?s=24&d=retro",
+							"email": "hansmueller183@yahoo.com",
+							"groups": [
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "signed_fpca"
+								}
+							],
+							"id": 284,
+							"name": "cairo",
+							"openid": "cairo.id.fedoraproject.org"
+						},
+						"user_id": 284
+					},
+					"comment_id": 314918
+				},
+				{
+					"bug_id": 1250020,
+					"comment": {
+						"id": 316724,
+						"text": "Submitting to stable as Bodhi lost autokarma values during database migration. https://github.com/fedora-infra/bodhi/issues/372",
+						"timestamp": "2015-08-29 12:01:55",
+						"update_id": 8174,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/e66f540a8e2d93d96cbba97628e82213a8eed237c744f2ce5184d7c9588a8d18?s=24&d=retro",
+							"email": "klember@redhat.com",
+							"groups": [
+								{
+									"name": "qa"
+								},
+								{
+									"name": "packager"
+								},
+								{
+									"name": "provenpackager"
+								},
+								{
+									"name": "gnome-sig"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								},
+								{
+									"name": "gitspin-kickstarts"
+								},
+								{
+									"name": "rust-sig"
+								},
+								{
+									"name": "hosted-content"
+								},
+								{
+									"name": "flatpak-sig"
+								}
+							],
+							"id": 285,
+							"name": "kalev",
+							"openid": "kalev.id.fedoraproject.org"
+						},
+						"user_id": 285
+					},
+					"comment_id": 316724
+				}
+			],
+			"title": "gnutls_x509_privkey_import can no longer import some private keys",
+			"bugzilla": {
+				"bug_id": "1250020",
+				"creation_ts": "2015-08-04 11:16:07 +0000",
+				"short_desc": "gnutls_x509_privkey_import can no longer import some private keys",
+				"delta_ts": "2015-09-01 03:37:18 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "NEXTRELEASE",
+				"priority": "unspecified",
+				"bug_severity": "high",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8508669",
+						"comment_count": "0",
+						"who": {
+							"text": "berrange",
+							"name": "Daniel Berrangé"
+						},
+						"bug_when": "2015-08-04 11:16:07 +0000",
+						"thetext": "Description of problem:\nThe gnutls_x509_privkey_import method is no longer able to load private keys with a starting signature of:\n\n\n    -----BEGIN PRIVATE KEY-----\n\nIt can only load keys which mention an explicit algorithm\n\nThe gnutls_x509_privkey_import2 method succeeds, which is why certtool --infile blah -k does not show any problem\n\nThe problem appears to have been caused by this commit in 3.4.3:\n\ncommit 0debaca946b74c66e67ed1a86c671ec3573b779a\nAuthor: Nikos Mavrogiannopoulos <nmav@redhat.com>\nDate:   Thu Jun 25 15:08:54 2015 +0200\n\n    gnutls_x509_privkey_import: optimized private key loading\n\nOriginlly the result would get set to GNUTLS_E_BASE64_UNEXPECTED_HEADER_ERROR\n\nBut now it gets set to GNUTLS_E_REQUESTED_DATA_NOT_AVAILABLE;\n\nAs a result, when the code jumsp to the 'failover' label it no longer triggers the PKCS#8 fallback path\n\n      failover:\n        /* Try PKCS #8 */\n        if (result == GNUTLS_E_BASE64_UNEXPECTED_HEADER_ERROR) {\n                _gnutls_debug_log\n                    (\"Falling back to PKCS #8 key decoding\\n\");\n                result =\n                    gnutls_x509_privkey_import_pkcs8(key, data, format,\n                                                     NULL,\n                                                     GNUTLS_PKCS_PLAIN);\n        }\n\nThis regression is breaking the libvirt test suite which uses the import method.\n\n\nVersion-Release number of selected component (if applicable):\n3.4.3\n\nHow reproducible:\nAlways\n\nSteps to Reproduce:\n1. Save attached demo to priv.c\n2.gcc `pkg-config --cflags --libs gnutls`  -o priv priv.c\n3. ./priv\n\nActual results:\nFailed to import key The requested data were not available.\nAborted (core dumped)\n\n\nExpected results:\nLoads the private key\n\nAdditional info:"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8508670",
+						"comment_count": "1",
+						"who": {
+							"text": "berrange",
+							"name": "Daniel Berrangé"
+						},
+						"bug_when": "2015-08-04 11:16:48 +0000",
+						"thetext": "Created attachment 1059045\nDemo program"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8508829",
+						"comment_count": "2",
+						"who": {
+							"text": "nmavrogi",
+							"name": "Nikos Mavrogiannopoulos"
+						},
+						"bug_when": "2015-08-04 12:01:56 +0000",
+						"thetext": "Thanks. I've committed a fix upstream.\n\nhttps://gitlab.com/gnutls/gnutls/commit/3573c516a1cf1adc0df3b4caaeec64f55753016d"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8525287",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-10 08:58:39 +0000",
+						"thetext": "gnutls-3.4.4-1.fc23 has been submitted as an update for Fedora 23.\nhttps://admin.fedoraproject.org/updates/gnutls-3.4.4-1.fc23"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8537199",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-12 20:10:48 +0000",
+						"thetext": "Package gnutls-3.4.4-1.fc23:\n* should fix your issue,\n* was pushed to the Fedora 23 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing gnutls-3.4.4-1.fc23'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-13287/gnutls-3.4.4-1.fc23\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8592250",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-09-01 03:37:12 +0000",
+						"thetext": "gnutls-3.4.4-1.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1251875,
+			"feedback": [
+				{
+					"bug_id": 1251875,
+					"comment": {
+						"id": 314384,
+						"karma": 1,
+						"karma_critpath": 1,
+						"text": "Works for me",
+						"timestamp": "2015-08-24 09:59:50",
+						"update_id": 8174,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/d2961abadbc61ac02ca743308c188aa38757b1751e713948c0e71ea034847140?s=24&d=retro",
+							"email": "chr77@protonmail.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								}
+							],
+							"id": 308,
+							"name": "chr77",
+							"openid": "chr77.id.fedoraproject.org"
+						},
+						"user_id": 308
+					},
+					"comment_id": 314384
+				},
+				{
+					"bug_id": 1251875,
+					"comment": {
+						"id": 314918,
+						"karma": 1,
+						"karma_critpath": 1,
+						"text": ".",
+						"timestamp": "2015-08-25 09:11:22",
+						"update_id": 8174,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/59992dace52d139450ee0f5b7a5cc1559825f576b38f86551e5b0b3dfaa5618b?s=24&d=retro",
+							"email": "hansmueller183@yahoo.com",
+							"groups": [
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "signed_fpca"
+								}
+							],
+							"id": 284,
+							"name": "cairo",
+							"openid": "cairo.id.fedoraproject.org"
+						},
+						"user_id": 284
+					},
+					"comment_id": 314918
+				},
+				{
+					"bug_id": 1251875,
+					"comment": {
+						"id": 316724,
+						"text": "Submitting to stable as Bodhi lost autokarma values during database migration. https://github.com/fedora-infra/bodhi/issues/372",
+						"timestamp": "2015-08-29 12:01:55",
+						"update_id": 8174,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/e66f540a8e2d93d96cbba97628e82213a8eed237c744f2ce5184d7c9588a8d18?s=24&d=retro",
+							"email": "klember@redhat.com",
+							"groups": [
+								{
+									"name": "qa"
+								},
+								{
+									"name": "packager"
+								},
+								{
+									"name": "provenpackager"
+								},
+								{
+									"name": "gnome-sig"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								},
+								{
+									"name": "gitspin-kickstarts"
+								},
+								{
+									"name": "rust-sig"
+								},
+								{
+									"name": "hosted-content"
+								},
+								{
+									"name": "flatpak-sig"
+								}
+							],
+							"id": 285,
+							"name": "kalev",
+							"openid": "kalev.id.fedoraproject.org"
+						},
+						"user_id": 285
+					},
+					"comment_id": 316724
+				}
+			],
+			"title": "gnutls: add support for fallback SCSV",
+			"bugzilla": {
+				"bug_id": "1251875",
+				"creation_ts": "2015-08-10 08:17:06 +0000",
+				"short_desc": "gnutls: add support for fallback SCSV",
+				"delta_ts": "2015-09-01 03:37:19 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "NEXTRELEASE",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8525165",
+						"comment_count": "0",
+						"who": {
+							"text": "nmavrogi",
+							"name": "Nikos Mavrogiannopoulos"
+						},
+						"bug_when": "2015-08-10 08:17:06 +0000",
+						"thetext": "Description of problem:\nGnutls has no support for RFC 7507. It seems that the fallback dance work arounds were standardized. We should add support for the standardized process for fallback dance, and support for detecting failures.\n\nThat would allow servers to detect malicious downgrades in legacy clients.\n\nhttp://tools.ietf.org/html/rfc7507\nhttps://gitlab.com/gnutls/gnutls/issues/9"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8525288",
+						"comment_count": "1",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-10 08:58:40 +0000",
+						"thetext": "gnutls-3.4.4-1.fc23 has been submitted as an update for Fedora 23.\nhttps://admin.fedoraproject.org/updates/gnutls-3.4.4-1.fc23"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8537200",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-12 20:10:50 +0000",
+						"thetext": "Package gnutls-3.4.4-1.fc23:\n* should fix your issue,\n* was pushed to the Fedora 23 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing gnutls-3.4.4-1.fc23'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-13287/gnutls-3.4.4-1.fc23\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8592251",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-09-01 03:37:14 +0000",
+						"thetext": "gnutls-3.4.4-1.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1251902,
+			"feedback": [
+				{
+					"bug_id": 1251902,
+					"comment": {
+						"id": 314384,
+						"karma": 1,
+						"karma_critpath": 1,
+						"text": "Works for me",
+						"timestamp": "2015-08-24 09:59:50",
+						"update_id": 8174,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/d2961abadbc61ac02ca743308c188aa38757b1751e713948c0e71ea034847140?s=24&d=retro",
+							"email": "chr77@protonmail.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								}
+							],
+							"id": 308,
+							"name": "chr77",
+							"openid": "chr77.id.fedoraproject.org"
+						},
+						"user_id": 308
+					},
+					"comment_id": 314384
+				},
+				{
+					"bug_id": 1251902,
+					"comment": {
+						"id": 314918,
+						"karma": 1,
+						"karma_critpath": 1,
+						"text": ".",
+						"timestamp": "2015-08-25 09:11:22",
+						"update_id": 8174,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/59992dace52d139450ee0f5b7a5cc1559825f576b38f86551e5b0b3dfaa5618b?s=24&d=retro",
+							"email": "hansmueller183@yahoo.com",
+							"groups": [
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "signed_fpca"
+								}
+							],
+							"id": 284,
+							"name": "cairo",
+							"openid": "cairo.id.fedoraproject.org"
+						},
+						"user_id": 284
+					},
+					"comment_id": 314918
+				},
+				{
+					"bug_id": 1251902,
+					"comment": {
+						"id": 316724,
+						"text": "Submitting to stable as Bodhi lost autokarma values during database migration. https://github.com/fedora-infra/bodhi/issues/372",
+						"timestamp": "2015-08-29 12:01:55",
+						"update_id": 8174,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/e66f540a8e2d93d96cbba97628e82213a8eed237c744f2ce5184d7c9588a8d18?s=24&d=retro",
+							"email": "klember@redhat.com",
+							"groups": [
+								{
+									"name": "qa"
+								},
+								{
+									"name": "packager"
+								},
+								{
+									"name": "provenpackager"
+								},
+								{
+									"name": "gnome-sig"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								},
+								{
+									"name": "gitspin-kickstarts"
+								},
+								{
+									"name": "rust-sig"
+								},
+								{
+									"name": "hosted-content"
+								},
+								{
+									"name": "flatpak-sig"
+								}
+							],
+							"id": 285,
+							"name": "kalev",
+							"openid": "kalev.id.fedoraproject.org"
+						},
+						"user_id": 285
+					},
+					"comment_id": 316724
+				}
+			],
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-6251 gnutls: double free flaw in certificate DN decoding (GNUTLS-SA-2015-3)",
+			"bugzilla": {
+				"bug_id": "1251902",
+				"alias": "CVE-2015-6251",
+				"creation_ts": "2015-08-10 09:22:00 +0000",
+				"short_desc": "CVE-2015-6251 gnutls: double free flaw in certificate DN decoding (GNUTLS-SA-2015-3)",
+				"delta_ts": "2021-02-17 05:03:18 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "WONTFIX",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1251904",
+					"1251905"
+				],
+				"blocked": [
+					{
+						"bug_id": "1251906",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8525368",
+						"comment_count": "0",
+						"who": {
+							"text": "mprpic",
+							"name": "Martin Prpič"
+						},
+						"bug_when": "2015-08-10 09:22:00 +0000",
+						"thetext": "A use-after-free flaw was found in GnuTLS's _gnutls_x509_dn_to_string() function. A remote attacker could create a specially crafted certificate with very long DistinguishedName (DN) entries that, when processed by an application compiled against GnuTLS, could cause that application to crash.\n\nThis issue was fixed in upstream versions 3.4.4 and 3.3.17 of GnuTLS:\n\nhttps://lists.gnupg.org/pipermail/gnutls-devel/2015-August/007707.html\nhttps://lists.gnupg.org/pipermail/gnutls-devel/2015-August/007708.html\n\nThe following patch fixes this issue:\n\nhttps://gitlab.com/gnutls/gnutls/commit/272854367efc130fbd4f1a51840d80c630214e12\n\nThe affected function, _gnutls_x509_dn_to_string(), was first introduced in version 3.1.10 via commit:\n\nhttps://gitlab.com/gnutls/gnutls/commit/6be35136333b5d6289f23209cf896e741462909a\n\nThe gnutls packages in Red Hat Enterprise Linux 6 and earlier include GnuTLS versions 2.x or 1.x and are therefore not affected by this issue.\n\nExternal References:\n\nhttp://www.gnutls.org/security.html#GNUTLS-SA-2015-3"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8525375",
+						"comment_count": "1",
+						"who": {
+							"text": "mprpic",
+							"name": "Martin Prpič"
+						},
+						"bug_when": "2015-08-10 09:23:39 +0000",
+						"thetext": "\nCreated mingw-gnutls tracking bugs for this issue:\n\nAffects: fedora-all [bug 1251905]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8525376",
+						"comment_count": "2",
+						"who": {
+							"text": "mprpic",
+							"name": "Martin Prpič"
+						},
+						"bug_when": "2015-08-10 09:23:41 +0000",
+						"thetext": "\nCreated gnutls tracking bugs for this issue:\n\nAffects: fedora-all [bug 1251904]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8525383",
+						"comment_count": "3",
+						"who": {
+							"text": "mprpic",
+							"name": "Martin Prpič"
+						},
+						"bug_when": "2015-08-10 09:26:17 +0000",
+						"thetext": "Statement:\n\nThis issue did not affect the versions of gnutls as shipped with Red Hat Enterprise Linux 4, 5, and 6."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8525394",
+						"comment_count": "4",
+						"who": {
+							"text": "mprpic",
+							"name": "Martin Prpič"
+						},
+						"bug_when": "2015-08-10 09:31:33 +0000",
+						"thetext": "CVE request:\n\nhttp://seclists.org/oss-sec/2015/q3/308"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8540653",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-13 17:00:21 +0000",
+						"thetext": "gnutls-3.3.17-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8549990",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-18 05:27:45 +0000",
+						"thetext": "gnutls-3.3.17-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8592252",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-09-01 03:37:15 +0000",
+						"thetext": "gnutls-3.4.4-1.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1251904,
+			"feedback": [
+				{
+					"bug_id": 1251904,
+					"comment": {
+						"id": 314384,
+						"karma": 1,
+						"karma_critpath": 1,
+						"text": "Works for me",
+						"timestamp": "2015-08-24 09:59:50",
+						"update_id": 8174,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/d2961abadbc61ac02ca743308c188aa38757b1751e713948c0e71ea034847140?s=24&d=retro",
+							"email": "chr77@protonmail.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								}
+							],
+							"id": 308,
+							"name": "chr77",
+							"openid": "chr77.id.fedoraproject.org"
+						},
+						"user_id": 308
+					},
+					"comment_id": 314384
+				},
+				{
+					"bug_id": 1251904,
+					"comment": {
+						"id": 314918,
+						"karma": 1,
+						"karma_critpath": 1,
+						"text": ".",
+						"timestamp": "2015-08-25 09:11:22",
+						"update_id": 8174,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/59992dace52d139450ee0f5b7a5cc1559825f576b38f86551e5b0b3dfaa5618b?s=24&d=retro",
+							"email": "hansmueller183@yahoo.com",
+							"groups": [
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "signed_fpca"
+								}
+							],
+							"id": 284,
+							"name": "cairo",
+							"openid": "cairo.id.fedoraproject.org"
+						},
+						"user_id": 284
+					},
+					"comment_id": 314918
+				},
+				{
+					"bug_id": 1251904,
+					"comment": {
+						"id": 316724,
+						"text": "Submitting to stable as Bodhi lost autokarma values during database migration. https://github.com/fedora-infra/bodhi/issues/372",
+						"timestamp": "2015-08-29 12:01:55",
+						"update_id": 8174,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/e66f540a8e2d93d96cbba97628e82213a8eed237c744f2ce5184d7c9588a8d18?s=24&d=retro",
+							"email": "klember@redhat.com",
+							"groups": [
+								{
+									"name": "qa"
+								},
+								{
+									"name": "packager"
+								},
+								{
+									"name": "provenpackager"
+								},
+								{
+									"name": "gnome-sig"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								},
+								{
+									"name": "gitspin-kickstarts"
+								},
+								{
+									"name": "rust-sig"
+								},
+								{
+									"name": "hosted-content"
+								},
+								{
+									"name": "flatpak-sig"
+								}
+							],
+							"id": 285,
+							"name": "kalev",
+							"openid": "kalev.id.fedoraproject.org"
+						},
+						"user_id": 285
+					},
+					"comment_id": 316724
+				}
+			],
+			"security": true,
+			"title": "gnutls: double free flaw in certificate DN decoding (GNUTLS-SA-2015-3) [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1251904",
+				"creation_ts": "2015-08-10 09:23:26 +0000",
+				"short_desc": "gnutls: double free flaw in certificate DN decoding (GNUTLS-SA-2015-3) [fedora-all]",
+				"delta_ts": "2015-09-01 03:37:20 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "NEXTRELEASE",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1251902",
+						"alias": "CVE-2015-6251",
+						"creation_ts": "2015-08-10 09:22:00 +0000",
+						"short_desc": "CVE-2015-6251 gnutls: double free flaw in certificate DN decoding (GNUTLS-SA-2015-3)",
+						"delta_ts": "2021-02-17 05:03:18 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "WONTFIX",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1251904",
+							"1251905"
+						],
+						"blocked": [
+							{
+								"bug_id": "1251906",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "8525368",
+								"comment_count": "0",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2015-08-10 09:22:00 +0000",
+								"thetext": "A use-after-free flaw was found in GnuTLS's _gnutls_x509_dn_to_string() function. A remote attacker could create a specially crafted certificate with very long DistinguishedName (DN) entries that, when processed by an application compiled against GnuTLS, could cause that application to crash.\n\nThis issue was fixed in upstream versions 3.4.4 and 3.3.17 of GnuTLS:\n\nhttps://lists.gnupg.org/pipermail/gnutls-devel/2015-August/007707.html\nhttps://lists.gnupg.org/pipermail/gnutls-devel/2015-August/007708.html\n\nThe following patch fixes this issue:\n\nhttps://gitlab.com/gnutls/gnutls/commit/272854367efc130fbd4f1a51840d80c630214e12\n\nThe affected function, _gnutls_x509_dn_to_string(), was first introduced in version 3.1.10 via commit:\n\nhttps://gitlab.com/gnutls/gnutls/commit/6be35136333b5d6289f23209cf896e741462909a\n\nThe gnutls packages in Red Hat Enterprise Linux 6 and earlier include GnuTLS versions 2.x or 1.x and are therefore not affected by this issue.\n\nExternal References:\n\nhttp://www.gnutls.org/security.html#GNUTLS-SA-2015-3"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8525375",
+								"comment_count": "1",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2015-08-10 09:23:39 +0000",
+								"thetext": "\nCreated mingw-gnutls tracking bugs for this issue:\n\nAffects: fedora-all [bug 1251905]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8525376",
+								"comment_count": "2",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2015-08-10 09:23:41 +0000",
+								"thetext": "\nCreated gnutls tracking bugs for this issue:\n\nAffects: fedora-all [bug 1251904]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8525383",
+								"comment_count": "3",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2015-08-10 09:26:17 +0000",
+								"thetext": "Statement:\n\nThis issue did not affect the versions of gnutls as shipped with Red Hat Enterprise Linux 4, 5, and 6."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8525394",
+								"comment_count": "4",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2015-08-10 09:31:33 +0000",
+								"thetext": "CVE request:\n\nhttp://seclists.org/oss-sec/2015/q3/308"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8540653",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-08-13 17:00:21 +0000",
+								"thetext": "gnutls-3.3.17-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8549990",
+								"comment_count": "7",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-08-18 05:27:45 +0000",
+								"thetext": "gnutls-3.3.17-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8592252",
+								"comment_count": "8",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-09-01 03:37:15 +0000",
+								"thetext": "gnutls-3.4.4-1.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8525371",
+						"comment_count": "0",
+						"who": {
+							"text": "mprpic",
+							"name": "Martin Prpič"
+						},
+						"bug_when": "2015-08-10 09:23:26 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8525372",
+						"comment_count": "1",
+						"who": {
+							"text": "mprpic",
+							"name": "Martin Prpič"
+						},
+						"bug_when": "2015-08-10 09:23:31 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1251902,1251904\n\n# Description of your update\nnotes=Security fix for \n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1251902,1251904"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8525380",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-10 09:25:13 +0000",
+						"thetext": "gnutls-3.3.17-1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/gnutls-3.3.17-1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8525387",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-10 09:28:00 +0000",
+						"thetext": "gnutls-3.4.4-1.fc23 has been submitted as an update for Fedora 23.\nhttps://admin.fedoraproject.org/updates/gnutls-3.4.4-1.fc23"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8525446",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-10 09:48:55 +0000",
+						"thetext": "gnutls-3.3.17-1.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/gnutls-3.3.17-1.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8528127",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-11 02:06:02 +0000",
+						"thetext": "Package gnutls-3.3.17-1.fc22:\n* should fix your issue,\n* was pushed to the Fedora 22 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing gnutls-3.3.17-1.fc22'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-13140/gnutls-3.3.17-1.fc22\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8540652",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-13 17:00:18 +0000",
+						"thetext": "gnutls-3.3.17-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8549988",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-08-18 05:27:43 +0000",
+						"thetext": "gnutls-3.3.17-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8592253",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-09-01 03:37:17 +0000",
+						"thetext": "gnutls-3.4.4-1.fc23 has been pushed to the Fedora 23 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "gnutls-3.4.4-1.fc23",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "gnutls-devel",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "gnutls-debuginfo",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "gnutls-c++",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "gnutls-utils",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "gnutls",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "gnutls-dane",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "gnutls-guile",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "gnutls-guile",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "i686"
+					},
+					{
+						"name": "gnutls-debuginfo",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "i686"
+					},
+					{
+						"name": "gnutls",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "i686"
+					},
+					{
+						"name": "gnutls-dane",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "i686"
+					},
+					{
+						"name": "gnutls-utils",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "i686"
+					},
+					{
+						"name": "gnutls-devel",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "i686"
+					},
+					{
+						"name": "gnutls-c++",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "gnutls",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "gnutls",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "x86_64"
+					},
+					{
+						"name": "gnutls-guile",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "x86_64"
+					},
+					{
+						"name": "gnutls-debuginfo",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "x86_64"
+					},
+					{
+						"name": "gnutls-c++",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "x86_64"
+					},
+					{
+						"name": "gnutls-utils",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "x86_64"
+					},
+					{
+						"name": "gnutls-devel",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "x86_64"
+					},
+					{
+						"name": "gnutls-dane",
+						"version": "3.4.4",
+						"release": "1.fc23",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 57743,
+			"text": "This update has been submitted for testing by nmav. ",
+			"timestamp": "2015-08-10 08:58:43",
+			"update_id": 8174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 57744,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/115051/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-08-10 09:09:40",
+			"update_id": 8174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 57745,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/115051/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-08-10 09:10:03",
+			"update_id": 8174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 57746,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/115072/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-08-10 10:25:18",
+			"update_id": 8174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 57747,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/115072/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-08-10 10:25:43",
+			"update_id": 8174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 57748,
+			"text": "This update is currently being pushed to the Fedora 23 testing updates repository.",
+			"timestamp": "2015-08-12 19:04:38",
+			"update_id": 8174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 57749,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-08-12 20:10:50",
+			"update_id": 8174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"bug_feedback": [
+				{
+					"bug": {
+						"bug_id": 1250020,
+						"title": "gnutls_x509_privkey_import can no longer import some private keys"
+					},
+					"bug_id": 1250020,
+					"comment_id": 314384
+				},
+				{
+					"bug": {
+						"bug_id": 1251875,
+						"title": "gnutls: add support for fallback SCSV"
+					},
+					"bug_id": 1251875,
+					"comment_id": 314384
+				},
+				{
+					"bug": {
+						"bug_id": 1251904,
+						"security": true,
+						"title": "gnutls: double free flaw in certificate DN decoding (GNUTLS-SA-2015-3) [fedora-all]"
+					},
+					"bug_id": 1251904,
+					"comment_id": 314384
+				},
+				{
+					"bug": {
+						"bug_id": 1251902,
+						"parent": true,
+						"security": true,
+						"title": "CVE-2015-6251 gnutls: double free flaw in certificate DN decoding (GNUTLS-SA-2015-3)"
+					},
+					"bug_id": 1251902,
+					"comment_id": 314384
+				}
+			],
+			"id": 314384,
+			"karma": 1,
+			"karma_critpath": 1,
+			"text": "Works for me",
+			"timestamp": "2015-08-24 09:59:50",
+			"update_id": 8174,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/d2961abadbc61ac02ca743308c188aa38757b1751e713948c0e71ea034847140?s=24&d=retro",
+				"email": "chr77@protonmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 308,
+				"name": "chr77",
+				"openid": "chr77.id.fedoraproject.org"
+			},
+			"user_id": 308
+		},
+		{
+			"bug_feedback": [
+				{
+					"bug": {
+						"bug_id": 1250020,
+						"title": "gnutls_x509_privkey_import can no longer import some private keys"
+					},
+					"bug_id": 1250020,
+					"comment_id": 314918
+				},
+				{
+					"bug": {
+						"bug_id": 1251875,
+						"title": "gnutls: add support for fallback SCSV"
+					},
+					"bug_id": 1251875,
+					"comment_id": 314918
+				},
+				{
+					"bug": {
+						"bug_id": 1251904,
+						"security": true,
+						"title": "gnutls: double free flaw in certificate DN decoding (GNUTLS-SA-2015-3) [fedora-all]"
+					},
+					"bug_id": 1251904,
+					"comment_id": 314918
+				},
+				{
+					"bug": {
+						"bug_id": 1251902,
+						"parent": true,
+						"security": true,
+						"title": "CVE-2015-6251 gnutls: double free flaw in certificate DN decoding (GNUTLS-SA-2015-3)"
+					},
+					"bug_id": 1251902,
+					"comment_id": 314918
+				}
+			],
+			"id": 314918,
+			"karma": 1,
+			"karma_critpath": 1,
+			"text": ".",
+			"timestamp": "2015-08-25 09:11:22",
+			"update_id": 8174,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/59992dace52d139450ee0f5b7a5cc1559825f576b38f86551e5b0b3dfaa5618b?s=24&d=retro",
+				"email": "hansmueller183@yahoo.com",
+				"groups": [
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "signed_fpca"
+					}
+				],
+				"id": 284,
+				"name": "cairo",
+				"openid": "cairo.id.fedoraproject.org"
+			},
+			"user_id": 284
+		},
+		{
+			"id": 316419,
+			"karma": 1,
+			"text": "looks good",
+			"timestamp": "2015-08-28 16:49:24",
+			"update_id": 8174,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/8565c2dfa53d10789f72ad8acb147dcde3c431f668cde1916a812d1d8f945875?s=24&d=retro",
+				"email": "pnemade@redhat.com",
+				"groups": [
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "giti18n"
+					},
+					{
+						"name": "gitinscript2"
+					},
+					{
+						"name": "gitwordxtr"
+					},
+					{
+						"name": "gityum-langpacks"
+					},
+					{
+						"name": "svnsystem-config-language"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "gitutrrs-web"
+					},
+					{
+						"name": "svnlohit"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "svniok"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "gitiok2"
+					},
+					{
+						"name": "gitfontpackages"
+					},
+					{
+						"name": "gitredhatlsb"
+					},
+					{
+						"name": "cla_redhat"
+					},
+					{
+						"name": "cvslohit-fonts"
+					}
+				],
+				"id": 262,
+				"name": "pnemade",
+				"openid": "pnemade.id.fedoraproject.org"
+			},
+			"user_id": 262
+		},
+		{
+			"id": 316699,
+			"karma": 1,
+			"text": "works for me",
+			"timestamp": "2015-08-29 11:41:59",
+			"update_id": 8174,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/2087ddb84fdf1774c00fc96323f629621c9046b99eee2aa497044f598f3979d4?s=24&d=retro",
+				"email": "yuwatana@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					}
+				],
+				"id": 125,
+				"name": "yuwata",
+				"openid": "yuwata.id.fedoraproject.org"
+			},
+			"user_id": 125
+		},
+		{
+			"bug_feedback": [
+				{
+					"bug": {
+						"bug_id": 1251875,
+						"title": "gnutls: add support for fallback SCSV"
+					},
+					"bug_id": 1251875,
+					"comment_id": 316724
+				},
+				{
+					"bug": {
+						"bug_id": 1251904,
+						"security": true,
+						"title": "gnutls: double free flaw in certificate DN decoding (GNUTLS-SA-2015-3) [fedora-all]"
+					},
+					"bug_id": 1251904,
+					"comment_id": 316724
+				},
+				{
+					"bug": {
+						"bug_id": 1250020,
+						"title": "gnutls_x509_privkey_import can no longer import some private keys"
+					},
+					"bug_id": 1250020,
+					"comment_id": 316724
+				},
+				{
+					"bug": {
+						"bug_id": 1251902,
+						"parent": true,
+						"security": true,
+						"title": "CVE-2015-6251 gnutls: double free flaw in certificate DN decoding (GNUTLS-SA-2015-3)"
+					},
+					"bug_id": 1251902,
+					"comment_id": 316724
+				}
+			],
+			"id": 316724,
+			"text": "Submitting to stable as Bodhi lost autokarma values during database migration. https://github.com/fedora-infra/bodhi/issues/372",
+			"timestamp": "2015-08-29 12:01:55",
+			"update_id": 8174,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/e66f540a8e2d93d96cbba97628e82213a8eed237c744f2ce5184d7c9588a8d18?s=24&d=retro",
+				"email": "klember@redhat.com",
+				"groups": [
+					{
+						"name": "qa"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "gnome-sig"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "gitspin-kickstarts"
+					},
+					{
+						"name": "rust-sig"
+					},
+					{
+						"name": "hosted-content"
+					},
+					{
+						"name": "flatpak-sig"
+					}
+				],
+				"id": 285,
+				"name": "kalev",
+				"openid": "kalev.id.fedoraproject.org"
+			},
+			"user_id": 285
+		},
+		{
+			"id": 316725,
+			"text": "This update has been submitted for stable by kalev. ",
+			"timestamp": "2015-08-29 12:02:08",
+			"update_id": 8174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 317423,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-09-01 03:41:31",
+			"update_id": 8174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_modified": "2015-08-10 09:27:55",
+	"date_pushed": "2015-09-01 03:41:31",
+	"date_stable": "2015-09-01 03:41:31",
+	"date_submitted": "2015-08-10 08:58:33",
+	"date_testing": "2015-08-12 20:10:50",
+	"karma": 4,
+	"meets_testing_requirements": true,
+	"notes": "new upstream release",
+	"pushed": true,
+	"release": {
+		"branch": "f23",
+		"candidate_tag": "f23-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f23",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 23",
+		"mail_template": "fedora_errata_template",
+		"name": "F23",
+		"override_tag": "f23-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f23-signing-pending",
+		"pending_stable_tag": "f23-updates-pending",
+		"pending_testing_tag": "f23-updates-testing-pending",
+		"stable_tag": "f23-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f23-updates-testing",
+		"version": "23"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "gnutls-3.4.4-1.fc23",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-13287",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-13287",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/3b6e82d90a864391e19c2e1f5e96eb029f72ee70f85aaa7598e589e94d056ad2?s=24&d=retro",
+		"email": "n.mavrogiannopoulos@gmail.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "gitcrypto-profiles"
+			}
+		],
+		"id": 371,
+		"name": "nmav",
+		"openid": "nmav.id.fedoraproject.org"
+	},
+	"version_hash": "2291fc3887c3977cb78e49529b032bff88ff7f7d"
+}

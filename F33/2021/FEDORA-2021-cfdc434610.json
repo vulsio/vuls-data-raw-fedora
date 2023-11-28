@@ -1,0 +1,850 @@
+{
+	"alias": "FEDORA-2021-cfdc434610",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 1950046,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2021-3505 libtpms: RSA keys weaker than expected",
+			"bugzilla": {
+				"bug_id": "1950046",
+				"alias": "CVE-2021-3505",
+				"creation_ts": "2021-04-15 16:06:34 +0000",
+				"short_desc": "CVE-2021-3505 libtpms: RSA keys weaker than expected",
+				"delta_ts": "2021-10-29 08:57:48 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "WONTFIX",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"1942902",
+					"1950048",
+					"1950063",
+					"1950064"
+				],
+				"blocked": [
+					{
+						"bug_id": "1945068",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1950378",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "14967977",
+						"comment_count": "0",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2021-04-15 16:06:34 +0000",
+						"thetext": "The TPM 2 implementation returns 2048 bit keys with ~1984 bit strength due to a bug in the TPM 2 key creation algorithm that cannot easily be fixed. The bug is in RsaAjustPrimeCandidate, which is called before the prime number check. Upgrading to a fixed release (0.8.0+) is not sufficient. The only way to fix it is to unseal all data, delete the old TPM state file, generate a new one, then reseal the data.\n\nNote: the bug is based on the TCG reference code. The TCG specification was updated in late 2019 and libtpms' key creation algorithm fixed in version 0.8.0.\n\nUpstream issue:\nhttps://github.com/stefanberger/libtpms/issues/183\n\nUpstream commits:\nhttps://github.com/stefanberger/libtpms/commit/625171be0c8225824740b5d0fb7e8562f6a1c6a8\nhttps://github.com/stefanberger/libtpms/commit/c1f7bf55099fcd427715aa65e130475c6e836a6b"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14967983",
+						"comment_count": "1",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2021-04-15 16:07:11 +0000",
+						"thetext": "Created libtpms tracking bugs for this issue:\n\nAffects: fedora-all [bug 1950048]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14970029",
+						"comment_count": "5",
+						"who": {
+							"text": "marcandre.lureau",
+							"name": "Marc-Andre Lureau"
+						},
+						"bug_when": "2021-04-16 10:59:33 +0000",
+						"thetext": "It is likely a breaking change, as it was not introduced in 0.7 branch (see https://github.com/stefanberger/libtpms/commit/153a9579e84c83c38d404bd12fd5267f82fd07a1). Also, I think a CVE was requested earlier and not accepted."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14970309",
+						"comment_count": "6",
+						"who": {
+							"text": "stefanb",
+							"name": "Stefan Berger"
+						},
+						"bug_when": "2021-04-16 13:07:50 +0000",
+						"thetext": "When a TPM 2 (instance) is upgraded from libtpms 0.7.x to 0.8.x it will continue using the weak key generation algorithm since otherwise nothing would decrypt anymore with keys derived from the TPM 2's current seeds. If the seeds are reset, which is only possible via firmware, then the code will switch to use the new key generation algorithm for seed-derive keys since after resetting the seeds the keys are expected to be different than before and nothing is expected to decrypt anymore with seeed-derived keys. So it shouldn't break anything from the point of view of the user, he just doesn't get the better keys because we cannot just switch over. Newly created TPM 2 instance using libtpms 0.8 would use the fixed key generation algorithm."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14970616",
+						"comment_count": "7",
+						"who": {
+							"text": "marcandre.lureau",
+							"name": "Marc-Andre Lureau"
+						},
+						"bug_when": "2021-04-16 14:27:28 +0000",
+						"thetext": "Stefan, why is the fix not backported to 0.7 branch then?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14970793",
+						"comment_count": "8",
+						"who": {
+							"text": "stefanb",
+							"name": "Stefan Berger"
+						},
+						"bug_when": "2021-04-16 14:43:38 +0000",
+						"thetext": "(In reply to Marc-Andre Lureau from comment #7)\n> Stefan, why is the fix not backported to 0.7 branch then?\n\nBecause it changes the state file of the TPM 2 to keep track of the 'age' of the seeds. I don't backport these kind of changes."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14970804",
+						"comment_count": "9",
+						"who": {
+							"text": "marcandre.lureau",
+							"name": "Marc-Andre Lureau"
+						},
+						"bug_when": "2021-04-16 14:46:57 +0000",
+						"thetext": "(In reply to Stefan Berger from comment #8)\n> (In reply to Marc-Andre Lureau from comment #7)\n> > Stefan, why is the fix not backported to 0.7 branch then?\n> \n> Because it changes the state file of the TPM 2 to keep track of the 'age' of\n> the seeds. I don't backport these kind of changes.\n\nCould it keep the current age instead? Only newly state would get a new age. (if that makes sense)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14970826",
+						"comment_count": "10",
+						"who": {
+							"text": "stefanb",
+							"name": "Stefan Berger"
+						},
+						"bug_when": "2021-04-16 14:52:53 +0000",
+						"thetext": "(In reply to Marc-Andre Lureau from comment #9)\n> (In reply to Stefan Berger from comment #8)\n> > (In reply to Marc-Andre Lureau from comment #7)\n> > > Stefan, why is the fix not backported to 0.7 branch then?\n> > \n> > Because it changes the state file of the TPM 2 to keep track of the 'age' of\n> > the seeds. I don't backport these kind of changes.\n> \n> Could it keep the current age instead? Only newly state would get a new age.\n> (if that makes sense)\n\nHow do you distinguish between an old seed requiring to run the weak key generation algorithm and a new seed then? Sorry, but this doesn't make sense. You need to track that 1 bit of information. Besides that, the patches have already been merged a long time ago and libtpms 0.8.x fixes the issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14970879",
+						"comment_count": "11",
+						"who": {
+							"text": "marcandre.lureau",
+							"name": "Marc-Andre Lureau"
+						},
+						"bug_when": "2021-04-16 15:07:06 +0000",
+						"thetext": "(In reply to Stefan Berger from comment #10)\n> How do you distinguish between an old seed requiring to run the weak key\n> generation algorithm and a new seed then? Sorry, but this doesn't make\n\nThe age doesn't let you make that difference? What's the age for then?\n\n> sense. You need to track that 1 bit of information. Besides that, the\n> patches have already been merged a long time ago and libtpms 0.8.x fixes the\n> issue.\n\nWe don't usually rebase versions in RHEL released products, we backport fixes or just WONTFIX.\n\nPlease help us make the best decision"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14970925",
+						"comment_count": "12",
+						"who": {
+							"text": "stefanb",
+							"name": "Stefan Berger"
+						},
+						"bug_when": "2021-04-16 15:21:07 +0000",
+						"thetext": "(In reply to Marc-Andre Lureau from comment #11)\n> (In reply to Stefan Berger from comment #10)\n> > How do you distinguish between an old seed requiring to run the weak key\n> > generation algorithm and a new seed then? Sorry, but this doesn't make\n> \n> The age doesn't let you make that difference? What's the age for then?\n\nYes, the age let's you make the difference but the age was introduced as part of the patches to fix the issue. This changes the state format the TPM 2's state is written in and I don't want to backport it since it's too easy to loose the upgrade path.\n\n> \n> > sense. You need to track that 1 bit of information. Besides that, the\n> > patches have already been merged a long time ago and libtpms 0.8.x fixes the\n> > issue.\n> \n> We don't usually rebase versions in RHEL released products, we backport\n> fixes or just WONTFIX.\n> \n> Please help us make the best decision\n\nIn this case I would say that if you start a new version of RHEL you could still go with libtpms-0.8.x, if you cannot upgrade it then mark it as WONTFIX."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14970988",
+						"comment_count": "13",
+						"who": {
+							"text": "marcandre.lureau",
+							"name": "Marc-Andre Lureau"
+						},
+						"bug_when": "2021-04-16 15:40:34 +0000",
+						"thetext": "(In reply to Stefan Berger from comment #12)\n> > The age doesn't let you make that difference? What's the age for then?\n> \n> Yes, the age let's you make the difference but the age was introduced as\n> part of the patches to fix the issue. This changes the state format the TPM\n> 2's state is written in and I don't want to backport it since it's too easy\n> to loose the upgrade path.\n\nHow did you handle migration from 0.7/non-aged to 0.8 ? In CHANGES, it is said downgrade is not possible, not upgrade. There must be a way to distinguish fixed from non-fixed version then.\n\n\n> > > sense. You need to track that 1 bit of information. Besides that, the\n> > > patches have already been merged a long time ago and libtpms 0.8.x fixes the\n> > > issue.\n> > \n> > We don't usually rebase versions in RHEL released products, we backport\n> > fixes or just WONTFIX.\n> > \n> > Please help us make the best decision\n> \n> In this case I would say that if you start a new version of RHEL you could\n> still go with libtpms-0.8.x, if you cannot upgrade it then mark it as\n> WONTFIX.\n\nIf it would just be me, I would upgrade to 0.8, but this brings a lot of other changes that might be too risky too.\n\nMauro, what do you think?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14971009",
+						"comment_count": "14",
+						"who": {
+							"text": "marcandre.lureau",
+							"name": "Marc-Andre Lureau"
+						},
+						"bug_when": "2021-04-16 15:47:39 +0000",
+						"thetext": "> In CHANGES, it is said downgrade is not possible, not upgrade. There must be a way to distinguish fixed from non-fixed version then.\n\nThe new state wouldnt be backward compatible though, but it's not worse that forcefully upgrading to 0.8."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14971016",
+						"comment_count": "15",
+						"who": {
+							"text": "stefanb",
+							"name": "Stefan Berger"
+						},
+						"bug_when": "2021-04-16 15:48:42 +0000",
+						"thetext": "(In reply to Marc-Andre Lureau from comment #13)\n> (In reply to Stefan Berger from comment #12)\n> > > The age doesn't let you make that difference? What's the age for then?\n> > \n> > Yes, the age let's you make the difference but the age was introduced as\n> > part of the patches to fix the issue. This changes the state format the TPM\n> > 2's state is written in and I don't want to backport it since it's too easy\n> > to loose the upgrade path.\n> \n> How did you handle migration from 0.7/non-aged to 0.8 ? In CHANGES, it is\n> said downgrade is not possible, not upgrade. There must be a way to\n> distinguish fixed from non-fixed version then.\n\nWhen TPM 2 reads the statefile of the TPM 2 and the blob containing a seed is of version <x, where version <x does not track the age of the seed, it assigns it the default value representing the state of an old seed. The state writing side will write the blob in version x which now contains the age of the seed and the next time we read the state from the file we pick up the age from the blob."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14972662",
+						"comment_count": "16",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2021-04-17 14:53:45 +0000",
+						"thetext": "In reply to comment #13:\n> (In reply to Stefan Berger from comment #12)\n> > > We don't usually rebase versions in RHEL released products, we backport\n> > > fixes or just WONTFIX.\n> > > \n> > > Please help us make the best decision\n> > \n> > In this case I would say that if you start a new version of RHEL you could\n> > still go with libtpms-0.8.x, if you cannot upgrade it then mark it as\n> > WONTFIX.\n> \n> If it would just be me, I would upgrade to 0.8, but this brings a lot of\n> other changes that might be too risky too.\n> \n> Mauro, what do you think?\n\nI was aware that backporting the fix to 0.7.x (the only versions we currently ship) would have been tricky, but decided to allocate a CVE anyway because that was the right thing to do. I would probably lean towards WONTFIX here: this is not an important/critical issue and probably not worth the effort given the above comments.\n\nAs for whether or not to rebase, I don't know what implications - mostly from a functional/compatibility point of view - an upgrade to 0.8 would entail. That said, as you know, a number of potentially-security-sensitive fixes didn't get CVEs in the past (e.g., https://github.com/stefanberger/libtpms/blob/stable-0.7.0/CHANGES) and I see the risk of not backporting a security fix just because it didn't get a CVE. With this in mind IMHO rebasing should be a serious option to consider - if possible - alongside a more thorough handling of CVEs going forward (we can help with the latter part)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14972680",
+						"comment_count": "17",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2021-04-17 15:30:00 +0000",
+						"thetext": "Statement:\n\nVersions of `libtpms` prior to 0.8.0 generate weaker than expected TPM 2 RSA keys due to the flawed key creation algorithm. Red Hat Enterprise Linux 8 Advanced Virtualization is therefore affected by this flaw, as it ships an older version of the package (0.7.x)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14972681",
+						"comment_count": "18",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2021-04-17 15:30:02 +0000",
+						"thetext": "Mitigation:\n\nThere is no mitigation for this issue. Upgrading to a fixed release (0.8.0+) is necessary but not sufficient. The only way to fix it is to unseal all data, delete the old TPM state file, generate a new one with the fixed key generation algorithm, then reseal the data."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1950048,
+			"security": true,
+			"title": "CVE-2021-3505 libtpms: RSA keys weaker than expected [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1950048",
+				"creation_ts": "2021-04-15 16:06:59 +0000",
+				"short_desc": "CVE-2021-3505 libtpms: RSA keys weaker than expected [fedora-all]",
+				"delta_ts": "2021-05-05 00:53:19 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1950046",
+						"alias": "CVE-2021-3505",
+						"creation_ts": "2021-04-15 16:06:34 +0000",
+						"short_desc": "CVE-2021-3505 libtpms: RSA keys weaker than expected",
+						"delta_ts": "2021-10-29 08:57:48 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "WONTFIX",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1942902",
+							"1950048",
+							"1950063",
+							"1950064"
+						],
+						"blocked": [
+							{
+								"bug_id": "1945068",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1950378",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "14967977",
+								"comment_count": "0",
+								"who": {
+									"text": "mcascell",
+									"name": "Mauro Matteo Cascella"
+								},
+								"bug_when": "2021-04-15 16:06:34 +0000",
+								"thetext": "The TPM 2 implementation returns 2048 bit keys with ~1984 bit strength due to a bug in the TPM 2 key creation algorithm that cannot easily be fixed. The bug is in RsaAjustPrimeCandidate, which is called before the prime number check. Upgrading to a fixed release (0.8.0+) is not sufficient. The only way to fix it is to unseal all data, delete the old TPM state file, generate a new one, then reseal the data.\n\nNote: the bug is based on the TCG reference code. The TCG specification was updated in late 2019 and libtpms' key creation algorithm fixed in version 0.8.0.\n\nUpstream issue:\nhttps://github.com/stefanberger/libtpms/issues/183\n\nUpstream commits:\nhttps://github.com/stefanberger/libtpms/commit/625171be0c8225824740b5d0fb7e8562f6a1c6a8\nhttps://github.com/stefanberger/libtpms/commit/c1f7bf55099fcd427715aa65e130475c6e836a6b"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14967983",
+								"comment_count": "1",
+								"who": {
+									"text": "mcascell",
+									"name": "Mauro Matteo Cascella"
+								},
+								"bug_when": "2021-04-15 16:07:11 +0000",
+								"thetext": "Created libtpms tracking bugs for this issue:\n\nAffects: fedora-all [bug 1950048]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14970029",
+								"comment_count": "5",
+								"who": {
+									"text": "marcandre.lureau",
+									"name": "Marc-Andre Lureau"
+								},
+								"bug_when": "2021-04-16 10:59:33 +0000",
+								"thetext": "It is likely a breaking change, as it was not introduced in 0.7 branch (see https://github.com/stefanberger/libtpms/commit/153a9579e84c83c38d404bd12fd5267f82fd07a1). Also, I think a CVE was requested earlier and not accepted."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14970309",
+								"comment_count": "6",
+								"who": {
+									"text": "stefanb",
+									"name": "Stefan Berger"
+								},
+								"bug_when": "2021-04-16 13:07:50 +0000",
+								"thetext": "When a TPM 2 (instance) is upgraded from libtpms 0.7.x to 0.8.x it will continue using the weak key generation algorithm since otherwise nothing would decrypt anymore with keys derived from the TPM 2's current seeds. If the seeds are reset, which is only possible via firmware, then the code will switch to use the new key generation algorithm for seed-derive keys since after resetting the seeds the keys are expected to be different than before and nothing is expected to decrypt anymore with seeed-derived keys. So it shouldn't break anything from the point of view of the user, he just doesn't get the better keys because we cannot just switch over. Newly created TPM 2 instance using libtpms 0.8 would use the fixed key generation algorithm."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14970616",
+								"comment_count": "7",
+								"who": {
+									"text": "marcandre.lureau",
+									"name": "Marc-Andre Lureau"
+								},
+								"bug_when": "2021-04-16 14:27:28 +0000",
+								"thetext": "Stefan, why is the fix not backported to 0.7 branch then?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14970793",
+								"comment_count": "8",
+								"who": {
+									"text": "stefanb",
+									"name": "Stefan Berger"
+								},
+								"bug_when": "2021-04-16 14:43:38 +0000",
+								"thetext": "(In reply to Marc-Andre Lureau from comment #7)\n> Stefan, why is the fix not backported to 0.7 branch then?\n\nBecause it changes the state file of the TPM 2 to keep track of the 'age' of the seeds. I don't backport these kind of changes."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14970804",
+								"comment_count": "9",
+								"who": {
+									"text": "marcandre.lureau",
+									"name": "Marc-Andre Lureau"
+								},
+								"bug_when": "2021-04-16 14:46:57 +0000",
+								"thetext": "(In reply to Stefan Berger from comment #8)\n> (In reply to Marc-Andre Lureau from comment #7)\n> > Stefan, why is the fix not backported to 0.7 branch then?\n> \n> Because it changes the state file of the TPM 2 to keep track of the 'age' of\n> the seeds. I don't backport these kind of changes.\n\nCould it keep the current age instead? Only newly state would get a new age. (if that makes sense)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14970826",
+								"comment_count": "10",
+								"who": {
+									"text": "stefanb",
+									"name": "Stefan Berger"
+								},
+								"bug_when": "2021-04-16 14:52:53 +0000",
+								"thetext": "(In reply to Marc-Andre Lureau from comment #9)\n> (In reply to Stefan Berger from comment #8)\n> > (In reply to Marc-Andre Lureau from comment #7)\n> > > Stefan, why is the fix not backported to 0.7 branch then?\n> > \n> > Because it changes the state file of the TPM 2 to keep track of the 'age' of\n> > the seeds. I don't backport these kind of changes.\n> \n> Could it keep the current age instead? Only newly state would get a new age.\n> (if that makes sense)\n\nHow do you distinguish between an old seed requiring to run the weak key generation algorithm and a new seed then? Sorry, but this doesn't make sense. You need to track that 1 bit of information. Besides that, the patches have already been merged a long time ago and libtpms 0.8.x fixes the issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14970879",
+								"comment_count": "11",
+								"who": {
+									"text": "marcandre.lureau",
+									"name": "Marc-Andre Lureau"
+								},
+								"bug_when": "2021-04-16 15:07:06 +0000",
+								"thetext": "(In reply to Stefan Berger from comment #10)\n> How do you distinguish between an old seed requiring to run the weak key\n> generation algorithm and a new seed then? Sorry, but this doesn't make\n\nThe age doesn't let you make that difference? What's the age for then?\n\n> sense. You need to track that 1 bit of information. Besides that, the\n> patches have already been merged a long time ago and libtpms 0.8.x fixes the\n> issue.\n\nWe don't usually rebase versions in RHEL released products, we backport fixes or just WONTFIX.\n\nPlease help us make the best decision"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14970925",
+								"comment_count": "12",
+								"who": {
+									"text": "stefanb",
+									"name": "Stefan Berger"
+								},
+								"bug_when": "2021-04-16 15:21:07 +0000",
+								"thetext": "(In reply to Marc-Andre Lureau from comment #11)\n> (In reply to Stefan Berger from comment #10)\n> > How do you distinguish between an old seed requiring to run the weak key\n> > generation algorithm and a new seed then? Sorry, but this doesn't make\n> \n> The age doesn't let you make that difference? What's the age for then?\n\nYes, the age let's you make the difference but the age was introduced as part of the patches to fix the issue. This changes the state format the TPM 2's state is written in and I don't want to backport it since it's too easy to loose the upgrade path.\n\n> \n> > sense. You need to track that 1 bit of information. Besides that, the\n> > patches have already been merged a long time ago and libtpms 0.8.x fixes the\n> > issue.\n> \n> We don't usually rebase versions in RHEL released products, we backport\n> fixes or just WONTFIX.\n> \n> Please help us make the best decision\n\nIn this case I would say that if you start a new version of RHEL you could still go with libtpms-0.8.x, if you cannot upgrade it then mark it as WONTFIX."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14970988",
+								"comment_count": "13",
+								"who": {
+									"text": "marcandre.lureau",
+									"name": "Marc-Andre Lureau"
+								},
+								"bug_when": "2021-04-16 15:40:34 +0000",
+								"thetext": "(In reply to Stefan Berger from comment #12)\n> > The age doesn't let you make that difference? What's the age for then?\n> \n> Yes, the age let's you make the difference but the age was introduced as\n> part of the patches to fix the issue. This changes the state format the TPM\n> 2's state is written in and I don't want to backport it since it's too easy\n> to loose the upgrade path.\n\nHow did you handle migration from 0.7/non-aged to 0.8 ? In CHANGES, it is said downgrade is not possible, not upgrade. There must be a way to distinguish fixed from non-fixed version then.\n\n\n> > > sense. You need to track that 1 bit of information. Besides that, the\n> > > patches have already been merged a long time ago and libtpms 0.8.x fixes the\n> > > issue.\n> > \n> > We don't usually rebase versions in RHEL released products, we backport\n> > fixes or just WONTFIX.\n> > \n> > Please help us make the best decision\n> \n> In this case I would say that if you start a new version of RHEL you could\n> still go with libtpms-0.8.x, if you cannot upgrade it then mark it as\n> WONTFIX.\n\nIf it would just be me, I would upgrade to 0.8, but this brings a lot of other changes that might be too risky too.\n\nMauro, what do you think?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14971009",
+								"comment_count": "14",
+								"who": {
+									"text": "marcandre.lureau",
+									"name": "Marc-Andre Lureau"
+								},
+								"bug_when": "2021-04-16 15:47:39 +0000",
+								"thetext": "> In CHANGES, it is said downgrade is not possible, not upgrade. There must be a way to distinguish fixed from non-fixed version then.\n\nThe new state wouldnt be backward compatible though, but it's not worse that forcefully upgrading to 0.8."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14971016",
+								"comment_count": "15",
+								"who": {
+									"text": "stefanb",
+									"name": "Stefan Berger"
+								},
+								"bug_when": "2021-04-16 15:48:42 +0000",
+								"thetext": "(In reply to Marc-Andre Lureau from comment #13)\n> (In reply to Stefan Berger from comment #12)\n> > > The age doesn't let you make that difference? What's the age for then?\n> > \n> > Yes, the age let's you make the difference but the age was introduced as\n> > part of the patches to fix the issue. This changes the state format the TPM\n> > 2's state is written in and I don't want to backport it since it's too easy\n> > to loose the upgrade path.\n> \n> How did you handle migration from 0.7/non-aged to 0.8 ? In CHANGES, it is\n> said downgrade is not possible, not upgrade. There must be a way to\n> distinguish fixed from non-fixed version then.\n\nWhen TPM 2 reads the statefile of the TPM 2 and the blob containing a seed is of version <x, where version <x does not track the age of the seed, it assigns it the default value representing the state of an old seed. The state writing side will write the blob in version x which now contains the age of the seed and the next time we read the state from the file we pick up the age from the blob."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14972662",
+								"comment_count": "16",
+								"who": {
+									"text": "mcascell",
+									"name": "Mauro Matteo Cascella"
+								},
+								"bug_when": "2021-04-17 14:53:45 +0000",
+								"thetext": "In reply to comment #13:\n> (In reply to Stefan Berger from comment #12)\n> > > We don't usually rebase versions in RHEL released products, we backport\n> > > fixes or just WONTFIX.\n> > > \n> > > Please help us make the best decision\n> > \n> > In this case I would say that if you start a new version of RHEL you could\n> > still go with libtpms-0.8.x, if you cannot upgrade it then mark it as\n> > WONTFIX.\n> \n> If it would just be me, I would upgrade to 0.8, but this brings a lot of\n> other changes that might be too risky too.\n> \n> Mauro, what do you think?\n\nI was aware that backporting the fix to 0.7.x (the only versions we currently ship) would have been tricky, but decided to allocate a CVE anyway because that was the right thing to do. I would probably lean towards WONTFIX here: this is not an important/critical issue and probably not worth the effort given the above comments.\n\nAs for whether or not to rebase, I don't know what implications - mostly from a functional/compatibility point of view - an upgrade to 0.8 would entail. That said, as you know, a number of potentially-security-sensitive fixes didn't get CVEs in the past (e.g., https://github.com/stefanberger/libtpms/blob/stable-0.7.0/CHANGES) and I see the risk of not backporting a security fix just because it didn't get a CVE. With this in mind IMHO rebasing should be a serious option to consider - if possible - alongside a more thorough handling of CVEs going forward (we can help with the latter part)."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14972680",
+								"comment_count": "17",
+								"who": {
+									"text": "mcascell",
+									"name": "Mauro Matteo Cascella"
+								},
+								"bug_when": "2021-04-17 15:30:00 +0000",
+								"thetext": "Statement:\n\nVersions of `libtpms` prior to 0.8.0 generate weaker than expected TPM 2 RSA keys due to the flawed key creation algorithm. Red Hat Enterprise Linux 8 Advanced Virtualization is therefore affected by this flaw, as it ships an older version of the package (0.7.x)."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14972681",
+								"comment_count": "18",
+								"who": {
+									"text": "mcascell",
+									"name": "Mauro Matteo Cascella"
+								},
+								"bug_when": "2021-04-17 15:30:02 +0000",
+								"thetext": "Mitigation:\n\nThere is no mitigation for this issue. Upgrading to a fixed release (0.8.0+) is necessary but not sufficient. The only way to fix it is to unseal all data, delete the old TPM state file, generate a new one with the fixed key generation algorithm, then reseal the data."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "14967979",
+						"comment_count": "0",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2021-04-15 16:06:59 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14967980",
+						"comment_count": "1",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2021-04-15 16:07:02 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=low\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1950046,1950048\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14998525",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-04-26 15:16:42 +0000",
+						"thetext": "FEDORA-2021-cfdc434610 has been submitted as an update to Fedora 33. https://bodhi.fedoraproject.org/updates/FEDORA-2021-cfdc434610"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15000169",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-04-27 01:26:48 +0000",
+						"thetext": "FEDORA-2021-cfdc434610 has been pushed to the Fedora 33 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2021-cfdc434610`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2021-cfdc434610\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15030861",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2021-05-05 00:53:19 +0000",
+						"thetext": "FEDORA-2021-cfdc434610 has been pushed to the Fedora 33 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "libtpms-0.8.2-0.20210426git729fc6a4ca.fc33",
+			"release_id": 40,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "libtpms-debuginfo",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libtpms",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libtpms-devel",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libtpms-debugsource",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "libtpms-debugsource",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libtpms-devel",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libtpms-debuginfo",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libtpms",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "libtpms-debuginfo",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "i686"
+					},
+					{
+						"name": "libtpms",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "i686"
+					},
+					{
+						"name": "libtpms-devel",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "i686"
+					},
+					{
+						"name": "libtpms-debugsource",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "libtpms-debuginfo",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libtpms-devel",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libtpms",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libtpms-debugsource",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "libtpms-debuginfo",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "s390x"
+					},
+					{
+						"name": "libtpms-debugsource",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "s390x"
+					},
+					{
+						"name": "libtpms",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "s390x"
+					},
+					{
+						"name": "libtpms-devel",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "libtpms",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "libtpms-debuginfo",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libtpms-devel",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libtpms",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libtpms-debugsource",
+						"version": "0.8.2",
+						"release": "0.20210426git729fc6a4ca.fc33",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 2001525,
+			"text": "This update has been submitted for testing by stefanberger. ",
+			"timestamp": "2021-04-26 15:16:42",
+			"update_id": 301470,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2001526,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2021-04-26 15:16:42",
+			"update_id": 301470,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2001527,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2021-04-26 15:16:42",
+			"update_id": 301470,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2001596,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2021-04-26 16:04:03",
+			"update_id": 301470,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2002532,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2021-04-27 01:27:13",
+			"update_id": 301470,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2012814,
+			"text": "This update can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2021-05-04 01:26:46",
+			"update_id": 301470,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2012815,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2021-05-04 01:26:47",
+			"update_id": 301470,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 2015068,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2021-05-05 00:53:55",
+			"update_id": 301470,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2021-05-05 00:52:51",
+	"date_stable": "2021-05-05 00:52:51",
+	"date_submitted": "2021-04-26 15:16:42",
+	"date_testing": "2021-04-27 01:26:21",
+	"meets_testing_requirements": true,
+	"notes": "Security fix for CVE-2021-3505",
+	"pushed": true,
+	"release": {
+		"branch": "f33",
+		"candidate_tag": "f33-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f33",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 33",
+		"mail_template": "fedora_errata_template",
+		"name": "F33",
+		"override_tag": "f33-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f33-signing-pending",
+		"pending_stable_tag": "f33-updates-pending",
+		"pending_testing_tag": "f33-updates-testing-pending",
+		"stable_tag": "f33-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f33-updates-testing",
+		"version": "33"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "low",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "libtpms-0.8.2-0.20210426git729fc6a4ca.fc33",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2021-cfdc434610",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2021-cfdc434610",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/6d6b39fac66f56c4f52a4dfee9c82eba1dc42d96e681c96210cfa41f1b624f2a?s=24&d=retro",
+		"email": "stefanb@us.ibm.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 4443,
+		"name": "stefanberger",
+		"openid": "stefanberger.id.fedoraproject.org"
+	},
+	"version_hash": "a98a3c92e833485e63645ab8d67c22e0946b39e2"
+}

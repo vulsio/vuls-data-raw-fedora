@@ -1,0 +1,993 @@
+{
+	"alias": "FEDORA-2020-f4f5e49cb8",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 1862457,
+			"security": true,
+			"title": "CVE-2020-16135 libssh: NULL pointer dereference in sftpserver.c if ssh_buffer_new returns NULL [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1862457",
+				"creation_ts": "2020-07-31 13:34:26 +0000",
+				"short_desc": "CVE-2020-16135 libssh: NULL pointer dereference in sftpserver.c if ssh_buffer_new returns NULL [fedora-all]",
+				"delta_ts": "2020-09-25 16:54:53 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1862456",
+						"alias": "CVE-2020-16135",
+						"creation_ts": "2020-07-31 13:34:14 +0000",
+						"short_desc": "CVE-2020-16135 libssh: NULL pointer dereference in sftpserver.c if ssh_buffer_new returns NULL",
+						"delta_ts": "2021-11-19 19:21:46 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1862457",
+							"1862646",
+							"1862647",
+							"1873005"
+						],
+						"blocked": [
+							{
+								"bug_id": "1862459",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2021:4750",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "14155870",
+								"comment_count": "0",
+								"who": {
+									"text": "mrehak",
+									"name": "Marian Rehak"
+								},
+								"bug_when": "2020-07-31 13:34:14 +0000",
+								"thetext": "libssh 0.9.4 has a NULL pointer dereference in tftpserver.c if ssh_buffer_new returns NULL.\n\nExternal Reference:\n\nhttps://bugs.gentoo.org/734624"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14155876",
+								"comment_count": "1",
+								"who": {
+									"text": "mrehak",
+									"name": "Marian Rehak"
+								},
+								"bug_when": "2020-07-31 13:34:40 +0000",
+								"thetext": "Created libssh tracking bugs for this issue:\n\nAffects: fedora-all [bug 1862457]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14156979",
+								"comment_count": "2",
+								"who": {
+									"text": "tcullum",
+									"name": "Todd Cullum"
+								},
+								"bug_when": "2020-07-31 20:39:38 +0000",
+								"thetext": "Flaw summary:\n\nIn sftp_get_client_message() of sftpserver.c, there is code msg->complete_message = ssh_buffer_new();. There is no check for msg->complete_message being NULL and it is immediately passed into ssh_buffer_add_data() and then buffer_verify(), which will cause a NULL pointer dereference in the case where ssh_buffer_new() returned NULL. ssh_buffer_new() could return NULL if either calloc() or ssh_buffer_allocate_size() (which in some cases calls realloc()) fails an allocation in libssh-0.9.0 which is shipped with Red Hat Enterprise Linux 8.\n\nThe flaw exists in libssh-0.7.1 as shipped with Red Hat Enterprise Linux 7 Extras channel, but the code is slightly different: ssh_buffer_new() calls malloc() instead of calloc() and does not call ssh_buffer_allocate_size(), so the flaw would rely solely on malloc() failing/returning NULL in libssh-0.7.1.\n\nThis flaw could cause a crash in the sftpserver. However, because the allocations are based off of sizeof(struct ssh_buffer_struct) or a hardcoded size in malloc(), realloc() & calloc() calls, instead of externally provided input, there is no direct attacker-controlled code path to remotely trigger a NULL pointer dereference in this case."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14157078",
+								"comment_count": "3",
+								"who": {
+									"text": "tcullum",
+									"name": "Todd Cullum"
+								},
+								"bug_when": "2020-07-31 21:46:14 +0000",
+								"thetext": "Upstream patches:\n\nhttps://gitlab.com/libssh/libssh-mirror/-/commit/533d881b0f4b24c72b35ecc97fa35d295d063e53\nhttps://gitlab.com/libssh/libssh-mirror/-/commit/2782cb0495b7450bd8fe43ce4af886b66fea6c40\nhttps://gitlab.com/libssh/libssh-mirror/-/commit/10b3ebbe61a7031a3dae97f05834442220447181\nhttps://gitlab.com/libssh/libssh-mirror/-/commit/245ad744b5ab0582fef7cf3905a717b791d7e08b"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14157102",
+								"comment_count": "4",
+								"who": {
+									"text": "tcullum",
+									"name": "Todd Cullum"
+								},
+								"bug_when": "2020-07-31 22:05:11 +0000",
+								"thetext": "Upstream bug tracker: https://bugs.libssh.org/T232\nMerge request: https://gitlab.com/libssh/libssh-mirror/-/merge_requests/120\n\nI've lowered the impact Low because there is no demonstrated way for an attacker to reliably force a NULL pointer dereference via a code path here. An attacker would likely need to groom the system via other means or exploitation of other flaws, in order to create conditions that would cause an allocation failure."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14157108",
+								"comment_count": "6",
+								"who": {
+									"text": "tcullum",
+									"name": "Todd Cullum"
+								},
+								"bug_when": "2020-07-31 22:12:12 +0000",
+								"thetext": "Mitigation:\n\nMitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14157112",
+								"comment_count": "7",
+								"who": {
+									"text": "tcullum",
+									"name": "Todd Cullum"
+								},
+								"bug_when": "2020-07-31 22:14:47 +0000",
+								"thetext": "NOTE: this flaw exists in the file sftpserver.c, not tftpserver.c. tfpserver.c does not exist in libssh and it appears to be a typo which propagated across all of the advisories, trackers, CVE, etc..."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14182279",
+								"comment_count": "11",
+								"who": {
+									"text": "tcullum",
+									"name": "Todd Cullum"
+								},
+								"bug_when": "2020-08-06 03:18:32 +0000",
+								"thetext": "Statement:\n\nlibssh2 as shipped with Red Hat Enterprise Linux 6, 7, and 8 are NOT affected by this flaw; libssh2 and libssh are different codebases and libssh2 does not contain the vulnerable code. Red Hat Product Security has set the impact of this flaw to Low because there is no demonstrated way for an attacker to reliably force a NULL pointer dereference via a code path in the affected libssh code."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15668202",
+								"comment_count": "16",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2021-11-09 18:34:03 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2021:4387 https://access.redhat.com/errata/RHSA-2021:4387"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15700717",
+								"comment_count": "17",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2021-11-19 19:21:44 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Virtualization 4 for Red Hat Enterprise Linux 8\n\nVia RHSA-2021:4750 https://access.redhat.com/errata/RHSA-2021:4750"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "14155872",
+						"comment_count": "0",
+						"who": {
+							"text": "mrehak",
+							"name": "Marian Rehak"
+						},
+						"bug_when": "2020-07-31 13:34:26 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14155875",
+						"comment_count": "1",
+						"who": {
+							"text": "mrehak",
+							"name": "Marian Rehak"
+						},
+						"bug_when": "2020-07-31 13:34:29 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=high\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1862456,1862457\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14276795",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-09-10 16:14:59 +0000",
+						"thetext": "FEDORA-2020-ac3e29073f has been submitted as an update to Fedora 33. https://bodhi.fedoraproject.org/updates/FEDORA-2020-ac3e29073f"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14276805",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-09-10 16:15:58 +0000",
+						"thetext": "FEDORA-2020-f4f5e49cb8 has been submitted as an update to Fedora 32. https://bodhi.fedoraproject.org/updates/FEDORA-2020-f4f5e49cb8"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14277194",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-09-10 18:26:19 +0000",
+						"thetext": "FEDORA-2020-f4f5e49cb8 has been pushed to the Fedora 32 testing repository.\nIn short time you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2020-f4f5e49cb8`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-f4f5e49cb8\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14281302",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-09-11 20:17:51 +0000",
+						"thetext": "FEDORA-2020-ac3e29073f has been pushed to the Fedora 33 testing repository.\nIn short time you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2020-ac3e29073f`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-ac3e29073f\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14290648",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-09-15 16:17:11 +0000",
+						"thetext": "FEDORA-2020-f4f5e49cb8 has been pushed to the Fedora 32 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14323126",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-09-25 16:54:53 +0000",
+						"thetext": "FEDORA-2020-ac3e29073f has been pushed to the Fedora 33 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1877797,
+			"title": "libssh-0.9.5 is available",
+			"bugzilla": {
+				"bug_id": "1877797",
+				"creation_ts": "2020-09-10 13:13:10 +0000",
+				"short_desc": "libssh-0.9.5 is available",
+				"delta_ts": "2020-09-25 16:54:55 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "FutureFeature, Triaged",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "14276010",
+						"comment_count": "0",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2020-09-10 13:13:10 +0000",
+						"thetext": "Latest upstream release: 0.9.5\nCurrent version/release in rawhide: 0.9.4-5.fc33\nURL: https://www.libssh.org/\n\nPlease consult the package updates policy before you issue an update to a stable branch: https://docs.fedoraproject.org/en-US/fesco/Updates_Policy/\n\n\nMore information about the service that created this bug can be found at: https://fedoraproject.org/wiki/Upstream_release_monitoring\n\n\nPlease keep in mind that with any upstream change, there may also be packaging changes that need to be made. Specifically, please remember that it is your responsibility to review the new version to ensure that the licensing is still correct and that no non-free or legally problematic items have been added upstream.\n\n\nBased on the information from anitya: https://release-monitoring.org/project/1729/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14276012",
+						"comment_count": "1",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2020-09-10 13:13:13 +0000",
+						"thetext": "The following Sources of the specfile are not valid URLs so we cannot automatically build the new version for you.  Please use URLs in your Source declarations if possible.\n\n- libssh_client.config\n- libssh_server.config"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14276797",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-09-10 16:15:01 +0000",
+						"thetext": "FEDORA-2020-ac3e29073f has been submitted as an update to Fedora 33. https://bodhi.fedoraproject.org/updates/FEDORA-2020-ac3e29073f"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14276806",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-09-10 16:16:01 +0000",
+						"thetext": "FEDORA-2020-f4f5e49cb8 has been submitted as an update to Fedora 32. https://bodhi.fedoraproject.org/updates/FEDORA-2020-f4f5e49cb8"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14277195",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-09-10 18:26:21 +0000",
+						"thetext": "FEDORA-2020-f4f5e49cb8 has been pushed to the Fedora 32 testing repository.\nIn short time you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2020-f4f5e49cb8`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-f4f5e49cb8\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14281303",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-09-11 20:17:53 +0000",
+						"thetext": "FEDORA-2020-ac3e29073f has been pushed to the Fedora 33 testing repository.\nIn short time you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2020-ac3e29073f`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-ac3e29073f\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14290652",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-09-15 16:17:18 +0000",
+						"thetext": "FEDORA-2020-f4f5e49cb8 has been pushed to the Fedora 32 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14323127",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-09-25 16:54:55 +0000",
+						"thetext": "FEDORA-2020-ac3e29073f has been pushed to the Fedora 33 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "libssh-0.9.5-1.fc32",
+			"release_id": 35,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "libssh-debugsource",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libssh-devel",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libssh",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libssh-debuginfo",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "libssh",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libssh-debuginfo",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libssh-debugsource",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libssh-devel",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "libssh",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "libssh-devel",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "libssh-debugsource",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "libssh-debuginfo",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "libssh-config",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "noarch"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "libssh-debuginfo",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libssh-debugsource",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libssh",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libssh-devel",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "libssh-devel",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "libssh",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "libssh-debugsource",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "libssh-debuginfo",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "libssh",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "libssh-devel",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libssh-debuginfo",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libssh",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libssh-debugsource",
+						"version": "0.9.5",
+						"release": "1.fc32",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 1616632,
+			"text": "This update has been submitted for testing by ansasaki. ",
+			"timestamp": "2020-09-10 16:15:54",
+			"update_id": 240425,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1616633,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2020-09-10 16:15:55",
+			"update_id": 240425,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1616634,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2020-09-10 16:15:55",
+			"update_id": 240425,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1616637,
+			"text": "ansasaki edited this update.",
+			"timestamp": "2020-09-10 16:20:07",
+			"update_id": 240425,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1616638,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2020-09-10 16:20:08",
+			"update_id": 240425,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1617004,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2020-09-10 18:26:25",
+			"update_id": 240425,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1619017,
+			"karma": 1,
+			"text": "works for me",
+			"timestamp": "2020-09-11 16:49:47",
+			"update_id": 240425,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/054959f4db5d1ad8f22cae1ba73e26ebfd3edd6690c21cc7ee00608f294ff22a?s=24&d=retro",
+				"email": "cserpentis@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 739,
+				"name": "cserpentis",
+				"openid": "cserpentis.id.fedoraproject.org"
+			},
+			"user_id": 739
+		},
+		{
+			"id": 1620987,
+			"karma": 1,
+			"text": "Works.",
+			"timestamp": "2020-09-12 04:56:00",
+			"update_id": 240425,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/1a8afd83231ef5ba905344806ba95b39f2abd77b399b0ee217ec3e6fa30a4825?s=24&d=retro",
+				"email": "bojan@rexursive.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 198,
+				"name": "bojan",
+				"openid": "bojan.id.fedoraproject.org"
+			},
+			"user_id": 198
+		},
+		{
+			"id": 1620995,
+			"text": "This update can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2020-09-12 04:58:02",
+			"update_id": 240425,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1625175,
+			"karma": 1,
+			"timestamp": "2020-09-14 18:23:43",
+			"update_id": 240425,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/ced44b7024a4437dadab0d8ea1de245f3a8e1c633525ce29a5c1ad0fbbf05282?s=24&d=retro",
+				"email": "nick@bebout.net",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "sysadmin-main"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "wikiedit"
+					},
+					{
+						"name": "l10n"
+					},
+					{
+						"name": "sysadmin-logs"
+					},
+					{
+						"name": "gitfedora-web"
+					},
+					{
+						"name": "fi-apprentice"
+					},
+					{
+						"name": "admins"
+					},
+					{
+						"name": "magazine"
+					},
+					{
+						"name": "sysadmin-badges"
+					},
+					{
+						"name": "security-team"
+					},
+					{
+						"name": "sysadmin-noc"
+					},
+					{
+						"name": "sysadmin"
+					},
+					{
+						"name": "fedora-hams"
+					},
+					{
+						"name": "accounts"
+					},
+					{
+						"name": "sysadmin-web"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "videos"
+					},
+					{
+						"name": "irc-support-operators"
+					},
+					{
+						"name": "cvsl10n"
+					},
+					{
+						"name": "cvsfedora"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "ambassadors-emeriti"
+					},
+					{
+						"name": "sysadmin-veteran"
+					},
+					{
+						"name": "wikiadmin"
+					},
+					{
+						"name": "designteam"
+					},
+					{
+						"name": "famsco"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "qa"
+					},
+					{
+						"name": "mindshare"
+					},
+					{
+						"name": "sysadmin-devel"
+					},
+					{
+						"name": "respins-sig"
+					},
+					{
+						"name": "web"
+					},
+					{
+						"name": "3d-printing-sig"
+					},
+					{
+						"name": "freemedia"
+					},
+					{
+						"name": "campusambassadors"
+					},
+					{
+						"name": "hosted-content"
+					},
+					{
+						"name": "aws-infra"
+					},
+					{
+						"name": "certbot-sig"
+					},
+					{
+						"name": "sysadmin-dns"
+					},
+					{
+						"name": "sysadmin-hosted"
+					},
+					{
+						"name": "sysadmin-tools"
+					},
+					{
+						"name": "marketing"
+					},
+					{
+						"name": "sysadmin-test"
+					},
+					{
+						"name": "advocates"
+					},
+					{
+						"name": "letsencrypt"
+					},
+					{
+						"name": "sysadmin-paste"
+					},
+					{
+						"name": "commops"
+					},
+					{
+						"name": "dotnet-sig"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "sysadmin-keys"
+					},
+					{
+						"name": "communishift"
+					},
+					{
+						"name": "altvideos"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "aws-master"
+					},
+					{
+						"name": "fedora-socialmedia"
+					},
+					{
+						"name": "gitlab-fedora-admin"
+					},
+					{
+						"name": "clamav"
+					}
+				],
+				"id": 107,
+				"name": "nb",
+				"openid": "nb.id.fedoraproject.org"
+			},
+			"user_id": 107
+		},
+		{
+			"id": 1625176,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2020-09-14 18:23:43",
+			"update_id": 240425,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1626937,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2020-09-15 16:17:32",
+			"update_id": 240425,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_modified": "2020-09-10 16:20:08",
+	"date_pushed": "2020-09-15 16:15:46",
+	"date_stable": "2020-09-15 16:15:46",
+	"date_submitted": "2020-09-10 16:15:54",
+	"date_testing": "2020-09-10 18:25:43",
+	"karma": 3,
+	"meets_testing_requirements": true,
+	"notes": "Update to version 0.9.5\n\n* https://www.libssh.org/2020/09/10/libssh-0-9-5/\n* Fixes CVE-2020-16135\n",
+	"pushed": true,
+	"release": {
+		"branch": "f32",
+		"candidate_tag": "f32-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f32",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 32",
+		"mail_template": "fedora_errata_template",
+		"name": "F32",
+		"override_tag": "f32-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f32-signing-pending",
+		"pending_stable_tag": "f32-updates-pending",
+		"pending_testing_tag": "f32-updates-testing-pending",
+		"stable_tag": "f32-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f32-updates-testing",
+		"version": "32"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "low",
+	"stable_days": 14,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "libssh-0.9.5-1.fc32",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2020-f4f5e49cb8",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2020-f4f5e49cb8",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/aec7101442aa990f68682b7ab670e482b40e99228f4fd997ce1e7474420db93a?s=24&d=retro",
+		"email": "ansasaki@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 4145,
+		"name": "ansasaki",
+		"openid": "ansasaki.id.fedoraproject.org"
+	},
+	"version_hash": "930db3443ad30ae07b5def8da4f76825153191a6"
+}

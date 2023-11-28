@@ -1,0 +1,1317 @@
+{
+	"alias": "FEDORA-2018-cb1f26bd2c",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 1528439,
+			"parent": true,
+			"security": true,
+			"title": "unbound: Privilege escalation via writable config file",
+			"bugzilla": {
+				"bug_id": "1528439",
+				"creation_ts": "2017-12-21 20:22:45 +0000",
+				"short_desc": "unbound: Privilege escalation via writable config file",
+				"delta_ts": "2019-09-29 14:28:56 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "NOTABUG",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1528445"
+				],
+				"blocked": [
+					{
+						"bug_id": "1528446",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11130674",
+						"comment_count": "0",
+						"who": {
+							"text": "psampaio",
+							"name": "Pedro Sampaio"
+						},
+						"bug_when": "2017-12-21 20:22:45 +0000",
+						"thetext": "As reported:\n\nThe ebuilds for net-dns/unbound create the \"unbound\" user with its home directory set to /etc/unbound:\n\n  pkg_setup() {\n    enewgroup unbound\n    enewuser unbound -1 -1 /etc/unbound unbound\n\n    use python && python-single-r1_pkg_setup\n  }\n\nAs a result, /etc/unbound is writable by the \"unbound\" user. However, that's where the sensitive unbound.conf gets installed (as root:root):\n\n  $ /bin/ls -al /etc/unbound/\n  total 44\n  drwxr-xr-x  2 unbound root  4096 Dec 14 13:59 .\n  drwxr-xr-x 79 root    root  4096 Dec 14 13:59 ..\n  -rw-r--r--  1 root    root 34276 Dec 14 13:59 unbound.conf\n\nThat conf file must only be writable by root; at least...\n\n  * the OpenRC service script uses the value of \"pidfile\" found\n    in unbound.conf, so anyone who can edit that file can clobber\n    things on the fileystem.\n\n  * the daemon binds to its interface and port as root, so the\n    \"unbound\" user could bind to e.g. port 80.\n\n  * From daemon/unbound.c and daemon/remote.c, it looks like unbound\n    will call \"chown\" on its pidfile/socket respectively, meaning that\n    if the \"unbound\" user can alter the pidfile or local socket location,\n    then he can take control of any file the next time the daemon is\n    started. (I haven't tested this one, because the first two are bad\n    enough.)\n\nReferences:\n\nhttps://bugs.gentoo.org/641042"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11130813",
+						"comment_count": "1",
+						"who": {
+							"text": "psampaio",
+							"name": "Pedro Sampaio"
+						},
+						"bug_when": "2017-12-21 20:53:05 +0000",
+						"thetext": "Created unbound tracking bugs for this issue:\n\nAffects: fedora-all [bug 1528445]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11131351",
+						"comment_count": "2",
+						"who": {
+							"text": "dmoppert",
+							"name": "Doran Moppert"
+						},
+						"bug_when": "2017-12-22 02:49:46 +0000",
+						"thetext": "The description sounds specific to Gentoo's packaging of unbound, and indeed Fedora + RHEL's configuration does not have this issue:\n\n    # cd /etc/unbound\n    # ls -laZ\n    drwxr-xr-x.   5 root root    system_u:object_r:named_conf_t:s0  4096 Dec 22 12:53 .\n    drwxr-xr-x. 175 root root    system_u:object_r:etc_t:s0        12288 Dec 22 09:41 ..\n    drwxr-xr-x.   2 root unbound system_u:object_r:named_conf_t:s0  4096 Dec 22 12:53 conf.d\n    -rw-r--r--.   1 root root    system_u:object_r:named_conf_t:s0 13026 Dec  2 02:33 icannbundle.pem\n    drwxr-xr-x.   2 root unbound system_u:object_r:named_conf_t:s0  4096 Dec 22 12:53 keys.d\n    drwxr-xr-x.   2 root unbound system_u:object_r:named_conf_t:s0  4096 Dec 22 12:53 local.d\n    -rw-r--r--.   1 root root    system_u:object_r:dnssec_t:s0       939 Dec  2 02:44 root.key\n    -rw-r--r--.   1 root root    system_u:object_r:named_conf_t:s0 35901 Dec  2 02:33 unbound.conf\n\nHowever:\n\n    # ls -lZ conf.d/* local.d/*\n    -rw-rw-r--. root unbound system_u:object_r:named_conf_t:s0 conf.d/example.com.conf\n    -rw-rw-r--. root unbound system_u:object_r:named_conf_t:s0 local.d/block-example.com.conf\n\nDefault /etc/unbound/unbound.conf includes conf.d/*.conf and local.d/*.conf, including these default (empty except comments) files.\n\nSELinux prevents unbound (named_t) from writing these files *even prior to dropping privs*, but with SELinux disabled it is possible that a compromise of unbound could use these writable files to clobber other filesystem objects, possibly privesc.\n\nI think removing g+w permissions from these files should be considered to add a layer of protection for non-SELinux environments, but it is not an urgent fix since SELinux effectively mitigates and unbound has a strong security track record."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1528445,
+			"security": true,
+			"title": "unbound: Privilege escalation via writable config file [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1528445",
+				"creation_ts": "2017-12-21 20:52:55 +0000",
+				"short_desc": "unbound: Privilege escalation via writable config file [fedora-all]",
+				"delta_ts": "2018-02-27 17:24:08 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1528439",
+						"creation_ts": "2017-12-21 20:22:45 +0000",
+						"short_desc": "unbound: Privilege escalation via writable config file",
+						"delta_ts": "2019-09-29 14:28:56 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "NOTABUG",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1528445"
+						],
+						"blocked": [
+							{
+								"bug_id": "1528446",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "11130674",
+								"comment_count": "0",
+								"who": {
+									"text": "psampaio",
+									"name": "Pedro Sampaio"
+								},
+								"bug_when": "2017-12-21 20:22:45 +0000",
+								"thetext": "As reported:\n\nThe ebuilds for net-dns/unbound create the \"unbound\" user with its home directory set to /etc/unbound:\n\n  pkg_setup() {\n    enewgroup unbound\n    enewuser unbound -1 -1 /etc/unbound unbound\n\n    use python && python-single-r1_pkg_setup\n  }\n\nAs a result, /etc/unbound is writable by the \"unbound\" user. However, that's where the sensitive unbound.conf gets installed (as root:root):\n\n  $ /bin/ls -al /etc/unbound/\n  total 44\n  drwxr-xr-x  2 unbound root  4096 Dec 14 13:59 .\n  drwxr-xr-x 79 root    root  4096 Dec 14 13:59 ..\n  -rw-r--r--  1 root    root 34276 Dec 14 13:59 unbound.conf\n\nThat conf file must only be writable by root; at least...\n\n  * the OpenRC service script uses the value of \"pidfile\" found\n    in unbound.conf, so anyone who can edit that file can clobber\n    things on the fileystem.\n\n  * the daemon binds to its interface and port as root, so the\n    \"unbound\" user could bind to e.g. port 80.\n\n  * From daemon/unbound.c and daemon/remote.c, it looks like unbound\n    will call \"chown\" on its pidfile/socket respectively, meaning that\n    if the \"unbound\" user can alter the pidfile or local socket location,\n    then he can take control of any file the next time the daemon is\n    started. (I haven't tested this one, because the first two are bad\n    enough.)\n\nReferences:\n\nhttps://bugs.gentoo.org/641042"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11130813",
+								"comment_count": "1",
+								"who": {
+									"text": "psampaio",
+									"name": "Pedro Sampaio"
+								},
+								"bug_when": "2017-12-21 20:53:05 +0000",
+								"thetext": "Created unbound tracking bugs for this issue:\n\nAffects: fedora-all [bug 1528445]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11131351",
+								"comment_count": "2",
+								"who": {
+									"text": "dmoppert",
+									"name": "Doran Moppert"
+								},
+								"bug_when": "2017-12-22 02:49:46 +0000",
+								"thetext": "The description sounds specific to Gentoo's packaging of unbound, and indeed Fedora + RHEL's configuration does not have this issue:\n\n    # cd /etc/unbound\n    # ls -laZ\n    drwxr-xr-x.   5 root root    system_u:object_r:named_conf_t:s0  4096 Dec 22 12:53 .\n    drwxr-xr-x. 175 root root    system_u:object_r:etc_t:s0        12288 Dec 22 09:41 ..\n    drwxr-xr-x.   2 root unbound system_u:object_r:named_conf_t:s0  4096 Dec 22 12:53 conf.d\n    -rw-r--r--.   1 root root    system_u:object_r:named_conf_t:s0 13026 Dec  2 02:33 icannbundle.pem\n    drwxr-xr-x.   2 root unbound system_u:object_r:named_conf_t:s0  4096 Dec 22 12:53 keys.d\n    drwxr-xr-x.   2 root unbound system_u:object_r:named_conf_t:s0  4096 Dec 22 12:53 local.d\n    -rw-r--r--.   1 root root    system_u:object_r:dnssec_t:s0       939 Dec  2 02:44 root.key\n    -rw-r--r--.   1 root root    system_u:object_r:named_conf_t:s0 35901 Dec  2 02:33 unbound.conf\n\nHowever:\n\n    # ls -lZ conf.d/* local.d/*\n    -rw-rw-r--. root unbound system_u:object_r:named_conf_t:s0 conf.d/example.com.conf\n    -rw-rw-r--. root unbound system_u:object_r:named_conf_t:s0 local.d/block-example.com.conf\n\nDefault /etc/unbound/unbound.conf includes conf.d/*.conf and local.d/*.conf, including these default (empty except comments) files.\n\nSELinux prevents unbound (named_t) from writing these files *even prior to dropping privs*, but with SELinux disabled it is possible that a compromise of unbound could use these writable files to clobber other filesystem objects, possibly privesc.\n\nI think removing g+w permissions from these files should be considered to add a layer of protection for non-SELinux environments, but it is not an urgent fix since SELinux effectively mitigates and unbound has a strong security track record."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11130811",
+						"comment_count": "0",
+						"who": {
+							"text": "psampaio",
+							"name": "Pedro Sampaio"
+						},
+						"bug_when": "2017-12-21 20:52:55 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11130812",
+						"comment_count": "1",
+						"who": {
+							"text": "psampaio",
+							"name": "Pedro Sampaio"
+						},
+						"bug_when": "2017-12-21 20:53:00 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1528439,1528445\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11308953",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-02-21 20:15:28 +0000",
+						"thetext": "unbound-1.6.8-5.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-cb1f26bd2c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11312431",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-02-22 16:04:21 +0000",
+						"thetext": "unbound-1.6.8-6.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-cb1f26bd2c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11328036",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-02-27 17:24:08 +0000",
+						"thetext": "unbound-1.6.8-6.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1539097,
+			"title": "unbound: Automatically inherit build flags from the build environment",
+			"bugzilla": {
+				"bug_id": "1539097",
+				"creation_ts": "2018-01-26 16:02:48 +0000",
+				"short_desc": "unbound: Automatically inherit build flags from the build environment",
+				"delta_ts": "2018-03-26 09:42:07 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "CURRENTRELEASE",
+				"keywords": "Reopened",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"depends_on": [
+					"1548821"
+				],
+				"blocked": [
+					{
+						"bug_id": "1539083",
+						"alias": "Fedora28BuildFlags",
+						"creation_ts": "2018-01-26 15:34:59 +0000",
+						"short_desc": "Fedora 28 tracker for incomplete build flags injection",
+						"delta_ts": "2022-08-30 12:14:15 +0000",
+						"bug_status": "NEW",
+						"keywords": "Tracking",
+						"priority": "unspecified",
+						"bug_severity": "unspecified",
+						"depends_on": [
+							"1284684",
+							"1540267",
+							"985592",
+							"1217376",
+							"1527905",
+							"1538187",
+							"1539077",
+							"1539079",
+							"1539092",
+							"1539097",
+							"1539099",
+							"1539562",
+							"1540172",
+							"1540179",
+							"1540236",
+							"1540240",
+							"1540244",
+							"1540262",
+							"1540264",
+							"1540268",
+							"1541020",
+							"1541027",
+							"1541033",
+							"1541035",
+							"1541039",
+							"1541052",
+							"1541058",
+							"1541062",
+							"1541093",
+							"1541095",
+							"1541105",
+							"1541106",
+							"1541112",
+							"1543490",
+							"1543502",
+							"1543516",
+							"1543787",
+							"1543790",
+							"1543801",
+							"1543803",
+							"1543806",
+							"1543808",
+							"1543819",
+							"1543829",
+							"1543842",
+							"1543845",
+							"1543847",
+							"1543853",
+							"1543856",
+							"1543858",
+							"1543859",
+							"1543863",
+							"1543887",
+							"1543888",
+							"1543905",
+							"1543911",
+							"1543960",
+							"1543966",
+							"1547494",
+							"1547499",
+							"1547515",
+							"1547519",
+							"1547522",
+							"1547540",
+							"1547552",
+							"1547590",
+							"1548117",
+							"1548119",
+							"1548120",
+							"1548123",
+							"1548400",
+							"1548402",
+							"1548404",
+							"1548418",
+							"1548420",
+							"1548422",
+							"1548424",
+							"1548426",
+							"1548427",
+							"1548433",
+							"1548437",
+							"1548438",
+							"1548444",
+							"1548462",
+							"1548465",
+							"1548467",
+							"1548473",
+							"1548475",
+							"1548477",
+							"1548483",
+							"1548484",
+							"1548495",
+							"1548532",
+							"1548533",
+							"1548536",
+							"1548537",
+							"1548546",
+							"1548548",
+							"1548549",
+							"1548551",
+							"1548552",
+							"1548559",
+							"1548561",
+							"1548656",
+							"1548657",
+							"1548660",
+							"1548663",
+							"1548665",
+							"1548666",
+							"1548669",
+							"1548670",
+							"1548673",
+							"1548674",
+							"1548675",
+							"1548676",
+							"1548679",
+							"1548687",
+							"1548689",
+							"1548691",
+							"1548700",
+							"1548701",
+							"1548702",
+							"1548703",
+							"1548705",
+							"1548706",
+							"1548707",
+							"1548708",
+							"1548709",
+							"1548713",
+							"1548714",
+							"1548715",
+							"1548717",
+							"1548718",
+							"1548719",
+							"1548721",
+							"1548731",
+							"1548732",
+							"1548734",
+							"1548740",
+							"1548749",
+							"1548750",
+							"1548751",
+							"1548754",
+							"1548757",
+							"1548822",
+							"1548823",
+							"1548824",
+							"1548830",
+							"1548832",
+							"1549657",
+							"1549741",
+							"1550541",
+							"1550543",
+							"1550554",
+							"1550708",
+							"1551671",
+							"1551679",
+							"1552648",
+							"1552650",
+							"1552653",
+							"1552658",
+							"1552661",
+							"1558128",
+							"1560542",
+							"1560546",
+							"1563149",
+							"1563154",
+							"1563157",
+							"1565997",
+							"1567902",
+							"1571359",
+							"1573082",
+							"1573086",
+							"1573088",
+							"1573096",
+							"1573107",
+							"1573109",
+							"1573111",
+							"1573113",
+							"1573115",
+							"1573118",
+							"1578708",
+							"1585847",
+							"1668029"
+						],
+						"external_bugs": {
+							"text": "1551642",
+							"name": "Red Hat Bugzilla"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "11222414",
+								"comment_count": "0",
+								"who": {
+									"text": "fweimer",
+									"name": "Florian Weimer"
+								},
+								"bug_when": "2018-01-26 15:34:59 +0000",
+								"thetext": "This tracking bug covers missing or incomplete build flags injection (largely as detected by annobin)."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11222510",
+						"comment_count": "0",
+						"who": {
+							"text": "fweimer",
+							"name": "Florian Weimer"
+						},
+						"bug_when": "2018-01-26 16:02:48 +0000",
+						"thetext": "Unbound is currently build with outdated build flags because they are hard-coded in the package itself, instead of relying on injection via redhat-rpm-config:\n\n# This is needed to rebuild the configure script to support Python 3.x\n# autoreconf -iv\nexport LDFLAGS=\"-Wl,-z,relro,-z,now -pie -specs=/usr/lib/rpm/redhat/redhat-hardened-ld\"\nexport CFLAGS=\"$RPM_OPT_FLAGS -fPIE -pie\"\nexport CXXFLAGS=\"$RPM_OPT_FLAGS -fPIE -pie\"\n\nI'm not attempting the change myself because it was attempted before and failed:\n\ncommit 0f4cecfaa6a72b087ce1fba1763300874cf80a22\nAuthor: Paul Wouters <pwouters@redhat.com>\nDate:   Mon Jul 8 15:48:24 2013 -0400\n\n    Revert \"don't hardcode hardening flags, let hardened build macro handles it\"\n    \n    This reverts commit f577e323b01e9e3b4ef0f69ff0794c158a240361.\n    \n    The reason is two-fold. It causes the unbound daemon to have less security\n    (no full relro, no PIE) and it failed to compile for me at all on f19,\n    failing with:\n    \n            checking consistency of all components of python development environment... no\n\n\nNote that there is a known issue with the way Python handles build flags.  See bug 1217376."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11300358",
+						"comment_count": "1",
+						"who": {
+							"text": "bcotton",
+							"name": "Fedora End Of Life"
+						},
+						"bug_when": "2018-02-20 15:33:04 +0000",
+						"thetext": "This bug appears to have been reported against 'rawhide' during the Fedora 28 development cycle.\nChanging version to '28'."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11308835",
+						"comment_count": "2",
+						"who": {
+							"text": "pemensik",
+							"name": "Petr Menšík"
+						},
+						"bug_when": "2018-02-21 19:43:55 +0000",
+						"thetext": "Upstream already has support for both -z now and -pie flags in configure. So extra export flags can be removed and package default can be used with a new configure options. Prepared in master and f28."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11308952",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-02-21 20:15:23 +0000",
+						"thetext": "unbound-1.6.8-5.fc27 has been submitted as an update to Fedora 27. https://bodhi.fedoraproject.org/updates/FEDORA-2018-cb1f26bd2c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11312430",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-02-22 16:04:17 +0000",
+						"thetext": "unbound-1.6.8-6.fc27 has been pushed to the Fedora 27 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-cb1f26bd2c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11328035",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-02-27 17:24:01 +0000",
+						"thetext": "unbound-1.6.8-6.fc27 has been pushed to the Fedora 27 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11328264",
+						"comment_count": "6",
+						"who": {
+							"text": "fweimer",
+							"name": "Florian Weimer"
+						},
+						"bug_when": "2018-02-27 18:20:36 +0000",
+						"thetext": "/usr/lib64/libunbound.so.2.5.7 in unbound-libs-1.6.8-6.fc28.x86_64 still doesn't use the redhat-rpm-config CFLAGS and therefore lacks annobin annotations."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11328387",
+						"comment_count": "7",
+						"who": {
+							"text": "pemensik",
+							"name": "Petr Menšík"
+						},
+						"bug_when": "2018-02-27 19:03:43 +0000",
+						"thetext": "(In reply to Florian Weimer from comment #6)\n> /usr/lib64/libunbound.so.2.5.7 in unbound-libs-1.6.8-6.fc28.x86_64 still\n> doesn't use the redhat-rpm-config CFLAGS and therefore lacks annobin\n> annotations.\n\nI disagree, flags are used when linking, according to build log [1].\n\n./libtool --tag=CC --mode=link gcc  -I. -I/usr/include/python3.6m -O2 -g -pipe -Wall -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS -fexceptions -fstack-protector-strong -grecord-gcc-switches -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 -specs=/usr/lib/rpm/redhat/redhat-annobin-cc1 -m64 -mtune=generic -fasynchronous-unwind-tables -fstack-clash-protection -mcet -fcf-protection -flto -fPIE -pthread -Wl,-z,relro  -specs=/usr/lib/rpm/redhat/redhat-hardened-ld -pie -Wl,-z,relro,-z,now  -version-info 7:7:5 -no-undefined -export-symbols ./libunbound/ubsyms.def -o libunbound.la context.lo libunbound.lo libworker.lo ub_event_pluggable.lo dns.lo infra.lo rrset.lo dname.lo msgencode.lo as112.lo msgparse.lo msgreply.lo packed_rrset.lo iterator.lo iter_delegpt.lo iter_donotq.lo iter_fwd.lo iter_hints.lo iter_priv.lo iter_resptype.lo iter_scrub.lo iter_utils.lo localzone.lo mesh.lo modstack.lo view.lo outbound_list.lo alloc.lo config_file.lo configlexer.lo configparser.lo fptr_wlist.lo locks.lo log.lo mini_event.lo module.lo net_help.lo random.lo rbtree.lo regional.lo rtt.lo dnstree.lo lookup3.lo lruhash.lo slabhash.lo timehist.lo tube.lo winsock_event.lo autotrust.lo val_anchor.lo validator.lo val_kcache.lo val_kentry.lo val_neg.lo val_nsec3.lo val_nsec.lo val_secalgo.lo val_sigcrypt.lo val_utils.lo dns64.lo cachedb.lo authzone.lo edns-subnet.lo subnetmod.lo addrtree.lo subnet-whitelist.lo pythonmod.lo pythonmod_utils.lo    ipsecmod.lo ipsecmod-whitelist.lo respip.lo netevent.lo listen_dnsport.lo outside_network.lo keyraw.lo sbuffer.lo wire2str.lo parse.lo parseutil.lo rrdef.lo str2wire.lo strlcat.lo strlcpy.lo arc4random.lo arc4random_uniform.lo explicit_bzero.lo arc4_lock.lo -rpath /usr/lib64 -lssl -levent -L/usr/lib64 -L/usr/lib64/python3.6 -L. -lpython3.6m -lcrypto\n\nThere is present this:\n... -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 -specs=/usr/lib/rpm/redhat/redhat-annobin-cc1 -m64 -mtune=generic ...\n\nHow do you check annobin is present in the binary? Is it possible libtool filtererd it out? Is it possible filter of exported symbols filters it out? Have I missed flags are not present somewhere?\n\n[1] https://kojipkgs.fedoraproject.org//packages/unbound/1.6.8/6.fc28/data/logs/x86_64/build.log"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11328409",
+						"comment_count": "8",
+						"who": {
+							"text": "pemensik",
+							"name": "Petr Menšík"
+						},
+						"bug_when": "2018-02-27 19:15:05 +0000",
+						"thetext": "I think this is hitting bug #1548821, because -flto is used here as well."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11328414",
+						"comment_count": "9",
+						"who": {
+							"text": "fweimer",
+							"name": "Florian Weimer"
+						},
+						"bug_when": "2018-02-27 19:17:42 +0000",
+						"thetext": "(In reply to Petr Menšík from comment #7)\n> How do you check annobin is present in the binary? Is it possible libtool\n> filtererd it out? Is it possible filter of exported symbols filters it out?\n> Have I missed flags are not present somewhere?\n\n“eu-readelf -S /usr/lib64/libunbound.so.2.5.7” is supposed to show a .gnu.build.attributes section, and “readelf -n” should decode those notes.  But there is simply no data there.\n\nI agree that it is likely that this is related to the use of LTO.  I do not know if libtool is aware of LTO and will pass the CFLAGS down to the gcc compiler driver in link mode.  LTO requires that the CFLAGS are injected for both the compiler and linker invocation, and I suspect that libtool filters out these flags for some unknown reason."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11328441",
+						"comment_count": "10",
+						"who": {
+							"text": "pemensik",
+							"name": "Petr Menšík"
+						},
+						"bug_when": "2018-02-27 19:32:30 +0000",
+						"thetext": "Makefile rule expands:\n\nLINK_LIB=$(LIBTOOL) --tag=CC --mode=link $(CC) $(RUNTIME_PATH) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(staticexe) -version-info 7:7:5 -no-undefined\n# then this is used to create libunbound\nlibunbound.la:  $(LIBUNBOUND_OBJ_LINK)\n        $(LINK_LIB) $(UBSYMS) -o $@ $(LIBUNBOUND_OBJ_LINK) -rpath $(libdir) $(SSLLIB) $(LIBS)\n\nI guess also CFLAGS is always there. After all redhat-hardened-cc1 is part of CFLAGS only, it is present also there."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11415785",
+						"comment_count": "11",
+						"who": {
+							"text": "ignatenko",
+							"name": "Igor Gnatenko"
+						},
+						"bug_when": "2018-03-26 08:56:06 +0000",
+						"thetext": "any news here?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11415948",
+						"comment_count": "12",
+						"who": {
+							"text": "pemensik",
+							"name": "Petr Menšík"
+						},
+						"bug_when": "2018-03-26 09:42:07 +0000",
+						"thetext": "It seems remaining issues were fixed by rebased rebuild in unbound-libs-1.7.0-2.fc28.x86_64\n\nMaybe the issue was lack of BuildRequires for gcc and make in spec file. It may had older version installed. It seems now it works as expected.\n\n$ readelf -n /usr/lib64/libunbound.so.2\n...\nDisplaying notes found in: .gnu.build.attributes\n  Owner                 Data size       Description\n  GA$<version>3p5      0x00000010       OPEN\n    Applies to region from 0x14c70 to 0x15910\n  GA$<tool>gcc 8.0.1 2 0x00000000       OPEN\n    Applies to region from 0x14c70 to 0x15910\n  GA*GOW:0x000000000452a 0x00000000     OPEN\n    Applies to region from 0x14c70 to 0x15910\n  GA*<stack prot>stron 0x00000000       OPEN\n    Applies to region from 0x14c70 to 0x15910\n  GA+stack_clash:true  0x00000000       OPEN\n    Applies to region from 0x14c70 to 0x15910\n  GA*cf_protection:0x008 0x00000000     OPEN\n    Applies to region from 0x14c70 to 0x15910\n  GA+GLIBCXX_ASSERTION: 0x00000000      OPEN\n    Applies to region from 0x14c70 to 0x15910\n..."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "unbound-1.6.8-6.fc27",
+			"release_id": 17,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "unbound-libs",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3-unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "unbound-debugsource",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "unbound-libs-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python2-unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3-unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "unbound-devel",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python2-unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "unbound-devel",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "unbound-libs",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "python2-unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "python2-unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "unbound-debugsource",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "python3-unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "python3-unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "unbound-libs-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "unbound-debugsource",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "unbound-libs",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "python3-unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "python2-unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "unbound-devel",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "python2-unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "python3-unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "unbound-libs-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "i686"
+					},
+					{
+						"name": "unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "unbound-munin",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "noarch"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "python2-unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "unbound-debugsource",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "unbound-libs",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "python3-unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "python2-unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "unbound-devel",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "unbound-libs-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64"
+					},
+					{
+						"name": "python3-unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "unbound-devel",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "unbound-libs",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "unbound-libs-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3-unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python2-unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python2-unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3-unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "unbound-debugsource",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "unbound-devel",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "unbound-libs",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "python2-unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3-unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "unbound-debugsource",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "unbound-libs-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "python2-unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3-unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "unbound-libs-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "unbound-libs",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python2-unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3-unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "unbound-devel",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "unbound",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3-unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python2-unbound-debuginfo",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "x86_64"
+					},
+					{
+						"name": "unbound-debugsource",
+						"version": "1.6.8",
+						"release": "6.fc27",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 734725,
+			"text": "This update has been submitted for testing by pemensik. ",
+			"timestamp": "2018-02-21 20:15:19",
+			"update_id": 107932,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 734887,
+			"text": "pemensik edited this update.\n\nNew build(s):\n\n- unbound-1.6.8-6.fc27\n\nRemoved build(s):\n\n- unbound-1.6.8-5.fc27\n\nKarma has been reset.",
+			"timestamp": "2018-02-22 10:41:41",
+			"update_id": 107932,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 735026,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2018-02-22 16:04:57",
+			"update_id": 107932,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 735455,
+			"karma": 1,
+			"text": "Working on a home router.",
+			"timestamp": "2018-02-23 20:59:49",
+			"update_id": 107932,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/fbb28238d8e88f4a6ca70e8409ab425f0139e2596b4f9c411d1da55f4c4fe3c1?s=24&d=retro",
+				"email": "mhayden@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "fesco"
+					},
+					{
+						"name": "gitfedora-security-team"
+					},
+					{
+						"name": "aws-fedora-ci"
+					},
+					{
+						"name": "cloud-sig"
+					}
+				],
+				"id": 536,
+				"name": "mhayden",
+				"openid": "mhayden.id.fedoraproject.org"
+			},
+			"user_id": 536
+		},
+		{
+			"id": 735508,
+			"karma": 1,
+			"text": "works for me",
+			"timestamp": "2018-02-23 22:11:24",
+			"update_id": 107932,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/054959f4db5d1ad8f22cae1ba73e26ebfd3edd6690c21cc7ee00608f294ff22a?s=24&d=retro",
+				"email": "cserpentis@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 739,
+				"name": "cserpentis",
+				"openid": "cserpentis.id.fedoraproject.org"
+			},
+			"user_id": 739
+		},
+		{
+			"id": 735780,
+			"karma": 1,
+			"text": "no regressions noted",
+			"timestamp": "2018-02-25 02:16:43",
+			"update_id": 107932,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/d826994e83ce867281f73d85986dd475938841874b75a83a82cdb184f6af8749?s=24&d=retro",
+				"email": "rosset.filipe@gmail.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "l10n"
+					},
+					{
+						"name": "cvsl10n"
+					},
+					{
+						"name": "fedora-br"
+					}
+				],
+				"id": 124,
+				"name": "filiperosset",
+				"openid": "filiperosset.id.fedoraproject.org"
+			},
+			"user_id": 124
+		},
+		{
+			"id": 735781,
+			"text": "This update has been submitted for batched by bodhi. ",
+			"timestamp": "2018-02-25 02:16:49",
+			"update_id": 107932,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 736656,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2018-02-27 03:04:30",
+			"update_id": 107932,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 737098,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2018-02-27 17:26:53",
+			"update_id": 107932,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_modified": "2018-02-22 10:41:41",
+	"date_pushed": "2018-02-27 17:16:42",
+	"date_stable": "2018-02-27 17:16:42",
+	"date_submitted": "2018-02-21 20:15:19",
+	"date_testing": "2018-02-22 16:03:36",
+	"karma": 3,
+	"meets_testing_requirements": true,
+	"notes": "Use default RPM build flags and configure parameters (#1539097)\nRemove group writable bit from some config files (#1528445)\n",
+	"pushed": true,
+	"release": {
+		"branch": "f27",
+		"candidate_tag": "f27-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f27",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 27",
+		"mail_template": "fedora_errata_template",
+		"name": "F27",
+		"override_tag": "f27-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f27-signing-pending",
+		"pending_stable_tag": "f27-updates-pending",
+		"pending_testing_tag": "f27-updates-testing-pending",
+		"stable_tag": "f27-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f27-updates-testing",
+		"version": "27"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "passed",
+	"title": "unbound-1.6.8-6.fc27",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2018-cb1f26bd2c",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2018-cb1f26bd2c",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/0db4e7d0cca898a63a8af2fb0a59d558b16bd4b4a1c1afb6942f460ca9e98970?s=24&d=retro",
+		"email": "pemensik@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "dns-sig"
+			}
+		],
+		"id": 3184,
+		"name": "pemensik",
+		"openid": "pemensik.id.fedoraproject.org"
+	},
+	"version_hash": "4a51fcdcffcac6e5b8a6d22b17d2c9dfe30d8cca"
+}

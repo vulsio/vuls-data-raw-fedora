@@ -1,0 +1,577 @@
+{
+	"alias": "FEDORA-2020-193da8cf44",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 1563939,
+			"title": "arpwatch buffer overflow on long DNS name",
+			"bugzilla": {
+				"bug_id": "1563939",
+				"creation_ts": "2018-04-05 05:45:46 +0000",
+				"short_desc": "arpwatch buffer overflow on long DNS name",
+				"delta_ts": "2020-11-05 02:11:35 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11449676",
+						"comment_count": "0",
+						"who": {
+							"text": "iand",
+							"name": "Ian Donaldson"
+						},
+						"bug_when": "2018-04-05 05:45:46 +0000",
+						"thetext": "Description of problem:\n\n\nVersion-Release number of selected component (if applicable):\n\narpwatch-2.1a15-42.fc27.x86_64\n\n\nHow reproducible:\n\n\nSteps to Reproduce:\n1. dnf install arpwatch; systemctl start arpwatch\n2.\n3.\n\nActual results:\n\ndies after a while with signal 6 (SIGABRT) ... see syslog:\n\nApr  5 05:30:39 HOST audit[14735]: ANOM_ABEND auid=4294967295 uid=77 gid=77 ses=4294967295 subj=system_u:system_r:arpwatch_t:s0 pid=14735 comm=\"arpwatch\" exe=\"/usr/sbin/arpwatch\" sig=6 res=1\nApr  5 05:30:39 HOST systemd[1]: arpwatch.service: Main process exited, code=killed, status=6/ABRT\nApr  5 05:30:39 HOST systemd[1]: arpwatch.service: Unit entered failed state.\nApr  5 05:30:39 HOST audit[1]: SERVICE_STOP pid=1 uid=0 auid=4294967295 ses=4294967295 subj=system_u:system_r:init_t:s0 msg='unit=arpwatch comm=\"systemd\" exe=\"/usr/lib/systemd/systemd\" hostname=? addr=? terminal=? res=failed'\nApr  5 05:30:39 HOST systemd[1]: arpwatch.service: Failed with result 'signal'.\n\n\nExpected results:\n\nnot dead\n\nAdditional info:\n\n# gdb /usr/sbin/arpwatch\nGNU gdb (GDB) Fedora 8.0.1-36.fc27\nCopyright (C) 2017 Free Software Foundation, Inc.\nLicense GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\nThis is free software: you are free to change and redistribute it.\nThere is NO WARRANTY, to the extent permitted by law.  Type \"show copying\"\nand \"show warranty\" for details.\nThis GDB was configured as \"x86_64-redhat-linux-gnu\".\nType \"show configuration\" for configuration details.\nFor bug reporting instructions, please see:\n<http://www.gnu.org/software/gdb/bugs/>.\nFind the GDB manual and other documentation resources online at:\n<http://www.gnu.org/software/gdb/documentation/>.\nFor help, type \"help\".\nType \"apropos word\" to search for commands related to \"word\"...\nReading symbols from /usr/sbin/arpwatch...Reading symbols from /usr/lib/debug/us\ndone.\n(gdb) run -d\nStarting program: /usr/sbin/arpwatch -d\n\n ...\n\n*** buffer overflow detected ***: /usr/sbin/arpwatch terminated\n\nProgram received signal SIGABRT, Aborted.\n__GI_raise (sig=sig@entry=6) at ../sysdeps/unix/sysv/linux/raise.c:51\n51      }\nMissing separate debuginfos, use: dnf debuginfo-install libpcap-1.8.1-6.fc27.x86_64\n(gdb) where\n#0  __GI_raise (sig=sig@entry=6) at ../sysdeps/unix/sysv/linux/raise.c:51\n#1  0x00007ffff7814c41 in __GI_abort () at abort.c:79\n#2  0x00007ffff7855f17 in __libc_message (action=<optimized out>, fmt=fmt@entry=0x7ffff795b42d \"*** %s ***: %s terminated\\n\") at ../sysdeps/posix/libc_fatal.c:181\n#3  0x00007ffff78e555e in __GI___fortify_fail_abort (need_backtrace=need_backtrace@entry=true, msg=msg@entry=0x7ffff795b3aa \"buffer overflow detected\") at fortify_fail.c:33\n#4  0x00007ffff78e5591 in __GI___fortify_fail (msg=msg@entry=0x7ffff795b3aa \"buffer overflow detected\") at fortify_fail.c:44\n#5  0x00007ffff78e3440 in __GI___chk_fail () at chk_fail.c:28\n#6  0x00007ffff78e26d2 in __strcpy_chk (dest=dest@entry=0x5555559608d6 \"\", src=src@entry=0x55555595f4d8 \"A-VERY-LONG-HOSTNAME-IS_HERE-XXXXXXX\", destlen=destlen@entry=34) at strcpy_chk.c:30\n#7  0x0000555555557811 in strcpy (__src=0x55555595f4d8 \"A-VERY-LONG-HOSTNAME-IS_HERE-XXXXXXX\", __dest=0x5555559608d6 \"\") at /usr/include/bits/string_fortified.h:90\n#8  elist_alloc (a=a@entry=2972297408, e=e@entry=0x7ffff771f194 \"\\204\\307\\352=\\a\\016\\006\\b\\001\", t=1522904662, h=0x55555595f4d8 \"A-VERY-LONG-HOSTNAME-IS_HERE-XXXXXXX\", h@entry=0x0) at ./db.c:287\n#9  0x0000555555557b92 in ent_add (a=2972297408, e=0x7ffff771f194 \"\\204\\307\\352=\\a\\016\\006\\b\\001\", t=<optimized out>, h=0x0) at ./db.c:117\n#10 0x000055555555742a in process_ether (u=<optimized out>, h=0x7fffffffdb40, p=0x7ffff771f18e \"\\377\\377\\377\\377\\377\\377\\204\\307\\352=\\a\\016\\006\\b\\001\") at ./arpwatch.c:502\n#11 0x00007ffff7b9b716 in pcap_handle_packet_mmap () from /lib64/libpcap.so.1\n#12 0x00007ffff7b9c3c4 in pcap_read_linux_mmap_v3 () from /lib64/libpcap.so.1\n#13 0x00007ffff7ba471d in pcap_loop () from /lib64/libpcap.so.1\n#14 0x0000555555556784 in main (argc=2, argv=0x7fffffffdeb8) at ./arpwatch.c:433\n(gdb)\n\n\nThe \"A-VERY-LONG-HOSTNAME-IS_HERE-XXXXXXX\"   is 37 chars long.\n\nThe max length of a DNS name part is 63 according to a quick google,\nand tallies with MAXHOSTNAMELEN being 64 in various header files.\n\nbut the code seems to have a 34 byte buffer for names...\n\n\nstruct einfo {\n        u_char e[6];            /* ether address */\n        char h[34];             /* simple hostname */\n        time_t t;               /* timestamp */\n};\n\nand the strcpy below is the one failing:\n\n        if (h != NULL && !isdigit((int)*h))\n                strcpy(ep->h, h);\n\nThe code should really either malloc the appropriate length buffer\nor at least use strncpy to limit to the defined buffer size,\nand if fixed size, it should be MAXHOSTNAMELEN+1\n\n\nA workaround is to shorten long host names in the DNS, but that's ugly,\nand this bug is potentially exploitable."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11449683",
+						"comment_count": "1",
+						"who": {
+							"text": "iand",
+							"name": "Ian Donaldson"
+						},
+						"bug_when": "2018-04-05 05:55:15 +0000",
+						"thetext": "The following patch seems to work:\n\n*** db.c.orig   Sun Oct  1 10:39:58 2000\n--- db.c        Thu Apr  5 15:52:56 2018\n***************\n*** 41,46 ****\n--- 41,47 ----\n  #include <string.h>\n  #include <syslog.h>\n  #include <unistd.h>\n+ #include <limits.h>\n  \n  #include \"gnuc.h\"\n  #ifdef HAVE_OS_PROTO_H\n***************\n*** 62,68 ****\n  /* Ethernet info */\n  struct einfo {\n        u_char e[6];            /* ether address */\n!       char h[34];             /* simple hostname */\n        time_t t;               /* timestamp */\n  };\n  \n--- 63,69 ----\n  /* Ethernet info */\n  struct einfo {\n        u_char e[6];            /* ether address */\n!       char h[HOST_NAME_MAX+1];/* simple hostname */\n        time_t t;               /* timestamp */\n  };\n  \n***************\n*** 283,290 ****\n        BCOPY(e, ep->e, 6);\n        if (h == NULL && !initializing)\n                h = getsname(a);\n!       if (h != NULL && !isdigit((int)*h))\n!               strcpy(ep->h, h);\n        ep->t = t;\n        return (ep);\n  }\n--- 284,293 ----\n        BCOPY(e, ep->e, 6);\n        if (h == NULL && !initializing)\n                h = getsname(a);\n!       if (h != NULL && !isdigit((int)*h)) {\n!               strncpy(ep->h, h, sizeof(ep->h));\n!               ep->h[sizeof(ep->h)-1] = 0;\n!       }\n        ep->t = t;\n        return (ep);\n  }"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11744286",
+						"comment_count": "2",
+						"who": {
+							"text": "iand",
+							"name": "Ian Donaldson"
+						},
+						"bug_when": "2018-06-27 05:54:36 +0000",
+						"thetext": "problem still evident in fc28.\n\nsame patch applies to \n\narpwatch-2.1a15-42.fc28.x86_64\n\nand fixes the issue"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12694828",
+						"comment_count": "3",
+						"who": {
+							"text": "bcotton",
+							"name": "Ben Cotton"
+						},
+						"bug_when": "2019-05-02 21:31:15 +0000",
+						"thetext": "This message is a reminder that Fedora 28 is nearing its end of life.\nOn 2019-May-28 Fedora will stop maintaining and issuing updates for\nFedora 28. It is Fedora's policy to close all bug reports from releases\nthat are no longer maintained. At that time this bug will be closed as\nEOL if it remains open with a Fedora 'version' of '28'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora 28 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora, you are encouraged  change the 'version' to a later Fedora \nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12704114",
+						"comment_count": "4",
+						"who": {
+							"text": "iand",
+							"name": "Ian Donaldson"
+						},
+						"bug_when": "2019-05-06 08:14:29 +0000",
+						"thetext": "Problem still evident in fc30."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "13426405",
+						"comment_count": "5",
+						"who": {
+							"text": "iand",
+							"name": "Ian Donaldson"
+						},
+						"bug_when": "2019-12-04 11:58:52 +0000",
+						"thetext": "arpwatch-2.1a15-45.fc31.x86_64 has the same issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14429455",
+						"comment_count": "6",
+						"who": {
+							"text": "fedora-admin-xmlrpc",
+							"name": "Fedora Admin user for bugzilla script actions"
+						},
+						"bug_when": "2020-10-26 14:53:12 +0000",
+						"thetext": "This package has changed maintainer in the Fedora.\nReassigning to the new maintainer of this component."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14430228",
+						"comment_count": "7",
+						"who": {
+							"text": "code",
+							"name": "Ben Beasley"
+						},
+						"bug_when": "2020-10-26 17:53:16 +0000",
+						"thetext": "I have just taken ownership of this package in Fedora after it was orphaned by the previous maintainer.\n\nI see that the new upstream version, 3.1, has increased the size of the h field to 64 bytes, as well as started using strncpy() to fill it, in an attempt to fix this issue. That seems almost consistent with the patch offered here (well, HOST_NAME_MAX+1 is 65, but as noted 63+1=64 should be enough in practice). I plan to backport a patch based on the 3.1 code in the next few days, and release it as a security update for all supported Fedora versions.\n\nAfter that, I will work on https://bugzilla.redhat.com/show_bug.cgi?id=1857980, packaging version 3.1. It will take a little time to review the changes and figure out which patches need to be carried forward.\n\nThanks for reporting this, and for keeping the bug report updated."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14437684",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-10-27 17:41:27 +0000",
+						"thetext": "FEDORA-2020-8e115f0c7a has been submitted as an update to Fedora 33. https://bodhi.fedoraproject.org/updates/FEDORA-2020-8e115f0c7a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14437707",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-10-27 17:51:06 +0000",
+						"thetext": "FEDORA-2020-9c2f330b5a has been submitted as an update to Fedora 32. https://bodhi.fedoraproject.org/updates/FEDORA-2020-9c2f330b5a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14437722",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-10-27 17:57:56 +0000",
+						"thetext": "FEDORA-2020-193da8cf44 has been submitted as an update to Fedora 31. https://bodhi.fedoraproject.org/updates/FEDORA-2020-193da8cf44"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14437876",
+						"comment_count": "11",
+						"who": {
+							"text": "code",
+							"name": "Ben Beasley"
+						},
+						"bug_when": "2020-10-27 18:58:29 +0000",
+						"thetext": "Updates are in Rawhide, and are on their way to testing for all supported Fedora releases. I did not take time to reproduce the bug in my own environment, so testing of the update by someone who is currently seeing this bug would be appreciated."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14439423",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-10-28 01:04:03 +0000",
+						"thetext": "FEDORA-2020-8e115f0c7a has been pushed to the Fedora 33 testing repository.\nIn short time you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2020-8e115f0c7a`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-8e115f0c7a\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14439485",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-10-28 01:50:06 +0000",
+						"thetext": "FEDORA-2020-9c2f330b5a has been pushed to the Fedora 32 testing repository.\nIn short time you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2020-9c2f330b5a`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-9c2f330b5a\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14439505",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-10-28 01:56:52 +0000",
+						"thetext": "FEDORA-2020-193da8cf44 has been pushed to the Fedora 31 testing repository.\nIn short time you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2020-193da8cf44`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-193da8cf44\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14466027",
+						"comment_count": "15",
+						"who": {
+							"text": "bcotton",
+							"name": "Ben Cotton"
+						},
+						"bug_when": "2020-11-03 17:00:54 +0000",
+						"thetext": "This message is a reminder that Fedora 31 is nearing its end of life.\nFedora will stop maintaining and issuing updates for Fedora 31 on 2020-11-24.\nIt is Fedora's policy to close all bug reports from releases that are no longer\nmaintained. At that time this bug will be closed as EOL if it remains open with a\nFedora 'version' of '31'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora 31 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora, you are encouraged  change the 'version' to a later Fedora \nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14477230",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-11-05 01:02:43 +0000",
+						"thetext": "FEDORA-2020-8e115f0c7a has been pushed to the Fedora 33 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14477255",
+						"comment_count": "17",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-11-05 01:04:05 +0000",
+						"thetext": "FEDORA-2020-9c2f330b5a has been pushed to the Fedora 32 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14477415",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-11-05 02:11:35 +0000",
+						"thetext": "FEDORA-2020-193da8cf44 has been pushed to the Fedora 31 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 14,
+			"nvr": "arpwatch-2.1a15-48.fc31",
+			"release_id": 33,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "arpwatch",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "aarch64"
+					},
+					{
+						"name": "arpwatch-debuginfo",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "aarch64"
+					},
+					{
+						"name": "arpwatch-debugsource",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "arpwatch-debuginfo",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "arpwatch-debugsource",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "arpwatch",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "arpwatch-debuginfo",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "i686"
+					},
+					{
+						"name": "arpwatch-debugsource",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "i686"
+					},
+					{
+						"name": "arpwatch",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "arpwatch",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "arpwatch-debuginfo",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "arpwatch-debugsource",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "arpwatch-debugsource",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "s390x"
+					},
+					{
+						"name": "arpwatch-debuginfo",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "s390x"
+					},
+					{
+						"name": "arpwatch",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "arpwatch",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "arpwatch-debuginfo",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "x86_64"
+					},
+					{
+						"name": "arpwatch",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "x86_64"
+					},
+					{
+						"name": "arpwatch-debugsource",
+						"epoch": 14,
+						"version": "2.1a15",
+						"release": "48.fc31",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 1700692,
+			"text": "This update has been submitted for testing by music. ",
+			"timestamp": "2020-10-27 17:57:53",
+			"update_id": 253130,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1700693,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2020-10-27 17:57:53",
+			"update_id": 253130,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1700694,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2020-10-27 17:57:53",
+			"update_id": 253130,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1700750,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2020-10-27 18:38:37",
+			"update_id": 253130,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1701379,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2020-10-28 01:56:59",
+			"update_id": 253130,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1712832,
+			"text": "This update can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2020-11-04 01:59:40",
+			"update_id": 253130,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1712833,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2020-11-04 01:59:41",
+			"update_id": 253130,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1714972,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2020-11-05 02:11:43",
+			"update_id": 253130,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2020-11-05 02:11:15",
+	"date_stable": "2020-11-05 02:11:15",
+	"date_submitted": "2020-10-27 17:57:53",
+	"date_testing": "2020-10-28 01:56:37",
+	"meets_testing_requirements": true,
+	"notes": "Fix a buffer overflow from long hostnames (#1563939).",
+	"pushed": true,
+	"release": {
+		"branch": "f31",
+		"candidate_tag": "f31-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f31",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 31",
+		"mail_template": "fedora_errata_template",
+		"name": "F31",
+		"override_tag": "f31-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f31-signing-pending",
+		"pending_stable_tag": "f31-updates-pending",
+		"pending_testing_tag": "f31-updates-testing-pending",
+		"stable_tag": "f31-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f31-updates-testing",
+		"version": "31"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "urgent",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "arpwatch-2.1a15-48.fc31",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2020-193da8cf44",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2020-193da8cf44",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/30796d789ab4befafdec48a7b896ed471c9c78917b2e98852ffb42d4c9b7661c?s=24&d=retro",
+		"email": "code@musicinmybrain.net",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "python-sig"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "neuro-sig"
+			},
+			{
+				"name": "fesco"
+			},
+			{
+				"name": "python-packagers-sig"
+			}
+		],
+		"id": 5936,
+		"name": "music",
+		"openid": "music.id.fedoraproject.org"
+	},
+	"version_hash": "7da7c424185896d4a35774fc0f5a308e594a678b"
+}

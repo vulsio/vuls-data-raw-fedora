@@ -1,0 +1,3106 @@
+{
+	"alias": "FEDORA-2018-ac3b4c7605",
+	"bugs": [
+		{
+			"bug_id": 1566258,
+			"title": "Running a VM causes thousands of vmwrite error: reg 401e value 2021 (err 12)",
+			"bugzilla": {
+				"bug_id": "1566258",
+				"creation_ts": "2018-04-11 21:38:54 +0000",
+				"short_desc": "Running a VM causes thousands of vmwrite error: reg 401e value 2021 (err 12)",
+				"delta_ts": "2018-09-27 14:15:28 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Reopened",
+				"priority": "unspecified",
+				"bug_severity": "high",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11479242",
+						"comment_count": "0",
+						"who": {
+							"text": "pzeppegno"
+						},
+						"bug_when": "2018-04-11 21:38:54 +0000",
+						"thetext": "Description of problem:\n\n\nVersion-Release number of selected component (if applicable):\n4.16.0-300.fc28.x86_64\n\nHow reproducible:\nalways\n\nSteps to Reproduce:\n1. Start a virtual machine under virt-manager (windows 7 or XP)\n2. See it running slowly\n3. Check dmesg and see zillions of warnings\n\nActual results:\nVM runs slow\nzillions of errors in dmesg\n\n[35238.492760] vmwrite error: reg 401e value 2021 (err 12)\n[35238.492765] CPU: 0 PID: 21396 Comm: CPU 0/KVM Tainted: P        W  OE    4.16.1-300.fc28.x86_64 #1\n[35238.492766] Hardware name: System manufacturer System Product Name/P5B-Deluxe, BIOS 1238    09/30/2008\n[35238.492767] Call Trace:\n[35238.492774]  dump_stack+0x5c/0x85\n[35238.492780]  vmx_set_cr4+0x1dc/0x200 [kvm_intel]\n[35238.492803]  kvm_set_cr4+0x18b/0x2e0 [kvm]\n[35238.492823]  rsm_enter_protected_mode+0x7f/0x110 [kvm]\n[35238.492844]  rsm_load_state_64+0x6cb/0x8b0 [kvm]\n[35238.492863]  ? emulator_task_switch+0x290/0x4a0 [kvm]\n[35238.492883]  em_rsm+0x258/0x2a0 [kvm]\n[35238.492903]  x86_emulate_insn+0x15a/0x10a0 [kvm]\n[35238.492908]  ? vmx_get_cs_db_l_bits+0x17/0x30 [kvm_intel]\n[35238.492927]  x86_emulate_instruction+0x14d/0x670 [kvm]\n[35238.492932]  handle_exception+0x112/0x330 [kvm_intel]\n[35238.492937]  vmx_handle_exit+0xab/0xe10 [kvm_intel]\n[35238.492941]  ? vmx_vcpu_run+0x7b7/0x990 [kvm_intel]\n[35238.492961]  ? kvm_arch_vcpu_ioctl_run+0x504/0x1720 [kvm]\n[35238.492964]  ? __schedule+0x23f/0x850\n[35238.492967]  ? __update_load_avg_se.isra.33+0x1c5/0x1d0\n[35238.492984]  ? kvm_vcpu_ioctl+0x2b8/0x5e0 [kvm]\n[35238.492986]  ? set_next_entity+0x96/0x1c0\n[35238.492988]  ? pick_next_task_fair+0x2f7/0x5a0\n[35238.492991]  ? do_vfs_ioctl+0xa4/0x610\n[35238.492993]  ? SyS_ioctl+0x74/0x80\n[35238.492995]  ? do_syscall_64+0x74/0x180\n[35238.492997]  ? entry_SYSCALL_64_after_hwframe+0x3d/0xa2\n\nsame errors also with nouveau. nvidia taint is not the cause\n\nExpected results:\nRuns fast with no warnings\n\nAdditional info:\nOld processor, same one hit previously by kernel regression\n\nprocessor\t: 1\nvendor_id\t: GenuineIntel\ncpu family\t: 6\nmodel\t\t: 15\nmodel name\t: Intel(R) Core(TM)2 CPU          6600  @ 2.40GHz"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11497825",
+						"comment_count": "1",
+						"who": {
+							"text": "sean.j.christopherson",
+							"name": "Sean Christopherson"
+						},
+						"bug_when": "2018-04-17 15:10:49 +0000",
+						"thetext": "v4.16 is doing an unconditional RMW on SECONDARY_VM_EXEC_CONTROL in the vmx_set_cr4 path.  The SECONDARY_VM_EXEC_CONTROL VMCS field is not guaranteed to exist on older processors, e.g. most Core 2 SKUs, causing VMWRITE to fail.  KVM's VMREAD function doesn't warn on failure and so only the VMWRITE failure is logged.  Because the VMREAD fails in the RMW sequence, the value reported in the VMWRITE error path is garbage, i.e. whatever happened to be in the GPR prior to VMREAD.  In this case it's more than likely the value that is actually destined to be written to CR4.\n\nThis error is benign in the sense that it won't actually affect KVM functionality, though it undoubtedly slows down the system due to flooding the kernel log."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11503735",
+						"comment_count": "2",
+						"who": {
+							"text": "pzeppegno"
+						},
+						"bug_when": "2018-04-18 17:47:41 +0000",
+						"thetext": "I confirm that since 4.16 I cannot use VMs with kvm anymore, again.\n\nI have to switch back to using VirtualBox, that while nice enough, is not my preferred solution.\n\nIf removing the RMW for that set of old processors won't affect functionality, then I would ask to at least make it conditional or roll the change back as it has created a regression."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11523688",
+						"comment_count": "3",
+						"who": {
+							"text": "redhat",
+							"name": "Gerhard Wiesinger"
+						},
+						"bug_when": "2018-04-24 16:27:17 +0000",
+						"thetext": "Also happens with kernel-4.16.3-200.fc27. In my setup kernel stalls then completely (e.g. after bootup 3 pings, afterwards no ping replay from the hosts). Around 10 VMs are started.\n\nSee https://bodhi.fedoraproject.org/updates/FEDORA-2018-b6be90818d for details.\n\nPossible fix: https://patchwork.kernel.org/patch/10353377/\n\nTestbuild at: https://koji.fedoraproject.org/koji/taskinfo?taskID=26538797"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11524789",
+						"comment_count": "4",
+						"who": {
+							"text": "pzeppegno"
+						},
+						"bug_when": "2018-04-25 00:17:55 +0000",
+						"thetext": "I have installed and tested on my PC the testbuild kernel from:\n\nhttps://koji.fedoraproject.org/koji/taskinfo?taskID=26538797\n\nIt works fine in my PC. No issues to report. Good job everyone!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11537909",
+						"comment_count": "5",
+						"who": {
+							"text": "nberrehouc",
+							"name": "Nicolas Berrehouc"
+						},
+						"bug_when": "2018-04-28 08:12:33 +0000",
+						"thetext": "Same problem and same fix with the testbuild kernel https://koji.fedoraproject.org/koji/taskinfo?taskID=26538797\n\nWorks fine again. Good job!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11564177",
+						"comment_count": "6",
+						"who": {
+							"text": "pzeppegno"
+						},
+						"bug_when": "2018-05-04 17:04:58 +0000",
+						"thetext": "I have seen various comments about the correctness of the patch, just wondering if there's a consensus about it and therefore when the patch would be applied upstream and made available in an official fedora build. Right now I have to choose between using the fixed but stale koji build and a broken fresh release, that is not the ideal situation.\n\nThanks"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11564253",
+						"comment_count": "7",
+						"who": {
+							"text": "labbott",
+							"name": "Laura Abbott"
+						},
+						"bug_when": "2018-05-04 17:22:30 +0000",
+						"thetext": "There was a second version posted on Monday https://patchwork.kernel.org/patch/10372151/ and tagged for stable. I haven't seen it applied to the kvm tree yet but I would expect it to happen sometime this coming week. If you see the maintainer ack it or mention it is applied feel free to let us know so we can pick it up."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11569060",
+						"comment_count": "8",
+						"who": {
+							"text": "jcline",
+							"name": "Jeremy Cline"
+						},
+						"bug_when": "2018-05-07 13:16:22 +0000",
+						"thetext": "*** Bug 1575625 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11584231",
+						"comment_count": "9",
+						"who": {
+							"text": "dowdle",
+							"name": "Scott Dowdle"
+						},
+						"bug_when": "2018-05-10 18:11:04 +0000",
+						"thetext": "I don't know if this is related or not... but I haven't found a better bug match yet...\n\nI have 16GB of RAM and 4GB of swap.  I start a KVM VM that is assigned 2GB of RAM.  I have plenty of free RAM available (although a significant amount of it might be used as buffer/cache) but the system goes into a swap storm.  It is like getting a request to 2GB of RAM for the VM somehow made the system overreact and decide to start swapping all my desktop applications to swap.  swap goes from 0 to 2GB+ in a couple of minutes, the hard drive light is constantly on... and switching between applications is impossible... unless I'm extra patient and wait several minutes.  Looking at free -m I have 10GB+ of RAM available but it is in a heavy swap situation.\n\nJust rebooted tot he 4.16.7-300 kernel and am hoping not to run into that again but I started having it on 4.15.x and all of the 4.16.x releases."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11587083",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-11 14:05:59 +0000",
+						"thetext": "kernel-4.16.8-300.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-ac3b4c7605"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11587827",
+						"comment_count": "11",
+						"who": {
+							"text": "jcline",
+							"name": "Jeremy Cline"
+						},
+						"bug_when": "2018-05-11 16:19:17 +0000",
+						"thetext": "*** Bug 1577283 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11589664",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-12 19:35:43 +0000",
+						"thetext": "kernel-4.16.8-300.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-ac3b4c7605"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11595140",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-14 17:55:44 +0000",
+						"thetext": "kernel-4.16.8-300.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11620750",
+						"comment_count": "14",
+						"who": {
+							"text": "fche",
+							"name": "Frank Ch. Eigler"
+						},
+						"bug_when": "2018-05-21 21:19:53 +0000",
+						"thetext": "Please issue an fc27 update, since it too is affected."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12047021",
+						"comment_count": "15",
+						"who": {
+							"text": "redhat",
+							"name": "Gerhard Wiesinger"
+						},
+						"bug_when": "2018-09-24 18:43:55 +0000",
+						"thetext": "Kernel 4.17.19-200.fc28.x86_64 is ok\nbut Kernel 4.18.9-200.fc28.x86_64 is again NOT ok.\n\nMaybe the patch is missing.\nIs the upstream kernel integration maybe missing, too?\n\nThnx"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12051074",
+						"comment_count": "16",
+						"who": {
+							"text": "nberrehouc",
+							"name": "Nicolas Berrehouc"
+						},
+						"bug_when": "2018-09-25 17:27:42 +0000",
+						"thetext": "Indeed problem is still present with kernel 4.18.9-200.fc28.x86_64.\n\nErrors in dmesg:\n\n[207786.536493] vmwrite error: reg 401e value 0 (err 12)\n[207786.546141] CPU: 6 PID: 7719 Comm: CPU 0/KVM Not tainted 4.18.9-200.fc28.x86_64 #1\n[207786.556149] Hardware name: Dell Inc. PowerEdge 2900/0TM757, BIOS 2.7.0 10/30/2010\n[207786.566105] Call Trace:\n[207786.575939]  dump_stack+0x5c/0x80\n[207786.585904]  vmx_set_virtual_apic_mode+0x1c5/0x270 [kvm_intel]\n[207786.595926]  ? kvm_make_all_cpus_request+0x4d/0x70 [kvm]\n[207786.605794]  kvm_lapic_set_base+0x7b/0x190 [kvm]\n[207786.615583]  kvm_set_apic_base+0xac/0xd0 [kvm]\n[207786.625218]  kvm_set_msr_common+0x829/0xc30 [kvm]\n[207786.635258]  ? vmx_vcpu_run+0x404/0xb80 [kvm_intel]\n[207786.644796]  ? vmx_vcpu_run+0x410/0xb80 [kvm_intel]\n[207786.654695]  ? vmx_vcpu_run+0x404/0xb80 [kvm_intel]\n[207786.664250]  ? vmx_vcpu_run+0x410/0xb80 [kvm_intel]\n[207786.673532]  ? vmx_vcpu_run+0x404/0xb80 [kvm_intel]\n[207786.683044]  handle_wrmsr+0x55/0x140 [kvm_intel]\n[207786.693016]  kvm_arch_vcpu_ioctl_run+0x56e/0x1a10 [kvm]\n[207786.702666]  kvm_vcpu_ioctl+0x2b8/0x5e0 [kvm]\n[207786.712577]  do_vfs_ioctl+0xa4/0x620\n[207786.722416]  ? apic_timer_interrupt+0xa/0x20\n[207786.732097]  ksys_ioctl+0x60/0x90\n[207786.742037]  __x64_sys_ioctl+0x16/0x20\n[207786.751679]  do_syscall_64+0x5b/0x160\n[207786.761662]  entry_SYSCALL_64_after_hwframe+0x44/0xa9\n[207786.771391] RIP: 0033:0x7ff61abf4c57\n[207786.781515] Code: 00 00 90 48 8b 05 49 82 2c 00 64 c7 00 26 00 00 00 48 c7 c0 ff ff ff ff c3 66 2e 0f 1f 84 00 00 00 00 00 b8 10 00 00 00 0f 05 <48> 3d 01 f0 ff ff 73 01 c3 48 8b 0d 19 82 2c 00 f7 d8 64 89 01 48 \n[207786.802966] RSP: 002b:00007ff60ba37648 EFLAGS: 00000246 ORIG_RAX: 0000000000000010\n[207786.813995] RAX: ffffffffffffffda RBX: 00007ff624ac7002 RCX: 00007ff61abf4c57\n[207786.824446] RDX: 0000000000000000 RSI: 000000000000ae80 RDI: 0000000000000017\n[207786.834947] RBP: 0000000000000001 R08: 000055b035f73730 R09: 000000000000ffff\n[207786.844994] R10: 000055b035f5d490 R11: 0000000000000246 R12: 000055b035f59760\n[207786.855174] R13: 0000000000000000 R14: 00007ff624ac6000 R15: 000055b0386308b0"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12056572",
+						"comment_count": "17",
+						"who": {
+							"text": "pzeppegno"
+						},
+						"bug_when": "2018-09-26 21:47:59 +0000",
+						"thetext": "Confirmed there's something fishy again with kernel-4.18.9-200.fc28.x86_64\n\n[  +0.163969] vmwrite error: reg 401e value 0 (err 12)\n[  +0.000008] CPU: 0 PID: 8329 Comm: CPU 1/KVM Tainted: P           OE     4.18.9-200.fc28.x86_64 #1\n[  +0.000001] Hardware name: System manufacturer System Product Name/P5B-Deluxe, BIOS 1238    09/30/2008\n[  +0.000001] Call Trace:\n[  +0.000011]  dump_stack+0x5c/0x80\n[  +0.000010]  vmx_set_virtual_apic_mode+0x1c5/0x270 [kvm_intel]\n[  +0.000039]  ? kvm_make_all_cpus_request+0x4d/0x70 [kvm]\n[  +0.000019]  kvm_lapic_set_base+0x7b/0x190 [kvm]\n[  +0.000019]  kvm_set_apic_base+0xac/0xd0 [kvm]\n[  +0.000018]  kvm_set_msr_common+0x829/0xc30 [kvm]\n[  +0.000005]  ? vmx_vcpu_run+0x404/0xb80 [kvm_intel]\n[  +0.000005]  ? vmx_vcpu_run+0x410/0xb80 [kvm_intel]\n[  +0.000004]  ? vmx_vcpu_run+0x404/0xb80 [kvm_intel]\n[  +0.000004]  ? vmx_vcpu_run+0x410/0xb80 [kvm_intel]\n[  +0.000004]  ? vmx_vcpu_run+0x404/0xb80 [kvm_intel]\n[  +0.000004]  handle_wrmsr+0x55/0x140 [kvm_intel]\n[  +0.000020]  kvm_arch_vcpu_ioctl_run+0x56e/0x1a10 [kvm]\n[  +0.000016]  kvm_vcpu_ioctl+0x2b8/0x5e0 [kvm]\n[  +0.000004]  ? do_signal+0x1a8/0x610\n[  +0.000003]  ? __fpu__restore_sig+0x75/0x440\n[  +0.000002]  do_vfs_ioctl+0xa4/0x620\n[  +0.000003]  ksys_ioctl+0x60/0x90\n[  +0.000001]  __x64_sys_ioctl+0x16/0x20\n[  +0.000003]  do_syscall_64+0x5b/0x160\n[  +0.000003]  entry_SYSCALL_64_after_hwframe+0x44/0xa9\n[  +0.000003] RIP: 0033:0x7f1fcf961c57\n[  +0.000000] Code: 00 00 90 48 8b 05 49 82 2c 00 64 c7 00 26 00 00 00 48 c7 c0 ff ff ff ff c3 66 2e 0f 1f 84 00 00 00 00 00 b8 10 00 00 00 0f 05 <48> 3d 01 f0 ff ff 73 01 c3 48 8b 0d 19 82 2c 00 f7 d8 64 89 01 48 \n[  +0.000035] RSP: 002b:00007f1fbb7fd648 EFLAGS: 00000246 ORIG_RAX: 0000000000000010\n[  +0.000002] RAX: ffffffffffffffda RBX: 0000562f67310920 RCX: 00007f1fcf961c57\n[  +0.000001] RDX: 0000000000000000 RSI: 000000000000ae80 RDI: 0000000000000017\n[  +0.000001] RBP: 0000562f6568aa60 R08: 0000562f650ac730 R09: 0000562f656bb640\n[  +0.000002] R10: 0000000000000000 R11: 0000000000000246 R12: 0000562f65092760\n[  +0.000001] R13: 00007ffe00301fbf R14: 00007f1fd96a6000 R15: 0000562f67310920\n\nHowever the behavior seems a bit different than before:\n\nMy windows 7 VM goes into suspended state after a while and I cannot resume it, while my fedora 28 VM throws some of these errors but not the zillions we had previously.\n\nThis is clearly a bummer, can someone take a look at it?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "12059164",
+						"comment_count": "18",
+						"who": {
+							"text": "jcline",
+							"name": "Jeremy Cline"
+						},
+						"bug_when": "2018-09-27 14:15:28 +0000",
+						"thetext": "Let's track this on the new bug (https://bugzilla.redhat.com/show_bug.cgi?id=1632426) - it's not a regression of the fix for this bug as far as I can tell, just a new unconditional write to a field that presumably doesn't exist."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1571624,
+			"security": true,
+			"title": "CVE-2018-10322 kernel: Invalid pointer dereference in xfs_ilock_attr_map_shared() when mounting crafted xfs image allowing denial of service [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1571624",
+				"creation_ts": "2018-04-25 08:48:18 +0000",
+				"short_desc": "CVE-2018-10322 kernel: Invalid pointer dereference in xfs_ilock_attr_map_shared() when mounting crafted xfs image allowing denial of service [fedora-all]",
+				"delta_ts": "2018-05-14 17:55:03 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1571623",
+						"alias": "CVE-2018-10322",
+						"creation_ts": "2018-04-25 08:47:38 +0000",
+						"short_desc": "CVE-2018-10322 kernel: Invalid pointer dereference in xfs_ilock_attr_map_shared() when mounting crafted xfs image allowing denial of service",
+						"delta_ts": "2021-06-10 15:58:20 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1571624",
+							"1571625",
+							"1574946",
+							"1574947",
+							"1574948",
+							"1574949"
+						],
+						"blocked": [
+							{
+								"bug_id": "1571629",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2018:3096",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "11525801",
+								"comment_count": "0",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2018-04-25 08:47:38 +0000",
+								"thetext": "The xfs_dinode_verify function in fs/xfs/libxfs/xfs_inode_buf.c in the Linux kernel can cause a NULL pointer dereference in xfs_ilock_attr_map_shared function. An attacker could trick a legitimate user or a privileged attacker could exploit this by mounting a crafted xfs filesystem image to cause a kernel panic and thus a denial of service.\n\nReferences:\n\nhttps://www.spinics.net/lists/linux-xfs/msg17215.html\n\nhttps://bugzilla.kernel.org/show_bug.cgi?id=199377\n\nAn upstream patch:\n\nhttps://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=b42db0860e130"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11525805",
+								"comment_count": "1",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2018-04-25 08:48:40 +0000",
+								"thetext": "Created kernel tracking bugs for this issue:\n\nAffects: fedora-all [bug 1571624]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11563057",
+								"comment_count": "7",
+								"who": {
+									"text": "vdronov",
+									"name": "Vladis Dronov"
+								},
+								"bug_when": "2018-05-04 11:59:33 +0000",
+								"thetext": "Notes:\n\nWhile the reproducer works when run as a privileged user (the \"root\"), this requires a mount of a certain filesystem image. An unprivileged attacker cannot do this even from a user+mount namespace:\n\n$ unshare -U -r -m\n# mount -t xfs xfs.img mnt/\nmount: mnt/: mount failed: Operation not permitted.\n\nThe article https://lwn.net/Articles/652468/ (thanks, Jonathan!) discusses unprivileged user mounts and hostile filesystem images:\n \n> ... for the most part, the mount() system call is denied to processes running\n> within user namespaces, even if they are privileged in their namespaces.\n\nIt also states that unprivileged filesystem mounts are not allowed as of now in the Linux kernel and probably won't be allowed in a future. Until that such flaws are considered as not exploitable:\n\n> There were no proposals for solutions to the hostile-filesystem problem.\n> But, in the absence of some sort of assurance that they can be made safe,\n> unprivileged filesystem mounts are unlikely to gain acceptance; even if the\n> feature gets into the kernel, distributions would be likely to disable it.\n\nOn the other hand, there is a potential possibility that still an attacker can trick a regular user to mount a malicious filesystem image, like trick him to insert an usb-flash-drive with a forged filesystem to a desktop system which will auto-mount it. In case this results only in a system crash (a DoS due to, for example, a NULL pointer dereference) the flaw impact is low but it still exists.\n\nAnother example is that if an attacker wants to hack into his coworker's notebook. While a coworker is away (on a coffee break) an attacker may insert an usb-flash-drive into the target notebook. In case of a flaw which results in a privilege escalation the flaw's impact is high.\n\nSo the Red Hat would still consider bugs which require mounting a filesystem image to exploit as security flaws."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12153853",
+								"comment_count": "9",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2018-10-30 07:33:04 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2018:3083 https://access.redhat.com/errata/RHSA-2018:3083"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12153903",
+								"comment_count": "10",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2018-10-30 07:39:15 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2018:3096 https://access.redhat.com/errata/RHSA-2018:3096"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "12155181",
+								"comment_count": "11",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2018-10-30 09:00:45 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2018:2948 https://access.redhat.com/errata/RHSA-2018:2948"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11525802",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2018-04-25 08:48:18 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\nReproducers, if any, will remain confidential and never be made public, unless done so by the security team."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11525804",
+						"comment_count": "1",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2018-04-25 08:48:31 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1571623,1571624\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11587080",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-11 14:05:26 +0000",
+						"thetext": "kernel-4.16.8-300.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-ac3b4c7605"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11589662",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-12 19:35:27 +0000",
+						"thetext": "kernel-4.16.8-300.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-ac3b4c7605"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11595136",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-14 17:55:03 +0000",
+						"thetext": "kernel-4.16.8-300.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1571630,
+			"security": true,
+			"title": "CVE-2018-10323 kernel: Invalid pointer dereference in xfs_bmapi_write() when mounting and operating on crafted xfs image allows denial of service [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1571630",
+				"creation_ts": "2018-04-25 08:52:55 +0000",
+				"short_desc": "CVE-2018-10323 kernel: Invalid pointer dereference in xfs_bmapi_write() when mounting and operating on crafted xfs image allows denial of service [fedora-all]",
+				"delta_ts": "2018-05-14 17:54:35 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "1571627",
+						"alias": "CVE-2018-10323",
+						"creation_ts": "2018-04-25 08:51:33 +0000",
+						"short_desc": "CVE-2018-10323 kernel: Invalid pointer dereference in xfs_bmapi_write() when mounting and operating on crafted xfs image allows denial of service",
+						"delta_ts": "2021-06-10 15:58:23 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "NOTABUG",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"1571630",
+							"1571631"
+						],
+						"blocked": [
+							{
+								"bug_id": "1571633",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "11525815",
+								"comment_count": "0",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2018-04-25 08:51:33 +0000",
+								"thetext": "The xfs_bmap_extents_to_btree function in fs/xfs/libxfs/xfs_bmap.c in the Linux kernel can cause a NULL pointer dereference in xfs_bmapi_write function. An attacker could trick a legitimate user or a privileged attacker could exploit this by mounting a crafted xfs filesystem image to cause a kernel panic and thus a denial of service.\n\nReferences:\n\nhttps://www.spinics.net/lists/linux-xfs/msg17254.html\n\nhttps://bugzilla.kernel.org/show_bug.cgi?id=199423\n\nAn upstream patch:\n\nhttps://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=2c4306f719b0"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11525838",
+								"comment_count": "1",
+								"who": {
+									"text": "amaris",
+									"name": "Adam Mariš"
+								},
+								"bug_when": "2018-04-25 08:53:05 +0000",
+								"thetext": "Created kernel tracking bugs for this issue:\n\nAffects: fedora-all [bug 1571630]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11563201",
+								"comment_count": "5",
+								"who": {
+									"text": "vdronov",
+									"name": "Vladis Dronov"
+								},
+								"bug_when": "2018-05-04 12:42:59 +0000",
+								"thetext": "Notes:\n\nWhile the reproducer works when run as a privileged user (the \"root\"), this requires a mount of a certain filesystem image. An unprivileged attacker cannot do this even from a user+mount namespace:\n\n$ unshare -U -r -m\n# mount -t xfs xfs.img mnt/\nmount: mnt/: mount failed: Operation not permitted.\n\nThe article https://lwn.net/Articles/652468/ (thanks, Jonathan!) discusses unprivileged user mounts and hostile filesystem images:\n \n> ... for the most part, the mount() system call is denied to processes running\n> within user namespaces, even if they are privileged in their namespaces.\n\nIt also states that unprivileged filesystem mounts are not allowed as of now in the Linux kernel and probably won't be allowed in a future. Until that such flaws are considered as not exploitable:\n\n> There were no proposals for solutions to the hostile-filesystem problem.\n> But, in the absence of some sort of assurance that they can be made safe,\n> unprivileged filesystem mounts are unlikely to gain acceptance; even if the\n> feature gets into the kernel, distributions would be likely to disable it.\n\nOn the other hand, there is a potential possibility that still an attacker can trick a regular user to mount a malicious filesystem image, like trick him to insert an usb-flash-drive with a forged filesystem to a desktop system which will auto-mount it. In case this results only in a system crash (a DoS due to, for example, a NULL pointer dereference) the flaw impact is low but it still exists.\n\nAnother example is that if an attacker wants to hack into his coworker's notebook. While a coworker is away (on a coffee break) an attacker may insert an usb-flash-drive into the target notebook. In case of a flaw which results in a privilege escalation the flaw's impact is high.\n\nSo the Red Hat would still consider bugs which require mounting a filesystem image to exploit as security flaws."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11525835",
+						"comment_count": "0",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2018-04-25 08:52:55 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\nReproducers, if any, will remain confidential and never be made public, unless done so by the security team."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11525837",
+						"comment_count": "1",
+						"who": {
+							"text": "amaris",
+							"name": "Adam Mariš"
+						},
+						"bug_when": "2018-04-25 08:52:56 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1571627,1571630\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11587077",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-11 14:05:07 +0000",
+						"thetext": "kernel-4.16.8-300.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-ac3b4c7605"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11589661",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-12 19:35:18 +0000",
+						"thetext": "kernel-4.16.8-300.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-ac3b4c7605"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11595134",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-14 17:54:35 +0000",
+						"thetext": "kernel-4.16.8-300.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1574604,
+			"title": "Out-of-tree kernel modules fail to build on ppc64 with 4.16 kernel",
+			"bugzilla": {
+				"bug_id": "1574604",
+				"creation_ts": "2018-05-03 16:08:48 +0000",
+				"short_desc": "Out-of-tree kernel modules fail to build on ppc64 with 4.16 kernel",
+				"delta_ts": "2021-03-18 09:39:14 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1071880",
+						"alias": "PPCTracker",
+						"creation_ts": "2014-03-03 11:41:52 +0000",
+						"short_desc": "(PPCTracker) Fedora for PowerPC architectures (ppc64,ppc64le): Bug Tracker",
+						"delta_ts": "2023-09-23 14:32:32 +0000",
+						"bug_status": "ASSIGNED",
+						"keywords": "Tracking",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"238953",
+							"1266508",
+							"1562071",
+							"1757548",
+							"1817976",
+							"1897661",
+							"1909065",
+							"1960848",
+							"2112825",
+							"2154939",
+							"2173015",
+							"2209435",
+							"2209760",
+							"2212765",
+							"2240371",
+							"179260",
+							"468831",
+							"810582",
+							"834619",
+							"864392",
+							"968359",
+							"990749",
+							"999069",
+							"1015497",
+							"1035541",
+							"1049976",
+							"1058258",
+							"1058289",
+							"1058686",
+							"1059234",
+							"1059816",
+							"1067470",
+							"1070183",
+							"1070206",
+							"1070380",
+							"1070892",
+							"1071278",
+							"1071284",
+							"1071527",
+							"1071845",
+							"1079673",
+							"1085127",
+							"1085704",
+							"1088339",
+							"1090452",
+							"1091538",
+							"1093163",
+							"1094513",
+							"1094975",
+							"1097109",
+							"1097111",
+							"1098151",
+							"1100762",
+							"1101996",
+							"1104215",
+							"1104279",
+							"1104603",
+							"1105552",
+							"1108103",
+							"1110892",
+							"1111453",
+							"1114240",
+							"1122406",
+							"1125883",
+							"1128663",
+							"1130079",
+							"1132488",
+							"1134566",
+							"1136388",
+							"1136532",
+							"1136535",
+							"1136544",
+							"1140057",
+							"1140189",
+							"1143912",
+							"1149159",
+							"1149702",
+							"1149704",
+							"1151853",
+							"1155291",
+							"1155660",
+							"1156300",
+							"1158522",
+							"1160429",
+							"1160916",
+							"1161098",
+							"1161119",
+							"1161152",
+							"1161585",
+							"1162245",
+							"1162904",
+							"1162914",
+							"1164209",
+							"1164221",
+							"1165638",
+							"1166474",
+							"1166489",
+							"1168634",
+							"1172791",
+							"1174607",
+							"1175526",
+							"1182677",
+							"1185298",
+							"1194704",
+							"1195065",
+							"1195663",
+							"1196994",
+							"1197007",
+							"1197165",
+							"1197721",
+							"1197772",
+							"1199041",
+							"1201219",
+							"1202876",
+							"1204876",
+							"1205359",
+							"1206060",
+							"1206161",
+							"1208412",
+							"1210003",
+							"1211616",
+							"1211638",
+							"1212328",
+							"1212472",
+							"1214950",
+							"1220294",
+							"1220866",
+							"1221689",
+							"1223869",
+							"1225035",
+							"1225487",
+							"1226316",
+							"1228102",
+							"1230233",
+							"1232158",
+							"1232650",
+							"1232739",
+							"1234277",
+							"1234284",
+							"1235709",
+							"1235999",
+							"1237089",
+							"1238168",
+							"1241214",
+							"1247047",
+							"1247567",
+							"1247925",
+							"1251120",
+							"1251422",
+							"1251520",
+							"1251972",
+							"1252074",
+							"1252899",
+							"1252905",
+							"1252975",
+							"1253763",
+							"1254606",
+							"1255074",
+							"1255135",
+							"1255682",
+							"1256839",
+							"1257201",
+							"1257966",
+							"1260297",
+							"1261541",
+							"1262402",
+							"1262441",
+							"1262444",
+							"1264504",
+							"1264912",
+							"1265546",
+							"1265674",
+							"1267269",
+							"1268789",
+							"1269811",
+							"1271230",
+							"1273103",
+							"1274974",
+							"1275229",
+							"1275619",
+							"1276061",
+							"1276959",
+							"1277142",
+							"1278066",
+							"1278135",
+							"1278428",
+							"1281446",
+							"1281764",
+							"1284527",
+							"1285786",
+							"1286149",
+							"1286249",
+							"1286625",
+							"1287015",
+							"1287105",
+							"1288561",
+							"1289106",
+							"1289940",
+							"1290958",
+							"1291565",
+							"1292461",
+							"1292462",
+							"1292467",
+							"1292969",
+							"1294016",
+							"1295350",
+							"1296842",
+							"1297387",
+							"1297855",
+							"1297894",
+							"1299151",
+							"1299193",
+							"1299226",
+							"1299599",
+							"1300900",
+							"1302224",
+							"1303219",
+							"1303223",
+							"1304402",
+							"1305512",
+							"1305725",
+							"1306214",
+							"1308252",
+							"1308424",
+							"1309225",
+							"1310495",
+							"1311685",
+							"1312018",
+							"1312339",
+							"1315225",
+							"1315903",
+							"1316840",
+							"1319063",
+							"1321113",
+							"1322696",
+							"1323193",
+							"1324085",
+							"1325114",
+							"1325126",
+							"1325858",
+							"1326250",
+							"1326366",
+							"1328455",
+							"1330098",
+							"1330102",
+							"1330108",
+							"1330161",
+							"1330174",
+							"1331726",
+							"1332146",
+							"1332150",
+							"1332449",
+							"1332978",
+							"1333344",
+							"1333695",
+							"1334125",
+							"1334212",
+							"1334315",
+							"1334320",
+							"1335162",
+							"1335823",
+							"1336466",
+							"1340736",
+							"1340829",
+							"1341090",
+							"1342146",
+							"1342561",
+							"1344636",
+							"1345826",
+							"1349945",
+							"1350486",
+							"1351737",
+							"1351971",
+							"1356152",
+							"1356189",
+							"1359680",
+							"1361037",
+							"1365739",
+							"1365851",
+							"1365862",
+							"1365940",
+							"1366328",
+							"1368495",
+							"1368932",
+							"1369162",
+							"1369169",
+							"1371894",
+							"1373576",
+							"1374380",
+							"1374382",
+							"1374749",
+							"1375942",
+							"1377201",
+							"1377395",
+							"1378359",
+							"1379123",
+							"1380643",
+							"1381206",
+							"1383912",
+							"1386180",
+							"1387107",
+							"1387601",
+							"1388453",
+							"1388561",
+							"1389957",
+							"1391932",
+							"1392264",
+							"1392340",
+							"1392465",
+							"1392478",
+							"1392479",
+							"1392848",
+							"1392854",
+							"1392887",
+							"1392922",
+							"1393834",
+							"1396814",
+							"1398322",
+							"1398575",
+							"1400476",
+							"1401220",
+							"1401707",
+							"1402256",
+							"1403216",
+							"1403760",
+							"1404305",
+							"1409636",
+							"1410774",
+							"1410784",
+							"1412274",
+							"1412926",
+							"1414489",
+							"1417244",
+							"1419355",
+							"1420350",
+							"1420753",
+							"1426796",
+							"1428310",
+							"1429575",
+							"1430827",
+							"1430829",
+							"1430830",
+							"1433859",
+							"1434007",
+							"1434276",
+							"1435154",
+							"1435585",
+							"1435953",
+							"1437793",
+							"1439051",
+							"1439141",
+							"1440047",
+							"1440843",
+							"1443415",
+							"1447276",
+							"1447777",
+							"1447924",
+							"1449582",
+							"1450755",
+							"1451115",
+							"1451143",
+							"1452813",
+							"1455299",
+							"1460003",
+							"1461708",
+							"1461775",
+							"1463749",
+							"1464115",
+							"1465159",
+							"1465171",
+							"1465174",
+							"1465176",
+							"1465657",
+							"1467647",
+							"1470692",
+							"1471785",
+							"1472375",
+							"1474744",
+							"1475636",
+							"1476380",
+							"1481163",
+							"1481611",
+							"1482382",
+							"1482447",
+							"1484149",
+							"1484151",
+							"1484320",
+							"1484474",
+							"1484579",
+							"1485690",
+							"1486737",
+							"1487787",
+							"1491093",
+							"1491751",
+							"1494542",
+							"1497720",
+							"1498561",
+							"1498922",
+							"1501936",
+							"1502009",
+							"1512229",
+							"1515934",
+							"1516213",
+							"1518707",
+							"1524376",
+							"1527692",
+							"1528378",
+							"1538300",
+							"1538817",
+							"1540995",
+							"1541319",
+							"1541613",
+							"1544349",
+							"1544833",
+							"1546693",
+							"1546743",
+							"1547049",
+							"1547467",
+							"1548001",
+							"1548425",
+							"1548671",
+							"1552648",
+							"1552650",
+							"1552653",
+							"1552724",
+							"1553626",
+							"1553794",
+							"1554345",
+							"1556989",
+							"1561011",
+							"1562059",
+							"1562061",
+							"1562073",
+							"1563466",
+							"1565693",
+							"1566066",
+							"1566151",
+							"1566225",
+							"1569045",
+							"1570256",
+							"1571205",
+							"1571860",
+							"1572540",
+							"1573538",
+							"1574604",
+							"1577587",
+							"1578429",
+							"1579708",
+							"1585991",
+							"1588130",
+							"1588734",
+							"1588774",
+							"1591701",
+							"1601259",
+							"1605125",
+							"1609208",
+							"1609513",
+							"1612490",
+							"1612601",
+							"1614948",
+							"1619601",
+							"1619690",
+							"1624915",
+							"1626057",
+							"1628394",
+							"1628540",
+							"1631093",
+							"1631759",
+							"1633565",
+							"1643729",
+							"1647947",
+							"1659239",
+							"1660807",
+							"1666298",
+							"1668751",
+							"1669055",
+							"1669235",
+							"1669256",
+							"1675014",
+							"1675573",
+							"1676411",
+							"1676475",
+							"1679074",
+							"1680040",
+							"1687369",
+							"1687882",
+							"1689037",
+							"1689819",
+							"1691016",
+							"1691487",
+							"1691832",
+							"1693676",
+							"1713090",
+							"1714489",
+							"1719378",
+							"1722181",
+							"1723425",
+							"1724800",
+							"1725924",
+							"1726444",
+							"1730843",
+							"1732612",
+							"1733118",
+							"1733673",
+							"1733926",
+							"1736762",
+							"1737581",
+							"1737587",
+							"1738752",
+							"1741266",
+							"1745841",
+							"1746405",
+							"1746852",
+							"1749729",
+							"1756650",
+							"1756838",
+							"1757249",
+							"1757250",
+							"1758225",
+							"1762709",
+							"1764666",
+							"1766519",
+							"1768551",
+							"1769324",
+							"1769445",
+							"1769600",
+							"1771031",
+							"1772935",
+							"1774507",
+							"1777345",
+							"1779589",
+							"1782919",
+							"1784961",
+							"1789199",
+							"1789854",
+							"1790436",
+							"1795575",
+							"1798908",
+							"1803351",
+							"1816527",
+							"1817004",
+							"1817773",
+							"1817959",
+							"1820619",
+							"1824208",
+							"1825287",
+							"1827397",
+							"1838565",
+							"1853217",
+							"1856283",
+							"1860811",
+							"1860932",
+							"1863685",
+							"1864181",
+							"1869980",
+							"1870213",
+							"1886303",
+							"1894654",
+							"1899841",
+							"1913493",
+							"1915266",
+							"1921479",
+							"1921485",
+							"1923654",
+							"1933742",
+							"1933794",
+							"1934063",
+							"1934065",
+							"1937684",
+							"1939775",
+							"1941652",
+							"1943729",
+							"1948576",
+							"1959353",
+							"1965610",
+							"1966347",
+							"1987280",
+							"1987972",
+							"1989412",
+							"1994599",
+							"1996330",
+							"1999118",
+							"2022035",
+							"2027889",
+							"2030308",
+							"2040887",
+							"2041573",
+							"2043517",
+							"2044054",
+							"2045152",
+							"2045160",
+							"2045186",
+							"2045189",
+							"2045310",
+							"2045367",
+							"2045456",
+							"2045714",
+							"2045780",
+							"2045797",
+							"2046802",
+							"2046865",
+							"2046907",
+							"2048910",
+							"2049371",
+							"2056459",
+							"2061022",
+							"2064025",
+							"2081451",
+							"2095750",
+							"2096956",
+							"2100546",
+							"2102907",
+							"2109095",
+							"2109120",
+							"2113609",
+							"2115752",
+							"2124845",
+							"2131287",
+							"2140618",
+							"2142739",
+							"2143393",
+							"2160760",
+							"2162999",
+							"2164029",
+							"2177410",
+							"2177691",
+							"2212748",
+							"2218314",
+							"2221314"
+						],
+						"blocked": [
+							{
+								"bug_id": "2171964",
+								"creation_ts": "2023-02-21 02:32:53 +0000",
+								"short_desc": "ICE / segfault in process_function_and_variable_attributes() when building tokodon on ppc64le",
+								"delta_ts": "2023-08-16 07:10:03 +0000",
+								"bug_status": "NEW",
+								"priority": "unspecified",
+								"bug_severity": "unspecified",
+								"depends_on": [
+									"1071880"
+								],
+								"external_bugs": {
+									"text": "108887",
+									"name": "GNU Compiler Collection"
+								},
+								"long_desc": [
+									{
+										"isprivate": "0",
+										"commentid": "17062382",
+										"comment_count": "0",
+										"who": {
+											"text": "justin.zobel",
+											"name": "Justin Zobel"
+										},
+										"bug_when": "2023-02-21 02:32:53 +0000",
+										"thetext": "Build has failed only on ppc64le 4 times now, one build example https://koji.fedoraproject.org/koji/taskinfo?taskID=97784827\n\nUpstream has stated they will not support ppc64le.\n\nAdding ExcludeArch until this can be fixed."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "17062632",
+										"comment_count": "1",
+										"who": {
+											"text": "dan",
+											"name": "Dan Horák"
+										},
+										"bug_when": "2023-02-21 07:07:45 +0000",
+										"thetext": "This is a gcc internal error, probably gcc13 related, I will try to get the details and switch the bug to gcc."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "17062697",
+										"comment_count": "2",
+										"who": {
+											"text": "justin.zobel",
+											"name": "Justin Zobel"
+										},
+										"bug_when": "2023-02-21 07:29:45 +0000",
+										"thetext": "Thanks Dan much appreciated!"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "17062752",
+										"comment_count": "3",
+										"who": {
+											"text": "dan",
+											"name": "Dan Horák"
+										},
+										"bug_when": "2023-02-21 08:04:58 +0000",
+										"thetext": "(gdb) run\nStarting program: /usr/bin/g++ -DHAVE_KIO -DKCOREADDONS_LIB -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_DBUS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_NO_FOREACH -DQT_NO_KEYWORDS -DQT_QMLMODELS_LIB -DQT_QML_LIB -DQT_QUICKCONTROLS2_LIB -DQT_QUICK_LIB -DQT_WEBSOCKETS_LIB -DQT_WIDGETS_LIB -DQT_XML_LIB -D_GNU_SOURCE -D_LARGEFILE64_SOURCE -I/home/sharkcz/tokodon/tokodon-23.02.0/redhat-linux-build/src -I/home/sharkcz/tokodon/tokodon-23.02.0/src -I/home/sharkcz/tokodon/tokodon-23.02.0/redhat-linux-build/src/tokodon_static_autogen/include -isystem /usr/include/qt5 -isystem /usr/include/qt5/QtQuick -isystem /usr/include/qt5/QtQmlModels -isystem /usr/include/qt5/QtQml -isystem /usr/include/qt5/QtNetwork -isystem /usr/include/qt5/QtCore -isystem /usr/lib64/qt5/mkspecs/linux-g++ -isystem /usr/include/qt5/QtGui -isystem /usr/include/qt5/QtWebSockets -isystem /usr/include/qt5/QtQuickControls2 -isystem /usr/include/KF5/KI18n -isystem /usr/include/KF5 -isystem /usr/include/KF5/Kirigami2 -isystem /usr/include/KF5/KNotifications -isystem /usr/include/qt5/QtWidgets -isystem /usr/include/qt5/QtDBus -isystem /usr/include/KF5/KConfig -isystem /usr/include/KF5/KConfigCore -isystem /usr/include/KF5/KConfigGui -isystem /usr/include/qt5/QtXml -isystem /usr/include/KF5/KCoreAddons -isystem /usr/include/KF5/KIOWidgets -isystem /usr/include/KF5/KIOGui -isystem /usr/include/KF5/KIOCore -isystem /usr/include/KF5/KIO -isystem /usr/include/KF5/KService -isystem /usr/include/qt5/QtConcurrent -isystem /usr/include/KF5/KWindowSystem -isystem /usr/include/KF5/KJobWidgets -isystem /usr/include/KF5/Solid -isystem /usr/include/KF5/KCompletion -isystem /usr/include/KF5/KWidgetsAddons -isystem /usr/include/KF5/KConfigWidgets -isystem /usr/include/KF5/KCodecs -isystem /usr/include/KF5/KAuthWidgets -isystem /usr/include/KF5/KAuthCore -isystem /usr/include/KF5/KAuth -O2 -flto=auto -ffat-lto-objects -fexceptions -g -grecord-gcc-switches -pipe -Wall -Werror=format-security -Wp,-U_FORTIFY_SOURCE,-D_FORTIFY_SOURCE=3 -Wp,-D_GLIBCXX_ASSERTIONS -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 -fstack-protector-strong -specs=/usr/lib/rpm/redhat/redhat-annobin-cc1 -m64 -mcpu=power8 -mtune=power8 -fasynchronous-unwind-tables -fstack-clash-protection -fno-operator-names -fno-exceptions -Wall -Wextra -Wcast-align -Wchar-subscripts -Wformat-security -Wno-long-long -Wpointer-arith -Wundef -Wnon-virtual-dtor -Woverloaded-virtual -Werror=return-type -Werror=init-self -Wvla -Wdate-time -Wsuggest-override -Wlogical-op -DNDEBUG -std=gnu++17 -fvisibility=hidden -fvisibility-inlines-hidden -fPIC -MD -MT src/CMakeFiles/tokodon_static.dir/linkpaginatedtimelinemodel.cpp.o -MF CMakeFiles/tokodon_static.dir/linkpaginatedtimelinemodel.cpp.o.d -o CMakeFiles/tokodon_static.dir/linkpaginatedtimelinemodel.cpp.o -c /home/sharkcz/tokodon/tokodon-23.02.0/src/linkpaginatedtimelinemodel.cpp\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/lib64/libthread_db.so.1\".\n[Attaching after Thread 0x7ffff7ff34e0 (LWP 18708) vfork to child process 18710]\n[New inferior 2 (process 18710)]\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/lib64/libthread_db.so.1\".\n[Detaching vfork parent process 18708 after child exec]\n[Inferior 1 (process 18708) detached]\nprocess 18710 is executing new program: /usr/libexec/gcc/ppc64le-redhat-linux/13/cc1plus\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/lib64/libthread_db.so.1\".\n\nThread 2.1 \"cc1plus\" received signal SIGSEGV, Segmentation fault.\n[Switching to Thread 0x7ffff7ff53c0 (LWP 18710)]\nprocess_function_and_variable_attributes (first_var=0x7fffdc638a00, first=0x7fffdc539900) at ../../gcc/cgraphunit.cc:861\nDownloading 0.02 MB source file /usr/src/debug/gcc-13.0.1-0.4.fc39.ppc64le/obj-ppc64le-redhat-linux/gcc/../../gcc/cgraphunit.cc\n861\t      tree decl = node->decl;\n(gdb) cont\nContinuing.\n\nThread 2.1 \"cc1plus\" hit Breakpoint 1, 0x0000000010747e9c in internal_error (gmsgid=0x11927bf8 \"%s\") at ../../gcc/diagnostic.cc:2138\n2138\t{\n(gdb) bt\n#0  0x0000000010747e9c in internal_error (gmsgid=0x11927bf8 \"%s\") at ../../gcc/diagnostic.cc:2138\n#1  0x00000000103f7a5c in crash_signal (signo=11) at ../../gcc/toplev.cc:317\n#2  <signal handler called>\n#3  process_function_and_variable_attributes (first_var=0x7fffdc638a00, first=0x7fffdc539900) at ../../gcc/cgraphunit.cc:861\n#4  analyze_functions (first_time=first_time@entry=true) at ../../gcc/cgraphunit.cc:1181\n#5  0x00000000112bf628 in symbol_table::finalize_compilation_unit (this=0x7fffe8080000) at ../../gcc/cgraphunit.cc:2545\n#6  0x000000001125c410 in compile_file () at ../../gcc/toplev.cc:474\n#7  0x00000000111dd510 in do_compile (no_backend=<optimized out>) at ../../gcc/toplev.cc:2128\n#8  toplev::main (this=this@entry=0x7fffffffca00, argc=<optimized out>, argv=<optimized out>) at ../../gcc/toplev.cc:2282\n#9  0x00000000111dc5d0 in main (argc=<optimized out>, argv=<optimized out>) at ../../gcc/main.cc:39"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "17062753",
+										"comment_count": "4",
+										"who": {
+											"text": "dan",
+											"name": "Dan Horák"
+										},
+										"bug_when": "2023-02-21 08:05:48 +0000",
+										"thetext": "Created attachment 1945415\npreprocessed sources"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "17062834",
+										"comment_count": "5",
+										"who": {
+											"text": "dan",
+											"name": "Dan Horák"
+										},
+										"bug_when": "2023-02-21 08:22:23 +0000",
+										"thetext": "reduced g++ command line with only defines or include paths still reproducing the issue is\n\n/usr/bin/g++ -DHAVE_KIO -DKCOREADDONS_LIB -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_DBUS_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_NO_FOREACH -DQT_NO_KEYWORDS -DQT_QMLMODELS_LIB -DQT_QML_LIB -DQT_QUICKCONTROLS2_LIB -DQT_QUICK_LIB -DQT_WEBSOCKETS_LIB -DQT_WIDGETS_LIB -DQT_XML_LIB -D_GNU_SOURCE -D_LARGEFILE64_SOURCE -I/home/sharkcz/tokodon/tokodon-23.02.0/redhat-linux-build/src -I/home/sharkcz/tokodon/tokodon-23.02.0/src -I/home/sharkcz/tokodon/tokodon-23.02.0/redhat-linux-build/src/tokodon_static_autogen/include -isystem /usr/include/qt5 -isystem /usr/include/qt5/QtQuick -isystem /usr/include/qt5/QtQmlModels -isystem /usr/include/qt5/QtQml -isystem /usr/include/qt5/QtNetwork -isystem /usr/include/qt5/QtCore -isystem /usr/lib64/qt5/mkspecs/linux-g++ -isystem /usr/include/qt5/QtGui -isystem /usr/include/qt5/QtWebSockets -isystem /usr/include/qt5/QtQuickControls2 -isystem /usr/include/KF5/KI18n -isystem /usr/include/KF5 -isystem /usr/include/KF5/Kirigami2 -isystem /usr/include/KF5/KNotifications -isystem /usr/include/qt5/QtWidgets -isystem /usr/include/qt5/QtDBus -isystem /usr/include/KF5/KConfig -isystem /usr/include/KF5/KConfigCore -isystem /usr/include/KF5/KConfigGui -isystem /usr/include/qt5/QtXml -isystem /usr/include/KF5/KCoreAddons -isystem /usr/include/KF5/KIOWidgets -isystem /usr/include/KF5/KIOGui -isystem /usr/include/KF5/KIOCore -isystem /usr/include/KF5/KIO -isystem /usr/include/KF5/KService -isystem /usr/include/qt5/QtConcurrent -isystem /usr/include/KF5/KWindowSystem -isystem /usr/include/KF5/KJobWidgets -isystem /usr/include/KF5/Solid -isystem /usr/include/KF5/KCompletion -isystem /usr/include/KF5/KWidgetsAddons -isystem /usr/include/KF5/KConfigWidgets -isystem /usr/include/KF5/KCodecs -isystem /usr/include/KF5/KAuthWidgets -isystem /usr/include/KF5/KAuthCore -isystem /usr/include/KF5/KAuth -O2 -pipe -m64 -mcpu=power8 -mtune=power8 -fPIC -o CMakeFiles/tokodon_static.dir/linkpaginatedtimelinemodel.cpp.o -c /home/sharkcz/tokodon/tokodon-23.02.0/src/linkpaginatedtimelinemodel.cpp"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "17065288",
+										"comment_count": "6",
+										"who": {
+											"text": "jakub",
+											"name": "Jakub Jelinek"
+										},
+										"bug_when": "2023-02-21 21:14:20 +0000",
+										"thetext": "cvise reduced to -std=gnu++17 -O2 -mcpu=power8:\n\ntemplate <int __v> struct integral_constant {\n  static constexpr int value = __v;\n};\nusing false_type = integral_constant<false>;\ntemplate <bool, bool, typename...> struct __result_of_impl;\ntemplate <typename _Functor, typename... _ArgTypes>\nstruct __result_of_impl<false, false, _Functor, _ArgTypes...> {\n  typedef decltype(0) type;\n};\ntemplate <typename... _ArgTypes>\nstruct __invoke_result\n    : __result_of_impl<false_type::value, false_type::value, _ArgTypes...> {};\ntemplate <typename, typename _Fn, typename... _Args>\nvoid __invoke_impl(_Fn __f, _Args... __args) {\n  __f(__args...);\n}\ntemplate <typename, typename _Callable, typename... _Args>\nvoid __invoke_r(_Callable __fn, _Args... __args) {\n  using __result = __invoke_result<_Args...>;\n  using __type = typename __result::type;\n  __invoke_impl<__type>(__fn, __args...);\n}\nstruct QString {\n  QString(const char *);\n};\ntemplate <typename> class function;\ntemplate <typename _Functor> struct _Base_manager {\n  static _Functor _M_get_pointer(int) { __builtin_abort (); }\n};\ntemplate <typename, typename> class _Function_handler;\ntemplate <typename _Res, typename _Functor, typename... _ArgTypes>\nstruct _Function_handler<_Res(_ArgTypes...), _Functor> {\n  using _Base = _Base_manager<_Functor>;\n  static _Res _M_invoke(const int &__functor, _ArgTypes &&...__args) {\n    auto __trans_tmp_1 = _Base::_M_get_pointer(__functor);\n    __invoke_r<_Res>(__trans_tmp_1, __args...);\n  }\n};\ntemplate <typename _Res, typename... _ArgTypes>\nstruct function<_Res(_ArgTypes...)> {\n  template <typename _Functor>\n  using _Handler = _Function_handler<_Res(_ArgTypes...), _Functor>;\n  template <typename _Functor> function(_Functor) {\n    using _My_handler = _Handler<_Functor>;\n    _M_invoker = _My_handler::_M_invoke;\n  }\n  using _Invoker_type = _Res (*)(const int &, _ArgTypes &&...);\n  _Invoker_type _M_invoker;\n};\nstruct QRegularExpression {\n  QRegularExpression(QString);\n};\nstruct AbstractAccount {\n  void get(function<void(AbstractAccount *)>,\n           function<void(AbstractAccount *)>);\n};\nstruct AbstractTimelineModel {\n  AbstractAccount m_account;\n};\nstruct LinkPaginationTimelineModel : AbstractTimelineModel {\n  void fillTimeline();\n};\nvoid LinkPaginationTimelineModel::fillTimeline() {\n  [] {};\n  m_account.get([](AbstractAccount *) { static QRegularExpression re(\"\"); },\n                [](AbstractAccount *) {});\n}\n\nBut, strangely can't reproduce with a cross-compiler from x86_64 to powerpc64le."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "17540990",
+										"comment_count": "7",
+										"who": {
+											"text": "releng",
+											"name": "Fedora Release Engineering"
+										},
+										"bug_when": "2023-08-16 07:10:03 +0000",
+										"thetext": "This bug appears to have been reported against 'rawhide' during the Fedora Linux 39 development cycle.\nChanging version to 39."
+									}
+								]
+							},
+							{
+								"bug_id": "1929836",
+								"creation_ts": "2021-02-17 18:32:37 +0000",
+								"short_desc": "ppc64le: severe ptrace, tracing, and audit regression",
+								"delta_ts": "2022-09-05 08:10:08 +0000",
+								"bug_status": "CLOSED",
+								"resolution": "CURRENTRELEASE",
+								"bug_file_loc": "https://git.kernel.org/torvalds/c/d72500f992849d31ebae8f821a023660ddd0dcc2",
+								"keywords": "BetaBlocker",
+								"priority": "urgent",
+								"bug_severity": "urgent",
+								"depends_on": [
+									"1071880"
+								],
+								"blocked": [
+									{
+										"bug_id": "1930252",
+										"error": "NotPermitted"
+									}
+								],
+								"long_desc": [
+									{
+										"isprivate": "0",
+										"commentid": "14794276",
+										"comment_count": "0",
+										"who": {
+											"text": "ldv",
+											"name": "Dmitry V. Levin"
+										},
+										"bug_when": "2021-02-17 18:32:37 +0000",
+										"thetext": "Hello, strace upstream is speaking. :)\n\nThere seems to be a severe ppc64le kernel regression detected by strace %check (625 of 972 tests failed).  This ruins strace and blocks any strace update.\n\nFor me it looks as if the kernel function syscall_get_error started to return 0 instead of the error code.\n\nThe logs are in the latest strace build task that failed:\nhttps://koji.fedoraproject.org/koji/taskinfo?taskID=62171493\n\nThe kernel used for build there was\nLinux buildvm-ppc64le-14.iad2.fedoraproject.org 5.10.15-200.fc33.ppc64le #1 SMP Wed Feb 10 17:31:04 UTC 2021 ppc64le ppc64le ppc64le GNU/Linux\n\nFor comparison, the same version of strace passes all tests on all other rawhide architectures, as well as on Debian ppc64le (kernel 5.10.13-1).\n\nThe latest successfull strace build to rawhide was about 2 months ago:\nhttps://koji.fedoraproject.org/koji/buildinfo?buildID=1658216\n\nThe kernel used for build there was\nLinux buildvm-ppc64le-38.iad2.fedoraproject.org 5.9.11-200.fc33.ppc64le #1 SMP Tue Nov 24 18:02:53 UTC 2020 ppc64le ppc64le ppc64le GNU/Linux"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "14797189",
+										"comment_count": "1",
+										"who": {
+											"text": "esyr",
+											"name": "Eugene Syromiatnikov"
+										},
+										"bug_when": "2021-02-18 13:45:03 +0000",
+										"thetext": "Fedora's 5.10.7-200.fc33.ppc64le (on buildvm-ppc64le-19.iad2.fedoraproject.org) was broken as well, for the record."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "14868304",
+										"comment_count": "2",
+										"who": {
+											"text": "ldv",
+											"name": "Dmitry V. Levin"
+										},
+										"bug_when": "2021-03-14 00:26:35 +0000",
+										"thetext": "I'd like to reiterate: this kernel bug breaks strace badly, making it almost unusable."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "14942947",
+										"comment_count": "3",
+										"who": {
+											"text": "ldv",
+											"name": "Dmitry V. Levin"
+										},
+										"bug_when": "2021-04-07 16:25:50 +0000",
+										"thetext": "This is the reason why the latest strace release didn't get into Fedora, see\nhttps://koji.fedoraproject.org/koji/buildinfo?buildID=1711422\nhttps://koji.fedoraproject.org/koji/buildinfo?buildID=1711415\n\nUntil this bug is fixed, no strace updates in Fedora are possible."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15061049",
+										"comment_count": "4",
+										"who": {
+											"text": "ldv",
+											"name": "Dmitry V. Levin"
+										},
+										"bug_when": "2021-05-14 10:20:36 +0000",
+										"thetext": "Using the latest strace that can decode the structure returned by PTRACE_GETREGSET,\none can see that's wrong in the data returned by the kernel.\n\nLinux buildvm-ppc64le-22.iad2.fedoraproject.org 5.11.10-200.fc33.ppc64le\non exiting chdir(\"\") syscall did the following:\n\nptrace(PTRACE_GETREGSET, 702867, NT_PRSTATUS, {iov_base={gpr=[0xc, 0x7fffd8c3f250, 0x7fffa60b7000, 0xfffffffffffffffe, 0x7fffd8c3f158, 0, 0x8, 0x20, 0xfffffffe7fffffff, 0, 0, 0, 0, 0x7fffa615a390, 0, 0, 0, 0x7fffd8c3fa58, 0x7fffd8c3f308, 0x7fffd8c3f304, 0x1228f4f68, 0x1228f4fb0, 0xab98c, 0xab991, 0x7fffa61533a0, 0x1228f5180, 0x1228f51b8, 0x122910010, 0, 0xab98c, 0x7fffa5c6fff0, 0x100000], nip=0x7fffa5fb4ad4, msr=0x800000000000d033, orig_gpr3=0x1228f52e8, ctr=0, link=0, xer=0, ccr=0x44000278, softe=0x1, trap=0x3000, dar=0x7fffa5fb4aa8, dsisr=0x40000000, result=0xfffffffffffffffe, ...}, iov_len=384}) = 0\n\nAs you can see, unlike any normal ppc64le kernel, here ccr does not have 0x10000000 bit set, and gpr[3] equals to 0xfffffffffffffffe (== -2L) instead of expected 0x2 (== ENOENT).\nSo yes, this kernel has an obviously broken ptrace ABI.\n\nYou can find this and much more in the scratch build log at https://koji.fedoraproject.org/koji/taskinfo?taskID=67867999"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15061494",
+										"comment_count": "5",
+										"who": {
+											"text": "dan",
+											"name": "Dan Horák"
+										},
+										"bug_when": "2021-05-14 13:38:41 +0000",
+										"thetext": "for the record, from my F-32 system (bare-metal Power9, not a VM) with kernel-5.11.19-100.fc32.ppc64le, strace built from master branch\n\n============================================================================\nTestsuite summary for strace 5.12.0.54.05c8\n============================================================================\n# TOTAL: 1002\n# PASS:  905\n# SKIP:  97\n# XFAIL: 0\n# FAIL:  0\n# XPASS: 0\n# ERROR: 0"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15062263",
+										"comment_count": "6",
+										"who": {
+											"text": "dan",
+											"name": "Dan Horák"
+										},
+										"bug_when": "2021-05-14 18:02:11 +0000",
+										"thetext": "and I get these from a rawhide VM with kernel-5.13.0-0.rc1.20210512git88b06399c9c7.15.fc35.ppc64le\n\n============================================================================\nTestsuite summary for strace 5.12.0.54.05c8\n============================================================================\n# TOTAL: 1002\n# PASS:  232\n# SKIP:  102\n# XFAIL: 0\n# FAIL:  668\n# XPASS: 0\n# ERROR: 0\n\n\nbut in F-32 VM with kernel kernel-5.11.19-100.fc32.ppc64le everything looks good\n\n============================================================================\nTestsuite summary for strace 5.12.0.54.05c8\n============================================================================\n# TOTAL: 1002\n# PASS:  905\n# SKIP:  97\n# XFAIL: 0\n# FAIL:  0\n# XPASS: 0\n# ERROR: 0\n============================================================================\nand I get the same good result in the F-32 VM with kernel-5.12.3-300.fc34.ppc64le\n\nF-32 VM with kernel-5.13.0-0.rc1.20210512git88b06399c9c7.15.fc35.ppc64le then gives\n============================================================================\nTestsuite summary for strace 5.12.0.54.05c8\n============================================================================\n# TOTAL: 1002\n# PASS:  901\n# SKIP:  101\n# XFAIL: 0\n# FAIL:  0\n# XPASS: 0\n# ERROR: 0\n============================================================================\n\n\nIt makes me think that the failures are not related to the kernel version, but to something else in the rawhide buildroot, perhaps glibc?"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15062268",
+										"comment_count": "7",
+										"who": {
+											"text": "dan",
+											"name": "Dan Horák"
+										},
+										"bug_when": "2021-05-14 18:05:25 +0000",
+										"thetext": "but kernel-headers-5.11.19-100.fc32.ppc64le was always used for the F-32 tests (if this should make the difference, will check ...)"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15062989",
+										"comment_count": "8",
+										"who": {
+											"text": "ldv",
+											"name": "Dmitry V. Levin"
+										},
+										"bug_when": "2021-05-15 01:03:06 +0000",
+										"thetext": "(In reply to Dan Horák from comment #6)\n> It makes me think that the failures are not related to the kernel version,\n> but to something else in the rawhide buildroot, perhaps glibc?\n\nIf it's not the kernel but something else, then this something else is also capable of meddling both with struct ptrace_syscall_info returned by ptrace(PTRACE_GET_SYSCALL_INFO, pid, size, info) as described in the first comment, and with struct pt_regs returned by syscall(__NR_ptrace, PTRACE_GETREGSET, pid, NT_PRSTATUS, iov) in a very specific way described in #c4; in other words, this something is changing both ccr and gpr[3] in the kernel for all ptraced processes."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15074749",
+										"comment_count": "9",
+										"who": {
+											"text": "dan",
+											"name": "Dan Horák"
+										},
+										"bug_when": "2021-05-18 14:05:24 +0000",
+										"thetext": "after updating to glibc-2.33.9000-6.fc35 in my F-32 VM, where the tests were passing, I get now the failures\n\n============================================================================\nTestsuite summary for strace 5.12.0.54.05c8\n============================================================================\n# TOTAL: 1002\n# PASS:  232\n# SKIP:  102\n# XFAIL: 0\n# FAIL:  668\n# XPASS: 0\n# ERROR: 0\n============================================================================"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15076721",
+										"comment_count": "10",
+										"who": {
+											"text": "dan",
+											"name": "Dan Horák"
+										},
+										"bug_when": "2021-05-18 15:15:01 +0000",
+										"thetext": "let's switch to glibc for their feedback ..."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15079009",
+										"comment_count": "11",
+										"who": {
+											"text": "fweimer",
+											"name": "Florian Weimer"
+										},
+										"bug_when": "2021-05-18 20:14:57 +0000",
+										"thetext": "Is it possible to reproduce this issue with an already-built strace binary?\n\nWe added definitions of PTRACE_SYSEMU and PTRACE_SYSEMU_SINGLESTEP to <sys/ptrace.h>, maybe that causes different execution paths in strace to be taken?"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15079018",
+										"comment_count": "12",
+										"who": {
+											"text": "codonell",
+											"name": "Carlos O'Donell"
+										},
+										"bug_when": "2021-05-18 20:19:39 +0000",
+										"thetext": "(In reply to Florian Weimer from comment #11)\n> Is it possible to reproduce this issue with an already-built strace binary?\n> \n> We added definitions of PTRACE_SYSEMU and PTRACE_SYSEMU_SINGLESTEP to\n> <sys/ptrace.h>, maybe that causes different execution paths in strace to be\n> taken?\n\nWe also have the 'sc' vs. 'svc' instruction selection in the same timeframe for power?"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15079022",
+										"comment_count": "13",
+										"who": {
+											"text": "codonell",
+											"name": "Carlos O'Donell"
+										},
+										"bug_when": "2021-05-18 20:20:48 +0000",
+										"thetext": "(In reply to Carlos O'Donell from comment #12)\n> (In reply to Florian Weimer from comment #11)\n> > Is it possible to reproduce this issue with an already-built strace binary?\n> > \n> > We added definitions of PTRACE_SYSEMU and PTRACE_SYSEMU_SINGLESTEP to\n> > <sys/ptrace.h>, maybe that causes different execution paths in strace to be\n> > taken?\n> \n> We also have the 'sc' vs. 'svc' instruction selection in the same timeframe\n> for power?\n\nSorry, 'scv'."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15079274",
+										"comment_count": "14",
+										"who": {
+											"text": "codonell",
+											"name": "Carlos O'Donell"
+										},
+										"bug_when": "2021-05-18 21:16:04 +0000",
+										"thetext": "A recent scratch build failed on a POWER9 box, which would be the hardware under which glibc would switch to 'scv' for syscalls.\n\nJust two quick snippets:\n\n--- exp 2021-05-18 20:26:11.715277248 +0000\n+++ log 2021-05-18 20:26:11.715277248 +0000\n-chdir(0x7fffb053ffe0) = -1 EFAULT (Bad address)\n-chdir(0x7fffb053ffe1) = -1 EFAULT (Bad address)\n+chdir(0x7fffb053ffe0) = 18446744073709551602\n+chdir(0x7fffb053ffe1) = 18446744073709551602\nFAIL printpath-umovestr-legacy.test (exit status: 1)\nFAIL: printstrn-umoven-legacy\n\n--- exp 2021-05-18 20:26:44.524009554 +0000\n+++ log 2021-05-18 20:26:44.524009554 +0000\n@@ -1,2 +1,2 @@\n-writev(-1, [{iov_base=\"\", iov_len=0}, {iov_base=\"f\", iov_len=1}, {iov_base=\"ef\", iov_len=2}, {iov_base=\"def\", iov_len=3}, {iov_base=\"cdef\", iov_len=4}, {iov_base=\"bcdef\", iov_len=5}, {iov_base=\"abcdef\", iov_len=6}, {iov_base=\"zabcdef\", iov_len=7}, {iov_base=\"yzabcdef\", iov_len=8}, {iov_base=\"xyzabcdef\", iov_len=9}, {iov_base=\"wxyzabcdef\", iov_len=10}, {iov_base=\"vwxyzabcdef\", iov_len=11}, {iov_base=\"uvwxyzabcdef\", iov_len=12}, {iov_base=\"tuvwxyzabcdef\", iov_len=13}, {iov_base=\"stuvwxyzabcdef\", iov_len=14}, {iov_base=\"rstuvwxyzabcdef\", iov_len=15}, {iov_base=\"qrstuvwxyzabcdef\", iov_len=16}, {iov_base=\"pqrstuvwxyzabcdef\", iov_len=17}, {iov_base=\"opqrstuvwxyzabcdef\", iov_len=18}, {iov_base=\"nopqrstuvwxyzabcdef\", iov_len=19}, {iov_base=\"mnopqrstuvwxyzabcdef\", iov_len=20}, {iov_base=\"lmnopqrstuvwxyzabcdef\", iov_len=21}, {iov_base=\"klmnopqrstuvwxyzabcdef\", iov_len=22}, {iov_base=\"jklmnopqrstuvwxyzabcdef\", iov_len=23}, {iov_base=\"ijklmnopqrstuvwxyzabcdef\", iov_len=24}, {iov_base=\"hijklmnopqrstuvwxyzabcdef\", iov_len=25}, {iov_base=\"ghijklmnopqrstuvwxyzabcdef\", iov_len=26}, {iov_base=\"fghijklmnopqrstuvwxyzabcdef\", iov_len=27}, {iov_base=\"efghijklmnopqrstuvwxyzabcdef\", iov_len=28}, {iov_base=\"defghijklmnopqrstuvwxyzabcdef\", iov_len=29}, {iov_base=\"cdefghijklmnopqrstuvwxyzabcdef\", iov_len=30}, {iov_base=\"bcdefghijklmnopqrstuvwxyzabcdef\", iov_len=31}], 32) = -1 EBADF (Bad file descriptor)\n+writev(-1, [{iov_base=\"\", iov_len=0}, {iov_base=\"f\", iov_len=1}, {iov_base=\"ef\", iov_len=2}, {iov_base=\"def\", iov_len=3}, {iov_base=\"cdef\", iov_len=4}, {iov_base=\"bcdef\", iov_len=5}, {iov_base=\"abcdef\", iov_len=6}, {iov_base=\"zabcdef\", iov_len=7}, {iov_base=\"yzabcdef\", iov_len=8}, {iov_base=\"xyzabcdef\", iov_len=9}, {iov_base=\"wxyzabcdef\", iov_len=10}, {iov_base=\"vwxyzabcdef\", iov_len=11}, {iov_base=\"uvwxyzabcdef\", iov_len=12}, {iov_base=\"tuvwxyzabcdef\", iov_len=13}, {iov_base=\"stuvwxyzabcdef\", iov_len=14}, {iov_base=\"rstuvwxyzabcdef\", iov_len=15}, {iov_base=\"qrstuvwxyzabcdef\", iov_len=16}, {iov_base=\"pqrstuvwxyzabcdef\", iov_len=17}, {iov_base=\"opqrstuvwxyzabcdef\", iov_len=18}, {iov_base=\"nopqrstuvwxyzabcdef\", iov_len=19}, {iov_base=\"mnopqrstuvwxyzabcdef\", iov_len=20}, {iov_base=\"lmnopqrstuvwxyzabcdef\", iov_len=21}, {iov_base=\"klmnopqrstuvwxyzabcdef\", iov_len=22}, {iov_base=\"jklmnopqrstuvwxyzabcdef\", iov_len=23}, {iov_base=\"ijklmnopqrstuvwxyzabcdef\", iov_len=24}, {iov_base=\"hijklmnopqrstuvwxyzabcdef\", iov_len=25}, {iov_base=\"ghijklmnopqrstuvwxyzabcdef\", iov_len=26}, {iov_base=\"fghijklmnopqrstuvwxyzabcdef\", iov_len=27}, {iov_base=\"efghijklmnopqrstuvwxyzabcdef\", iov_len=28}, {iov_base=\"defghijklmnopqrstuvwxyzabcdef\", iov_len=29}, {iov_base=\"cdefghijklmnopqrstuvwxyzabcdef\", iov_len=30}, {iov_base=\"bcdefghijklmnopqrstuvwxyzabcdef\", iov_len=31}], 32) = 18446744073709551607\nFAIL umovestr_cached.test (exit status: 1)\n\nThe last successful strace build is with glibc-2.32.9000-20.fc34.ppc64le, which is ~4 builds before 'scv' is introduced.\n\nAll builds after 'scv' is introduced in glibc-2.32.9000-24 (2021-01-08) appear to fail.\n\nI don't see any 'scv' enablement in strace for ppc64le."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15079276",
+										"comment_count": "15",
+										"who": {
+											"text": "tulioqm",
+											"name": "Tulio Magno Quites Machado Filho"
+										},
+										"bug_when": "2021-05-18 21:18:21 +0000",
+										"thetext": "(In reply to Carlos O'Donell from comment #14)\n> I don't see any 'scv' enablement in strace for ppc64le.\n\nI agree with you. strace upstream is missing support for scv.\ne.g. in this function https://github.com/strace/strace/blob/master/src/linux/powerpc/get_error.c\nWe can't trust on the value of CR0 anymore.  An error is returned when r3 is negative."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15079396",
+										"comment_count": "16",
+										"who": {
+											"text": "ldv",
+											"name": "Dmitry V. Levin"
+										},
+										"bug_when": "2021-05-18 22:40:03 +0000",
+										"thetext": "(In reply to Tulio Magno Quites Machado Filho from comment #15)\n> (In reply to Carlos O'Donell from comment #14)\n> > I don't see any 'scv' enablement in strace for ppc64le.\n> \n> I agree with you. strace upstream is missing support for scv.\n> e.g. in this function\n> https://github.com/strace/strace/blob/master/src/linux/powerpc/get_error.c\n> We can't trust on the value of CR0 anymore.  An error is returned when r3 is\n> negative.\n\nDoes this mean that the kernel function syscall_get_error and all its users including PTRACE_GET_SYSCALL_INFO API is broken when scv is used?"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15079417",
+										"comment_count": "17",
+										"who": {
+											"text": "ldv",
+											"name": "Dmitry V. Levin"
+										},
+										"bug_when": "2021-05-18 22:56:59 +0000",
+										"thetext": "(In reply to Dmitry V. Levin from comment #16)\n> (In reply to Tulio Magno Quites Machado Filho from comment #15)\n> > (In reply to Carlos O'Donell from comment #14)\n> > > I don't see any 'scv' enablement in strace for ppc64le.\n> > \n> > I agree with you. strace upstream is missing support for scv.\n> > e.g. in this function\n> > https://github.com/strace/strace/blob/master/src/linux/powerpc/get_error.c\n> > We can't trust on the value of CR0 anymore.  An error is returned when r3 is\n> > negative.\n> \n> Does this mean that the kernel function syscall_get_error and all its users\n> including PTRACE_GET_SYSCALL_INFO API are broken when scv is used?\n\nLooks like the answer is yes, the kernel commit v5.9-rc1~100^2~164 that introduced scv support was incomplete, all users of ccr in arch/powerpc/include/asm/ptrace.h and arch/powerpc/include/asm/syscall.h are broken when scv is used.\n\nSo while the idea of changing the error handling convention is questionable,\nthe bug is on the kernel side that failed to implement the new error handling convention."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15079459",
+										"comment_count": "18",
+										"who": {
+											"text": "ldv",
+											"name": "Dmitry V. Levin"
+										},
+										"bug_when": "2021-05-18 23:32:22 +0000",
+										"thetext": "(In reply to Tulio Magno Quites Machado Filho from comment #15)\n> (In reply to Carlos O'Donell from comment #14)\n> > I don't see any 'scv' enablement in strace for ppc64le.\n> \n> I agree with you. strace upstream is missing support for scv.\n> e.g. in this function\n> https://github.com/strace/strace/blob/master/src/linux/powerpc/get_error.c\n\nPlease note that this file is not used when PTRACE_GET_SYSCALL_INFO is working properly,\nthere is a runtime test for this, see\n\n$ strace -d -enone / 2>&1 |grep PTRACE_GET_SYSCALL_INFO\n\nHowever, there is going to be an issue with src/linux/powerpc/set_error.c and its users, e.g. syscall tampering.\n\n> We can't trust on the value of CR0 anymore.  An error is returned when r3 is\n> negative.\n\nI hope somebody who knows scv semantics would contribute missing parts of scv support to strace and the kernel before strace is kicked out from Fedora due to ftbfs."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15084949",
+										"comment_count": "19",
+										"who": {
+											"text": "ldv",
+											"name": "Dmitry V. Levin"
+										},
+										"bug_when": "2021-05-20 03:47:43 +0000",
+										"thetext": "There was a short discussion in linux-api mailing list that identified two bugs:\n1. incomplete scv abi support in the kernel that breaks users of asm/syscall.h and asm/ptrace.h, these users include ptrace, tracing, and audit subsystems; detected by hundereds of tests from the strace test suite, proposed patch can be found at https://lore.kernel.org/linux-api/1621385544.nttlk5qugb.astroid@bobo.none/ ;\n2. a glibc bug detected by signal test from the strace test suite, proposed patch can be found at https://lore.kernel.org/linux-api/1621400263.gf0mbqhkrf.astroid@bobo.none/ .\n\nFeel free to split this bug report into two if necessary."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15088583",
+										"comment_count": "20",
+										"who": {
+											"text": "ldv",
+											"name": "Dmitry V. Levin"
+										},
+										"bug_when": "2021-05-20 23:06:30 +0000",
+										"thetext": "Since the glibc bug is now tracked by #1962971, switching this bug back to the kernel component.\n\nMeanwhile, Nicholas Piggin submitted a patch that's likely to be the final, see\nhttps://lore.kernel.org/linuxppc-dev/20210520111931.2597127-2-npiggin@gmail.com/\n\nI'd like to remind that this bug was found by strace test suite and it blocks strace updates in Fedora.\n\nI hope the fix will be applied before strace is kicked out from Fedora due to ftbfs which is 19 weeks already."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15093123",
+										"comment_count": "21",
+										"who": {
+											"text": "ldv",
+											"name": "Dmitry V. Levin"
+										},
+										"bug_when": "2021-05-23 17:43:31 +0000",
+										"thetext": "(In reply to Dmitry V. Levin from comment #20)\n> Meanwhile, Nicholas Piggin submitted a patch that's likely to be the final,\n> see\n> https://lore.kernel.org/linuxppc-dev/20210520111931.2597127-2-npiggin@gmail.\n> com/\n\nThis patch has been merged upstream, see\nhttps://git.kernel.org/torvalds/c/d72500f992849d31ebae8f821a023660ddd0dcc2"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15095587",
+										"comment_count": "22",
+										"who": {
+											"text": "jforbes",
+											"name": "Justin M. Forbes"
+										},
+										"bug_when": "2021-05-24 14:19:12 +0000",
+										"thetext": "That should be in the 5.13-rc3 build today for rawhide. I have also cherry picked it for 5.12, so it should land in stable fedora with 5.12.7 and newer."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15185392",
+										"comment_count": "23",
+										"who": {
+											"text": "dan",
+											"name": "Dan Horák"
+										},
+										"bug_when": "2021-06-14 15:35:34 +0000",
+										"thetext": "Dmitry, is there still something blocking you from updating strace? I believe we already have all the kernel/glibc bits included for F-34+."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15195017",
+										"comment_count": "24",
+										"who": {
+											"text": "ldv",
+											"name": "Dmitry V. Levin"
+										},
+										"bug_when": "2021-06-16 12:06:57 +0000",
+										"thetext": "Everything should have been fixed now, but I cannot tell for sure because something else is broken: a scratch build of strace HEAD failed with the following diagnostics: BuildrootError: could not init mock buildroot, mock exited with status 30; see root.log for more information\n\nThe corresponding root.log contains the following diagnostics:\nDEBUG util.py:444:  Error: \nDEBUG util.py:444:   Problem: package util-linux-2.37-2.fc35.x86_64 requires util-linux-core = 2.37-2.fc35, but none of the providers can be installed\nDEBUG util.py:444:    - conflicting requests\nDEBUG util.py:444:    - nothing provides libpcre2-posix.so.2()(64bit) needed by util-linux-core-2.37-2.fc35.x86_64\nDEBUG util.py:446:  (try to add '--skip-broken' to skip uninstallable packages)\nDEBUG util.py:598:  Child return code was: 1\n\nThis looks as if all builds to fc35 are currently broken.\nFor more details see the scratch build task: https://koji.fedoraproject.org/koji/taskinfo?taskID=70224999"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15195062",
+										"comment_count": "25",
+										"who": {
+											"text": "dan",
+											"name": "Dan Horák"
+										},
+										"bug_when": "2021-06-16 12:17:33 +0000",
+										"thetext": "The buildroot should be OK again, there was a pcre2 update with unexpected consequences, but it has been untagged."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15195850",
+										"comment_count": "26",
+										"who": {
+											"text": "dan",
+											"name": "Dan Horák"
+										},
+										"bug_when": "2021-06-16 14:59:25 +0000",
+										"thetext": "for the record, my local F-34 rebuild of strace HEAD with kernel-5.12.10-300.fc34.ppc64le and glibc-2.33-16.fc34.ppc64le was successful"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15197009",
+										"comment_count": "27",
+										"who": {
+											"text": "ldv",
+											"name": "Dmitry V. Levin"
+										},
+										"bug_when": "2021-06-16 23:19:42 +0000",
+										"thetext": "(In reply to Dan Horák from comment #26)\n> for the record, my local F-34 rebuild of strace HEAD with\n> kernel-5.12.10-300.fc34.ppc64le and glibc-2.33-16.fc34.ppc64le was successful\n\nMy scratch build to fc34 was successful, too:\nhttps://koji.fedoraproject.org/koji/taskinfo?taskID=70227524"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "16610110",
+										"comment_count": "28",
+										"who": {
+											"text": "mcermak",
+											"name": "Martin Cermak"
+										},
+										"bug_when": "2022-09-05 08:05:57 +0000",
+										"thetext": "Maybe this one could be flipped to MODIFIED or further?  Thanks!"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "16610124",
+										"comment_count": "29",
+										"who": {
+											"text": "dan",
+											"name": "Dan Horák"
+										},
+										"bug_when": "2022-09-05 08:10:08 +0000",
+										"thetext": "It was fixed long time ago, closing."
+									}
+								]
+							},
+							{
+								"bug_id": "1962971",
+								"creation_ts": "2021-05-20 22:54:06 +0000",
+								"short_desc": "glibc: ppc64le: scv ABI error handling fails to check IS_ERR_VALUE",
+								"delta_ts": "2021-07-06 13:32:49 +0000",
+								"bug_status": "CLOSED",
+								"resolution": "ERRATA",
+								"keywords": "BetaBlocker",
+								"priority": "unspecified",
+								"bug_severity": "urgent",
+								"depends_on": [
+									"1071880"
+								],
+								"blocked": [
+									{
+										"bug_id": "1930252",
+										"error": "NotPermitted"
+									},
+									{
+										"bug_id": "1963901",
+										"creation_ts": "2021-05-24 11:10:27 +0000",
+										"short_desc": "RHEL9 - ppc64le: glibc fails to check IS_ERR_VALUE when using scv",
+										"delta_ts": "2023-07-18 14:29:19 +0000",
+										"bug_status": "CLOSED",
+										"resolution": "CURRENTRELEASE",
+										"keywords": "Bugfix, Patch, Triaged",
+										"priority": "unspecified",
+										"bug_severity": "high",
+										"depends_on": [
+											"1962971"
+										],
+										"blocked": [
+											{
+												"bug_id": "1875375",
+												"error": "NotPermitted"
+											}
+										],
+										"external_bugs": {
+											"text": "27892",
+											"name": "Sourceware"
+										},
+										"long_desc": [
+											{
+												"isprivate": "0",
+												"commentid": "15094789",
+												"comment_count": "0",
+												"who": {
+													"text": "bugproxy",
+													"name": "IBM Bug Proxy"
+												},
+												"bug_when": "2021-05-24 11:10:27 +0000"
+											},
+											{
+												"isprivate": "0",
+												"commentid": "15094790",
+												"comment_count": "1",
+												"who": {
+													"text": "bugproxy",
+													"name": "IBM Bug Proxy"
+												},
+												"bug_when": "2021-05-24 11:10:35 +0000",
+												"thetext": "== Comment: #0 - Tulio Magno Quites Machado Filho <tulioqm@br.ibm.com> - 2021-05-21 16:11:35 ==\n---Problem Description---\nglibc fails to check IS_ERR_VALUE when using scv.\n\nThis bug has been reported upstream as: https://sourceware.org/bugzilla/show_bug.cgi?id=27892\n\nIt has also been reported for Fedora 35: https://bugzilla.redhat.com/show_bug.cgi?id=1962971\n \nContact Information = Tulio Magno Quites Machado Filho/tulioqm@br.ibm.com \n \n---Additional Hardware Info---\nA POWER9 or POWER10 server with support for scv is required to reproduce the error.\n\n\n---Steps to Reproduce---\n 1. Build strace and its tests.\n 2. Run test tests/signal\n \nUserspace rpm: glibc \n \nThe userspace tool has the following bit modes: 64-bit"
+											},
+											{
+												"isprivate": "0",
+												"commentid": "15103462",
+												"comment_count": "6",
+												"who": {
+													"text": "fweimer",
+													"name": "Florian Weimer"
+												},
+												"bug_when": "2021-05-25 17:37:12 +0000",
+												"thetext": "Merge request: https://gitlab.com/redhat/centos-stream/rpms/glibc/-/merge_requests/11"
+											},
+											{
+												"isprivate": "0",
+												"commentid": "15103633",
+												"comment_count": "7",
+												"who": {
+													"text": "bugproxy",
+													"name": "IBM Bug Proxy"
+												},
+												"bug_when": "2021-05-25 17:47:07 +0000",
+												"thetext": "------- Comment From tulioqm@br.ibm.com 2021-05-24 10:12 EDT-------\n> May we make this bug report public? Thanks.\n\nYes, but I don't know how to do this.\nCould you help me, please?"
+											}
+										]
+									}
+								],
+								"external_bugs": {
+									"text": "27892",
+									"name": "Sourceware"
+								},
+								"long_desc": [
+									{
+										"isprivate": "0",
+										"commentid": "15088572",
+										"comment_count": "0",
+										"who": {
+											"text": "ldv",
+											"name": "Dmitry V. Levin"
+										},
+										"bug_when": "2021-05-20 22:54:06 +0000",
+										"thetext": "+++ This bug was initially created as a clone of Bug #1929836 +++\n\nThe scv ABI introduced by glibc-2.32.9000-24 at 2021-01-08 has the following bug: RET_SCV macro (added by upstream commit glibc-2.33~117) treats any negative value returned by syscall via scv ABI as an error, but this is not correct.\n\nProposed fix was posted by Nicholas Piggin at\nhttps://sourceware.org/pipermail/libc-alpha/2021-May/126534.html\n\nThis bug was found by strace test suite and it blocks strace updates in Fedora.\n\nI hope the fix will be applied before strace is kicked out from Fedora due to ftbfs which is 19 weeks already."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15138481",
+										"comment_count": "1",
+										"who": {
+											"text": "updates",
+											"name": "Fedora Update System"
+										},
+										"bug_when": "2021-06-01 13:46:20 +0000",
+										"thetext": "FEDORA-2021-abbb0d8a88 has been submitted as an update to Fedora 34. https://bodhi.fedoraproject.org/updates/FEDORA-2021-abbb0d8a88"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15138487",
+										"comment_count": "2",
+										"who": {
+											"text": "codonell",
+											"name": "Carlos O'Donell"
+										},
+										"bug_when": "2021-06-01 13:47:36 +0000",
+										"thetext": "This fix is currently pending the Fedora Rawhide sync with the upstream development branch.\n\nThe fix is going into Fedora 34 with the next errata going through bodhi."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15140578",
+										"comment_count": "3",
+										"who": {
+											"text": "updates",
+											"name": "Fedora Update System"
+										},
+										"bug_when": "2021-06-02 01:41:09 +0000",
+										"thetext": "FEDORA-2021-abbb0d8a88 has been pushed to the Fedora 34 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2021-abbb0d8a88`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2021-abbb0d8a88\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15144856",
+										"comment_count": "4",
+										"who": {
+											"text": "updates",
+											"name": "Fedora Update System"
+										},
+										"bug_when": "2021-06-03 01:01:07 +0000",
+										"thetext": "FEDORA-2021-abbb0d8a88 has been pushed to the Fedora 34 stable repository.\nIf problem still persists, please make note of it in this bug report."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "15194139",
+										"comment_count": "5",
+										"who": {
+											"text": "updates",
+											"name": "Fedora Update System"
+										},
+										"bug_when": "2021-06-16 08:27:59 +0000",
+										"thetext": "FEDORA-2021-9ce0f65a09 has been pushed to the Fedora 35 stable repository.\nIf problem still persists, please make note of it in this bug report."
+									}
+								]
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "6873212",
+								"comment_count": "0",
+								"who": {
+									"text": "karsten",
+									"name": "Karsten Hopp"
+								},
+								"bug_when": "2014-03-03 11:41:52 +0000",
+								"thetext": "Description of problem:\nThis is a tracker for bugzillas and patches related to the PowerPC (ppc, ppc64) architectures.\n\nppc64le has its own tracker: bug 1051573"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10293511",
+								"comment_count": "1",
+								"who": {
+									"text": "dan",
+									"name": "Dan Horák"
+								},
+								"bug_when": "2017-03-31 08:51:19 +0000",
+								"thetext": "*** Bug 1051573 has been marked as a duplicate of this bug. ***"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10293516",
+								"comment_count": "2",
+								"who": {
+									"text": "dan",
+									"name": "Dan Horák"
+								},
+								"bug_when": "2017-03-31 08:52:39 +0000",
+								"thetext": "add open bugs from the ppc64le tracker"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "13402189",
+								"comment_count": "3",
+								"who": {
+									"text": "bcotton",
+									"name": "Ben Cotton"
+								},
+								"bug_when": "2019-11-27 14:16:33 +0000",
+								"thetext": "Fedora 29 changed to end-of-life (EOL) status on 2019-11-26. Fedora 29 is\nno longer maintained, which means that it will not receive any further\nsecurity or bug fix updates. As a result we are closing this bug.\n\nIf you can reproduce this bug against a currently maintained version of\nFedora please feel free to reopen this bug against that version. If you\nare unable to reopen this bug, please file a new report against the\ncurrent release. If you experience problems, please add a comment to this\nbug.\n\nThank you for reporting this bug and we are sorry it could not be fixed."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "13403192",
+								"comment_count": "4",
+								"who": {
+									"text": "bcotton",
+									"name": "Ben Cotton"
+								},
+								"bug_when": "2019-11-27 16:41:04 +0000",
+								"thetext": "This bug was accidentally closed due to a query error. Reopening."
+							}
+						]
+					},
+					{
+						"bug_id": "1940338",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "11560045",
+						"comment_count": "0",
+						"who": {
+							"text": "mklight",
+							"name": "Matt K Light"
+						},
+						"bug_when": "2018-05-03 16:08:48 +0000",
+						"thetext": "User-Agent:       Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.139 Safari/537.36\nBuild Identifier: \n\nCompiling OpenAFS on Fedora27 ppc64 with 4.16 Linux kernel fails due to missing file module.lds\nCompile had worked with 4.15 kernel\nThis bug is similar to https://bugzilla.redhat.com/show_bug.cgi?id=1531182\n\nHere is the kernel change:\n# diff -up /lib/modules/4.15.17-300.fc27.ppc64/build/arch/powerpc/Makefile /lib/modules/4.16.5-200.fc27.ppc64/build/arch/powerpc/Makefile \n--- /lib/modules/4.15.17-300.fc27.ppc64/build/arch/powerpc/Makefile\t2018-03-15 12:59:04.000000000 -0500\n+++ /lib/modules/4.16.5-200.fc27.ppc64/build/arch/powerpc/Makefile\t2018-04-19 15:26:32.000000000 -0500\n@@ -63,6 +63,7 @@ UTS_MACHINE := $(subst $(space),,$(machi\n ifdef CONFIG_PPC32\n KBUILD_LDFLAGS_MODULE += arch/powerpc/lib/crtsavres.o\n else\n+KBUILD_LDFLAGS_MODULE += -T $(srctree)/arch/powerpc/kernel/module.lds\n ifeq ($(call ld-ifversion, -ge, 225000000, y),y)\n # Have the linker provide sfpr if possible.\n # There is a corresponding test in arch/powerpc/lib/Makefile\n\nkernel-devel package does not seem to contain arch/powerpc/kernel/module.lds\nCopying module.lds from github allowed module compile to complete.\n\nReproducible: Always\n\nSteps to Reproduce:\n1.Install openafs pacakages after building from SRPMS on ppc64 system\n2.dkms build openafs/1.6.22.2-1.fc27 -k 4.16.5-200.fc27.ppc64/ppc64\n3.grep -B5 Error /var/lib/dkms/openafs/1.6.22.2-1.fc27/build/config.log\nActual Results:  \n  ld -EB -m elf64ppc -r  -T ./scripts/module-common.lds -T ./arch/powerpc/kernel/module.lds --save-restore-funcs --build-id  -o /var/lib/dkms/openafs/1.6.22.2-1.fc27/build/conftest.dir/conftest.ko /var/lib/dkms/openafs/1.6.22.2-1.fc27/build/conftest.dir/conftest.o /var/lib/dkms/openafs/1.6.22.2-1.fc27/build/conftest.dir/conftest.mod.o ;  make -f ./arch/powerpc/Makefile.postlink /var/lib/dkms/openafs/1.6.22.2-1.fc27/build/conftest.dir/conftest.ko\nmake: Leaving directory '/usr/src/kernels/4.16.5-200.fc27.ppc64'\nld: cannot open linker script file ./arch/powerpc/kernel/module.lds: No such file or directory\nmake[1]: *** [scripts/Makefile.modpost:129: /var/lib/dkms/openafs/1.6.22.2-1.fc27/build/conftest.dir/conftest.ko] Error 1\nmake: *** [Makefile:1569: modules] Error 2\n\n\nExpected Results:  \ndkms build should have finished successfully"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11560110",
+						"comment_count": "1",
+						"who": {
+							"text": "dan",
+							"name": "Dan Horák"
+						},
+						"bug_when": "2018-05-03 16:21:40 +0000",
+						"thetext": "Fix similar to https://src.fedoraproject.org/rpms/kernel/c/23e036f36c5a1535bcb4eaa5510c108195c9d8da?branch=master is needed. Maybe a generic solution would be better as arch/*/kernel/module.lds exists for arm64, arm, m68k, powerpc and riscv in the mainline kernel tree."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11564864",
+						"comment_count": "2",
+						"who": {
+							"text": "labbott",
+							"name": "Laura Abbott"
+						},
+						"bug_when": "2018-05-04 20:21:51 +0000",
+						"thetext": "Fix added, should be picked up in the next stable release sometime next week."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11587081",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-11 14:05:41 +0000",
+						"thetext": "kernel-4.16.8-300.fc28 has been submitted as an update to Fedora 28. https://bodhi.fedoraproject.org/updates/FEDORA-2018-ac3b4c7605"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11589663",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-12 19:35:35 +0000",
+						"thetext": "kernel-4.16.8-300.fc28 has been pushed to the Fedora 28 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2018-ac3b4c7605"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11595139",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-05-14 17:55:32 +0000",
+						"thetext": "kernel-4.16.8-300.fc28 has been pushed to the Fedora 28 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "kernel-4.16.8-300.fc28",
+			"release_id": 21,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "kernel",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "kernel-debuginfo-common-aarch64",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "kernel-core",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "kernel-cross-headers",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "kernel-modules-extra",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "aarch64"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "kernel-lpae-debuginfo",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-cross-headers",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-modules-extra",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-core",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-devel",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-modules",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-debuginfo-common-armv7hl",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-modules-extra",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "kernel-lpae-core",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "kernel",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-cross-headers",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debuginfo-common-i686",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-core",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-devel",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-modules",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-modules-extra",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debug-debuginfo",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-core",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-modules-extra",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "i686"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "i686"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "kernel-core",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "kernel",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "kernel-bootwrapper",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "kernel-cross-headers",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "kernel-debuginfo-common-ppc64",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64"
+					},
+					{
+						"name": "kernel-modules-extra",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "kernel-modules-extra",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "kernel-core",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "kernel-debuginfo-common-ppc64le",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "kernel",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "kernel-cross-headers",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "kernel-bootwrapper",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "kernel",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "kernel-cross-headers",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "kernel-debuginfo-common-s390x",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "kernel-core",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "kernel-modules-extra",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "s390x"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "kernel",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "kernel",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-headers",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-cross-headers",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debuginfo-common-x86_64",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-core",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-devel",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-modules",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-modules-extra",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debug-debuginfo",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-core",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-devel",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-modules",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-modules-extra",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "x86_64"
+					},
+					{
+						"name": "kernel-debuginfo",
+						"version": "4.16.8",
+						"release": "300.fc28",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 782715,
+			"text": "This update has been submitted for testing by jcline. ",
+			"timestamp": "2018-05-11 14:05:02",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 782742,
+			"karma": 1,
+			"karma_critpath": 1,
+			"timestamp": "2018-05-11 17:09:36",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/9146833f1d04abb7ceea03e318fd83052bc402efd32ddaf6037140117725f540?s=24&d=retro",
+				"email": "l.wandrebeck@quelquesmots.fr",
+				"id": 1176,
+				"name": "low",
+				"openid": "low.id.fedoraproject.org"
+			},
+			"user_id": 1176
+		},
+		{
+			"id": 782799,
+			"karma": 1,
+			"karma_critpath": 1,
+			"text": "Works fine for https://bugzilla.redhat.com/show_bug.cgi?id=1566258 . Kernel regression PASS for default and performance test suite.",
+			"timestamp": "2018-05-11 18:19:01",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/a0ac6a4d31a91d32e72ab7a97aaad39905f16854c9b1ffac88499d37b02e3282?s=24&d=retro",
+				"email": "nberrehouc@free.fr",
+				"groups": [
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "signed_fpca"
+					}
+				],
+				"id": 3867,
+				"name": "nicosss",
+				"openid": "nicosss.id.fedoraproject.org"
+			},
+			"user_id": 3867
+		},
+		{
+			"id": 782898,
+			"karma": 1,
+			"karma_critpath": 1,
+			"text": "Works for me.. Regression tests pass OK.  \nx86_64 work station, Plasma DE, X-server, nVidia card GTX 650 (GK107) /nouveau",
+			"timestamp": "2018-05-11 21:12:37",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/88829acfa2e62e9a39447ed1f4c01514a2b456f981d16c8621513903951a3687?s=24&d=retro",
+				"email": "colin.thomson@g6avk.co.uk",
+				"groups": [
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "signed_fpca"
+					}
+				],
+				"id": 449,
+				"name": "g6avk",
+				"openid": "g6avk.id.fedoraproject.org"
+			},
+			"user_id": 449
+		},
+		{
+			"id": 783270,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2018-05-12 19:36:54",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 783407,
+			"karma": 1,
+			"karma_critpath": 1,
+			"text": "No regressions noted on x86_64.",
+			"timestamp": "2018-05-12 22:46:27",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/e62cb974458dc33fcf2225462b8765e0aadcbbd698560c8f8dad6c3e23d5e47e?s=24&d=retro",
+				"email": "dhgutteridge@hotmail.com",
+				"groups": [
+					{}
+				],
+				"id": 194,
+				"name": "dhgutteridge",
+				"openid": "dhgutteridge.id.fedoraproject.org"
+			},
+			"user_id": 194
+		},
+		{
+			"id": 783415,
+			"karma": 1,
+			"karma_critpath": 1,
+			"timestamp": "2018-05-13 00:27:15",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/8364563f7a3e319a0f7ddf27dbe9945f8351d415cc7ae99cd3275291defec2b0?s=24&d=retro",
+				"email": "eugenemah@gmail.com",
+				"groups": [
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedora-hams"
+					}
+				],
+				"id": 2935,
+				"name": "imabug",
+				"openid": "imabug.id.fedoraproject.org"
+			},
+			"user_id": 2935
+		},
+		{
+			"id": 783419,
+			"karma": 1,
+			"karma_critpath": 1,
+			"text": "wfm on i7-5820K. no regressions noted. out of tree kernel module is able to build on x86_64.",
+			"timestamp": "2018-05-13 02:03:53",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/d7c3abfa40c4dab1bd2aa752c939a0807d47f83deaae077c0963f00f840d1188?s=24&d=retro",
+				"email": "masami256@gmail.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "qa"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 200,
+				"name": "masami",
+				"openid": "masami.id.fedoraproject.org"
+			},
+			"user_id": 200
+		},
+		{
+			"id": 783420,
+			"karma": 1,
+			"karma_critpath": 1,
+			"text": "wfm on i7-5820K. no regressions noted. out of tree kernel module is able to build on x86_64.",
+			"timestamp": "2018-05-13 02:05:32",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/d7c3abfa40c4dab1bd2aa752c939a0807d47f83deaae077c0963f00f840d1188?s=24&d=retro",
+				"email": "masami256@gmail.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "qa"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 200,
+				"name": "masami",
+				"openid": "masami.id.fedoraproject.org"
+			},
+			"user_id": 200
+		},
+		{
+			"id": 783519,
+			"karma": 1,
+			"text": "Works on T450s, XS35GTv2 and a VM.",
+			"timestamp": "2018-05-13 07:36:52",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/1a8afd83231ef5ba905344806ba95b39f2abd77b399b0ee217ec3e6fa30a4825?s=24&d=retro",
+				"email": "bojan@rexursive.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 198,
+				"name": "bojan",
+				"openid": "bojan.id.fedoraproject.org"
+			},
+			"user_id": 198
+		},
+		{
+			"id": 783535,
+			"karma": 1,
+			"text": "lgtm, pass default test",
+			"timestamp": "2018-05-13 09:44:47",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/ad67532facce28e75b060d60c43a6d66c4cc5d040f5ad8d8c8ed3332ed60c2e4?s=24&d=retro",
+				"email": "louzaoh@gmail.com",
+				"groups": [
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedora-join"
+					},
+					{
+						"name": "ask-fedora"
+					}
+				],
+				"id": 2203,
+				"name": "hhlp",
+				"openid": "hhlp.id.fedoraproject.org"
+			},
+			"user_id": 2203
+		},
+		{
+			"id": 783555,
+			"karma": 1,
+			"text": "Works great on Lenovo T480 with dGPU (MX150)!  LGTM!  =)",
+			"timestamp": "2018-05-13 10:45:37",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/307632fc7188138f052f244345e779451863879298f2e6d73023011a05b1f1f6?s=24&d=retro",
+				"email": "besser82.fpo@gmail.com",
+				"groups": [
+					{
+						"name": "proventesters"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "designteam"
+					},
+					{
+						"name": "shogun-ca"
+					},
+					{
+						"name": "alt-gtk-de-sig"
+					}
+				],
+				"id": 206,
+				"name": "besser82",
+				"openid": "besser82.id.fedoraproject.org"
+			},
+			"user_id": 206
+		},
+		{
+			"id": 783558,
+			"karma": 1,
+			"text": "works for me",
+			"timestamp": "2018-05-13 10:48:40",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/054959f4db5d1ad8f22cae1ba73e26ebfd3edd6690c21cc7ee00608f294ff22a?s=24&d=retro",
+				"email": "cserpentis@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 739,
+				"name": "cserpentis",
+				"openid": "cserpentis.id.fedoraproject.org"
+			},
+			"user_id": 739
+		},
+		{
+			"id": 783743,
+			"text": "works for me - no regression noted.",
+			"timestamp": "2018-05-13 20:05:34",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/6c0d16c5473deff6262fc420fd45e5902ddee7a7f3ea97bc9c556569ebab9e9e?s=24&d=retro",
+				"email": "florian.heiser@posteo.de",
+				"groups": [
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "l10n"
+					},
+					{
+						"name": "cvsl10n"
+					},
+					{
+						"name": "docs"
+					},
+					{
+						"name": "ask-fedora"
+					},
+					{
+						"name": "websites-apps-cms"
+					}
+				],
+				"id": 2706,
+				"name": "augenauf",
+				"openid": "augenauf.id.fedoraproject.org"
+			},
+			"user_id": 2706
+		},
+		{
+			"id": 783872,
+			"karma_critpath": 1,
+			"text": "\n\nkarma: +1",
+			"timestamp": "2018-05-14 02:21:46",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/ffa4b7625be5eced4d6d3ea49cd8c8f60d0c6bd502ed5eb97e52e63f15583009?s=24&d=retro",
+				"id": 207,
+				"name": "anonymous",
+				"openid": "anonymous.id.fedoraproject.org"
+			},
+			"user_id": 207
+		},
+		{
+			"id": 783996,
+			"karma": 1,
+			"karma_critpath": 1,
+			"text": "works well",
+			"timestamp": "2018-05-14 06:26:49",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/0d018dea092216ddc83efb41a8ea175a99d0a7c66802809417ea698391819a83?s=24&d=retro",
+				"email": "m-teuber@gmx.de",
+				"groups": [
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "signed_fpca"
+					}
+				],
+				"id": 3953,
+				"name": "ibims",
+				"openid": "ibims.id.fedoraproject.org"
+			},
+			"user_id": 3953
+		},
+		{
+			"id": 784076,
+			"karma": 1,
+			"text": "WFM",
+			"timestamp": "2018-05-14 09:11:00",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/4dfa31e963873203ebe47d817c7fb5e6d082728f5a8d7e17396fd419d58fb0fe?s=24&d=retro",
+				"email": "alciregi@posteo.net",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ask-fedora"
+					},
+					{
+						"name": "cvsl10n"
+					},
+					{
+						"name": "respins-sig"
+					},
+					{
+						"name": "wikiedit"
+					},
+					{
+						"name": "l10n"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "advocates"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "fedora-join"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "neuro-sig"
+					},
+					{
+						"name": "qa"
+					},
+					{
+						"name": "fedorabugs"
+					}
+				],
+				"id": 3508,
+				"name": "alciregi",
+				"openid": "alciregi.id.fedoraproject.org"
+			},
+			"user_id": 3508
+		},
+		{
+			"id": 784153,
+			"timestamp": "2018-05-14 11:32:37",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/ffa4b7625be5eced4d6d3ea49cd8c8f60d0c6bd502ed5eb97e52e63f15583009?s=24&d=retro",
+				"id": 207,
+				"name": "anonymous",
+				"openid": "anonymous.id.fedoraproject.org"
+			},
+			"user_id": 207
+		},
+		{
+			"id": 784263,
+			"text": "This update has been submitted for batched by jcline. ",
+			"timestamp": "2018-05-14 15:17:18",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 784265,
+			"text": "This update has been submitted for stable by jcline. ",
+			"timestamp": "2018-05-14 15:18:03",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 784368,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2018-05-14 17:56:45",
+			"update_id": 115166,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2018-05-14 17:51:27",
+	"date_stable": "2018-05-14 17:51:27",
+	"date_submitted": "2018-05-11 14:05:02",
+	"date_testing": "2018-05-12 19:35:01",
+	"karma": 12,
+	"meets_testing_requirements": true,
+	"notes": "The v4.16.8 update contains important fixes across the tree",
+	"pushed": true,
+	"release": {
+		"branch": "f28",
+		"candidate_tag": "f28-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f28",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 28",
+		"mail_template": "fedora_errata_template",
+		"name": "F28",
+		"override_tag": "f28-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f28-signing-pending",
+		"pending_stable_tag": "f28-updates-pending",
+		"pending_testing_tag": "f28-updates-testing-pending",
+		"stable_tag": "f28-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f28-updates-testing",
+		"version": "28"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "reboot",
+	"test_cases": [
+		{
+			"id": 372,
+			"name": "QA:Testcase kernel regression"
+		}
+	],
+	"test_gating_status": "ignored",
+	"title": "kernel-4.16.8-300.fc28",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2018-ac3b4c7605",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2018-ac3b4c7605",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/ea181a99533a98f797cc7164c217bf67096698ea9565cf60ea0c5dd420a8ce44?s=24&d=retro",
+		"email": "jeremy@jcline.org",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "communishift"
+			},
+			{
+				"name": "erlang"
+			},
+			{
+				"name": "erlang-maint-sig"
+			}
+		],
+		"id": 2383,
+		"name": "jcline",
+		"openid": "jcline.id.fedoraproject.org"
+	},
+	"version_hash": "a97c33c2ca7b1ac0c4ec1676ca54e81139096137"
+}

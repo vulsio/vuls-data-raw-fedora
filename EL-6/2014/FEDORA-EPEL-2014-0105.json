@@ -1,0 +1,1122 @@
+{
+	"alias": "FEDORA-EPEL-2014-0105",
+	"bugs": [
+		{
+			"bug_id": 973315,
+			"title": "tnc client in wpa_supplicant does not dlopen with RTLD_GLOBAL",
+			"bugzilla": {
+				"bug_id": "973315",
+				"creation_ts": "2013-06-11 16:33:02 +0000",
+				"short_desc": "tnc client in wpa_supplicant does not dlopen with RTLD_GLOBAL",
+				"delta_ts": "2016-10-19 10:48:35 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "EOL",
+				"keywords": "Reopened",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"depends_on": [
+					"1087437"
+				],
+				"blocked": [
+					{
+						"bug_id": "1007548",
+						"creation_ts": "2013-09-12 18:11:11 +0000",
+						"short_desc": "tnc client in wpa_supplicant does not dlopen with RTLD_GLOBAL",
+						"delta_ts": "2014-06-18 04:34:40 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "CURRENTRELEASE",
+						"keywords": "Reopened",
+						"priority": "unspecified",
+						"bug_severity": "unspecified",
+						"depends_on": [
+							"973315"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "6302137",
+								"comment_count": "0",
+								"who": {
+									"text": "avagarwa",
+									"name": "Avesh Agarwal"
+								},
+								"bug_when": "2013-09-12 18:11:11 +0000",
+								"thetext": "+++ This bug was initially created as a clone of Bug #973315 +++\n\nDescription of problem:\nwhen loading plugins (such as IMCs) with wpa_supplicant's tnc client, it causes symbols errors, because tnc client does not dlopen *.so modules with RTLD_GLOBAL.  \n\nVersion-Release number of selected component (if applicable):\nwpa_supplicant-2.0-3.fc19\n\nHow reproducible:\nalways \n\nSteps to Reproduce:\n1. configure /etc/tnc_config with an IMC from strongswan\n2. start wpa_supplicant\n3. Observe the output and it shows that the IMC is not loaded correctly because some plugins failed to load.\n\nActual results:\nIMC does not load properly.\n\nExpected results:\nIMC and it associated plugins should be loaded with out errors.\n\nAdditional info:"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6470438",
+								"comment_count": "2",
+								"who": {
+									"text": "dcbw",
+									"name": "Dan Williams"
+								},
+								"bug_when": "2013-10-30 16:50:55 +0000",
+								"thetext": "I'm asking upstream why it isn't RTLD_GLOBAL already, lets see what they say..."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6470475",
+								"comment_count": "3",
+								"who": {
+									"text": "dcbw",
+									"name": "Dan Williams"
+								},
+								"bug_when": "2013-10-30 17:01:53 +0000",
+								"thetext": "Also note that RTLD_GLOBAL creates the possibility of symbol clashes if plugins aren't careful about their symbol tables, and if multiple plugins from different sources are loaded, they must not conflict either.\n\nSo before we go further, what is the specific linker error that you're getting here?\n\nWhat symbols does the plugin need that aren't available unless RTLD_GLOBAL is used?\n\nWhat options is the TNC plugin that fails linked with?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6470619",
+								"comment_count": "4",
+								"who": {
+									"text": "avagarwa",
+									"name": "Avesh Agarwal"
+								},
+								"bug_when": "2013-10-30 17:19:26 +0000",
+								"thetext": "(In reply to Dan Williams from comment #3)\n> Also note that RTLD_GLOBAL creates the possibility of symbol clashes if\n> plugins aren't careful about their symbol tables, and if multiple plugins\n> from different sources are loaded, they must not conflict either.\n> \n> So before we go further, what is the specific linker error that you're\n> getting here?\n> \nIt gives following errors when loading /usr/lib64/strongimcv/imcvs/imc-os.so\nspecified in /etc/tnc_config.\n\n/usr/lib64/strongimcv/plugins/libstrongswan-x509.so: undefined symbol: chunk_empty\n[HSR] plugin 'openssl' failed to load: /usr/lib64/strongimcv/plugins/libstrongswan-openssl.so: undefined symbol: public_key_has_fingerprint\n[HSR] plugin 'random' failed to load: /usr/lib64/strongimcv/plugins/libstrongswan-random.so: undefined symbol: dbg\n[HSR] plugin 'nonce' failed to load: /usr/lib64/strongimcv/plugins/libstrongswan-nonce.so: undefined symbol: rng_quality_names\n[HSR] plugin 'revocation' failed to load: /usr/lib64/strongimcv/plugins/libstrongswan-revocation.so: undefined symbol: chunk_empty\n[HSR] plugin 'pem' failed to load: /usr/lib64/strongimcv/plugins/libstrongswan-pem.so: undefined symbol: chunk_empty\n[HSR] plugin 'xcbc' failed to load: /usr/lib64/strongimcv/plugins/libstrongswan-xcbc.so: undefined symbol: chunk_empty\n[HSR] added IETF attributes\n[HSR] added ITA-HSR attributes\n[HSR] libimcv initialized\n[HSR] IMC 0 \"OS\" initialized\n\n\n> What symbols does the plugin need that aren't available unless RTLD_GLOBAL\n> is used?\n> \n> What options is the TNC plugin that fails linked with?\nSo for imc-os.c here are the linker flags:\n\nimc_os_la_LDFLAGS = -module -avoid-version -no-undefined\n\nas can be seen here:\nhttps://github.com/strongswan/strongswan/blob/master/src/libimcv/plugins/imc_os/Makefile.am"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6489360",
+								"comment_count": "5",
+								"who": {
+									"text": "dcbw",
+									"name": "Dan Williams"
+								},
+								"bug_when": "2013-11-05 17:15:16 +0000",
+								"thetext": "At least for public_key_has_fingerprint(), the openssl plugin doesn't link against the implementation of that function.\n\nThe function is implemented in:\n\nstrongswan-5.1.1/src/libstrongswan/credentials/keys/public_key.c:bool public_key_has_fingerprint(public_key_t *public, chunk_t fingerprint)\n\nwhich is built as libstrongswan.la.  But libstrongswan-openssl does not link to libstrongswan.la at all, and thus the symbol will not be resolved.\n\nSame issue for libstrongswan-nonce.so not linking to libstrongswan to get rng_quality_names().\n\nThe plugins should be linking to all the symbols they actually need, they shouldn't be relying upon something magically linking in another plugin that provides the symbols they require, since that may not actually happen.\n\nIt might be as simple as doing the following in the plugins:\n\ndiff -up strongswan-5.1.1/src/libstrongswan/plugins/openssl/Makefile.am.foo strongswan-5.1.1/src/libstrongswan/plugins/openssl/Makefile.am\n--- strongswan-5.1.1/src/libstrongswan/plugins/openssl/Makefile.am.foo\t2013-11-05 11:14:33.472578538 -0600\n+++ strongswan-5.1.1/src/libstrongswan/plugins/openssl/Makefile.am\t2013-11-05 11:14:40.498490702 -0600\n@@ -32,4 +32,6 @@ libstrongswan_openssl_la_SOURCES = \\\n \topenssl_gcm.c openssl_gcm.h\n \n libstrongswan_openssl_la_LDFLAGS = -module -avoid-version\n-libstrongswan_openssl_la_LIBADD  = -lcrypto\n+libstrongswan_openssl_la_LIBADD  = -lcrypto \\\n+\t$(top_builddir)/src/libstrongswan/libstrongswan.la\n+"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6494309",
+								"comment_count": "6",
+								"who": {
+									"text": "avagarwa",
+									"name": "Avesh Agarwal"
+								},
+								"bug_when": "2013-11-06 20:15:50 +0000",
+								"thetext": "(In reply to Dan Williams from comment #5)\n> At least for public_key_has_fingerprint(), the openssl plugin doesn't link\n> against the implementation of that function.\n> \n> The function is implemented in:\n> \n> strongswan-5.1.1/src/libstrongswan/credentials/keys/public_key.c:bool\n> public_key_has_fingerprint(public_key_t *public, chunk_t fingerprint)\n> \n> which is built as libstrongswan.la.  But libstrongswan-openssl does not link\n> to libstrongswan.la at all, and thus the symbol will not be resolved.\n> \n> Same issue for libstrongswan-nonce.so not linking to libstrongswan to get\n> rng_quality_names().\n> \n> The plugins should be linking to all the symbols they actually need, they\n> shouldn't be relying upon something magically linking in another plugin that\n> provides the symbols they require, since that may not actually happen.\n> \n> It might be as simple as doing the following in the plugins:\n> \n> diff -up strongswan-5.1.1/src/libstrongswan/plugins/openssl/Makefile.am.foo\n> strongswan-5.1.1/src/libstrongswan/plugins/openssl/Makefile.am\n> --- strongswan-5.1.1/src/libstrongswan/plugins/openssl/Makefile.am.foo\n> 2013-11-05 11:14:33.472578538 -0600\n> +++ strongswan-5.1.1/src/libstrongswan/plugins/openssl/Makefile.am\n> 2013-11-05 11:14:40.498490702 -0600\n> @@ -32,4 +32,6 @@ libstrongswan_openssl_la_SOURCES = \\\n>  \topenssl_gcm.c openssl_gcm.h\n>  \n>  libstrongswan_openssl_la_LDFLAGS = -module -avoid-version\n> -libstrongswan_openssl_la_LIBADD  = -lcrypto\n> +libstrongswan_openssl_la_LIBADD  = -lcrypto \\\n> +\t$(top_builddir)/src/libstrongswan/libstrongswan.la\n> +\n\n\nHello Dan,\n\nI looked into the code in depth and this is not the correct way to fix it and here is the reason: libstrongswan \"dlopens\" all the plugins like libstrongswan-openssl, libstrongswan-nonce etc, so it is not right to link libstrongswan statically into the plugins.\n\nThe flow is like this:\n\nwpa_supplicant \"dlopens\"  imc-os.so (imc-os (or any other imc for that matter) is statically linked to libstrongswan), and then libstrongswan dlopens the other plugins. \n\nSince wpa_supplicanr does not dlopen imc-os with RTDL_GLOBAL, the symbols in libstrongswan are not visible to the plugins. \n\nSo the only correct way to fix this is to have wpa_supplicant dlopen the imc-os (or any other IMC) with RTDL_GLOBAL.\n\nHope it helps."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6520278",
+								"comment_count": "7",
+								"who": {
+									"text": "avagarwa",
+									"name": "Avesh Agarwal"
+								},
+								"bug_when": "2013-11-14 14:47:18 +0000",
+								"thetext": "This issue is breaking TNC testing on rhel7. I am not sure if I should mark it as blocker for rhel7."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6547557",
+								"comment_count": "8",
+								"who": {
+									"text": "dcbw",
+									"name": "Dan Williams"
+								},
+								"bug_when": "2013-11-22 00:11:09 +0000",
+								"thetext": "I wasn't saying to statically libstrongswan into the plugins, I was saying to *dynamically* link them into the plugins.  Adding LIBADD should not statically link them, it will dynamically link them due to libtool magic.  That will cause the 'ldd' output of those plugin .sos to reference the main library in which those symbols are defined.\n\nAnother alternative is to split the utility functions out into a separate shared library that both libstrongswan *and* the plugins themselves can use."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6576713",
+								"comment_count": "9",
+								"who": {
+									"text": "avagarwa",
+									"name": "Avesh Agarwal"
+								},
+								"bug_when": "2013-12-02 18:24:57 +0000",
+								"thetext": "I have tested a patch with strongimcv that addresses this issue so will change the component to strongimcv."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6577248",
+								"comment_count": "10",
+								"who": {
+									"text": "avagarwa",
+									"name": "Avesh Agarwal"
+								},
+								"bug_when": "2013-12-02 21:41:52 +0000",
+								"thetext": "This has been fixed in Fedora rawhide/ 20/19, so closing now."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6577255",
+								"comment_count": "11",
+								"who": {
+									"text": "avagarwa",
+									"name": "Avesh Agarwal"
+								},
+								"bug_when": "2013-12-02 21:43:05 +0000",
+								"thetext": "please disregard previous messages. I wanted to close the fedora bugs, but by mistake closed the rhel7 one."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7194853",
+								"comment_count": "13",
+								"who": {
+									"text": "lsmid",
+									"name": "Ludek Smid"
+								},
+								"bug_when": "2014-06-16 08:18:22 +0000",
+								"thetext": "This request was resolved in Red Hat Enterprise Linux 7.0.\n\nContact your manager or support representative in case you have further questions about the request."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6001034",
+						"comment_count": "0",
+						"who": {
+							"text": "avagarwa",
+							"name": "Avesh Agarwal"
+						},
+						"bug_when": "2013-06-11 16:33:02 +0000",
+						"thetext": "Created attachment 759724\nPatch to fix IMC loading issue with wpa_supplicant's tnc client\n\nDescription of problem:\nwhen loading plugins (such as IMCs) with wpa_supplicant's tnc client, it causes symbols errors, because tnc client does not dlopen *.so modules with RTLD_GLOBAL.  \n\nVersion-Release number of selected component (if applicable):\nwpa_supplicant-2.0-3.fc19\n\nHow reproducible:\nalways \n\nSteps to Reproduce:\n1. configure /etc/tnc_config with an IMC from strongswan\n2. start wpa_supplicant\n3. Observe the output and it shows that the IMC is not loaded correctly because some plugins failed to load.\n\nActual results:\nIMC does not load properly.\n\nExpected results:\nIMC and it associated plugins should be loaded with out errors.\n\nAdditional info:"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6489814",
+						"comment_count": "1",
+						"who": {
+							"text": "dcbw",
+							"name": "Dan Williams"
+						},
+						"bug_when": "2013-11-05 19:22:21 +0000",
+						"thetext": "Reflecting comments in bug 1007548, it seems the plugins that fail to load don't link to libstrongswan, and thus don't actually link to the symbols they require.  I think if they get libstrongswan.la added to their LIBADD lines in the Makefiles this problem might be solved."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6489822",
+						"comment_count": "2",
+						"who": {
+							"text": "avagarwa",
+							"name": "Avesh Agarwal"
+						},
+						"bug_when": "2013-11-05 19:24:06 +0000",
+						"thetext": "(In reply to Dan Williams from comment #1)\n> Reflecting comments in bug 1007548, it seems the plugins that fail to load\n> don't link to libstrongswan, and thus don't actually link to the symbols\n> they require.  I think if they get libstrongswan.la added to their LIBADD\n> lines in the Makefiles this problem might be solved.\n\nHi Dan,\n\nThanks. I will look into it and test the changes. If the fix works, I will change the component to strongimcv. Thanks for your help."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6494317",
+						"comment_count": "3",
+						"who": {
+							"text": "avagarwa",
+							"name": "Avesh Agarwal"
+						},
+						"bug_when": "2013-11-06 20:17:55 +0000",
+						"thetext": "(In reply to Dan Williams from comment #1)\n> Reflecting comments in bug 1007548, it seems the plugins that fail to load\n> don't link to libstrongswan, and thus don't actually link to the symbols\n> they require.  I think if they get libstrongswan.la added to their LIBADD\n> lines in the Makefiles this problem might be solved.\n\nHello Dan,\n\nI looked into the code in depth and this is not the correct way to fix it and here is the reason: libstrongswan \"dlopens\" all the plugins like libstrongswan-openssl, libstrongswan-nonce etc, so it is not right to link libstrongswan statically into the plugins.\n\nThe flow is like this:\n\nwpa_supplicant \"dlopens\"  imc-os.so (imc-os (or any other imc for that matter) is statically linked to libstrongswan), and then libstrongswan dlopens the other plugins. \n\nSince wpa_supplicanr does not dlopen imc-os with RTDL_GLOBAL, the symbols in libstrongswan are not visible to the plugins. \n\nSo the only correct way to fix this is to have wpa_supplicant dlopen the imc-os (or any other IMC) with RTDL_GLOBAL.\n\nHope it helps."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6576752",
+						"comment_count": "4",
+						"who": {
+							"text": "avagarwa",
+							"name": "Avesh Agarwal"
+						},
+						"bug_when": "2013-12-02 18:36:52 +0000",
+						"thetext": "I have tested a patch with strongswan that addresses this issue so will change the component to strongswan."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6577260",
+						"comment_count": "5",
+						"who": {
+							"text": "avagarwa",
+							"name": "Avesh Agarwal"
+						},
+						"bug_when": "2013-12-02 21:44:59 +0000",
+						"thetext": "Fixed in fedoa rawhide/ 20/19 in the version  strongswan-5.1.1-2. so closing this."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6689952",
+						"comment_count": "6",
+						"who": {
+							"text": "psimerda",
+							"name": "Pavel Šimerda (pavlix)"
+						},
+						"bug_when": "2014-01-09 10:37:41 +0000",
+						"thetext": "I would prefer if you could leave strongswan bugs in MODIFIED state so I can handle the updates. This bug actually be fixed in f20/f19/f18/el6 with an update I'm just issuing."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6689959",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-09 10:39:49 +0000",
+						"thetext": "strongswan-5.1.1-4.fc18 has been submitted as an update for Fedora 18.\nhttps://admin.fedoraproject.org/updates/strongswan-5.1.1-4.fc18"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6689995",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-09 10:48:48 +0000",
+						"thetext": "strongswan-5.1.1-4.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/strongswan-5.1.1-4.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6690005",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-09 10:50:31 +0000",
+						"thetext": "strongswan-5.1.1-4.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/strongswan-5.1.1-4.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6690021",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-09 10:54:50 +0000",
+						"thetext": "strongswan-5.1.1-4.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/strongswan-5.1.1-4.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6750883",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-25 02:25:47 +0000",
+						"thetext": "strongswan-5.1.1-4.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6750893",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-25 02:26:47 +0000",
+						"thetext": "strongswan-5.1.1-4.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6750975",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-25 05:09:08 +0000",
+						"thetext": "strongswan-5.1.1-4.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6877055",
+						"comment_count": "14",
+						"who": {
+							"text": "psimerda",
+							"name": "Pavel Šimerda (pavlix)"
+						},
+						"bug_when": "2014-03-04 07:49:08 +0000",
+						"thetext": "Hi all,\n\nplease look at a related upstream bug report and comment there.\n\nhttp://wiki.strongswan.org/issues/538\n\nI would be happy if we improved the Fedora strongswan upstream/downstream relation and if important changes like that would rather go through upstream. The strongswan upstream is usually rather quick, so there's no need for forking the development in Fedora."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6917075",
+						"comment_count": "15",
+						"who": {
+							"text": "psimerda",
+							"name": "Pavel Šimerda (pavlix)"
+						},
+						"bug_when": "2014-03-14 22:09:49 +0000",
+						"thetext": "Avesh,\n\ncould you please update the upstream bug report with requested information?\n\nPavel"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6917091",
+						"comment_count": "16",
+						"who": {
+							"text": "psimerda",
+							"name": "Pavel Šimerda (pavlix)"
+						},
+						"bug_when": "2014-03-14 22:29:45 +0000",
+						"thetext": "My intention is to remove the patches as soon as possible. But before doing so, I would like to make sure appropriate changes are made in the upstream project to keep the already acquired features working."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7007936",
+						"comment_count": "17",
+						"who": {
+							"text": "psimerda",
+							"name": "Pavel Šimerda (pavlix)"
+						},
+						"bug_when": "2014-04-14 10:33:32 +0000",
+						"thetext": "Please cooperate on upstreaming the strongswan patches.\n\nSee https://bugzilla.redhat.com/show_bug.cgi?id=1087437"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7830733",
+						"comment_count": "18",
+						"who": {
+							"text": "bcotton",
+							"name": "Fedora End Of Life"
+						},
+						"bug_when": "2015-01-09 22:09:03 +0000",
+						"thetext": "This message is a notice that Fedora 19 is now at end of life. Fedora \nhas stopped maintaining and issuing updates for Fedora 19. It is \nFedora's policy to close all bug reports from releases that are no \nlonger maintained. Approximately 4 (four) weeks from now this bug will\nbe closed as EOL if it remains open with a Fedora 'version' of '19'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora 19 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora, you are encouraged  change the 'version' to a later Fedora \nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7955133",
+						"comment_count": "19",
+						"who": {
+							"text": "bcotton",
+							"name": "Fedora End Of Life"
+						},
+						"bug_when": "2015-02-18 13:56:07 +0000",
+						"thetext": "Fedora 19 changed to end-of-life (EOL) status on 2015-01-06. Fedora 19 is\nno longer maintained, which means that it will not receive any further\nsecurity or bug fix updates. As a result we are closing this bug.\n\nIf you can reproduce this bug against a currently maintained version of\nFedora please feel free to reopen this bug against that version. If you\nare unable to reopen this bug, please file a new report against the\ncurrent release. If you experience problems, please add a comment to this\nbug.\n\nThank you for reporting this bug and we are sorry it could not be fixed."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 991216,
+			"security": true,
+			"title": "CVE-2013-5018 strongswan: denial of service flaw in strongswan 5.0.3/5.0.4 [fedora-all]",
+			"bugzilla": {
+				"bug_id": "991216",
+				"creation_ts": "2013-08-01 21:13:33 +0000",
+				"short_desc": "CVE-2013-5018 strongswan: denial of service flaw in strongswan 5.0.3/5.0.4 [fedora-all]",
+				"delta_ts": "2014-01-25 05:09:15 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "991215",
+						"alias": "CVE-2013-5018",
+						"creation_ts": "2013-08-01 21:12:32 +0000",
+						"short_desc": "CVE-2013-5018 strongswan: denial of service flaw in 5.0.3/5.0.4",
+						"delta_ts": "2021-02-17 07:27:55 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"991216"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "6172348",
+								"comment_count": "0",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2013-08-01 21:12:32 +0000",
+								"thetext": "It was reported that StrongSwan 5.1.0 corrected a flaw present in versions 5.0.3 and 5.0.4:\n\nA segmentation fault is caused if an XAuth username or EAP identity is received that starts with either 0 or 1 (ASCII, 0x30 and 0x31 hex,\ntechnically 0x04 also triggers it, but this is harder to craft) and whose remaining bytes can be interpreted as single- or multi-byte ASN.1\nlength (for instance, a single character < 0x80). An example for such a username is 15 (0x3135) as can be seen in the bug report.\n\nThe plugins listed above call identification_create_from_data() to parse the username/identity, which first calls is_asn1() to determine if the given data is ASN.1 encoded. This function in turn calls asn1_length() but handles the return value incorrectly, if the parsed ASN.1 length is invalid (e.g. if the parsed length is longer than the actual data). If the remaining data length is exactly zero, a check for terminating newlines causes an integer overflow and subsequently a segmentation fault.\n\nIt was also noted that the PEM plugin can call the vulnerable is_asn1() function, and this issue can triggered locally via a specially crafted PEM encoded file.  However, the PEM plugin is only used to load local certificates, private keys or CRL files, which require appropriate (root) privileges to change so no trust boundary is crossed.\n\nPatches for StrongSwan are available here: http://download.strongswan.org/patches/12_is_asn1_patch/\n\nIn regards to the PEM issue for earlier releases as well as for Openswan and Libreswan, the advisory notes:\n\nWhile is_asn1() never handled the return value of asn1_length() correctly, this did not cause any problems before the additional check for newlines was added with 4.1.11. Therefore, earlier releases as well as users of the original X.509 patch for FreeS/WAN (Openswan, Libreswan) are not vulnerable.\n\nChecking the code in Openswan and Libreswan, the additional newline check is indeed not present.\n\n\nExternal References:\n\nhttp://strongswan.org/blog/2013/08/01/strongswan-denial-of-service-vulnerability-(cve-2013-5018).html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6172352",
+								"comment_count": "1",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2013-08-01 21:13:44 +0000",
+								"thetext": "\nCreated strongswan tracking bugs for this issue:\n\nAffects: fedora-all [bug 991216]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6172364",
+								"comment_count": "2",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2013-08-01 21:16:17 +0000",
+								"thetext": "Statement:\n\nNot vulnerable. This issue did not affect the versions of openswan as shipped with Red Hat Enterprise Linux 5 or 6 as they did not include the problematic newline checks when validating ASN.1 length."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6847650",
+								"comment_count": "3",
+								"who": {
+									"text": "jamielinux",
+									"name": "Jamie Nguyen"
+								},
+								"bug_when": "2014-02-23 16:04:58 +0000",
+								"thetext": "Strongswan has been updated and libreswan/openswan do not appear to be affected. I am therefore closing this bug."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6850494",
+								"comment_count": "4",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2014-02-24 15:25:30 +0000",
+								"thetext": "That's right, both EPEL6 and current Fedora have 5.1.1, which has this flaw fixed."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6172350",
+						"comment_count": "0",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2013-08-01 21:13:33 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen creating a Bodhi update request, please use the bodhi submission link\nnoted in the next comment(s).  This will include the bug IDs of this\ntracking bug as well as the relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nBodhi notes field when available.\n\nPlease note: this issue affects multiple supported versions of Fedora.\nOnly one tracking bug has been filed; please ensure that it is only closed\nwhen all affected versions are fixed.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6172351",
+						"comment_count": "1",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2013-08-01 21:13:41 +0000",
+						"thetext": "\nPlease use the following update submission link to create the Bodhi\nrequest for this issue as it contains the top-level parent bug(s) as well\nas this tracking bug.  This will ensure that all associated bugs get\nupdated when new packages are pushed to stable.\n\nPlease also ensure that the \"Close bugs when update is stable\" option\nremains checked.\n\nBodhi update submission link:\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=991215,991216"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6192111",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-08-07 21:25:02 +0000",
+						"thetext": "strongswan-5.1.0-2.fc18 has been submitted as an update for Fedora 18.\nhttps://admin.fedoraproject.org/updates/strongswan-5.1.0-2.fc18"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6192120",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-08-07 21:26:32 +0000",
+						"thetext": "strongswan-5.1.0-1.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/strongswan-5.1.0-1.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6199225",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-08-09 17:05:55 +0000",
+						"thetext": "Package strongswan-5.1.0-1.fc19:\n* should fix your issue,\n* was pushed to the Fedora 19 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing strongswan-5.1.0-1.fc19'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2013-14481/strongswan-5.1.0-1.fc19\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6230707",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-08-21 00:01:17 +0000",
+						"thetext": "strongswan-5.1.0-1.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6230750",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2013-08-21 00:09:22 +0000",
+						"thetext": "strongswan-5.1.0-2.fc18 has been pushed to the Fedora 18 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6690023",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-09 10:54:57 +0000",
+						"thetext": "strongswan-5.1.1-4.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/strongswan-5.1.1-4.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6750977",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-25 05:09:15 +0000",
+						"thetext": "strongswan-5.1.1-4.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1025870,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2013-6075 strongswan: denial of service and potential authorization bypass",
+			"bugzilla": {
+				"bug_id": "1025870",
+				"alias": "CVE-2013-6075",
+				"creation_ts": "2013-11-01 19:16:06 +0000",
+				"short_desc": "CVE-2013-6075 strongswan: denial of service and potential authorization bypass",
+				"delta_ts": "2021-02-17 07:13:18 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "CURRENTRELEASE",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1025974",
+					"1025975"
+				],
+				"blocked": [
+					{
+						"bug_id": "1025873",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6480199",
+						"comment_count": "0",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2013-11-01 19:16:06 +0000",
+						"thetext": "A denial of service vulnerability was discovered in strongSwan's IKDE daemon charon.  This flaw can be triggered by a crafted ID_DER_ASN1_DN ID payload and is caused by an insufficient length check when comparing such identities.  This could cause a memory read outside specified boundaries or a NULL dereference which would result in an IKE daemon crash.  As no write operation is performed, code injection is unlikely.\n\nAs well, with a crafted ID payload, an attacker could impersonate a different user and get access to VPN connection profiles the victim would have access to.  However, this would require that the attacker successfully authenticate with appropriate credentials, and as such upstream indicates that it seems quite difficult to construct such an attack, although it may be possible.\n\nstrongSwan 5.1.1 corrects this flaw.  A patch [1] is provided for older releases.  All versions since 4.3.3 are affected.\n\n[1] http://download.strongswan.org/security/CVE-2013-6075/\n\n\nExternal References:\n\nhttp://strongswan.org/blog/2013/11/01/strongswan-denial-of-service-vulnerability-(cve-2013-6075).html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6481163",
+						"comment_count": "1",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2013-11-02 16:59:07 +0000",
+						"thetext": "This issue does not affect libreswan or openswan.  The compare_dn() function that is affected does not exist in either libreswan or openswan, and the IKE fragmentation implementation is different, not including this vulnerable code.\n\n\nStatement:\n\nNot vulnerable. This issue did not affect the versions of openswan as shipped with Red Hat Enterprise Linux 5 and 6."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6481168",
+						"comment_count": "2",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2013-11-02 16:59:49 +0000",
+						"thetext": "\nCreated strongswan tracking bugs for this issue:\n\nAffects: fedora-all [bug 1025974]\nAffects: epel-6 [bug 1025975]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6750885",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-25 02:25:56 +0000",
+						"thetext": "strongswan-5.1.1-4.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6750896",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-25 02:26:55 +0000",
+						"thetext": "strongswan-5.1.1-4.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6750978",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-25 05:09:20 +0000",
+						"thetext": "strongswan-5.1.1-4.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1026152,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2013-6076 strongswan: denial of service when handling IKEv1 fragmentation payloads",
+			"bugzilla": {
+				"bug_id": "1026152",
+				"alias": "CVE-2013-6076",
+				"creation_ts": "2013-11-04 04:41:40 +0000",
+				"short_desc": "CVE-2013-6076 strongswan: denial of service when handling IKEv1 fragmentation payloads",
+				"delta_ts": "2021-02-17 07:12:48 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "NOTABUG",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1026154"
+				],
+				"blocked": [
+					{
+						"bug_id": "1026157",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6482506",
+						"comment_count": "0",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2013-11-04 04:41:40 +0000",
+						"thetext": "A NULL pointer dereference flaw was discovered in strongSwan's IKE daemon, charon. An attacker could use this flaw to crash charon by sending a specially-crafted IKEv1 fragmentation payload.\n\nstrongSwan 5.1.1 corrects this flaw. A patch is provided for versions 5.0.2 and newer:\n\nhttp://download.strongswan.org/security/CVE-2013-6076/strongswan-5.0.2-5.1.0_ikev1_fragment.patch\n\nExternal References:\n\nhttp://strongswan.org/blog/2013/11/01/strongswan-denial-of-service-vulnerability-(cve-2013-6076).html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6482524",
+						"comment_count": "1",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2013-11-04 04:46:12 +0000",
+						"thetext": "\nCreated strongswan tracking bugs for this issue:\n\nAffects: epel-6 [bug 1026154]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6482529",
+						"comment_count": "2",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2013-11-04 04:48:36 +0000",
+						"thetext": "Looks like this issue is already fixed in the packages for Fedora testing so I did not file a tracking bug.\n\nhttp://koji.fedoraproject.org/koji/buildinfo?buildID=475229\nhttp://koji.fedoraproject.org/koji/buildinfo?buildID=475223\nhttp://koji.fedoraproject.org/koji/buildinfo?buildID=475220"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6750886",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-25 02:26:01 +0000",
+						"thetext": "strongswan-5.1.1-4.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6750898",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-25 02:26:59 +0000",
+						"thetext": "strongswan-5.1.1-4.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6750979",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-25 05:09:28 +0000",
+						"thetext": "strongswan-5.1.1-4.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6813865",
+						"comment_count": "6",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2014-02-13 08:40:59 +0000",
+						"thetext": "Statement:\n\nNot Vulnerable. This issue does not affect the version of openswan as shipped with Red Hat Enterprise Linux 5 and 6."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1036844,
+			"title": "autoreconf fails with strongswan causing build failures",
+			"bugzilla": {
+				"bug_id": "1036844",
+				"creation_ts": "2013-12-02 18:14:46 +0000",
+				"short_desc": "autoreconf fails with strongswan causing build failures",
+				"delta_ts": "2014-01-25 05:09:12 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "NEXTRELEASE",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6576691",
+						"comment_count": "0",
+						"who": {
+							"text": "avagarwa",
+							"name": "Avesh Agarwal"
+						},
+						"bug_when": "2013-12-02 18:14:46 +0000",
+						"thetext": "Description of problem:\nIf changes are made to Makefile.am files in subdirectories and configure.ac, running autoreconf fails on strongswan. The following errors are output:\n\n+ exit 0\nExecuting(%build): /bin/sh -e /var/tmp/rpm-tmp.40K9fz\n+ umask 022\n+ cd /home/avagarwa/rpmbuild/BUILD\n+ cd strongswan-5.1.0\n+ autoreconf\nparallel-tests: error: required file './test-driver' not found\nparallel-tests:   'automake --add-missing' can install 'test-driver'\nautoreconf: automake failed with exit status: 1\nerror: Bad exit status from /var/tmp/rpm-tmp.40K9fz (%build)\n\n\nVersion-Release number of selected component (if applicable):\nstrongswan-5.1.1-1.fc21\n\nHow reproducible:\nalways\n\nSteps to Reproduce:\n1. change a Makefile.am and configure.ac\n2. run autoreconf\n3.\n\nActual results:\nstrongswan build fails\n\nExpected results:\nstrongswan build should not fail.\n\nAdditional info:\nI think it happens with automake 1.2 and up"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6577264",
+						"comment_count": "1",
+						"who": {
+							"text": "avagarwa",
+							"name": "Avesh Agarwal"
+						},
+						"bug_when": "2013-12-02 21:46:34 +0000",
+						"thetext": "Fixed in fedora rawhide/20/19 in the version strongswan-5.1.1-2, so closing it."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6689960",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-09 10:39:52 +0000",
+						"thetext": "strongswan-5.1.1-4.fc18 has been submitted as an update for Fedora 18.\nhttps://admin.fedoraproject.org/updates/strongswan-5.1.1-4.fc18"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6689996",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-09 10:48:52 +0000",
+						"thetext": "strongswan-5.1.1-4.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/strongswan-5.1.1-4.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6690006",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-09 10:50:38 +0000",
+						"thetext": "strongswan-5.1.1-4.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/strongswan-5.1.1-4.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6690022",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-09 10:54:53 +0000",
+						"thetext": "strongswan-5.1.1-4.el6 has been submitted as an update for Fedora EPEL 6.\nhttps://admin.fedoraproject.org/updates/strongswan-5.1.1-4.el6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6750884",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-25 02:25:53 +0000",
+						"thetext": "strongswan-5.1.1-4.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6750895",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-25 02:26:51 +0000",
+						"thetext": "strongswan-5.1.1-4.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6750976",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-01-25 05:09:12 +0000",
+						"thetext": "strongswan-5.1.1-4.el6 has been pushed to the Fedora EPEL 6 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "strongswan-5.1.1-4.el6",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"i686": [
+					{
+						"name": "strongswan-tnc-imcvs",
+						"version": "5.1.1",
+						"release": "4.el6",
+						"arch": "i686"
+					},
+					{
+						"name": "strongswan-debuginfo",
+						"version": "5.1.1",
+						"release": "4.el6",
+						"arch": "i686"
+					},
+					{
+						"name": "strongswan",
+						"version": "5.1.1",
+						"release": "4.el6",
+						"arch": "i686"
+					}
+				],
+				"ppc64": [
+					{
+						"name": "strongswan-debuginfo",
+						"version": "5.1.1",
+						"release": "4.el6",
+						"arch": "ppc64"
+					},
+					{
+						"name": "strongswan-tnc-imcvs",
+						"version": "5.1.1",
+						"release": "4.el6",
+						"arch": "ppc64"
+					},
+					{
+						"name": "strongswan",
+						"version": "5.1.1",
+						"release": "4.el6",
+						"arch": "ppc64"
+					}
+				],
+				"src": [
+					{
+						"name": "strongswan",
+						"version": "5.1.1",
+						"release": "4.el6",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "strongswan-tnc-imcvs",
+						"version": "5.1.1",
+						"release": "4.el6",
+						"arch": "x86_64"
+					},
+					{
+						"name": "strongswan-debuginfo",
+						"version": "5.1.1",
+						"release": "4.el6",
+						"arch": "x86_64"
+					},
+					{
+						"name": "strongswan",
+						"version": "5.1.1",
+						"release": "4.el6",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 202880,
+			"text": "This update has been submitted for testing by pavlix. ",
+			"timestamp": "2014-01-09 10:55:04",
+			"update_id": 26111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 202881,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 testing updates repository.",
+			"timestamp": "2014-01-09 22:52:23",
+			"update_id": 26111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 202882,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-01-10 01:09:41",
+			"update_id": 26111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 202883,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2014-01-24 06:33:07",
+			"update_id": 26111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 202884,
+			"text": "This update has been submitted for stable by pavlix. ",
+			"timestamp": "2014-01-24 08:00:39",
+			"update_id": 26111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 202885,
+			"text": "This update is currently being pushed to the Fedora EPEL 6 stable updates repository.",
+			"timestamp": "2014-01-25 02:16:43",
+			"update_id": 26111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 202886,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2014-01-25 05:09:29",
+			"update_id": 26111,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2014-01-25 05:09:29",
+	"date_stable": "2014-01-25 05:09:29",
+	"date_submitted": "2014-01-09 10:54:45",
+	"date_testing": "2014-01-10 01:09:41",
+	"meets_testing_requirements": true,
+	"notes": "This is a major update that includes a version bump, build configuration changes and security updates.",
+	"pushed": true,
+	"release": {
+		"branch": "el6",
+		"candidate_tag": "dist-6E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "dist-6E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 6",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-6",
+		"override_tag": "dist-6E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-6E-epel",
+		"state": "archived",
+		"testing_tag": "dist-6E-epel-testing",
+		"version": "6"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "strongswan-5.1.1-4.el6",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2014-0105",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2014-0105",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/c211c58fc1fa019abd3880c33132bd2394b510e63ff39a9d1e437157d45b244e?s=24&d=retro",
+		"email": "psimerda@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			}
+		],
+		"id": 610,
+		"name": "pavlix",
+		"openid": "pavlix.id.fedoraproject.org"
+	},
+	"version_hash": "2f41a6b5eba2af373d332d9ad13728e83cdd449e"
+}

@@ -1,0 +1,1797 @@
+{
+	"alias": "FEDORA-2015-9857",
+	"bugs": [
+		{
+			"bug_id": 1020842,
+			"title": "libelf: segment fault on x86-64 while file's bss offset have a large number",
+			"bugzilla": {
+				"bug_id": "1020842",
+				"creation_ts": "2013-10-18 11:20:08 +0000",
+				"short_desc": "libelf: segment fault on x86-64 while file's bss offset have a large number",
+				"delta_ts": "2015-07-29 01:35:44 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "FutureFeature",
+				"priority": "unspecified",
+				"bug_severity": "urgent",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "6434388",
+						"comment_count": "0",
+						"who": {
+							"text": "hongxu.jia",
+							"name": "hongxu jia"
+						},
+						"bug_when": "2013-10-18 11:20:08 +0000",
+						"thetext": "Created attachment 813722\nThe file whose bss offset have a large number\n\n*Environment\ncat /etc/issue\nUbuntu 13.04 \\n \\l\n\nuname -a\nLinux pek-hjia-d1 3.8.0-31-generic #46-Ubuntu SMP Tue Sep 10 20:03:44 UTC 2013 x86_64 x86_64 x86_64 GNU/Linux\n\n*Problem\n1) Here is the test source code\n$ cat >> test.c << EOF\n\n#include <stdio.h>\n#include <sys/types.h>\n#include <sys/stat.h>\n#include <fcntl.h>\n#include <stdlib.h>\n\n#include \"libelf.h\"\n\nint main(int argc, char *argv[])\n{\n  int fd;\n  Elf *e;\n\n  if (elf_version(EV_CURRENT) == EV_NONE)\n  {\n    printf (\"library out of date\\n\");\n    exit (1);\n  }\n\n  if ((fd = open(\"test/xB.linkhuge\", O_RDWR)) < 0) {\n    printf(\"%s %d failed\\n\", __FUNCTION__, __LINE__);\n    exit (1);\n  }\n\n  if ((e = elf_begin(fd, ELF_C_RDWR_MMAP, (Elf *) 0)) == 0) {\n    printf(\"failed %s\", elf_errmsg (-1));\n    exit (1);\n  }\n\n  elf_flagelf (e, ELF_C_SET, ELF_F_LAYOUT);\n  elf_update(e, ELF_C_WRITE);\n  elf_end(e);\n  close(fd);\n}\nEOF\n\n2) Download http://kojipkgs.fedoraproject.org/packages/elfutils/0.157/2.fc21/x86_64/elfutils-libelf-devel-static-0.157-2.fc21.x86_64.rpm\nto get libelf.a for debug.\n\nDownload http://kojipkgs.fedoraproject.org/packages/elfutils/0.157/2.fc21/x86_64/elfutils-libelf-devel-0.157-2.fc21.x86_64.rpm \nto get libelf.h for debug.\n\n3) Compile test.c with libelf.a\n$ gcc test.c -o test_case -static -L. -lelf\n\n4) Prepare file whose bss offset have a large number '00200000'\n$ ls test/xB.linkhuge -al\n-rwxr-xr-x 1 jiahongxu jiahongxu 1221403 Oct 18 18:55 test/xB.linkhuge\n\n$ readelf -a xB.linkhuge\n......\n  [Nr] Name              Type             Address           Offset\n       Size              EntSize          Flags  Link  Info  Align\nskip..\n  [25] .data             PROGBITS         00000000005128a0  001128a0\n       0000000000010168  0000000000000000  WA       0     0     32\n  [26] .bss              NOBITS           0000000001000000  00200000\n       0000000000010050  0000000000000000  WA       0     0     32\n  [27] .comment          PROGBITS         0000000000000000  00122a08\n       0000000000000011  0000000000000001  MS       0     0     1\n......\n\n5) Run test_case with strace, there was mmap/munmap error.\n$ strace ./test_case \nexecve(\"./test_case\", [\"./test_case\"], [/* 59 vars */]) = 0\nuname({sys=\"Linux\", node=\"pek-hjia-d1\", ...}) = 0\nbrk(0)                                  = 0x16a6000\nbrk(0x16a71c0)                          = 0x16a71c0\narch_prctl(ARCH_SET_FS, 0x16a6880)      = 0\nbrk(0x16c81c0)                          = 0x16c81c0\nbrk(0x16c9000)                          = 0x16c9000\naccess(\"/etc/ld.so.nohwcap\", F_OK)      = -1 ENOENT (No such file or directory)\nopen(\"test/xB.linkhuge\", O_RDWR)        = 3\nfcntl(3, F_GETFL)                       = 0x8002 (flags O_RDWR|O_LARGEFILE)\nfstat(3, {st_mode=S_IFREG|0755, st_size=1221403, ...}) = 0\nmmap(NULL, 1221403, PROT_READ|PROT_WRITE, MAP_SHARED, 3, 0) = 0x7ff720fe2000\nfstat(3, {st_mode=S_IFREG|0755, st_size=1221403, ...}) = 0\nftruncate(3, 2097152)                   = 0\nmsync(0x7ff720fe2000, 1216568, MS_SYNC) = 0\nmunmap(0x7ff720fe2000, 2097152)         = 0\nclose(3)                                = 0\nexit_group(0)                           = ?\n\n6) $ ls test/xB.linkhuge -al\n-rwxr-xr-x 1 jiahongxu jiahongxu 2097152 Oct 18 19:04 test/xB.linkhuge"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6434394",
+						"comment_count": "1",
+						"who": {
+							"text": "hongxu.jia",
+							"name": "hongxu jia"
+						},
+						"bug_when": "2013-10-18 11:22:23 +0000",
+						"thetext": "*Analysis\n\n1) While ELF_C_RDWR_MMAP was used, elf_begin invoked mmap() to map file\n   into memory with the size of '1221403'.\n   ...strace log...\n   mmap(NULL, 1221403, PROT_READ|PROT_WRITE, MAP_SHARED, 3, 0) = 0x7ff720fe2000\n   ................\n\n2) While 'xB.linkhuge' bss Offset has a large number '00200000', elf_update\n   caculated file size by __elf64_updatenull_wrlock and the size was\n   enlarged from '1221403' to '2097152'\n\n3) In this situation, elf_update invoked ftruncate to enlarge the file,\n   and memory size (elf->maximum_size) also was incorrectly updated.\n   ...strace log...\n   ftruncate(3, 2097152)\n   ................\n\n4) There was segment fault in elf_end which invoked munmap with the\n   length is the enlarged file size '2097152', not the length of\n   mmap '1216568'.\n   ...strace log...\n   munmap(0x7ff720fe2000, 2097152)         = 0\n   ................"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6434445",
+						"comment_count": "2",
+						"who": {
+							"text": "hongxu.jia",
+							"name": "hongxu jia"
+						},
+						"bug_when": "2013-10-18 11:33:37 +0000",
+						"thetext": "*Solution\n\n1) I tried to modify elf_update.c, don't update memory size\n   (elf->maximum_size) in this situation. It fixed this issue\n   and everything looks ok, but I am not sure the modification\n   is necessary.\n......\n 11 diff --git a/libelf/elf_update.c b/libelf/elf_update.c\n 12 --- a/libelf/elf_update.c\n 13 +++ b/libelf/elf_update.c\n 14 @@ -120,7 +120,9 @@ write_file (Elf *elf, off_t size, int change_bo, size_t shnum)\n 15        size = -1;\n 16      }\n 17 \n 18 -  if (size != -1 && elf->parent == NULL)\n 19 +  /* If the file is enlarged by truncate, we should not update maximum_size to\n 20 +     avoid segment fault while invoking munmap in elf_end */\n 21 +  if (size != -1 && elf->parent == NULL && (size_t) size <= elf->maximum_size)\n 22      elf->maximum_size = size;\n......\n\n2) I also tried to add check before munmap in elf_end by msync with\n   the length of elf->maximum_size, if msync return error, munmap\n   should not be invoked, this could avoid segment fault.\n\n--- a/libelf/elf_end.c\n+++ b/libelf/elf_end.c\n@@ -217,7 +217,10 @@ elf_end (elf)\n       if ((elf->flags & ELF_F_MALLOCED) != 0)\n        free (elf->map_address);\n       else if ((elf->flags & ELF_F_MMAPPED) != 0)\n-       munmap (elf->map_address, elf->maximum_size);\n+      {\n+        if (msync (elf->map_address, elf->maximum_size, MS_SYNC) == 0)\n+          munmap (elf->map_address, elf->maximum_size);\n+      }\n     }\n\n3) Any suggestion is welcomed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "6596689",
+						"comment_count": "3",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2013-12-09 09:41:14 +0000",
+						"thetext": "*** Bug 1019707 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7994004",
+						"comment_count": "4",
+						"who": {
+							"text": "jreznik",
+							"name": "Jaroslav Reznik"
+						},
+						"bug_when": "2015-03-03 15:09:00 +0000",
+						"thetext": "This bug appears to have been reported against 'rawhide' during the Fedora 22 development cycle.\nChanging version to '22'.\n\nMore information and reason for this action is here:\nhttps://fedoraproject.org/wiki/Fedora_Program_Management/HouseKeeping/Fedora22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8054454",
+						"comment_count": "5",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-03-18 14:10:02 +0000",
+						"thetext": "Still an issue with current upstream git elfutils."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8055740",
+						"comment_count": "6",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-03-18 19:26:42 +0000",
+						"thetext": "So the problem is indeed the large sh_offset of the .bss section.\nSince it is NOBITS the size of the section is taken into account.\n\ngabi says that a NOBITS section occupies no space in the file, and its sh_offset member locates the conceptual placement in the file.\n\nSo that is why updatenull_wrlock takes the sh_offset and assumes it is inside the file (enlarging the file size) when ELF_F_LAYOUT is set.\n\nWe can probably just ignore the sh_offset of any NOBITS section in updatenull ().\n\ndiff --git a/libelf/elf32_updatenull.c b/libelf/elf32_updatenull.c\nindex 5e809b7..7629502 100644\n--- a/libelf/elf32_updatenull.c\n+++ b/libelf/elf32_updatenull.c\n@@ -318,9 +318,8 @@ __elfw2(LIBELFBITS,updatenull_wrlock) (Elf *elf, int *change_bop, size_t shnum)\n              if (elf->flags & ELF_F_LAYOUT)\n                {\n                  size = MAX ((GElf_Word) size,\n-                             shdr->sh_offset\n-                             + (shdr->sh_type != SHT_NOBITS\n-                                ? shdr->sh_size : 0));\n+                             (shdr->sh_type != SHT_NOBITS\n+                              ? shdr->sh_offset + shdr->sh_size : 0));\n \n                  /* The alignment must be a power of two.  This is a\n                     requirement from the ELF specification.  Additionally\n\n\nIt seems to fix the issue.\n\nQuestion. What program created the xB.linkhuge ELF file in the first place?\nIt seems it is bug to generate a .bss NOBITS section with a sh_off that is not inside the file in the first place (even if we can work around it). So maybe that generator should also be fixed?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8055749",
+						"comment_count": "7",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-03-18 19:31:59 +0000",
+						"thetext": "(In reply to Mark Wielaard from comment #6)\n> So the problem is indeed the large sh_offset of the .bss section.\n> Since it is NOBITS the size of the section is taken into account.\n\nSorry, that should have read:\n\n\"Since it is NOBITS the size of the section is ignored, but the offset is taken into account.\""
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8075478",
+						"comment_count": "8",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-03-23 21:17:56 +0000",
+						"thetext": "Such files are probably created by buggy binutils ld:\nhttps://sourceware.org/bugzilla/show_bug.cgi?id=12921"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8077729",
+						"comment_count": "9",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-03-24 12:50:29 +0000",
+						"thetext": "Patch posted upstream:\nhttps://lists.fedorahosted.org/pipermail/elfutils-devel/2015-March/004646.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8314413",
+						"comment_count": "10",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-06-08 12:32:32 +0000",
+						"thetext": "The patch is now in elfutils git master and the bug will be fixed when elfutils 0.162 is released later this week."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8326568",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-11 13:16:16 +0000",
+						"thetext": "elfutils-0.162-1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/elfutils-0.162-1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8332417",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-13 06:35:42 +0000",
+						"thetext": "Package elfutils-0.162-1.fc22:\n* should fix your issue,\n* was pushed to the Fedora 22 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing elfutils-0.162-1.fc22'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-9857/elfutils-0.162-1.fc22\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8354491",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-19 14:54:04 +0000",
+						"thetext": "elfutils-0.163-1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/elfutils-0.163-1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8393995",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-30 20:11:25 +0000",
+						"thetext": "elfutils-0.163-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8420676",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-08 15:06:58 +0000",
+						"thetext": "elfutils-0.163-1.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/elfutils-0.163-1.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8488873",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-29 01:35:44 +0000",
+						"thetext": "elfutils-0.163-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1129756,
+			"title": "Unwinding core fails in vDSO frame when elf_begin is called with ELF_C_READ",
+			"bugzilla": {
+				"bug_id": "1129756",
+				"creation_ts": "2014-08-13 15:22:35 +0000",
+				"short_desc": "Unwinding core fails in vDSO frame when elf_begin is called with ELF_C_READ",
+				"delta_ts": "2015-07-29 01:35:40 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "FutureFeature",
+				"priority": "unspecified",
+				"bug_severity": "low",
+				"external_bugs": {
+					"text": "1191586",
+					"name": "Red Hat Bugzilla"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7381928",
+						"comment_count": "0",
+						"who": {
+							"text": "mmilata",
+							"name": "Martin Milata"
+						},
+						"bug_when": "2014-08-13 15:22:35 +0000",
+						"thetext": "Created attachment 926483\nReproducer\n\nDescription of problem:\nWhen unwinding core dump on i386, it appears that dwfl_thread_getframes fails with \"Callback returned failure\" after it reaches a frame belonging to VDSO and only if the core file had been opened with elf_begin(fd, ELF_C_READ, NULL). Opening it with ELF_C_READ_MMAP solves this issue.\n\nVersion-Release number of selected component: elfutils-0.159-8.fc22.i686\n\nHow reproducible: Always\n\nSteps to Reproduce:\n1. gcc -o simplestack -lelf -ldw simplestack.c\n2. ulimit -c unlimited\n3. sleep 1d &\n4. kill -11 $!\n[1]+  Segmentation fault      (core dumped) sleep 1d\n5. ./simplestack /usr/bin/sleep core.12345\n\nActual results:\nb7725d7c\ndwfl_thread_getframes: -1 (Callback returned failure)\ndwfl_getthreads: DWARF_CB_OK\n\nExpected results:\nb7725d7c\nb75fc120\n804bebe\n80490a1\nb7555e9e\n80491fa\ndwfl_thread_getframes: -1 (No DWARF information found)\ndwfl_getthreads: DWARF_CB_OK\n\n(can be achieved by replacing ELF_C_READ by ELF_C_READ_MMAP in simplestack.c)\n\nAdditional info:\nLow priority as this can be easily worked around in the library user (ABRT in this case)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7390285",
+						"comment_count": "1",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2014-08-15 22:18:48 +0000",
+						"thetext": "Replicated with 0.158-4.fc20.i686 but not analysed yet."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7995597",
+						"comment_count": "2",
+						"who": {
+							"text": "jreznik",
+							"name": "Jaroslav Reznik"
+						},
+						"bug_when": "2015-03-03 16:12:14 +0000",
+						"thetext": "This bug appears to have been reported against 'rawhide' during the Fedora 22 development cycle.\nChanging version to '22'.\n\nMore information and reason for this action is here:\nhttps://fedoraproject.org/wiki/Fedora_Program_Management/HouseKeeping/Fedora22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8033093",
+						"comment_count": "3",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-03-11 15:17:07 +0000",
+						"thetext": "Still an issue with current elfutils git."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8046073",
+						"comment_count": "4",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-03-16 14:16:04 +0000",
+						"thetext": "The difference is that core_file_read_eagerly () returns false in the ELF_C_READ case, and true in the ELF_C_READ_MMAP case for linux-gate.so.1."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8046652",
+						"comment_count": "5",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-03-16 15:58:51 +0000",
+						"thetext": "Posted a patch upstream:\nhttps://lists.fedorahosted.org/pipermail/elfutils-devel/2015-March/004636.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8314487",
+						"comment_count": "6",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-06-08 12:38:56 +0000",
+						"thetext": "After discussion upstream a variant of the patch is no in git master. Fixing this bug when elfutils 0.162 will be released later this week."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8326567",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-11 13:16:13 +0000",
+						"thetext": "elfutils-0.162-1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/elfutils-0.162-1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8332416",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-13 06:35:40 +0000",
+						"thetext": "Package elfutils-0.162-1.fc22:\n* should fix your issue,\n* was pushed to the Fedora 22 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing elfutils-0.162-1.fc22'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-9857/elfutils-0.162-1.fc22\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8354490",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-19 14:54:02 +0000",
+						"thetext": "elfutils-0.163-1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/elfutils-0.163-1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8393994",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-30 20:11:22 +0000",
+						"thetext": "elfutils-0.163-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8420675",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-08 15:06:55 +0000",
+						"thetext": "elfutils-0.163-1.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/elfutils-0.163-1.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8488872",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-29 01:35:40 +0000",
+						"thetext": "elfutils-0.163-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1139815,
+			"title": "Ukrainian translation update",
+			"bugzilla": {
+				"bug_id": "1139815",
+				"creation_ts": "2014-09-09 17:04:52 +0000",
+				"short_desc": "Ukrainian translation update",
+				"delta_ts": "2015-07-29 01:35:36 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7462943",
+						"comment_count": "0",
+						"who": {
+							"text": "yurchor",
+							"name": "Yuri Chornoivan"
+						},
+						"bug_when": "2014-09-09 17:04:52 +0000",
+						"thetext": "Created attachment 935838\nA patch to update the translation\n\nDescription of problem: Please update Ukrainian translation (signedoff patch attached)\n\nVersion-Release number of selected component (if applicable): git/master\n\nHow reproducible: always\n\nSteps to Reproduce: msgfmt -vc -o /dev/null po/uk.po\n\nActual results: 24 untranslated messages\n\nExpected results: 1221 translated messages\n\nAdditional info: Thanks for reviewing and pushing this patch."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7995730",
+						"comment_count": "1",
+						"who": {
+							"text": "jreznik",
+							"name": "Jaroslav Reznik"
+						},
+						"bug_when": "2015-03-03 16:16:53 +0000",
+						"thetext": "This bug appears to have been reported against 'rawhide' during the Fedora 22 development cycle.\nChanging version to '22'.\n\nMore information and reason for this action is here:\nhttps://fedoraproject.org/wiki/Fedora_Program_Management/HouseKeeping/Fedora22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8314635",
+						"comment_count": "2",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-06-08 13:15:52 +0000",
+						"thetext": "Thanks. And apologies for the long delay applying.\n\nPushed upstream in two commit (my mistake, I missed that part of the translation didn't apply cleanly in the original commit due to line number changes):\n\ncommit b07d1655383e1d28166d349b2e780b24f167ed42\nAuthor: Yuri Chornoivan <yurchor@ukr.net>\nDate:   Mon Jun 8 15:12:47 2015 +0200\n\n    Ukrainian translation update\n    \n    https://bugzilla.redhat.com/show_bug.cgi?id=1139815\n    \n    Signed-off-by: Yuri Chornoivan <yurchor@ukr.net>\n\ncommit ba94fa1cd3e4dbe7f79ffad59f34bd4aed9779df\nAuthor: Yuri Chornoivan <yurchor@ukr.net>\nDate:   Tue Sep 9 19:57:00 2014 +0300\n\n    Ukrainian translation update\n    \n    Signed-off-by: Yuri Chornoivan <yurchor@ukr.net>\n\nThis will be in elfutils 0.162 to be released later this week."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8326565",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-11 13:16:11 +0000",
+						"thetext": "elfutils-0.162-1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/elfutils-0.162-1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8332415",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-13 06:35:38 +0000",
+						"thetext": "Package elfutils-0.162-1.fc22:\n* should fix your issue,\n* was pushed to the Fedora 22 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing elfutils-0.162-1.fc22'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-9857/elfutils-0.162-1.fc22\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8354488",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-19 14:53:59 +0000",
+						"thetext": "elfutils-0.163-1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/elfutils-0.163-1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8393993",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-30 20:11:20 +0000",
+						"thetext": "elfutils-0.163-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8420673",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-08 15:06:53 +0000",
+						"thetext": "elfutils-0.163-1.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/elfutils-0.163-1.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8488871",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-29 01:35:36 +0000",
+						"thetext": "elfutils-0.163-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1170810,
+			"security": true,
+			"title": "Fuzzing elfutils -- various badness",
+			"bugzilla": {
+				"bug_id": "1170810",
+				"creation_ts": "2014-12-04 22:23:21 +0000",
+				"short_desc": "Fuzzing elfutils -- various badness",
+				"delta_ts": "2015-07-29 01:35:30 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, Tracking",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7734813",
+						"comment_count": "0",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2014-12-04 22:23:21 +0000",
+						"thetext": "This is a bug to track the results of (some) fuzzing of elfutils. As suggested here: https://lists.fedorahosted.org/pipermail/elfutils-devel/2014-December/004351.html . The start of the thread is here: https://lists.fedorahosted.org/pipermail/elfutils-devel/2014-December/004346.html ."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7734829",
+						"comment_count": "1",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2014-12-04 22:27:02 +0000",
+						"thetext": "Created attachment 964861\nCrashers for `objdump -rs`\n\nFiles: 11\nErrors:\n     10 Invalid read of size ...\n      7 Process terminating with default action of signal 11 (SIGSEGV)\n      3 Process terminating with default action of signal 8 (SIGFPE)\n\nThe same as in https://lists.fedorahosted.org/pipermail/elfutils-devel/2014-December/004346.html ."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7734833",
+						"comment_count": "2",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2014-12-04 22:28:23 +0000",
+						"thetext": "Created attachment 964862\nCrashes for `readelf -aAdehIlnrsSVcp -w`\n\nFiles: 11\nErrors:\n      1 Argument 'size' of function malloc has a fishy (possibly negative) value: ...\n      1 Invalid free() / delete / delete[] / realloc()\n      9 Invalid read of size ...\n      6 Process terminating with default action of signal 11 (SIGSEGV)\n      1 Process terminating with default action of signal 8 (SIGFPE)\n\nThe same as in\nhttps://lists.fedorahosted.org/pipermail/elfutils-devel/2014-December/004346.html\n."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7734838",
+						"comment_count": "3",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2014-12-04 22:29:16 +0000",
+						"thetext": "Created attachment 964863\nAborts for `readelf -aAdehIlnrsSVcp -w`\n\nFiles: 2\nErrors:\n      1 No assertion info in gdb backtrace.\n      1 readelf.c:7731: print_debug_exception_table: Assertion `readp == action_table' failed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7736120",
+						"comment_count": "4",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2014-12-05 09:01:01 +0000",
+						"thetext": "At least some fixes are in these two patches:\nhttps://lists.fedorahosted.org/pipermail/elfutils-devel/2014-December/004352.html\nhttps://lists.fedorahosted.org/pipermail/elfutils-devel/2014-December/004353.html\nMore to come."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7740842",
+						"comment_count": "5",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2014-12-08 02:58:49 +0000",
+						"thetext": "Created attachment 965676\nMore crashes for `readelf -aAdehIlnrsSVcp -w`\n\ncrashes\n\nFiles: 24\nErrors:\n      1 Argument 'size' of function malloc has a fishy (possibly negative) value: ...\n     30 Invalid read of size ...\n      3 Invalid write of size ...\n     17 Process terminating with default action of signal 11 (SIGSEGV)\n\n----------------------------------------------------------------------\n\nasserts\n\nFiles: 2\nErrors:\n      1 readelf.c:4456: notice_listptr: Assertion `p->offset == offset' failed.\n      1 readelf.c:7751: print_debug_exception_table: Assertion `readp == action_table' failed.\n\n----------------------------------------------------------------------\n\ncatchsegv\n\nFiles: 2\nErrors:\n      2 *** Segmentation fault"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7764575",
+						"comment_count": "6",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2014-12-15 12:11:28 +0000",
+						"thetext": "I believe the \"Argument 'size' of function malloc has a fishy (possibly negative) value\" in dwarf_begin_elf.c (check_section) is correct, but harmless. We do check the value doesn't actually overflow, the allocation will likely fail, but that is also checked."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7783394",
+						"comment_count": "7",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2014-12-20 22:51:01 +0000",
+						"thetext": "elfutils 0.161 was released with patches that solve various crashers.\nhttps://lists.fedorahosted.org/pipermail/elfutils-devel/2014-December/004481.html\nNone of the above samples crash anymore.\n\nBut one sample shows there is an invalid memory access when manipulating a Dwarf_Abbrev with dwarf_getabbrevattr this is one of three areas that I know of that still need improvements, but for which we haven't seen any crashers yet:\n\n1) When creating an Dwarf_Abbrev we don't keep track of the memory buffer it came from, so we are unable to bounds check any accesses made through them.\n\n2) read_encoded_value () used to parse CFI data doesn't do any bounds checking yet.\n\n3) There are various places in the code that allocate memory on the stack with alloca that might depend on untrusted input values. There might be a possibility that such allocations blow up the stack. They need to be carefully audited.\n\nI like to keep this bug open till at least those three issues have been fixed.\n\nOf course any new fuzzed data files that cause crashes are also very welcome."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7783414",
+						"comment_count": "8",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2014-12-20 23:49:36 +0000",
+						"thetext": "Created attachment 971587\nMore crashers for `readelf -aAdehIlnrsSVcp -w`\n\ncrashes\n\nFiles: 9\nErrors:\n      1 Argument 'size' of function malloc has a fishy (possibly negative) value: ...\n      5 Conditional jump or move depends on uninitialised value(s)\n      7 Invalid read of size ...\n      7 Process terminating with default action of signal 11 (SIGSEGV)\n      3 Use of uninitialised value of size ...\n\n----------------------------------------------------------------------\n\ncatchsegv\n\nFiles: 2\nErrors:\n      2 *** Segmentation fault"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7784048",
+						"comment_count": "9",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2014-12-21 22:13:24 +0000",
+						"thetext": "(In reply to Alexander Cherepanov from comment #8)\n> Created attachment 971587 [details]\n> More crashers for `readelf -aAdehIlnrsSVcp -w`\n\nThanks I posted two patches (also on mjw/pending branch) to solve these issues:\n\n      readelf: Add more sanity checks to print_debug_exception_table.\n      readelf: Don't try to read macinfo cus sentinel or beyond.\n\n> Errors:\n>       1 Argument 'size' of function malloc has a fishy (possibly negative)\n\nSee comment #6."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7790996",
+						"comment_count": "10",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2014-12-25 17:30:55 +0000",
+						"thetext": "Created attachment 973055\nProblems with `nm -DsSCp --mark-special`\n\nvalgrind\n\nFiles: 1\nErrors:\n      1 Process terminating with default action of signal 8 (SIGFPE)\n\n----------------------------------------------------------------------\n\nhang\n\nFiles: 1\nErrors:\n      1 Hangs"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7791060",
+						"comment_count": "11",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2014-12-25 21:13:55 +0000",
+						"thetext": "Created attachment 973086\nProblems with `strings`\n\nvalgrind\n\nFiles: 2\nErrors:\n      2 Process terminating with default action of signal 7 (SIGBUS)\n\n----------------------------------------------------------------------\n\ngdb\n\nFiles: 3\nErrors:\n      1 strings.c:636: read_block: Assertion `from >= (off64_t) elfmap_off && from < (off64_t) (elfmap_off + elfmap_size)' failed.\n      1 strings.c:644: read_block: Assertion `elfmap_size >= keep_area + ps' failed.\n      1 strings.c:672: read_block: Assertion `handled_to % ps == 0' failed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7791071",
+						"comment_count": "12",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2014-12-25 21:48:24 +0000",
+						"thetext": "Created attachment 973087\nProblems with `elflint --strict`\n\n(Deduplication of valgrind errors by last frame only, not full stacktrace. To reduce number of samples.)\n\nvalgrind\n\nFiles: 39\nErrors:\n     33 Conditional jump or move depends on uninitialised value(s)\n     26 Invalid read of size ...\n      3 Invalid write of size ...\n     28 Process terminating with default action of signal 11 (SIGSEGV)\n      6 Process terminating with default action of signal 8 (SIGFPE)\n      1 Stack overflow in thread ...\n     13 Use of uninitialised value of size ...\n\n----------------------------------------------------------------------\n\ngdb\n\nFiles: 4\nErrors:\n      2 No assertion info in gdb backtrace.\n      2 elflint.c:696: check_symtab: Assertion `name != ((void *)0) || strshdr->sh_type != 3' failed.\n\n----------------------------------------------------------------------\n\ncatchsegv\n\nFiles: 3\nErrors:\n      3 *** Segmentation fault"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7791845",
+						"comment_count": "13",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2014-12-26 19:28:53 +0000",
+						"thetext": "(In reply to Alexander Cherepanov from comment #10)\n> Created attachment 973055 [details]\n> Problems with `nm -DsSCp --mark-special`\n\nThere are 2 commits on the mjw/pending branch posted to the list that solve these issues:\n\n    nm: Guard against divide by zero in error check.\n    nm: Stop processing ar members on first invalid offset."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7792018",
+						"comment_count": "14",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2014-12-26 22:04:20 +0000",
+						"thetext": "(In reply to Alexander Cherepanov from comment #11)\n> Created attachment 973086 [details]\n> Problems with `strings`\n\nThe following commit on mjw/pending branch, posted to the list, solves these issues:\n\n    strings: Produce error when section data falls outside file."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7796318",
+						"comment_count": "15",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2014-12-31 10:18:22 +0000",
+						"thetext": "(In reply to Alexander Cherepanov from comment #12)\n> Created attachment 973087 [details]\n> Problems with `elflint --strict`\n\nThe following commit on the mjw/pending branch, also posted to the list, solve these issues:\n\n    elflint: Add various low-level checks.\n\nSome additional fuzzing found two more issues, also fixed on that branch:\n\n    backends: Check sh_entsize is not zero in ppc_symbol.c (find_dyn_got).\n    libelf: gelf_getphdr should check phdr index is valid."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7798314",
+						"comment_count": "16",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2015-01-02 15:17:52 +0000",
+						"thetext": "Created attachment 975293\nMore problems with `elflint --strict`\n\nvalgrind\n\nFiles: 2\nErrors:\n     25 Conditional jump or move depends on uninitialised value(s)\n     24 Use of uninitialised value of size ...\n\n----------------------------------------------------------------------\n\nhang\n\nFiles: 1\nErrors:\n      1 Long loop?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7798332",
+						"comment_count": "17",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2015-01-02 15:22:53 +0000",
+						"thetext": "Created attachment 975294\nProblems with `elfcmp -l`\n\n(Comparing a file with itself.)\n\nvalgrind\n\nFiles: 4\nErrors:\n      1 Conditional jump or move depends on uninitialised value(s)\n      2 Invalid read of size ...\n      2 Process terminating with default action of signal 11 (SIGSEGV)\n      1 Process terminating with default action of signal 8 (SIGFPE)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7798653",
+						"comment_count": "18",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2015-01-02 18:33:56 +0000",
+						"thetext": "Created attachment 975325\nProblems with `stack -abdilmsv --core=`\n\n(Deduplicated by only one stack frame.)\n\nvalgrind\n\nFiles: 34\nErrors:\n     50 Conditional jump or move depends on uninitialised value(s)\n     27 Invalid read of size ...\n     14 Invalid write of size ...\n     29 Process terminating with default action of signal 11 (SIGSEGV)\n      1 Source and destination overlap in memcpy...\n     34 Use of uninitialised value of size ...\n\n----------------------------------------------------------------------\n\ncatchsegv\n\nFiles: 19\nErrors:\n     19 *** Segmentation fault"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7799984",
+						"comment_count": "19",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-01-03 22:19:06 +0000",
+						"thetext": "(In reply to Alexander Cherepanov from comment #16)\n> Created attachment 975293 [details]\n> More problems with `elflint --strict`\n> \n> valgrind\n> \n> Files: 2\n> Errors:\n>      25 Conditional jump or move depends on uninitialised value(s)\n>      24 Use of uninitialised value of size ...\n> \n> ----------------------------------------------------------------------\n> \n> hang\n> \n> Files: 1\n> Errors:\n>       1 Long loop?\n\n\nThere were some more low-level (version offset) checks missing which I have incorporated into the orginal fix on the mjw/pending branch. See \"elflint: Add various low-level checks.\"\n\nThe usage of undefined memory comes from the libelf translation functions which cannot convert the full version section data because the version data definitions are corrupt/incomplete. This could lead to a data leak because the buffer is malloced, but not fully filled. I have a patch for that also on the mjw/pending branch \"libelf: Make sure version xlate dest buffer is fully defined.\" but I am not too happy about it. In general it is inefficient and should be unnecessary. But there is no way currently for the translation functions to signal \"failure\" (all other translations are always well defined, only version data seems special)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7800053",
+						"comment_count": "20",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-01-03 23:40:46 +0000",
+						"thetext": "(In reply to Alexander Cherepanov from comment #17)\n> Created attachment 975294 [details]\n> Problems with `elfcmp -l`\n\nSome NULL and zero checks were missing (plus a ehdr/phdr typo). Fixed on mjw/pending branch and posted to the list as \"elfcmp: Add some NULL and zero checks.\""
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7816721",
+						"comment_count": "21",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-01-07 22:52:03 +0000",
+						"thetext": "(In reply to Mark Wielaard from comment #7)\n> 2) read_encoded_value () used to parse CFI data doesn't do any bounds\n> checking yet.\n\nThere is a patch posted, and on the mjw/pending branch, that add bounds checking:\n\n    libdw: Robustify eh_frame_hdr and encoded-values reading.\n    \n    Sanity check and keep track of binary_search_table data buffer length.\n    Add bounds check to encoded value reading. Also fix a bug when reading\n    the eh_frame header data from an other endian ELF image. Add a testcase\n    that would fail the new sanity checks because of the endian bug.\n\nThe other FDE and CIE parsing code should also be reviewed for any missing bounds checks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7832946",
+						"comment_count": "22",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2015-01-11 20:51:24 +0000",
+						"thetext": "Created attachment 978856\nProblems with `readelf -aAdehIlnrsSVcp -Nw`\n\nFiles: 1\nErrors:\n      1 Process terminating with default action of signal 11 (SIGSEGV)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7833027",
+						"comment_count": "23",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-01-11 22:12:58 +0000",
+						"thetext": "(In reply to Alexander Cherepanov from comment #22)\n> Created attachment 978856 [details]\n> Problems with `readelf -aAdehIlnrsSVcp -Nw`\n> \n> Files: 1\n> Errors:\n>       1 Process terminating with default action of signal 11 (SIGSEGV)\n\nThanks. I was just pondering about all these unbounded array allocations on the stack in the code. This is an example of one. In this case descsz=8388624 and we have the following in ebl_object_note.c:\n\n uint32_t buf[descsz / 4];\n\nCausing a stack overflow that looks like a crash while calling a function.\n\nBTW. The valgrind output already hints there is something fishy going on here:\n\n==24364== Warning: client switching stacks?  SP change: 0xffefff5f0 --> 0xffe7ff5d0\n\nWhen compiling with gcc -Wstack-usage=65536 these issues are easy to spot as:\n\n/home/mark/src/elfutils/libebl/eblobjnote.c:220:1: error: stack usage might be unbounded [-Werror=stack-usage=]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7850384",
+						"comment_count": "24",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2015-01-15 23:08:44 +0000",
+						"thetext": "Created attachment 980692\nProblems with `strings`\n\nFiles: 1\nErrors:\n      1 Invalid read of size ..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7855168",
+						"comment_count": "25",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2015-01-18 22:55:56 +0000",
+						"thetext": "Created attachment 981241\nProblems with `strip`\n\n(If arguments of malloc are Ok, then please ignore \"fishy\" errors.)\n\nFiles: 18\nErrors:\n      3 Argument 'size' of function malloc has a fishy (possibly negative) value: ...\n     14 Invalid read of size ...\n      5 Process terminating with default action of signal 11 (SIGSEGV)\n      4 Process terminating with default action of signal 8 (SIGFPE)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7869282",
+						"comment_count": "26",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-01-22 12:02:21 +0000",
+						"thetext": "(In reply to Alexander Cherepanov from comment #24)\n> Created attachment 980692 [details]\n> Problems with `strings`\n> \n> Files: 1\n> Errors:\n>       1 Invalid read of size ...\n\nThat was an interesting case. It isn't specific to eu-strings. It is a generic issue with elf_strptr which could return a non-NUL terminated string. Most callers weren't prepared for that. So the fix is to add a check to elf_strptr:\n\n  libelf: Make sure string returned by elf_strptr is NUL terminated.\n\nBut before I could fix that I had to fix some other issues:\n\n  libelf: elf_strptr should fetch the shdr for the section if not yet known.\n  libelf: Fix elf_newdata when raw ELF file/image data is available.\n  libelf: elf_strptr should use datalist when data has been added to section.\n\nAll have been posted to the mailinglist and are on the mjw/pending git branch."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7874745",
+						"comment_count": "27",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2015-01-23 23:08:19 +0000",
+						"thetext": "Created attachment 983597\nProblems with `findtextrel`\n\nFiles: 5\nErrors:\n      5 Process terminating with default action of signal 8 (SIGFPE)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7874753",
+						"comment_count": "28",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2015-01-23 23:16:58 +0000",
+						"thetext": "(In reply to Mark Wielaard from comment #26)\n> That was an interesting case.\n\nI'm glad that you like it:-)\n\n> It isn't specific to eu-strings. It is a\n> generic issue with elf_strptr which could return a non-NUL terminated\n> string. Most callers weren't prepared for that.\n\nIt's surprising to hit such a bug after the previous fuzzing."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7924731",
+						"comment_count": "29",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2015-02-10 18:28:46 +0000",
+						"thetext": "Created attachment 990196\nProblems with `readelf -aAdehIlnrsSVcp -Nw` (32-bit)\n\nI've built elfutils for 32-bit with some hardning turned on (exact configure is in configure.txt). The crashes on the attached samples are somewhat elusive. LD_PRELOAD=/lib/i386-linux-gnu/libSegFault.so makes crashes more determninistic. Stacktraces are in the catchsegv/ subdir.\n\nThere is also a number of cases of undefined behavior catched with gcc 4.9 -fsanitize=undefined (exact configure is in configure-ubsan.txt). More or less the same samples.\n\n----------------------------------------------------------------------\n\nubsan\n\nFiles: 8\nErrors:\n      1 ../../../source/src/../libdw/memory-access.h:103:5: runtime error: left shift of ... by ... places cannot be represented in type 'long long int'\n      1 ../../../source/src/readelf.c:1133:28: runtime error: left shift of ... by ... places cannot be represented in type 'int'\n      1 ../../../source/src/readelf.c:5626:11: runtime error: signed integer overflow: ... - ... cannot be represented in type 'int'\n      1 ../../../source/src/readelf.c:8021:25: runtime error: signed integer overflow: ... - ... cannot be represented in type 'int'\n      1 ../../../source/src/readelf.c:8043:25: runtime error: signed integer overflow: ... - ... cannot be represented in type 'int'\n      1 ../../../source/src/readelf.c:8069:27: runtime error: signed integer overflow: ... - ... cannot be represented in type 'int'\n      1 ../../../source/src/readelf.c:8098:26: runtime error: signed integer overflow: ... - ... cannot be represented in type 'int'\n      1 ../../../source/src/readelf.c:8116:8: runtime error: signed integer overflow: ... - ... cannot be represented in type 'int'\n\n----------------------------------------------------------------------\n\ncatchsegv\n\nFiles: 6\nErrors:\n      6 *** Segmentation fault"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7930724",
+						"comment_count": "30",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2015-02-11 23:44:53 +0000",
+						"thetext": "Created attachment 990700\nProblems with `addr2line -e @@ -- ...` (32-bit)\n\nThe exact (long) command line is in cmd.txt.\n\n----------------------------------------------------------------------\n\nvalgrind\n\nFiles: 4\nErrors:\n      2 Conditional jump or move depends on uninitialised value(s)\n      7 Invalid read of size ...\n      3 Process terminating with default action of signal 11 (SIGSEGV)\n      1 Use of uninitialised value of size ..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7934026",
+						"comment_count": "31",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2015-02-12 21:09:53 +0000",
+						"thetext": "Created attachment 991147\nProblems with `elflint --strict` (32-bit)\n\nvalgrind\n\nFiles: 6\nErrors:\n      2 Conditional jump or move depends on uninitialised value(s)\n      5 Invalid read of size ...\n      5 Process terminating with default action of signal 11 (SIGSEGV)\n\n----------------------------------------------------------------------\n\nubsan\n\nFiles: 6\nErrors:\n      1 ../../../source/src/elflint.c:2204:30: runtime error: shift exponent ... is negative\n      1 ../../../source/src/elflint.c:2204:30: runtime error: shift exponent ... is too large for 32-bit type 'unsigned int'\n      1 ../../../source/src/elflint.c:2211:30: runtime error: shift exponent ... is negative\n      1 ../../../source/src/elflint.c:2211:30: runtime error: shift exponent ... is too large for 32-bit type 'unsigned int'\n      1 ../../../source/src/elflint.c:3035:3: runtime error: signed integer overflow: ... + ... cannot be represented in type 'int'\n      1 ../../../source/src/elflint.c:3194:3: runtime error: signed integer overflow: ... + ... cannot be represented in type 'int'"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7939502",
+						"comment_count": "32",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2015-02-15 22:03:58 +0000",
+						"thetext": "Created attachment 991985\nProblems with `nm -DsSp --mark-special` (32-bit)\n\nvalgrind\n\nFiles: 2\nErrors:\n      1 Argument 'size' of function malloc has a fishy (possibly negative) value: ...\n      1 Invalid read of size ...\n      1 Process terminating with default action of signal 11 (SIGSEGV)\n\n----------------------------------------------------------------------\n\nubsan\n\nFiles: 2\nErrors:\n      1 ../../../source/libdw/dwarf_getsrclines.c:575:13: runtime error: signed integer overflow: ... + ... cannot be represented in type 'int'\n      1 ../../../source/libdw/memory-access.h:103:5: runtime error: left shift of ... by ... places cannot be represented in type 'long long int'"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7939563",
+						"comment_count": "33",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2015-02-15 22:26:02 +0000",
+						"thetext": "Created attachment 991986\nProblems with `ar -tv` (32-bit)\n\nubsan\n\nFiles: 1\nErrors:\n      1 ../../../source/src/ar.c:463:8: runtime error: variable length array bound evaluates to non-positive value ..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7957242",
+						"comment_count": "34",
+						"who": {
+							"text": "cherepan",
+							"name": "Alexander Cherepanov"
+						},
+						"bug_when": "2015-02-19 00:23:09 +0000",
+						"thetext": "Created attachment 993359\nProblems with `strip -o /dev/null` (32-bit)\n\nvalgrind\n\nFiles: 3\nErrors:\n      1 Argument 'size' of function malloc has a fishy (possibly negative) value: ...\n      1 Invalid read of size ...\n      1 Process terminating with default action of signal 11 (SIGSEGV)\n      1 Process terminating with default action of signal 8 (SIGFPE)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7996196",
+						"comment_count": "35",
+						"who": {
+							"text": "jreznik",
+							"name": "Jaroslav Reznik"
+						},
+						"bug_when": "2015-03-03 16:34:07 +0000",
+						"thetext": "This bug appears to have been reported against 'rawhide' during the Fedora 22 development cycle.\nChanging version to '22'.\n\nMore information and reason for this action is here:\nhttps://fedoraproject.org/wiki/Fedora_Program_Management/HouseKeeping/Fedora22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8163031",
+						"comment_count": "36",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-04-21 09:10:43 +0000",
+						"thetext": "(In reply to Alexander Cherepanov from comment #29)\n> Created attachment 990196 [details]\n> Problems with `readelf -aAdehIlnrsSVcp -Nw` (32-bit)\n> \n> I've built elfutils for 32-bit with some hardning turned on (exact configure\n> is in configure.txt). The crashes on the attached samples are somewhat\n> elusive. LD_PRELOAD=/lib/i386-linux-gnu/libSegFault.so makes crashes more\n> determninistic. Stacktraces are in the catchsegv/ subdir.\n\nThanks. These are all fixed by the following patch currently on the mjw/pending branch:\n\ncommit 3e4d5ccd97f597fef9e4053bd58ae54ba815499f\nAuthor: Mark Wielaard <mjw@redhat.com>\nDate:   Fri Apr 17 20:03:44 2015 +0200\n\n    readelf: Add overflow checking to print_gdb_index_section dataend checks.\n    \n    https://bugzilla.redhat.com/show_bug.cgi?id=1170810#c29\n    \n    Signed-off-by: Mark Wielaard <mjw@redhat.com>"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8163073",
+						"comment_count": "37",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-04-21 09:24:11 +0000",
+						"thetext": "(In reply to Alexander Cherepanov from comment #29)\n> There is also a number of cases of undefined behavior catched with gcc 4.9\n> -fsanitize=undefined (exact configure is in configure-ubsan.txt). More or\n> less the same samples.\n> \n>       1 ../../../source/src/readelf.c:1133:28: runtime error: left shift of\n> ... by ... places cannot be represented in type 'int'\n\nThis one really is a bug in glibc elf.h which has a simple one character fix, but has for some reason been somewhat hard to get applied. Most recent attempt:\nhttps://sourceware.org/ml/libc-alpha/2015-04/msg00255.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8168161",
+						"comment_count": "38",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-04-22 10:53:55 +0000",
+						"thetext": "(In reply to Alexander Cherepanov from comment #29)\n> There is also a number of cases of undefined behavior catched with gcc 4.9\n> -fsanitize=undefined (exact configure is in configure-ubsan.txt). More or\n> less the same samples.\n> \n> ----------------------------------------------------------------------\n> \n> ubsan\n> \n> Files: 8\n> Errors:\n>       1 ../../../source/src/../libdw/memory-access.h:103:5: runtime error:\n> left shift of ... by ... places cannot be represented in type 'long long int'\n>       1 ../../../source/src/readelf.c:1133:28: runtime error: left shift of\n> ... by ... places cannot be represented in type 'int'\n>       1 ../../../source/src/readelf.c:5626:11: runtime error: signed integer\n> overflow: ... - ... cannot be represented in type 'int'\n>       1 ../../../source/src/readelf.c:8021:25: runtime error: signed integer\n> overflow: ... - ... cannot be represented in type 'int'\n>       1 ../../../source/src/readelf.c:8043:25: runtime error: signed integer\n> overflow: ... - ... cannot be represented in type 'int'\n>       1 ../../../source/src/readelf.c:8069:27: runtime error: signed integer\n> overflow: ... - ... cannot be represented in type 'int'\n>       1 ../../../source/src/readelf.c:8098:26: runtime error: signed integer\n> overflow: ... - ... cannot be represented in type 'int'\n>       1 ../../../source/src/readelf.c:8116:8: runtime error: signed integer\n> overflow: ... - ... cannot be represented in type 'int'\n\nServeral patches, currently on the mjw/pending branch, were needed to correct all of these:\n\ncommit 87ad3a2ae15fc7b259dc2028d9a4c11c41199a4f\nAuthor: Mark Wielaard <mjw@redhat.com>\nDate:   Wed Apr 22 12:47:46 2015 +0200\n\n    readelf: Fix cie_offset calculation comparison on 32bit.\n    \n    gcc -fsanitize=undefined pointed out that on 32bit systems the calculation\n    to match the cie_offset to the cie_id could be undefined because a cie_id\n    could be an unsigned 64bit value while ptrdiff_t is only 32bits. Correct\n    the calculation to use 64bit values.\n    \n    Signed-off-by: Mark Wielaard <mjw@redhat.com>\n\ncommit b09d39ea4817ed66d302af219523af4e3b992513\nAuthor: Mark Wielaard <mjw@redhat.com>\nDate:   Wed Apr 22 12:28:30 2015 +0200\n\n    libdw: Undefined behavior in get_sleb128_step.\n    \n    gcc -fsanitize=undefined pointed out that for too big sleb128 values we\n    could shift into the sign bit. So for sleb128 values that have to fit\n    in a (signed) int64_t variable reduce the max number of steps by one.\n    \n    https://bugzilla.redhat.com/show_bug.cgi?id=1170810#c29\n    \n    Signed-off-by: Mark Wielaard <mjw@redhat.com>\n\ncommit 257cbc32eabacb038e76fa3ca779e1b99abef7d3\nAuthor: Mark Wielaard <mjw@redhat.com>\nDate:   Wed Apr 22 11:44:32 2015 +0200\n\n    readelf: Check all offsets used in print_gdb_index_section against d_size.\n    \n    https://bugzilla.redhat.com/show_bug.cgi?id=1170810#c29\n    \n    Signed-off-by: Mark Wielaard <mjw@redhat.com>\n\ncommit 3454ca233c3c8bcbc3e139a32b6d1a72cc855215\nAuthor: Mark Wielaard <mjw@redhat.com>\nDate:   Tue Apr 21 15:56:06 2015 +0200\n\n    libdwfl: Fix wrong type to make gcc -fsanitize=undefined happy.\n    \n    gcc -fsanitize=undefined would warn about calling dwfl_error accessing\n    the error string array: elfutils/libdwfl/dwfl_error.c:156:60:\n        runtime error: index 385 out of bounds for type 'char [9]'\n    \n    This is because it thought we went beyond error string zero \"no error\",\n    which is indeed 9 chars. \"Correct\" the type of the pointer to make\n    ubsan happy.\n    \n    Signed-off-by: Mark Wielaard <mjw@redhat.com>"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8205179",
+						"comment_count": "39",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-05-05 08:42:59 +0000",
+						"thetext": "(In reply to Alexander Cherepanov from comment #30)\n> Created attachment 990700 [details]\n> Problems with `addr2line -e @@ -- ...` (32-bit)\n> \n> The exact (long) command line is in cmd.txt.\n> \n> ----------------------------------------------------------------------\n> \n> valgrind\n> \n> Files: 4\n> Errors:\n>       2 Conditional jump or move depends on uninitialised value(s)\n>       7 Invalid read of size ...\n>       3 Process terminating with default action of signal 11 (SIGSEGV)\n>       1 Use of uninitialised value of size ...\n\nThese were caused by three different issues. Posted patches upstream and on the mjw/pending git branch:\n\ncommit 019e4e17bf7705f5adfd896fb8fbe3e0417fa61a\nAuthor: Mark Wielaard <mjw@redhat.com>\nDate:   Tue May 5 10:26:56 2015 +0200\n\n    libdwfl: Sanity check cu offset before trying to intern.\n    \n    We need to check the cuoff points to a real Dwarf_Die before trying to\n    intern the cu with tsearch. Otherwise bogus keys might end up in the\n    search tree with NULL cus. That will cause crashes in compare_cukey\n    during next insertion or deletion of cus.\n    \n    https://bugzilla.redhat.com/show_bug.cgi?id=1170810#c30\n    \n    Signed-off-by: Mark Wielaard <mjw@redhat.com>\n\ncommit 91f219ca5be8fb5f054fada1fe3b333e6325fa4e\nAuthor: Mark Wielaard <mjw@redhat.com>\nDate:   Tue May 5 10:16:42 2015 +0200\n\n    libdw: dwarf_getaranges check there is enough data before reading.\n    \n    https://bugzilla.redhat.com/show_bug.cgi?id=1170810#c30\n    \n    Signed-off-by: Mark Wielaard <mjw@redhat.com>\n\ncommit 6abdb1c54fdf0ac258618a282c24bc9e7d2a91e3\nAuthor: Mark Wielaard <mjw@redhat.com>\nDate:   Tue May 5 10:05:01 2015 +0200\n\n    libdwfl: Bounds check Dwarf_Fileinfo file number in dwfl_lineinfo.\n    \n    https://bugzilla.redhat.com/show_bug.cgi?id=1170810#c30\n    \n    Signed-off-by: Mark Wielaard <mjw@redhat.com>"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8209462",
+						"comment_count": "40",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-05-06 10:51:09 +0000",
+						"thetext": "(In reply to Alexander Cherepanov from comment #32)\n> Created attachment 991985 [details]\n> Problems with `nm -DsSp --mark-special` (32-bit)\n> \n> valgrind\n> \n> Files: 2\n> Errors:\n>       1 Argument 'size' of function malloc has a fishy (possibly negative)\n> value: ...\n\nThis is inside an xmalloc and the result is that the malloc just fails.\n\n>       1 Invalid read of size ...\n>       1 Process terminating with default action of signal 11 (SIGSEGV)\n\nThese are the same, fixed by the following patch submitted upstream and on mjw/pending:\n\ncommit 53d0023ca901da072653bd6837300958736d8676\nAuthor: Mark Wielaard <mjw@redhat.com>\nDate:   Wed May 6 12:45:49 2015 +0200\n\n    nm: Handle dwarf_linesrc returning NULL.\n    \n    https://bugzilla.redhat.com/show_bug.cgi?id=1170810#32\n    \n    Signed-off-by: Mark Wielaard <mjw@redhat.com>"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8209496",
+						"comment_count": "41",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-05-06 11:01:07 +0000",
+						"thetext": "(In reply to Alexander Cherepanov from comment #32)\n> ubsan\n> \n> Files: 2\n> Errors:\n>       1 ../../../source/libdw/dwarf_getsrclines.c:575:13: runtime error:\n> signed integer overflow: ... + ... cannot be represented in type 'int'\n>       1 ../../../source/libdw/memory-access.h:103:5: runtime error: left\n> shift of ... by ... places cannot be represented in type 'long long int'\n\nThese are fixed by the following proposed fix currently on the mjw/pending branch:\n\ncommit 0a4e09387bdbe62a3a9d9d5b3045f05df48ef0e5\nAuthor: Mark Wielaard <mjw@redhat.com>\nDate:   Wed May 6 12:55:21 2015 +0200\n\n    libdw: Detect line number overflow in dwarf_getsrclines on 32bit.\n    \n    We do check whether the values we store for the line fit our data\n    representation in add_new_line, but on 32bit systems we would fail\n    to notice line overflowing.\n    \n    https://bugzilla.redhat.com/show_bug.cgi?id=1170810#c32\n    \n    Signed-off-by: Mark Wielaard <mjw@redhat.com>"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8210714",
+						"comment_count": "42",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-05-06 16:04:59 +0000",
+						"thetext": "(In reply to Alexander Cherepanov from comment #31)\n> Created attachment 991147 [details]\n> Problems with `elflint --strict` (32-bit)\n> \n> valgrind\n> \n> Files: 6\n> Errors:\n>       2 Conditional jump or move depends on uninitialised value(s)\n>       5 Invalid read of size ...\n>       5 Process terminating with default action of signal 11 (SIGSEGV)\n> \n> ----------------------------------------------------------------------\n> \n> ubsan\n> \n> Files: 6\n> Errors:\n>       1 ../../../source/src/elflint.c:2204:30: runtime error: shift exponent\n> ... is negative\n>       1 ../../../source/src/elflint.c:2204:30: runtime error: shift exponent\n> ... is too large for 32-bit type 'unsigned int'\n>       1 ../../../source/src/elflint.c:2211:30: runtime error: shift exponent\n> ... is negative\n>       1 ../../../source/src/elflint.c:2211:30: runtime error: shift exponent\n> ... is too large for 32-bit type 'unsigned int'\n>       1 ../../../source/src/elflint.c:3035:3: runtime error: signed integer\n> overflow: ... + ... cannot be represented in type 'int'\n>       1 ../../../source/src/elflint.c:3194:3: runtime error: signed integer\n> overflow: ... + ... cannot be represented in type 'int'\n\nThese were caused by several issues. Proposed fixes on mjw/pending branch:\n\ncommit 6356deaac3cf10254c25907b3cd690404bac716a\nAuthor: Mark Wielaard <mjw@redhat.com>\nDate:   Wed May 6 18:02:10 2015 +0200\n\n    elflint: Check gnu_hash has enough data and bitmask_words is not zero.\n    \n    https://bugzilla.redhat.com/show_bug.cgi?id=1170810#c31\n    \n    Signed-off-by: Mark Wielaard <mjw@redhat.com>\n\ncommit 215328072eddfa048079c8fcb1b7791440ead699\nAuthor: Mark Wielaard <mjw@redhat.com>\nDate:   Wed May 6 17:38:18 2015 +0200\n\n    elflint: Add sanity checks to check_attributes.\n    \n    This is similar to commit 9644aa for readelf print_attributes.\n    Bail out when the vendor name isn't terminated and add overflow check\n    for subsection_len.\n    \n    Note that readelf does handle non-gnu attributes, while elflint doesn't.\n    \n    Signed-off-by: Mark Wielaard <mjw@redhat.com>\n\ncommit 378fb6c86cc192d4701e584bd250135b13de0bf6\nAuthor: Mark Wielaard <mjw@redhat.com>\nDate:   Wed May 6 16:01:55 2015 +0200\n\n    elflint: Use Use Elf64_Word for shdr->sh_info cnt.\n    \n    On 32bit using int might overflow.\n    https://bugzilla.redhat.com/show_bug.cgi?id=1170810#c31\n    \n    Signed-off-by: Mark Wielaard <mjw@redhat.com>\n\ncommit 1290c63739f6be8d96c5226b9d9361b3fb913cce\nAuthor: Mark Wielaard <mjw@redhat.com>\nDate:   Wed May 6 13:09:23 2015 +0200\n\n    elflint: Stop checking section when 2nd hash function shift too big.\n    \n    Nothing good comes from trying to continue with a bogus hash function.\n    \n    https://bugzilla.redhat.com/show_bug.cgi?id=1170810#c31"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8225410",
+						"comment_count": "43",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-05-12 14:07:10 +0000",
+						"thetext": "(In reply to Alexander Cherepanov from comment #34)\n> Created attachment 993359 [details]\n> Problems with `strip -o /dev/null` (32-bit)\n> \n> valgrind\n> \n> Files: 3\n> Errors:\n>       1 Argument 'size' of function malloc has a fishy (possibly negative)\n> value: ...\n\nI don't believe this is a real issue.\n\n>       1 Invalid read of size ...\n>       1 Process terminating with default action of signal 11 (SIGSEGV)\n>       1 Process terminating with default action of signal 8 (SIGFPE)\n\nThis (and a lot more) has been fixed by the following commit on the mjw/pending branch:\n\ncommit d447095e373f67d8a13d1cd969456b4b6e51e2d7\nAuthor: Mark Wielaard <mjw@redhat.com>\nDate:   Tue May 12 15:59:04 2015 +0200\n\n    strip: Harden against bogus input files. Don't leak tmp debug file on error.\n    \n    There were various places where a bogus/unexpected input file would cause\n    eu-strip to crash. Also on an unexpected error eu-strip would leak the temp\n    debug file it was writing.\n    \n    https://bugzilla.redhat.com/show_bug.cgi?id=1170810#c34\n    \n    Signed-off-by: Mark Wielaard <mjw@redhat.com>\n\nYou might need some other fixes from the mjw/pending branch too."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8261478",
+						"comment_count": "44",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-05-23 22:17:39 +0000",
+						"thetext": "(In reply to Mark Wielaard from comment #23)\n> (In reply to Alexander Cherepanov from comment #22)\n> > Created attachment 978856 [details]\n> > Problems with `readelf -aAdehIlnrsSVcp -Nw`\n> > \n> > Files: 1\n> > Errors:\n> >       1 Process terminating with default action of signal 11 (SIGSEGV)\n> \n> Thanks. I was just pondering about all these unbounded array allocations on\n> the stack in the code. This is an example of one. In this case\n> descsz=8388624 and we have the following in ebl_object_note.c:\n> \n>  uint32_t buf[descsz / 4];\n> \n> Causing a stack overflow that looks like a crash while calling a function.\n> \n> BTW. The valgrind output already hints there is something fishy going on\n> here:\n> \n> ==24364== Warning: client switching stacks?  SP change: 0xffefff5f0 -->\n> 0xffe7ff5d0\n> \n> When compiling with gcc -Wstack-usage=65536 these issues are easy to spot as:\n> \n> /home/mark/src/elfutils/libebl/eblobjnote.c:220:1: error: stack usage might\n> be unbounded [-Werror=stack-usage=]\n\nThis one, and hopefully all other stack overflow issues in the library code (but sadly not yet in the tools code), has been fixed by the following patch series (17 patches):\nhttps://lists.fedorahosted.org/pipermail/elfutils-devel/2015-May/004899.html\n\nall those patches are also on the mjw/pending branch.\n\nI believe with those patches all crashes for samples posted in this bug report have finally been fixed.\n\nSo please bring on new samples :)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8314407",
+						"comment_count": "45",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-06-08 12:30:14 +0000",
+						"thetext": "All patches are now on master and I haven't found any new crashers myself using afl. So I intend to close this issue when we release 0.162 later this week."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8326564",
+						"comment_count": "46",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-11 13:16:07 +0000",
+						"thetext": "elfutils-0.162-1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/elfutils-0.162-1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8332414",
+						"comment_count": "47",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-13 06:35:35 +0000",
+						"thetext": "Package elfutils-0.162-1.fc22:\n* should fix your issue,\n* was pushed to the Fedora 22 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing elfutils-0.162-1.fc22'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-9857/elfutils-0.162-1.fc22\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8354487",
+						"comment_count": "48",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-19 14:53:55 +0000",
+						"thetext": "elfutils-0.163-1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/elfutils-0.163-1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8393992",
+						"comment_count": "49",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-30 20:11:16 +0000",
+						"thetext": "elfutils-0.163-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8420672",
+						"comment_count": "50",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-08 15:06:48 +0000",
+						"thetext": "elfutils-0.163-1.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/elfutils-0.163-1.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8488870",
+						"comment_count": "51",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-29 01:35:30 +0000",
+						"thetext": "elfutils-0.163-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1230468,
+			"title": "BuildRequires on glibc-devel not glibc-headers.",
+			"bugzilla": {
+				"bug_id": "1230468",
+				"creation_ts": "2015-06-11 02:15:35 +0000",
+				"short_desc": "BuildRequires on glibc-devel not glibc-headers.",
+				"delta_ts": "2015-07-29 01:35:49 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"blocked": [
+					{
+						"bug_id": "1230505",
+						"creation_ts": "2015-06-11 04:38:15 +0000",
+						"short_desc": "Tracker: Remove glibc-headers BuildRequires or Requires.",
+						"delta_ts": "2018-05-03 09:09:05 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "WONTFIX",
+						"priority": "unspecified",
+						"bug_severity": "unspecified",
+						"depends_on": [
+							"1230463",
+							"1230468",
+							"1230470",
+							"1230471",
+							"1230472",
+							"1230473",
+							"1230474",
+							"1230475",
+							"1230476",
+							"1230477",
+							"1230479",
+							"1230486",
+							"1230488",
+							"1230489",
+							"1230490",
+							"1230491",
+							"1230493",
+							"1230494",
+							"1230497",
+							"1230500",
+							"1230501",
+							"1230502",
+							"1230504"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "8324919",
+								"comment_count": "0",
+								"who": {
+									"text": "codonell",
+									"name": "Carlos O'Donell"
+								},
+								"bug_when": "2015-06-11 04:38:15 +0000",
+								"thetext": "The glibc team is considering removing the glibc-headers package, but before doing that we want to remove all uses of the glic-headers package.\n\nIt turns out that the uses not required or insufficient. This tracker bug tracks the filed bugs to fix the packages that require glibc-headers."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8325133",
+								"comment_count": "1",
+								"who": {
+									"text": "ppisar",
+									"name": "Petr Pisar"
+								},
+								"bug_when": "2015-06-11 06:40:09 +0000",
+								"thetext": "So what package should I require, if my code includes some standard C library headers (e.g. <string.h>)?\n\nFrom you reports it looks like gcc will bundle glibc. Please note that relying on transitive dependency (gcc pulls in glibc-headers) is as wrong as relying already gone minimal build root package list.\n\nAnd what if I need headers because I use cpp only to expand them. Which package should I require?\n\nI think better approach would be first create stable standard library header RPM Provides symbol, then migrate the packages to require it, and then shuffle the header files wherever you want."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8326469",
+								"comment_count": "2",
+								"who": {
+									"text": "codonell",
+									"name": "Carlos O'Donell"
+								},
+								"bug_when": "2015-06-11 13:00:02 +0000",
+								"thetext": "(In reply to Petr Pisar from comment #1)\n> So what package should I require, if my code includes some standard C\n> library headers (e.g. <string.h>)?\n\nYou should BuildRequires: gcc if you have C code you need to compile.\n\nThe glibc-headers is an implementation detail of the underlying tools infrastructure.\n\nUsing BuildRequires: gcc or BuildRequires: gcc-c++ gives you everything you need to compile standards conforming C or C++ applications.\n\n> From you reports it looks like gcc will bundle glibc. Please note that\n> relying on transitive dependency (gcc pulls in glibc-headers) is as wrong as\n> relying already gone minimal build root package list.\n\nYou are not relying on any transitive dependency. The compiler, runtime, and headers form an \"implementation\" which is maintained by the Fedora platform tools team (RHEL BaseOS Platform Tools team). We guarantee that \"BuildRequires: gcc\" will give you exactly what you need to build conforming standard C applications.\n\nThe C library and it's headers are not a stand-alone thing like other packages, they are a special part of a coordinated implementation of a language.\n\n> And what if I need headers because I use cpp only to expand them. Which\n> package should I require?\n\nIs there such a use case? Is there such a package? We can certainly discuss this use case if it exists.\n\nThe problem with such a use case is that glibc-headers is *incomplete* without the compiler headers provided by gcc which are also a required part of the runtime. Therefore if you have this use case today you must require gcc or gcc-c++ to get all of the headers you need.\n\n> I think better approach would be first create stable standard library header\n> RPM Provides symbol, then migrate the packages to require it, and then\n> shuffle the header files wherever you want.\n\nThe bugs I have filed are for packages that don't even need glibc-headers, the BuildRequires has been copied from other spec files without consideration for what is needed. The majority of the 24 packages that require glibc-headers really need to BuildRequires on gcc or gcc-c++.\n\nThere is no immediate need for a stable standard library header RPM provides symbol, but I'm open to discussion if there is a package that needs such a requirement."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8326673",
+								"comment_count": "3",
+								"who": {
+									"text": "codonell",
+									"name": "Carlos O'Donell"
+								},
+								"bug_when": "2015-06-11 13:37:14 +0000",
+								"thetext": "For reference to those asking \"Why did the fedora packaging guidelines change?\"\n\nhttps://lists.fedoraproject.org/pipermail/devel/2015-May/210766.html\n\nThe BuildRequires section of the guidelines has been revised; the\nexceptions list is gone.  The release engineering folks are free to\ndefine the buildroot and rpm is free to change its dependency list.\n * https://fedoraproject.org/wiki/Packaging:Guidelines#BuildRequires_2\n * https://fedoraproject.org/w/index.php?title=Packaging%3AGuidelines&diff=413629&oldid=409506\n * https://fedorahosted.org/fpc/ticket/497"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8326681",
+								"comment_count": "4",
+								"who": {
+									"text": "codonell",
+									"name": "Carlos O'Donell"
+								},
+								"bug_when": "2015-06-11 13:38:05 +0000",
+								"thetext": "Build Essentials discussion:\nhttps://lists.fedoraproject.org/pipermail/devel/2015-June/211301.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8326858",
+								"comment_count": "5",
+								"who": {
+									"text": "ppisar",
+									"name": "Petr Pisar"
+								},
+								"bug_when": "2015-06-11 14:09:30 +0000",
+								"thetext": "> We guarantee that \"BuildRequires: gcc\" will give you exactly what you need to\n> build conforming standard C applications.\n\nThan please add it into packaging guidelines or to the gcc package description.\n\n> Is there such a use case? Is there such a package? We can certainly discuss\n> this use case if it exists.\n\nWe have various devel packages that include other's headers files. Therefore they have to run-require their providers. What package should the devel package run-require in case of standard header files? As an example you can take libecb. Should the packages run-require gcc package?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8327188",
+								"comment_count": "6",
+								"who": {
+									"text": "codonell",
+									"name": "Carlos O'Donell"
+								},
+								"bug_when": "2015-06-11 15:05:28 +0000",
+								"thetext": "(In reply to Petr Pisar from comment #5)\n> > We guarantee that \"BuildRequires: gcc\" will give you exactly what you need to\n> > build conforming standard C applications.\n> \n> Than please add it into packaging guidelines or to the gcc package\n> description.\n\nFiled.\n\nhttps://fedorahosted.org/fpc/ticket/540\n\n> > Is there such a use case? Is there such a package? We can certainly discuss\n> > this use case if it exists.\n> \n> We have various devel packages that include other's headers files. Therefore\n> they have to run-require their providers. What package should the devel\n> package run-require in case of standard header files? As an example you can\n> take libecb. Should the packages run-require gcc package?\n\nIn general if a devel package uses headers from another package it must have a \"Requires: foo\" on that package.\n\nThe exception is for standard C and C++ headers that are part of the \"implementation\" of the language. A devel package that uses standard's conforming headers need not run-require anything. The final user of the devel package will need a standards conforming compiler to compile the code, and that will bring in the required headers.\n\nHopefully the FPC request is approved and the text there clarifies what packagers should list in their BuildRequires or Requires."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8443632",
+								"comment_count": "7",
+								"who": {
+									"text": "jkurik",
+									"name": "Jan Kurik"
+								},
+								"bug_when": "2015-07-15 14:01:29 +0000",
+								"thetext": "This bug appears to have been reported against 'rawhide' during the Fedora 23 development cycle.\nChanging version to '23'.\n\n(As we did not run this process for some time, it could affect also pre-Fedora 23 development\ncycle bugs. We are very sorry. It will help us with cleanup during Fedora 23 End Of Life. Thank you.)\n\nMore information and reason for this action is here:\nhttps://fedoraproject.org/wiki/BugZappers/HouseKeeping/Fedora23"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9398419",
+								"comment_count": "8",
+								"who": {
+									"text": "codonell",
+									"name": "Carlos O'Donell"
+								},
+								"bug_when": "2016-06-08 14:39:29 +0000",
+								"thetext": "We now have a Application Specific Guideline for C and C++:\nhttps://fedoraproject.org/wiki/Packaging:C_and_C%2B%2B\n\nThis should clarify how and when you need to require a C or C++ compilation environment.\n\nWa have a second version already under development to clarify questions raised from developers:\nhttps://fedoraproject.org/wiki/C_and_C%2B%2B_v2"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9548779",
+								"comment_count": "9",
+								"who": {
+									"text": "jkurik",
+									"name": "Jan Kurik"
+								},
+								"bug_when": "2016-07-26 04:08:43 +0000",
+								"thetext": "This bug appears to have been reported against 'rawhide' during the Fedora 25 development cycle.\nChanging version to '25'."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "10190628",
+								"comment_count": "10",
+								"who": {
+									"text": "bcotton",
+									"name": "Fedora End Of Life"
+								},
+								"bug_when": "2017-02-28 09:45:13 +0000",
+								"thetext": "This bug appears to have been reported against 'rawhide' during the Fedora 26 development cycle.\nChanging version to '26'."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11556441",
+								"comment_count": "11",
+								"who": {
+									"text": "bcotton",
+									"name": "Fedora End Of Life"
+								},
+								"bug_when": "2018-05-03 08:50:01 +0000",
+								"thetext": "This message is a reminder that Fedora 26 is nearing its end of life.\nApproximately 4 (four) weeks from now Fedora will stop maintaining\nand issuing updates for Fedora 26. It is Fedora's policy to close all\nbug reports from releases that are no longer maintained. At that time\nthis bug will be closed as EOL if it remains open with a Fedora  'version'\nof '26'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version'\nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not\nable to fix it before Fedora 26 is end of life. If you would still like\nto see this bug fixed and are able to reproduce it against a later version\nof Fedora, you are encouraged  change the 'version' to a later Fedora\nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's\nlifetime, sometimes those efforts are overtaken by events. Often a\nmore recent Fedora release includes newer upstream software that fixes\nbugs or makes them obsolete."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "11557049",
+								"comment_count": "12",
+								"who": {
+									"text": "fweimer",
+									"name": "Florian Weimer"
+								},
+								"bug_when": "2018-05-03 09:09:05 +0000",
+								"thetext": "I don't think we still plan to remove the glibc-headers subpackage.\n\nIn any case, we'd need to push out the changes ourselves to the affected patches, perhaps after coordinating with Fesco.  Mere filing bugs will not get this done."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8324745",
+						"comment_count": "0",
+						"who": {
+							"text": "codonell",
+							"name": "Carlos O'Donell"
+						},
+						"bug_when": "2015-06-11 02:15:35 +0000",
+						"thetext": "The elfutils spec file BuildRequires on glibc-headers.\n\nIs it possible to please change the elfuitls spec file to BuildRequires on glibc-devel? The glibc-headers package may or may not go away in a future sub-package refactoring.\n\nDepending on glibc-devel of a particular version will always get you the glibc-headers of the same version for the version of interest for elfutils.\n\nThus:\n\nBuildRequires: glibc-devel >= 2.3.4-11\n\nIs equivalent and should be used instead.\n\nThanks."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8326088",
+						"comment_count": "1",
+						"who": {
+							"text": "mjw",
+							"name": "Mark Wielaard"
+						},
+						"bug_when": "2015-06-11 11:08:23 +0000",
+						"thetext": "glibc 2.3.4 was released in December 2004. I think everybody has\nsince migrated to at least RHEL 4.5 (which introduced that glibc\nversion). So I just removed that particular BuildRequires. gcc will pull it in anyway, and we have a versioned gcc BuildRequires."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8326570",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-11 13:16:19 +0000",
+						"thetext": "elfutils-0.162-1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/elfutils-0.162-1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8332418",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-13 06:35:45 +0000",
+						"thetext": "Package elfutils-0.162-1.fc22:\n* should fix your issue,\n* was pushed to the Fedora 22 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing elfutils-0.162-1.fc22'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-9857/elfutils-0.162-1.fc22\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8354492",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-19 14:54:07 +0000",
+						"thetext": "elfutils-0.163-1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/elfutils-0.163-1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8393996",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-06-30 20:11:28 +0000",
+						"thetext": "elfutils-0.163-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8420677",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-08 15:07:01 +0000",
+						"thetext": "elfutils-0.163-1.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/elfutils-0.163-1.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8488874",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-07-29 01:35:49 +0000",
+						"thetext": "elfutils-0.163-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "elfutils-0.162-1.fc22",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "elfutils-libs",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-libelf",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-libelf-devel",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-devel",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-devel-static",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-libelf-devel-static",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils-debuginfo",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "elfutils",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "elfutils-libelf-devel",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-libelf",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-devel",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-debuginfo",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-devel-static",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-libs",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "i686"
+					},
+					{
+						"name": "elfutils-libelf-devel-static",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "elfutils",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "elfutils-devel",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-debuginfo",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-devel-static",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-libs",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-libelf-devel",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-libelf",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "x86_64"
+					},
+					{
+						"name": "elfutils-libelf-devel-static",
+						"version": "0.162",
+						"release": "1.fc22",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 251876,
+			"text": "This update has been submitted for testing by mjw. ",
+			"timestamp": "2015-06-11 13:16:23",
+			"update_id": 30973,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 251877,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/81020/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-06-11 13:30:50",
+			"update_id": 30973,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 251878,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/81020/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-06-11 13:32:02",
+			"update_id": 30973,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 251879,
+			"text": "This update is currently being pushed to the Fedora 22 testing updates repository.",
+			"timestamp": "2015-06-11 21:37:00",
+			"update_id": 30973,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 251880,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-06-13 06:35:45",
+			"update_id": 30973,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 251881,
+			"karma": 1,
+			"text": "No issues noted",
+			"timestamp": "2015-06-15 00:29:13",
+			"update_id": 30973,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/44d729c137330733564a5cc9245f4f402b6c6e90903bf7887eb82428e348b7e4?s=24&d=retro",
+				"email": "gbcox@bzb.us",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "ambassadors"
+					}
+				],
+				"id": 204,
+				"name": "gbcox",
+				"openid": "gbcox.id.fedoraproject.org"
+			},
+			"user_id": 204
+		},
+		{
+			"id": 251882,
+			"text": "Found a pretty bad regression in eu-strip.\nhttps://bugzilla.redhat.com/show_bug.cgi?id=1232206",
+			"timestamp": "2015-06-16 12:53:42",
+			"update_id": 30973,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/0f32874b1ae3083205c874c83cd2d21715c89b8645483f353e90ae499c67c944?s=24&d=retro",
+				"email": "fedora@wildebeest.org",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "cla_redhat"
+					},
+					{
+						"name": "gitelfutils"
+					}
+				],
+				"id": 944,
+				"name": "mjw",
+				"openid": "mjw.id.fedoraproject.org"
+			},
+			"user_id": 944
+		},
+		{
+			"id": 251883,
+			"text": "This update has been unpushed",
+			"timestamp": "2015-06-16 12:54:07",
+			"update_id": 30973,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/0f32874b1ae3083205c874c83cd2d21715c89b8645483f353e90ae499c67c944?s=24&d=retro",
+				"email": "fedora@wildebeest.org",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "cla_redhat"
+					},
+					{
+						"name": "gitelfutils"
+					}
+				],
+				"id": 944,
+				"name": "mjw",
+				"openid": "mjw.id.fedoraproject.org"
+			},
+			"user_id": 944
+		},
+		{
+			"id": 251884,
+			"text": "This update has been obsoleted by https://admin.fedoraproject.org/updates/elfutils-0.163-1.fc22",
+			"timestamp": "2015-06-19 14:53:29",
+			"update_id": 30973,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2015-06-13 06:35:45",
+	"date_submitted": "2015-06-11 13:15:47",
+	"date_testing": "2015-06-13 06:35:45",
+	"karma": 1,
+	"meets_testing_requirements": true,
+	"notes": "Update to 0.162. Hardening fixes. Updated eu-addr2line utility. Various bug fixes.",
+	"pushed": true,
+	"release": {
+		"branch": "f22",
+		"candidate_tag": "f22-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f22",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 22",
+		"mail_template": "fedora_errata_template",
+		"name": "F22",
+		"override_tag": "f22-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f22-updates-pending",
+		"pending_testing_tag": "f22-updates-testing-pending",
+		"stable_tag": "f22-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f22-updates-testing",
+		"version": "22"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "obsolete",
+	"suggest": "unspecified",
+	"title": "elfutils-0.162-1.fc22",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-9857",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-9857",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/0f32874b1ae3083205c874c83cd2d21715c89b8645483f353e90ae499c67c944?s=24&d=retro",
+		"email": "fedora@wildebeest.org",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "cla_redhat"
+			},
+			{
+				"name": "gitelfutils"
+			}
+		],
+		"id": 944,
+		"name": "mjw",
+		"openid": "mjw.id.fedoraproject.org"
+	},
+	"version_hash": "1421d722c828007c8eb6c1f8120ce067abae2b70"
+}

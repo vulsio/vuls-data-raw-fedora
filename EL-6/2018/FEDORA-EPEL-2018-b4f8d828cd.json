@@ -1,0 +1,428 @@
+{
+	"alias": "FEDORA-EPEL-2018-b4f8d828cd",
+	"autokarma": true,
+	"bugs": [
+		{
+			"bug_id": 751889,
+			"security": true,
+			"title": "CVE-2011-4115 perl-Parallel-ForkManager: insecure temporary file usage [epel-6]",
+			"bugzilla": {
+				"bug_id": "751889",
+				"creation_ts": "2011-11-07 22:26:22 +0000",
+				"short_desc": "CVE-2011-4115 perl-Parallel-ForkManager: insecure temporary file usage [epel-6]",
+				"delta_ts": "2018-08-06 22:49:46 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "751886",
+						"alias": "CVE-2011-4115",
+						"creation_ts": "2011-11-07 22:25:28 +0000",
+						"short_desc": "CVE-2011-4115 perl-Parallel-ForkManager: insecure temporary file usage",
+						"delta_ts": "2019-09-29 12:48:47 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"751887",
+							"751888",
+							"751889"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "4132771",
+								"comment_count": "0",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2011-11-07 22:25:28 +0000",
+								"thetext": "It was reported [1] that Parallel:ForkManager handles temporary files insecurely.  This can be used by a malicious local user to perform certain actions, such as overwriting arbitrary files with symlink attacks.\n\nThere does not yet seem to be an upstream fix.\n\n[1] https://rt.cpan.org/Public/Bug/Display.html?id=68298"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "4132775",
+								"comment_count": "1",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2011-11-07 22:26:29 +0000",
+								"thetext": "Created perl-Parallel-ForkManager tracking bugs for this issue\n\nAffects: fedora-all [bug 751887]\nAffects: epel-5 [bug 751888]\nAffects: epel-6 [bug 751889]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "4135777",
+								"comment_count": "2",
+								"who": {
+									"text": "j",
+									"name": "Jason Tibbitts"
+								},
+								"bug_when": "2011-11-09 00:09:43 +0000",
+								"thetext": "Guess I should comment here instead of in one of the tracking bugs.\n\nBottom line is that this has been open upstream since May: https://rt.cpan.org/Public/Bug/Display.html?id=68298\n\nAs far as I can tell, upstream is completely unresponsive; there have been no comments to pretty much any of the bugs open on all of his packages on CPAN.\n\nSo far my searching hasn't turned up any patches from any other distro, but it's always possible that I'm missing something.  I'm not really up on the current state of cross-distro security collaboration so if anyone has any guidance, I'd be happy to hear it.\n\nPackages requiring this one:\nnetdisco\nperl-FusionInventory-Agent-Task-NetDiscovery\nperl-FusionInventory-Agent-Task-SNMPQuery\n\nHonestly at this point I'd really like to just drop it from the distro, but that may not be an option.  What remains is to fix it, but that doesn't appear trivial.\n\nThe module uses files in /tmp for communication between the master process and its children.  The children write out a file with a predictable name and the master knows where to look for data when a child exits.  You can't randomize the name because the predictability is important to how things work.\n\nThe master could pass a random name, in the environment or something, but that still gives an attacker plenty of time to get in there and predict the filename that will be used, create it, and do various \n\nThe master could pass an open file handle or something, but that changes the API.\n\nI wonder if it would be sufficient to create a random mode 700 directory in /tmp and just use that.  Honestly I'm no security expert and I certainly don't want to attempt a fix that doesn't actually help.  I've tried that before and found that the experts generally get rather derisive when you say you've fixed something but they can still find a problem with it."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "4139157",
+								"comment_count": "3",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2011-11-10 09:17:49 +0000",
+								"thetext": "I gave this some look yesterday, and I can't see any nice way to fix this either.\n\nSafely creating temporary directory under /tmp would probably be the least invasive way to fix, but there's a problem with the clean-up at the end.  It seems it's valid to use this module in a way that parent process forks bunch of child processes, let them do their work and exit before they finish.  Hence this approach should leave a temporary directory behind on each run of such script.\n\nChanging child code to create the file safely does not seem like an option either.  If the predictable file name is used, attacker may \"DoS\" the child (create temp file so that child can not while its \"reply\" data structure).  Child can block (keep re-trying to create the file) or exit (let parent parse malicious file), but cases seem wrong.  As a side note, in current implementation, parent process tries to read the temp file even when the script is not written to use this data passing feature.  Hence attacker can easily make parent deserialize arbitrary malicious Storable blob.  Storable man page only mention it's unsafe when storing / retrieving of CODE is allowed (not by default), but still sounds like \"don't do this\".  Even if it's safe, that may have other side effects (block parent on read, make it use extra memory, trigger side effects when opening special files).\n\nParent process can create temp file safely, but can not use predictable file name with its current format, as it does not know child pid before fork.  Hence it'd need to use random name and have it stored in both parent and child data structs.  Of course, this has the same problem as temp dir idea in cases where parent exits before child.\n\nOne improvement can be to create temp file only when script wants to use structure passing (and hence parent is expected to wait for child), i.e. when on_finish callback is set.  However, even though docs say to declare callbacks before first start, it's apparent you can set them after start, as run_on_finish accepts optional pid argument to set child-specific callback.  I'm not sure what the intended semantic was, as setting callback after run is racy and the callback may not be run if child exits quickly.\n\nOne idea is to make new's tempdir parameter mandatory if script wants to use structure passing, and document that caller should provide a safe temporary directory (i.e. not /tmp) - such as directory that is not world writeable (/home/user/something or /var/lib/something), or safely created under /tmp.  Of course, that's something that we can't do without upstream.\n\nWe can downgrade module to the F14 version that lacks this new feature ;)."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "4140605",
+								"comment_count": "4",
+								"who": {
+									"text": "j",
+									"name": "Jason Tibbitts"
+								},
+								"bug_when": "2011-11-10 18:11:51 +0000",
+								"thetext": "I like the idea of making tempdir mandatory.  It conveniently both shows us if any consuming code would have the security issue and pushes responsibility for that bit of security elsewhere.  Let me whip something up.\n\nI believe the maintainers of the packages which depend on Parallel::ForkManager are CC'd on this ticket already; could either of you check to see if your packages would have issues with this or if they even use the problematic feature?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "4143801",
+								"comment_count": "5",
+								"who": {
+									"text": "fedora",
+									"name": "Remi Collet"
+								},
+								"bug_when": "2011-11-12 07:55:51 +0000",
+								"thetext": "According to fusioninventory upstream, this dependecy is no more used (probably detected because of old code, not cleaned but no more used).\n\nI will clear this dependency in next (coming soon) version."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6431512",
+								"comment_count": "6",
+								"who": {
+									"text": "ppisar",
+									"name": "Petr Pisar"
+								},
+								"bug_when": "2013-10-17 17:40:40 +0000",
+								"thetext": "Upstream has resolved this issue.\n\nAccording to Gentoo, version 1.02 is fixed <http://www.gentoo.org/security/en/glsa/glsa-201310-11.xml>. Upstream states version 1.0.0 brings the fix <http://cpansearch.perl.org/src/SZABGAB/Parallel-ForkManager-1.05/Changes>. Please note that upstream has changed version schema in between, thus 1.02 is equaled to 1.20.0."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6431789",
+								"comment_count": "7",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2013-10-17 18:41:28 +0000",
+								"thetext": "It seems the fix is:\nhttp://code.google.com/p/perl-parallel-forkmanager/source/detail?r=42011ee\n\nAdditional related fixes:\nhttp://code.google.com/p/perl-parallel-forkmanager/source/detail?r=80a4c5c\nhttp://code.google.com/p/perl-parallel-forkmanager/source/detail?r=a89abfb\n\nAFAICS, this is affected by the clean up concern mentioned in comment 3, albeit you can argue that apps where parent exists before child should not really expect child to be able to (safely) pass their results back."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "6431801",
+								"comment_count": "8",
+								"who": {
+									"text": "j",
+									"name": "Jason Tibbitts"
+								},
+								"bug_when": "2013-10-17 18:45:41 +0000",
+								"thetext": "To be honest I had given up hope that upstream would ever reawaken.  I'll have a look at the latest version."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "4132774",
+						"comment_count": "0",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2011-11-07 22:26:22 +0000",
+						"thetext": "epel-6 tracking bug for perl-Parallel-ForkManager: see blocks bug list for full details of the security issue(s).\n\nThis bug is never intended to be made public, please put any public notes\nin the 'blocks' bugs.\n\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7631630",
+						"comment_count": "1",
+						"who": {
+							"text": "spoyarek",
+							"name": "Siddhesh Poyarekar"
+						},
+						"bug_when": "2014-11-01 08:24:03 +0000",
+						"thetext": "Upstream bug report indicates that this should be fixed in 1.0.0 and newer.  Is the fix going to be backported to epel6?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9197926",
+						"comment_count": "2",
+						"who": {
+							"text": "j",
+							"name": "Jason Tibbitts"
+						},
+						"bug_when": "2016-03-31 23:17:37 +0000",
+						"thetext": "I'm the Fedora maintainer of this module.  I didn't really want to get involved with the EPEL branches but I'm tired of looking at this security bug and it hapens to be assigned to someone who isn't involved with the package at all.\n\nI'm going to reassign to jehane in the hopes that he has some interest in the el6 branch.  I'm not interested in doing backpports; the only thing I would do is to pull the current Fedora version down to the EPEL branches.  That isn't trivial because it now needs utf8::all which is in EPEL7 but not 6 or 5."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11824616",
+						"comment_count": "3",
+						"who": {
+							"text": "j",
+							"name": "Jason Tibbitts"
+						},
+						"bug_when": "2018-07-20 17:49:32 +0000",
+						"thetext": "Still really tired of seeing this seven year old bug, so I'm just going to update the package in EPEL6.\n\nYou can't actually run the test suite in EL6 because the version of Test::More is too old.  I solved that by including a newer copy directly in this package.  It's only used for testing and isn't installed.\n\nTo my knowledge the current version of Parallel::ForkManager is compatible with the old version as long as you aren't using it in a way which was inherently insecure (relying on that predictably-named tempfile).  So this shouldn't cause any problems for anything which depends on it (which is just some bits of fusioninventory).  If it does, I guess we can deal with it at that time."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11824676",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-07-20 17:53:17 +0000",
+						"thetext": "perl-Parallel-ForkManager-1.20-1.el6 has been submitted as an update to Fedora EPEL 6. https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2018-b4f8d828cd"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11829353",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-07-22 00:34:25 +0000",
+						"thetext": "perl-Parallel-ForkManager-1.20-1.el6 has been pushed to the Fedora EPEL 6 testing repository. If problems still persist, please make note of it in this bug report.\nSee https://fedoraproject.org/wiki/QA:Updates_Testing for\ninstructions on how to install test updates.\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2018-b4f8d828cd"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "11880875",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2018-08-06 22:49:46 +0000",
+						"thetext": "perl-Parallel-ForkManager-1.20-1.el6 has been pushed to the Fedora EPEL 6 stable repository. If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "perl-Parallel-ForkManager-1.20-1.el6",
+			"release_id": 10,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "perl-Parallel-ForkManager",
+						"version": "1.20",
+						"release": "1.el6",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "perl-Parallel-ForkManager",
+						"version": "1.20",
+						"release": "1.el6",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 813615,
+			"text": "This update has been submitted for testing by tibbs. ",
+			"timestamp": "2018-07-20 17:53:12",
+			"update_id": 119633,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 813897,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2018-07-22 00:34:37",
+			"update_id": 119633,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 818945,
+			"text": "This update has reached 14 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2018-08-05 06:00:21",
+			"update_id": 119633,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 819065,
+			"text": "This update has been submitted for batched by tibbs. ",
+			"timestamp": "2018-08-05 17:10:27",
+			"update_id": 119633,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 819117,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2018-08-06 03:00:22",
+			"update_id": 119633,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 819336,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2018-08-06 22:49:59",
+			"update_id": 119633,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2018-08-06 22:49:40",
+	"date_stable": "2018-08-06 22:49:40",
+	"date_submitted": "2018-07-20 17:53:12",
+	"date_testing": "2018-07-22 00:34:21",
+	"meets_testing_requirements": true,
+	"notes": "This (finally) updates EPEL6 to a version which is free of CVE-2011-4115 (use of an insecure temporary file).",
+	"pushed": true,
+	"release": {
+		"branch": "el6",
+		"candidate_tag": "dist-6E-epel-testing-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "dist-6E-epel",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 6",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EL-6",
+		"override_tag": "dist-6E-epel-override",
+		"package_manager": "unspecified",
+		"stable_tag": "dist-6E-epel",
+		"state": "archived",
+		"testing_tag": "dist-6E-epel-testing",
+		"version": "6"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "low",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "perl-Parallel-ForkManager-1.20-1.el6",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2018-b4f8d828cd",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2018-b4f8d828cd",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/8f8a4e566e2ad464daf0844c1644d1aa5b4e03964a15a30a4770fc078c61a043?s=24&d=retro",
+		"email": "j@tib.bs",
+		"groups": [
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "packaging-committee"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "gitfas"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "wikiadmin"
+			},
+			{
+				"name": "sysadmin-devel"
+			},
+			{
+				"name": "cvsadmin"
+			},
+			{
+				"name": "sysadmin-dba"
+			},
+			{
+				"name": "sysadmin-cvs"
+			},
+			{
+				"name": "sysadmin"
+			},
+			{
+				"name": "wikiedit"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "cvsfedora"
+			},
+			{
+				"name": "gitkquotanotifier"
+			}
+		],
+		"id": 682,
+		"name": "tibbs",
+		"openid": "tibbs.id.fedoraproject.org"
+	},
+	"version_hash": "2f66963525a4f4c62c47f6cc5cf13fc2fd15543c"
+}

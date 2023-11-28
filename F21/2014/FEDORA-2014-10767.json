@@ -1,0 +1,747 @@
+{
+	"alias": "FEDORA-2014-10767",
+	"bugs": [
+		{
+			"bug_id": 1139967,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-6270 squid: off-by-one error in snmpHandleUdp() leading to a bss-based buffer overflow (SQUID-2014:3)",
+			"bugzilla": {
+				"bug_id": "1139967",
+				"alias": "CVE-2014-6270",
+				"creation_ts": "2014-09-10 05:48:07 +0000",
+				"short_desc": "CVE-2014-6270 squid: off-by-one error in snmpHandleUdp() leading to a bss-based buffer overflow (SQUID-2014:3)",
+				"delta_ts": "2021-06-15 15:04:22 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "WONTFIX",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1139968"
+				],
+				"blocked": [
+					{
+						"bug_id": "1139969",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7464727",
+						"comment_count": "0",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-09-10 05:48:07 +0000",
+						"thetext": "Sebastian Krahmer discovered an off-by-one error, leading to a heap-based buffer overflow flaw, in the way Squid handled UDP SNMP requests. An unauthenticated, remote attacker could possibly use this flaw to crash Squid or, potentially, execute arbitrary code.\n\nAs noted in Sebastian's original report, an SNMP port must be configured. The default configuration of Squid for Red Hat Enterprise Linux 6 and 7 does not include an snmp_port declaration (http://wiki.squid-cache.org/Features/Snmp).\n\nPatch:\n\nhttp://bugzillafiles.novell.org/attachment.cgi?id=605545\n\nReferences:\n\nhttps://bugzilla.novell.com/show_bug.cgi?id=895773\nhttp://seclists.org/oss-sec/2014/q3/542"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7464735",
+						"comment_count": "1",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-09-10 05:49:50 +0000",
+						"thetext": "\nCreated squid tracking bugs for this issue:\n\nAffects: fedora-all [bug 1139968]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7472886",
+						"comment_count": "3",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-09-11 19:14:06 +0000",
+						"thetext": "This actually is a BSS based overflow, not heap based as mentioned in the original report.  The actual impact of such overflow is build specific, the issue is unlikely to produce reliable crash of the program.\n\nThis flaw exists in the code that handles SNMP packets.  As noted in comment 0, Squid's SNMP agent is not enabled by default.  Hence squid packages in Red Hat Enterprise Linux and Fedora are not affected in their default configuration.  SNMP agent is can be enabled by specifying non-zero value for the snmp_port configuration directive.\n\nThere are multiple options to mitigate this issue:\n\n- Do not enable SNMP support if it's not needed.  Ensure squid configuration either does not include snmp_port directive, or sets its value to 0.\n\n- Restrict access to SNMP port only to trusted networks or hosts.  The snmp_incoming_address configuration directive can be used to bind SNMP agent to a specific IP / network interface (e.g. when using multi-homed server with a connection to trusted management network), or firewall configuration can be used to block access from untrusted sources.  Note that as UDP is used, firewall restrictions may be bypassed using packets with spoofed source address sent from at least the local network.\n\n- Filter packets that are large enough to trigger the overflow - i.e. packets that have at least 4096 bytes.  Iptables rule similar to the below one can be used to reject IPv4 packets of the given size (value used in the rule takes IP and UDP header size into account).\n\n# iptables -A INPUT -p udp --dport 3401 -m length --length 4124: -j REJECT"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7474678",
+						"comment_count": "5",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-09-12 08:10:46 +0000",
+						"thetext": "Lowering impact rating as this is functionality disabled by default, not needed for normal proxy operation, not needed to be exposed to untrusted users, overflow is too limited and difficult to exploit, and mitigation is available."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7474686",
+						"comment_count": "6",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-09-12 08:11:59 +0000",
+						"thetext": "Statement:\n\nThis issue affects the versions of squid as shipped with Red Hat Enterprise Linux 5, 6, and 7. Red Hat Product Security has rated this issue as having Moderate security impact. A future update may address this issue. For additional information, refer to the Issue Severity Classification: https://access.redhat.com/security/updates/classification/."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7475228",
+						"comment_count": "7",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-09-12 11:19:37 +0000",
+						"thetext": "Created attachment 936923\nLocal copy of the proposed patch\n\nSource:\nhttps://bugzilla.novell.com/show_bug.cgi?id=895773#c1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7505238",
+						"comment_count": "8",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-09-22 13:07:11 +0000",
+						"thetext": "Upstream commits:\n\nhttp://bazaar.launchpad.net/~squid/squid/trunk/revision/13574\nhttp://bazaar.launchpad.net/~squid/squid/trunk/revision/13582"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7534999",
+						"comment_count": "9",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-10-01 06:17:29 +0000",
+						"thetext": "External References:\n\nhttp://www.squid-cache.org/Advisories/SQUID-2014_3.txt"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7570870",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-14 04:39:51 +0000",
+						"thetext": "squid-3.4.7-2.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7570882",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-14 04:40:28 +0000",
+						"thetext": "squid-3.3.13-2.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7570988",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-14 04:46:07 +0000",
+						"thetext": "squid-3.3.13-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "9298299",
+						"comment_count": "14",
+						"who": {
+							"text": "alexander.buchner",
+							"name": "Alexander Buchner"
+						},
+						"bug_when": "2016-05-06 10:04:30 +0000",
+						"thetext": "Are there any plans to fix this bug in RHEL 6?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15189592",
+						"comment_count": "15",
+						"who": {
+							"text": "prodsec-dev",
+							"name": "Product Security DevOps Team"
+						},
+						"bug_when": "2021-06-15 15:04:22 +0000",
+						"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2014-6270"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1139968,
+			"security": true,
+			"title": "CVE-2014-6270 squid: off-by-one error in snmpHandleUdp() leading to a heap-based buffer overflow [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1139968",
+				"creation_ts": "2014-09-10 05:49:39 +0000",
+				"short_desc": "CVE-2014-6270 squid: off-by-one error in snmpHandleUdp() leading to a heap-based buffer overflow [fedora-all]",
+				"delta_ts": "2015-01-04 22:41:39 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "1139967",
+						"alias": "CVE-2014-6270",
+						"creation_ts": "2014-09-10 05:48:07 +0000",
+						"short_desc": "CVE-2014-6270 squid: off-by-one error in snmpHandleUdp() leading to a bss-based buffer overflow (SQUID-2014:3)",
+						"delta_ts": "2021-06-15 15:04:22 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "WONTFIX",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1139968"
+						],
+						"blocked": [
+							{
+								"bug_id": "1139969",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7464727",
+								"comment_count": "0",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-09-10 05:48:07 +0000",
+								"thetext": "Sebastian Krahmer discovered an off-by-one error, leading to a heap-based buffer overflow flaw, in the way Squid handled UDP SNMP requests. An unauthenticated, remote attacker could possibly use this flaw to crash Squid or, potentially, execute arbitrary code.\n\nAs noted in Sebastian's original report, an SNMP port must be configured. The default configuration of Squid for Red Hat Enterprise Linux 6 and 7 does not include an snmp_port declaration (http://wiki.squid-cache.org/Features/Snmp).\n\nPatch:\n\nhttp://bugzillafiles.novell.org/attachment.cgi?id=605545\n\nReferences:\n\nhttps://bugzilla.novell.com/show_bug.cgi?id=895773\nhttp://seclists.org/oss-sec/2014/q3/542"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7464735",
+								"comment_count": "1",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-09-10 05:49:50 +0000",
+								"thetext": "\nCreated squid tracking bugs for this issue:\n\nAffects: fedora-all [bug 1139968]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7472886",
+								"comment_count": "3",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-09-11 19:14:06 +0000",
+								"thetext": "This actually is a BSS based overflow, not heap based as mentioned in the original report.  The actual impact of such overflow is build specific, the issue is unlikely to produce reliable crash of the program.\n\nThis flaw exists in the code that handles SNMP packets.  As noted in comment 0, Squid's SNMP agent is not enabled by default.  Hence squid packages in Red Hat Enterprise Linux and Fedora are not affected in their default configuration.  SNMP agent is can be enabled by specifying non-zero value for the snmp_port configuration directive.\n\nThere are multiple options to mitigate this issue:\n\n- Do not enable SNMP support if it's not needed.  Ensure squid configuration either does not include snmp_port directive, or sets its value to 0.\n\n- Restrict access to SNMP port only to trusted networks or hosts.  The snmp_incoming_address configuration directive can be used to bind SNMP agent to a specific IP / network interface (e.g. when using multi-homed server with a connection to trusted management network), or firewall configuration can be used to block access from untrusted sources.  Note that as UDP is used, firewall restrictions may be bypassed using packets with spoofed source address sent from at least the local network.\n\n- Filter packets that are large enough to trigger the overflow - i.e. packets that have at least 4096 bytes.  Iptables rule similar to the below one can be used to reject IPv4 packets of the given size (value used in the rule takes IP and UDP header size into account).\n\n# iptables -A INPUT -p udp --dport 3401 -m length --length 4124: -j REJECT"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7474678",
+								"comment_count": "5",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-09-12 08:10:46 +0000",
+								"thetext": "Lowering impact rating as this is functionality disabled by default, not needed for normal proxy operation, not needed to be exposed to untrusted users, overflow is too limited and difficult to exploit, and mitigation is available."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7474686",
+								"comment_count": "6",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-09-12 08:11:59 +0000",
+								"thetext": "Statement:\n\nThis issue affects the versions of squid as shipped with Red Hat Enterprise Linux 5, 6, and 7. Red Hat Product Security has rated this issue as having Moderate security impact. A future update may address this issue. For additional information, refer to the Issue Severity Classification: https://access.redhat.com/security/updates/classification/."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7475228",
+								"comment_count": "7",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-09-12 11:19:37 +0000",
+								"thetext": "Created attachment 936923\nLocal copy of the proposed patch\n\nSource:\nhttps://bugzilla.novell.com/show_bug.cgi?id=895773#c1"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7505238",
+								"comment_count": "8",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2014-09-22 13:07:11 +0000",
+								"thetext": "Upstream commits:\n\nhttp://bazaar.launchpad.net/~squid/squid/trunk/revision/13574\nhttp://bazaar.launchpad.net/~squid/squid/trunk/revision/13582"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7534999",
+								"comment_count": "9",
+								"who": {
+									"text": "mmcallis",
+									"name": "Murray McAllister"
+								},
+								"bug_when": "2014-10-01 06:17:29 +0000",
+								"thetext": "External References:\n\nhttp://www.squid-cache.org/Advisories/SQUID-2014_3.txt"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7570870",
+								"comment_count": "10",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-10-14 04:39:51 +0000",
+								"thetext": "squid-3.4.7-2.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7570882",
+								"comment_count": "11",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-10-14 04:40:28 +0000",
+								"thetext": "squid-3.3.13-2.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7570988",
+								"comment_count": "12",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2014-10-14 04:46:07 +0000",
+								"thetext": "squid-3.3.13-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "9298299",
+								"comment_count": "14",
+								"who": {
+									"text": "alexander.buchner",
+									"name": "Alexander Buchner"
+								},
+								"bug_when": "2016-05-06 10:04:30 +0000",
+								"thetext": "Are there any plans to fix this bug in RHEL 6?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15189592",
+								"comment_count": "15",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2021-06-15 15:04:22 +0000",
+								"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2014-6270"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7464733",
+						"comment_count": "0",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-09-10 05:49:39 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7464734",
+						"comment_count": "1",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-09-10 05:49:48 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1139967,1139968\n\n# Description of your update\nnotes=Security fix for CVE-2014-6270\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1139967,1139968"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7476262",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-09-12 16:04:24 +0000",
+						"thetext": "squid-3.4.7-2.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/squid-3.4.7-2.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7476264",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-09-12 16:04:54 +0000",
+						"thetext": "squid-3.3.13-2.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/squid-3.3.13-2.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7476265",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-09-12 16:05:35 +0000",
+						"thetext": "squid-3.3.13-2.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/squid-3.3.13-2.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7476560",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-09-12 17:47:11 +0000",
+						"thetext": "Package squid-3.4.7-2.fc21:\n* should fix your issue,\n* was pushed to the Fedora 21 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing squid-3.4.7-2.fc21'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-10767/squid-3.4.7-2.fc21\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7531899",
+						"comment_count": "6",
+						"who": {
+							"text": "fedora-admin-xmlrpc",
+							"name": "Fedora Admin XMLRPC Client"
+						},
+						"bug_when": "2014-09-30 12:13:00 +0000",
+						"thetext": "This package has changed ownership in the Fedora Package Database.  Reassigning to the new owner of this component."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7570868",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-14 04:39:47 +0000",
+						"thetext": "squid-3.4.7-2.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7570880",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-14 04:40:26 +0000",
+						"thetext": "squid-3.3.13-2.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7570987",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-10-14 04:46:05 +0000",
+						"thetext": "squid-3.3.13-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "squid-3.4.7-2.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "squid-debuginfo",
+						"epoch": 7,
+						"version": "3.4.7",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "squid",
+						"epoch": 7,
+						"version": "3.4.7",
+						"release": "2.fc21",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "squid",
+						"epoch": 7,
+						"version": "3.4.7",
+						"release": "2.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "squid-debuginfo",
+						"epoch": 7,
+						"version": "3.4.7",
+						"release": "2.fc21",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "squid",
+						"epoch": 7,
+						"version": "3.4.7",
+						"release": "2.fc21",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "squid",
+						"epoch": 7,
+						"version": "3.4.7",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "squid-debuginfo",
+						"epoch": 7,
+						"version": "3.4.7",
+						"release": "2.fc21",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 139509,
+			"text": "This update has been submitted for testing by mluscon. ",
+			"timestamp": "2014-09-12 16:04:48",
+			"update_id": 18617,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 139510,
+			"text": "AutoQA: depcheck test PASSED on x86_64. Result log:\nhttp://autoqa.fedoraproject.org/report/1g6py (results are informative only)",
+			"timestamp": "2014-09-12 16:18:30",
+			"update_id": 18617,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/7d4aee78f7f1d921154af0a1d680229adc3fda69a10f5772df87b7ebffff4024?s=24&d=retro",
+				"id": 234,
+				"name": "autoqa",
+				"openid": "autoqa.id.fedoraproject.org"
+			},
+			"user_id": 234
+		},
+		{
+			"id": 139511,
+			"text": "AutoQA: depcheck test PASSED on i386. Result log:\nhttp://autoqa.fedoraproject.org/report/1g6qd (results are informative only)",
+			"timestamp": "2014-09-12 16:23:54",
+			"update_id": 18617,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/7d4aee78f7f1d921154af0a1d680229adc3fda69a10f5772df87b7ebffff4024?s=24&d=retro",
+				"id": 234,
+				"name": "autoqa",
+				"openid": "autoqa.id.fedoraproject.org"
+			},
+			"user_id": 234
+		},
+		{
+			"id": 139512,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2014-09-12 17:01:52",
+			"update_id": 18617,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 139513,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-09-12 17:46:44",
+			"update_id": 18617,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 139514,
+			"text": "This update has reached 3 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2014-09-15 21:17:05",
+			"update_id": 18617,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 139515,
+			"text": "This update has been submitted for stable by mluscon. ",
+			"timestamp": "2014-10-13 07:18:31",
+			"update_id": 18617,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 139516,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/1214/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-10-13 07:25:05",
+			"update_id": 18617,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/7d4aee78f7f1d921154af0a1d680229adc3fda69a10f5772df87b7ebffff4024?s=24&d=retro",
+				"id": 234,
+				"name": "autoqa",
+				"openid": "autoqa.id.fedoraproject.org"
+			},
+			"user_id": 234
+		},
+		{
+			"id": 139517,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/1217/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-10-13 07:33:18",
+			"update_id": 18617,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/7d4aee78f7f1d921154af0a1d680229adc3fda69a10f5772df87b7ebffff4024?s=24&d=retro",
+				"id": 234,
+				"name": "autoqa",
+				"openid": "autoqa.id.fedoraproject.org"
+			},
+			"user_id": 234
+		},
+		{
+			"id": 139518,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/1217/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-10-13 07:34:28",
+			"update_id": 18617,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/7d4aee78f7f1d921154af0a1d680229adc3fda69a10f5772df87b7ebffff4024?s=24&d=retro",
+				"id": 234,
+				"name": "autoqa",
+				"openid": "autoqa.id.fedoraproject.org"
+			},
+			"user_id": 234
+		},
+		{
+			"id": 139519,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2014-10-13 17:15:02",
+			"update_id": 18617,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 139520,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2014-10-14 04:39:50",
+			"update_id": 18617,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2014-10-14 04:39:50",
+	"date_stable": "2014-10-14 04:39:50",
+	"date_submitted": "2014-09-12 16:04:38",
+	"date_testing": "2014-09-12 17:46:44",
+	"meets_testing_requirements": true,
+	"notes": "This updated fixes CVE-2014-6270.",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "squid-3.4.7-2.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2014-10767",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2014-10767",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/6fcf5db10b9d6d6112204850ea0ede8967b2fdcc56cb429120b17ef053562399?s=24&d=retro",
+		"email": "mluscon@gmail.com",
+		"groups": [
+			{
+				"name": "packager"
+			}
+		],
+		"id": 1035,
+		"name": "mluscon",
+		"openid": "mluscon.id.fedoraproject.org"
+	},
+	"version_hash": "3b3a91e487c941fdb6cba7126dac5bf2def0f348"
+}

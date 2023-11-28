@@ -1,0 +1,2210 @@
+{
+	"alias": "FEDORA-2020-b8091188d0",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 1868532,
+			"feedback": [
+				{
+					"bug_id": 1868532,
+					"comment": {
+						"id": 1569405,
+						"karma": 1,
+						"timestamp": "2020-08-14 13:43:39",
+						"update_id": 232386,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/b2ae13be7cf78c4fa85d027daac07c34a0ef754116514c10ad0ae13f7d7cbfec?s=24&d=retro",
+							"email": "ego.cordatus@gmail.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								},
+								{
+									"name": "rust-sig"
+								}
+							],
+							"id": 4120,
+							"name": "atim",
+							"openid": "atim.id.fedoraproject.org"
+						},
+						"user_id": 4120
+					},
+					"comment_id": 1569405
+				},
+				{
+					"bug_id": 1868532,
+					"comment": {
+						"id": 1570602,
+						"karma": 1,
+						"timestamp": "2020-08-15 21:51:33",
+						"update_id": 232386,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/a293a6053be02884a0d7ee6d2945c5895eb570fcad9082ba736c953dca110fd1?s=24&d=retro",
+							"email": "bd6687@atlanticbb.net",
+							"id": 5867,
+							"name": "bd6627",
+							"openid": "bd6627.id.fedoraproject.org"
+						},
+						"user_id": 5867
+					},
+					"comment_id": 1570602
+				}
+			],
+			"parent": true,
+			"security": true,
+			"title": "CVE-2020-17507 qt: buffer over-read in read_xbm_body in gui/image/qxbmhandler.cpp",
+			"bugzilla": {
+				"bug_id": "1868532",
+				"alias": "CVE-2020-17507",
+				"creation_ts": "2020-08-13 02:40:59 +0000",
+				"short_desc": "CVE-2020-17507 qt: buffer over-read in read_xbm_body in gui/image/qxbmhandler.cpp",
+				"delta_ts": "2021-05-18 14:48:57 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1868534",
+					"1870297",
+					"1870364",
+					"1870365",
+					"1918158"
+				],
+				"blocked": [
+					{
+						"bug_id": "1868533",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2020:5021",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "14202199",
+						"comment_count": "0",
+						"who": {
+							"text": "darunesh",
+							"name": "Dhananjay Arunesh"
+						},
+						"bug_when": "2020-08-13 02:40:59 +0000",
+						"thetext": "An issue was discovered in Qt through 5.12.9, and 5.13.x through 5.15.x before 5.15.1. read_xbm_body in gui/image/qxbmhandler.cpp has a buffer over-read.\n\nReferences:\nhttps://codereview.qt-project.org/c/qt/qtbase/+/308436\nhttps://codereview.qt-project.org/c/qt/qtbase/+/308495\nhttps://codereview.qt-project.org/c/qt/qtbase/+/308496"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14202207",
+						"comment_count": "1",
+						"who": {
+							"text": "darunesh",
+							"name": "Dhananjay Arunesh"
+						},
+						"bug_when": "2020-08-13 02:41:57 +0000",
+						"thetext": "Created qt tracking bugs for this issue:\n\nAffects: fedora-all [bug 1868534]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14202855",
+						"comment_count": "2",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Kofler"
+						},
+						"bug_when": "2020-08-13 09:19:47 +0000",
+						"thetext": "Yes, Qt 4 appears to be vulnerable, we need to backport the fix.\n\n(Qt 3, on the other hand, does not contain the affected code (the XBM loader), so it cannot be vulnerable.)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14216094",
+						"comment_count": "3",
+						"who": {
+							"text": "tcullum",
+							"name": "Todd Cullum"
+						},
+						"bug_when": "2020-08-19 15:46:34 +0000",
+						"thetext": "Flaw summary:\n\nIn src/gui/image/qxbmhandler.cpp of Qt, there is a buffer overread in the read_xbm_body() function, which reads an X Bitmap Image body from an IO device. The function reads 300 bytes at a time from the input device into `buf` and then uses the pointer `p` to locate and parse hex data from within the buffer. Although the code checks for whether `p` is NULL, it does not check that `p` is inside of the bounds of `buf`. Since `p` is incremented in the loop, and the exit condition is based off of the height value of the XBM, it is possible for a buffer overread to occur due to a crafted height value where `p` is passed to hex2byte() or strstr().\n\nThe patch ensures on every iteration of the loop that `p` does not go out of bounds of `buf` and a check for whether the third and fourth chars are hex digits (i.e. 0x3A and not 0x*%) was also added. There is a hardcoded buflen of 300, and the patch's commit message notes that this leaves parsing of lines longer than this unreliable."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14242895",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-08-29 16:30:54 +0000",
+						"thetext": "FEDORA-2020-8dd86f1b3f has been pushed to the Fedora 31 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14492998",
+						"comment_count": "10",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2020-11-10 13:05:16 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2020:5021 https://access.redhat.com/errata/RHSA-2020:5021"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14493341",
+						"comment_count": "11",
+						"who": {
+							"text": "prodsec-dev",
+							"name": "Product Security DevOps Team"
+						},
+						"bug_when": "2020-11-10 14:21:30 +0000",
+						"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2020-17507"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15075774",
+						"comment_count": "13",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2021-05-18 14:48:57 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2021:1756 https://access.redhat.com/errata/RHSA-2021:1756"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1868534,
+			"feedback": [
+				{
+					"bug_id": 1868534,
+					"comment": {
+						"id": 1569405,
+						"karma": 1,
+						"timestamp": "2020-08-14 13:43:39",
+						"update_id": 232386,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/b2ae13be7cf78c4fa85d027daac07c34a0ef754116514c10ad0ae13f7d7cbfec?s=24&d=retro",
+							"email": "ego.cordatus@gmail.com",
+							"groups": [
+								{
+									"name": "packager"
+								},
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedorabugs"
+								},
+								{
+									"name": "rust-sig"
+								}
+							],
+							"id": 4120,
+							"name": "atim",
+							"openid": "atim.id.fedoraproject.org"
+						},
+						"user_id": 4120
+					},
+					"comment_id": 1569405
+				},
+				{
+					"bug_id": 1868534,
+					"comment": {
+						"id": 1570602,
+						"karma": 1,
+						"timestamp": "2020-08-15 21:51:33",
+						"update_id": 232386,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/a293a6053be02884a0d7ee6d2945c5895eb570fcad9082ba736c953dca110fd1?s=24&d=retro",
+							"email": "bd6687@atlanticbb.net",
+							"id": 5867,
+							"name": "bd6627",
+							"openid": "bd6627.id.fedoraproject.org"
+						},
+						"user_id": 5867
+					},
+					"comment_id": 1570602
+				}
+			],
+			"security": true,
+			"title": "CVE-2020-17507 qt: buffer over-read in read_xbm_body in gui/image/qxbmhandler.cpp [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1868534",
+				"creation_ts": "2020-08-13 02:41:42 +0000",
+				"short_desc": "CVE-2020-17507 qt: buffer over-read in read_xbm_body in gui/image/qxbmhandler.cpp [fedora-all]",
+				"delta_ts": "2020-08-29 16:30:56 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "1868532",
+						"alias": "CVE-2020-17507",
+						"creation_ts": "2020-08-13 02:40:59 +0000",
+						"short_desc": "CVE-2020-17507 qt: buffer over-read in read_xbm_body in gui/image/qxbmhandler.cpp",
+						"delta_ts": "2021-05-18 14:48:57 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"1868534",
+							"1870297",
+							"1870364",
+							"1870365",
+							"1918158"
+						],
+						"blocked": [
+							{
+								"bug_id": "1868533",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2020:5021",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "14202199",
+								"comment_count": "0",
+								"who": {
+									"text": "darunesh",
+									"name": "Dhananjay Arunesh"
+								},
+								"bug_when": "2020-08-13 02:40:59 +0000",
+								"thetext": "An issue was discovered in Qt through 5.12.9, and 5.13.x through 5.15.x before 5.15.1. read_xbm_body in gui/image/qxbmhandler.cpp has a buffer over-read.\n\nReferences:\nhttps://codereview.qt-project.org/c/qt/qtbase/+/308436\nhttps://codereview.qt-project.org/c/qt/qtbase/+/308495\nhttps://codereview.qt-project.org/c/qt/qtbase/+/308496"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14202207",
+								"comment_count": "1",
+								"who": {
+									"text": "darunesh",
+									"name": "Dhananjay Arunesh"
+								},
+								"bug_when": "2020-08-13 02:41:57 +0000",
+								"thetext": "Created qt tracking bugs for this issue:\n\nAffects: fedora-all [bug 1868534]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14202855",
+								"comment_count": "2",
+								"who": {
+									"text": "kevin",
+									"name": "Kevin Kofler"
+								},
+								"bug_when": "2020-08-13 09:19:47 +0000",
+								"thetext": "Yes, Qt 4 appears to be vulnerable, we need to backport the fix.\n\n(Qt 3, on the other hand, does not contain the affected code (the XBM loader), so it cannot be vulnerable.)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14216094",
+								"comment_count": "3",
+								"who": {
+									"text": "tcullum",
+									"name": "Todd Cullum"
+								},
+								"bug_when": "2020-08-19 15:46:34 +0000",
+								"thetext": "Flaw summary:\n\nIn src/gui/image/qxbmhandler.cpp of Qt, there is a buffer overread in the read_xbm_body() function, which reads an X Bitmap Image body from an IO device. The function reads 300 bytes at a time from the input device into `buf` and then uses the pointer `p` to locate and parse hex data from within the buffer. Although the code checks for whether `p` is NULL, it does not check that `p` is inside of the bounds of `buf`. Since `p` is incremented in the loop, and the exit condition is based off of the height value of the XBM, it is possible for a buffer overread to occur due to a crafted height value where `p` is passed to hex2byte() or strstr().\n\nThe patch ensures on every iteration of the loop that `p` does not go out of bounds of `buf` and a check for whether the third and fourth chars are hex digits (i.e. 0x3A and not 0x*%) was also added. There is a hardcoded buflen of 300, and the patch's commit message notes that this leaves parsing of lines longer than this unreliable."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14242895",
+								"comment_count": "6",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2020-08-29 16:30:54 +0000",
+								"thetext": "FEDORA-2020-8dd86f1b3f has been pushed to the Fedora 31 stable repository.\nIf problem still persists, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14492998",
+								"comment_count": "10",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2020-11-10 13:05:16 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2020:5021 https://access.redhat.com/errata/RHSA-2020:5021"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "14493341",
+								"comment_count": "11",
+								"who": {
+									"text": "prodsec-dev",
+									"name": "Product Security DevOps Team"
+								},
+								"bug_when": "2020-11-10 14:21:30 +0000",
+								"thetext": "This bug is now closed. Further updates for individual products will be reflected on the CVE page(s):\n\nhttps://access.redhat.com/security/cve/cve-2020-17507"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "15075774",
+								"comment_count": "13",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2021-05-18 14:48:57 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2021:1756 https://access.redhat.com/errata/RHSA-2021:1756"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "14202202",
+						"comment_count": "0",
+						"who": {
+							"text": "darunesh",
+							"name": "Dhananjay Arunesh"
+						},
+						"bug_when": "2020-08-13 02:41:42 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof fedora-all.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14202205",
+						"comment_count": "1",
+						"who": {
+							"text": "darunesh",
+							"name": "Dhananjay Arunesh"
+						},
+						"bug_when": "2020-08-13 02:41:46 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1868532,1868534\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14202984",
+						"comment_count": "2",
+						"who": {
+							"text": "than",
+							"name": "Than Ngo"
+						},
+						"bug_when": "2020-08-13 09:35:04 +0000",
+						"thetext": "it should be fixed in qt-4.8.7-55"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14203331",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-08-13 11:16:16 +0000",
+						"thetext": "FEDORA-2020-b8091188d0 has been submitted as an update to Fedora 32. https://bodhi.fedoraproject.org/updates/FEDORA-2020-b8091188d0"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14203382",
+						"comment_count": "4",
+						"who": {
+							"text": "kevin",
+							"name": "Kevin Kofler"
+						},
+						"bug_when": "2020-08-13 11:34:35 +0000",
+						"thetext": "Are you going to do F31 too or shall I do it? (F31 is not yet EOL. F≤30 are EOL.)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14205002",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-08-14 02:43:58 +0000",
+						"thetext": "FEDORA-2020-b8091188d0 has been pushed to the Fedora 32 testing repository.\nIn short time you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2020-b8091188d0`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-b8091188d0\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14205304",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-08-14 11:00:53 +0000",
+						"thetext": "FEDORA-2020-8dd86f1b3f has been submitted as an update to Fedora 31. https://bodhi.fedoraproject.org/updates/FEDORA-2020-8dd86f1b3f"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14205804",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-08-15 01:14:15 +0000",
+						"thetext": "FEDORA-2020-8dd86f1b3f has been pushed to the Fedora 31 testing repository.\nIn short time you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --advisory=FEDORA-2020-8dd86f1b3f`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2020-8dd86f1b3f\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14206122",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-08-16 01:04:52 +0000",
+						"thetext": "FEDORA-2020-b8091188d0 has been pushed to the Fedora 32 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14242896",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2020-08-29 16:30:56 +0000",
+						"thetext": "FEDORA-2020-8dd86f1b3f has been pushed to the Fedora 31 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 1,
+			"nvr": "qt-4.8.7-55.fc32",
+			"release_id": 35,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "qt-tds-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-assistant-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-demos-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-config-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-qvfb",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-devel",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-qvfb-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-tds",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-mysql",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-designer-plugin-webkit",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-config",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-x11",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-designer-plugin-webkit-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-postgresql",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-odbc-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-assistant",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-debugsource",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-ibase",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-postgresql-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-odbc",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-ibase-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-qdbusviewer-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-qdbusviewer",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-examples-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-mysql-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-x11-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-devel-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-demos",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					},
+					{
+						"name": "qt-examples",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "aarch64"
+					}
+				],
+				"armv7hl": [
+					{
+						"name": "qt-demos",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-assistant-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-odbc",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-demos-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-examples-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-config",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-qdbusviewer",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-designer-plugin-webkit",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-debugsource",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-postgresql",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-postgresql-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-x11",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-tds-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-qdbusviewer-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-mysql",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-devel",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-designer-plugin-webkit-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-examples",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-devel-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-tds",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-x11-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-ibase",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-assistant",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-config-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-qvfb",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-odbc-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-ibase-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-mysql-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "qt-qvfb-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "qt-assistant",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-config",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-demos",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-designer-plugin-webkit",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-devel",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-examples",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-qvfb",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-ibase",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-mysql",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-odbc",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-postgresql",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-tds",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-x11",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-qdbusviewer",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-debugsource",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-assistant-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-config-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-demos-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-designer-plugin-webkit-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-devel-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-examples-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-qvfb-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-ibase-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-mysql-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-odbc-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-postgresql-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-tds-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-x11-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					},
+					{
+						"name": "qt-qdbusviewer-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "qt-devel-private",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "noarch"
+					},
+					{
+						"name": "qt-doc",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "noarch"
+					},
+					{
+						"name": "qt-common",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "noarch"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "qt-demos",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-odbc",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-mysql-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-odbc-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-qvfb",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-devel-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-assistant-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-ibase",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-mysql",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-tds",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-ibase-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-designer-plugin-webkit",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-qdbusviewer-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-designer-plugin-webkit-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-demos-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-assistant",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-examples-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-config",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-devel",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-config-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-postgresql",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-qdbusviewer",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-x11",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-qvfb-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-postgresql-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-x11-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-tds-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-debugsource",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "qt-examples",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "qt-ibase-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-demos",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-postgresql-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-x11-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-odbc",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-qdbusviewer-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-x11",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-devel",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-designer-plugin-webkit",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-postgresql",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-tds-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-odbc-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-ibase",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-assistant",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-examples",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-demos-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-mysql-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-config",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-qvfb",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-qdbusviewer",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-mysql",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-config-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-assistant-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-examples-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-designer-plugin-webkit-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-qvfb-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-tds",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-debugsource",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					},
+					{
+						"name": "qt-devel-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "qt",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "qt-config",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-assistant",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-demos",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-designer-plugin-webkit",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-devel",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-examples",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-qvfb",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-ibase",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-mysql",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-odbc",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-postgresql",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-tds",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-x11",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-qdbusviewer",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-debugsource",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-assistant-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-config-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-demos-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-designer-plugin-webkit-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-devel-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-examples-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-qvfb-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-ibase-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-mysql-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-odbc-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-postgresql-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-tds-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-x11-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					},
+					{
+						"name": "qt-qdbusviewer-debuginfo",
+						"epoch": 1,
+						"version": "4.8.7",
+						"release": "55.fc32",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 1566857,
+			"text": "This update has been submitted for testing by than. ",
+			"timestamp": "2020-08-13 11:16:12",
+			"update_id": 232386,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1566858,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2020-08-13 11:16:12",
+			"update_id": 232386,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1566859,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2020-08-13 11:16:12",
+			"update_id": 232386,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1566870,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2020-08-13 11:31:08",
+			"update_id": 232386,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1568223,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2020-08-14 02:44:16",
+			"update_id": 232386,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"bug_feedback": [
+				{
+					"bug": {
+						"bug_id": 1868532,
+						"parent": true,
+						"security": true,
+						"title": "CVE-2020-17507 qt: buffer over-read in read_xbm_body in gui/image/qxbmhandler.cpp"
+					},
+					"bug_id": 1868532,
+					"comment_id": 1569405
+				},
+				{
+					"bug": {
+						"bug_id": 1868534,
+						"security": true,
+						"title": "CVE-2020-17507 qt: buffer over-read in read_xbm_body in gui/image/qxbmhandler.cpp [fedora-all]"
+					},
+					"bug_id": 1868534,
+					"comment_id": 1569405
+				}
+			],
+			"id": 1569405,
+			"karma": 1,
+			"timestamp": "2020-08-14 13:43:39",
+			"update_id": 232386,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/b2ae13be7cf78c4fa85d027daac07c34a0ef754116514c10ad0ae13f7d7cbfec?s=24&d=retro",
+				"email": "ego.cordatus@gmail.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "rust-sig"
+					}
+				],
+				"id": 4120,
+				"name": "atim",
+				"openid": "atim.id.fedoraproject.org"
+			},
+			"user_id": 4120
+		},
+		{
+			"id": 1569558,
+			"karma": 1,
+			"text": "Seens to work fine",
+			"timestamp": "2020-08-14 16:38:02",
+			"update_id": 232386,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/f80c96a3994c2479fc4815a146079bf93ade230fe3f3993213d2b8222cafc73d?s=24&d=retro",
+				"email": "fzatlouk@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "qa-tools-sig"
+					},
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "qa-admin"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "sysadmin-qa"
+					},
+					{
+						"name": "sysadmin"
+					},
+					{
+						"name": "ambassadors"
+					},
+					{
+						"name": "advocates"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "qa"
+					},
+					{
+						"name": "ipausers"
+					}
+				],
+				"id": 2240,
+				"name": "frantisekz",
+				"openid": "frantisekz.id.fedoraproject.org"
+			},
+			"user_id": 2240
+		},
+		{
+			"id": 1569561,
+			"text": "This update can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2020-08-14 16:39:25",
+			"update_id": 232386,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 1570138,
+			"text": "This update has been submitted for stable by kkofler. ",
+			"timestamp": "2020-08-15 06:28:03",
+			"update_id": 232386,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"bug_feedback": [
+				{
+					"bug": {
+						"bug_id": 1868532,
+						"parent": true,
+						"security": true,
+						"title": "CVE-2020-17507 qt: buffer over-read in read_xbm_body in gui/image/qxbmhandler.cpp"
+					},
+					"bug_id": 1868532,
+					"comment_id": 1570602
+				},
+				{
+					"bug": {
+						"bug_id": 1868534,
+						"security": true,
+						"title": "CVE-2020-17507 qt: buffer over-read in read_xbm_body in gui/image/qxbmhandler.cpp [fedora-all]"
+					},
+					"bug_id": 1868534,
+					"comment_id": 1570602
+				}
+			],
+			"id": 1570602,
+			"karma": 1,
+			"timestamp": "2020-08-15 21:51:33",
+			"update_id": 232386,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/a293a6053be02884a0d7ee6d2945c5895eb570fcad9082ba736c953dca110fd1?s=24&d=retro",
+				"email": "bd6687@atlanticbb.net",
+				"id": 5867,
+				"name": "bd6627",
+				"openid": "bd6627.id.fedoraproject.org"
+			},
+			"user_id": 5867
+		},
+		{
+			"id": 1570726,
+			"text": "This update has been pushed to stable.",
+			"timestamp": "2020-08-16 01:05:23",
+			"update_id": 232386,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2020-08-16 01:04:33",
+	"date_stable": "2020-08-16 01:04:33",
+	"date_submitted": "2020-08-13 11:16:12",
+	"date_testing": "2020-08-14 02:43:38",
+	"karma": 3,
+	"meets_testing_requirements": true,
+	"notes": "Security fix for CVE-2020-17507 ",
+	"pushed": true,
+	"release": {
+		"branch": "f32",
+		"candidate_tag": "f32-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f32",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 32",
+		"mail_template": "fedora_errata_template",
+		"name": "F32",
+		"override_tag": "f32-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f32-signing-pending",
+		"pending_stable_tag": "f32-updates-pending",
+		"pending_testing_tag": "f32-updates-testing-pending",
+		"stable_tag": "f32-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f32-updates-testing",
+		"version": "32"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "unspecified",
+	"stable_days": 14,
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "qt-4.8.7-55.fc32",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2020-b8091188d0",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2020-b8091188d0",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/2487c5e0487dc7c408b91ef129910d9af23868620606e4f536ac1d3bb45ecc5b?s=24&d=retro",
+		"email": "than@redhat.com",
+		"groups": [
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "kde-sig"
+			},
+			{
+				"name": "svnswitchdesk"
+			},
+			{
+				"name": "cvsswitchdesk"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "svnkde-settings"
+			},
+			{
+				"name": "cvssystem-switch-mail"
+			},
+			{
+				"name": "svnfedora-kde-artwork"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "cla_redhat"
+			},
+			{
+				"name": "svnsystem-switch-displaymanager"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "gitsystem-config-users"
+			},
+			{
+				"name": "svnsystem-switch-mail"
+			},
+			{
+				"name": "signed_fpca"
+			}
+		],
+		"id": 822,
+		"name": "than",
+		"openid": "than.id.fedoraproject.org"
+	},
+	"version_hash": "898cc78729897e6d4fc7a6fcf38b7e4de3978864"
+}

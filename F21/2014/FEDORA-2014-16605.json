@@ -1,0 +1,1818 @@
+{
+	"alias": "FEDORA-2014-16605",
+	"bugs": [
+		{
+			"bug_id": 1153814,
+			"title": "yum cannot access repositories using TLS 1.2",
+			"bugzilla": {
+				"bug_id": "1153814",
+				"creation_ts": "2014-10-16 20:53:54 +0000",
+				"short_desc": "yum cannot access repositories using TLS 1.2",
+				"delta_ts": "2015-04-04 08:35:25 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7584149",
+						"comment_count": "0",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2014-10-16 20:53:54 +0000",
+						"thetext": "There's a yum repo for qemu firmwares at https://kraxel.org/repos/jenkins . It's handy for testing UEFI support in the virt stack.\n\nLately I can't use it on F20, because curl - which yum uses for fetching packages - can't talk to the server. It spits an error:\n\ncurl: (35) Cannot communicate securely with peer: no common encryption algorithm(s).\n\nF20's wget can get stuff from the server fine.\n\nUsing -v, I can see curl's using its NSS backend (though ldd shows for some reason it's built against both nss and openssl).\n\nSSLlabs.com shows kraxel.org's cipher suite as:\n\nTLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 (0xc030)   ECDH 256 bits (eq. 3072 bits RSA)   FS\t\t256\nTLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 (0xc02f)   ECDH 256 bits (eq. 3072 bits RSA)   FS\t\t128\nTLS_DHE_RSA_WITH_AES_256_GCM_SHA384 (0x9f)   DH 4096 bits (p: 512, g: 1, Ys: 512)   FS\t\t256\nTLS_DHE_RSA_WITH_AES_128_GCM_SHA256 (0x9e)   DH 4096 bits (p: 512, g: 1, Ys: 512)   FS\t\t128\nTLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 (0xc028)   ECDH 256 bits (eq. 3072 bits RSA)   FS\t\t256\nTLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 (0xc027)   ECDH 256 bits (eq. 3072 bits RSA)   FS\t\t128\nTLS_DHE_RSA_WITH_AES_256_CBC_SHA256 (0x6b)   DH 4096 bits (p: 512, g: 1, Ys: 512)   FS\t\t256\nTLS_DHE_RSA_WITH_AES_128_CBC_SHA256 (0x67)   DH 4096 bits (p: 512, g: 1, Ys: 512)   FS\t\t128\nTLS_RSA_WITH_AES_256_GCM_SHA384 (0x9d) \t256\nTLS_RSA_WITH_AES_256_CBC_SHA256 (0x3d) \t256\nTLS_RSA_WITH_AES_128_GCM_SHA256 (0x9c) \t128\nTLS_RSA_WITH_AES_128_CBC_SHA256 (0x3c) \t128\n\nIt also only supports TLS 1.2, but I think curl should support 1.2 in F20. I can see from comparing curl-7.32.0/lib/nss.c (F20) and curl-7.37.0/lib/vtls/nss.c (F21) that curl only got SHA256 cipher support between those releases some time; would it be possible to backport it to the F20 curl?\n\nThanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7584466",
+						"comment_count": "1",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2014-10-17 00:02:51 +0000",
+						"thetext": "FWIW I did try just patching the bits from curl 7.37's nss.c that enable the SHA256 ciphers into curl 7.32, it built it runs but it still won't connect to kraxel.org, and I can't specify the SHA256 ciphers with -ciphers on the command line (it says they're unknown). So I guess they may not be in F20's nss, even though it looks like it's a new enough version that it could have them. I'll look into it a bit more later."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7585690",
+						"comment_count": "2",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2014-10-17 10:56:32 +0000",
+						"thetext": "(In reply to Adam Williamson (Red Hat) from comment #0)\n> curl: (35) Cannot communicate securely with peer: no common encryption\n> algorithm(s).\n\nTLS 1.2 is not enabled by default in curl/nss, see bug #994599 for details.\n\n> Using -v, I can see curl's using its NSS backend (though ldd shows for some\n> reason it's built against both nss and openssl).\n\nNSS is used mainly to implement TLS in libcurl.  openssl gets leaded via libssh2, which uses openssl crypto to implement SCP/SFTP protocols.\n\nI can backport the options of (lib)curl to enable TLS 1.2, but I am afraid that it will not help to resolve the issue with yum.  Changing libcurl's default in an already released Fedora seems risky, given the fact that we are about to drop the fallback to SSLv3 at the same time:\n\nhttp://thread.gmane.org/gmane.comp.web.curl.library/43887"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7701635",
+						"comment_count": "3",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2014-11-24 14:21:09 +0000",
+						"thetext": "I have enabled TLS 1.2 by default in Fedora 20 and by option in Fedora 19."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7701707",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-24 14:34:07 +0000",
+						"thetext": "curl-7.29.0-26.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/curl-7.29.0-26.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7701710",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-24 14:34:19 +0000",
+						"thetext": "curl-7.32.0-16.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/curl-7.32.0-16.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7702094",
+						"comment_count": "6",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2014-11-24 16:00:22 +0000",
+						"thetext": "Enabling it as an option won't help yum in f19 immediately, will it? yum would have to adjust its use of curl?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7702246",
+						"comment_count": "7",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2014-11-24 16:21:01 +0000",
+						"thetext": "Exactly.  This update should not break working F19 installations whereas broken F19 installations can be fixed by upgrading to F20.\n\nIn any case, the options added to enable new cipher-suites and TLS versions might be pretty useful to diagnostic issues like this."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7706579",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-25 15:28:00 +0000",
+						"thetext": "Package curl-7.32.0-16.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing curl-7.32.0-16.fc20'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-15706/curl-7.32.0-16.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7721838",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-01 18:56:38 +0000",
+						"thetext": "curl-7.32.0-16.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751967",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 16:11:04 +0000",
+						"thetext": "curl-7.37.0-11.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/curl-7.37.0-11.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751976",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 16:12:19 +0000",
+						"thetext": "curl-7.32.0-17.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/curl-7.32.0-17.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751980",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 16:12:31 +0000",
+						"thetext": "curl-7.29.0-27.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/curl-7.29.0-27.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7761063",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-13 09:46:28 +0000",
+						"thetext": "curl-7.32.0-17.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7763190",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-15 04:28:10 +0000",
+						"thetext": "curl-7.37.0-11.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7799692",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-03 18:59:34 +0000",
+						"thetext": "curl-7.29.0-27.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7842462",
+						"comment_count": "16",
+						"who": {
+							"text": "bugzilla.blk",
+							"name": "IanB"
+						},
+						"bug_when": "2015-01-14 07:12:43 +0000",
+						"thetext": "I'm getting this error on fc21 when attempting to reach https://test.do:\n\n$ curl https://test.do\ncurl: (35) Cannot communicate securely with peer: no common encryption algorithm(s).\n\n$ rpm -q curl\ncurl-7.37.0-12.fc21.x86_64\n\n$ curl --version\ncurl 7.37.0 (x86_64-redhat-linux-gnu) libcurl/7.37.0 NSS/3.17.3 Basic ECC zlib/1.2.8 libidn/1.28 libssh2/1.4.3\nProtocols: dict file ftp ftps gopher http https imap imaps ldap ldaps pop3 pop3s rtsp scp sftp smtp smtps telnet tftp \nFeatures: AsynchDNS GSS-Negotiate IDN IPv6 Largefile NTLM NTLM_WB SSL libz Metalink"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7842673",
+						"comment_count": "17",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2015-01-14 07:49:42 +0000",
+						"thetext": "Cipher Suites (SSL 3+ suites in server-preferred order; deprecated and SSL 2 suites always at the end)\nTLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 (0xc02b)   ECDH 256 bits (eq. 3072 bits RSA)   FS\t\t128\nTLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 (0xc023)   ECDH 256 bits (eq. 3072 bits RSA)   FS\t\t128\nTLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA (0xc009)   ECDH 256 bits (eq. 3072 bits RSA)   FS\t\t128\nTLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 (0xc02c)   ECDH 256 bits (eq. 3072 bits RSA)   FS\t\t256\nTLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 (0xc024)   ECDH 256 bits (eq. 3072 bits RSA)   FS\t\t256\nTLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA (0xc00a)   ECDH 256 bits (eq. 3072 bits RSA)   FS\t\t256\nTLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA (0xc008)   ECDH 256 bits (eq. 3072 bits RSA)   FS\t\t112"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7842739",
+						"comment_count": "18",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2015-01-14 08:16:03 +0000",
+						"thetext": "(In reply to IanB from comment #16)\n> I'm getting this error on fc21 when attempting to reach https://test.do:\n> \n> $ curl https://test.do\n> curl: (35) Cannot communicate securely with peer: no common encryption\n> algorithm(s).\n\nIt connects successfully if you enable the requested cipher-suite:\n\n$ curl -svo/dev/null --ciphers ecdhe_ecdsa_aes_128_gcm_sha_256 https://test.do\n* Rebuilt URL to: https://test.do/\n*   Trying 2400:cb00:2048:1::681c:182e...\n* connect to 2400:cb00:2048:1::681c:182e port 443 failed: Network is unreachable\n*   Trying 2400:cb00:2048:1::681c:192e...\n* connect to 2400:cb00:2048:1::681c:192e port 443 failed: Network is unreachable\n*   Trying 104.28.25.46...\n* Connected to test.do (104.28.25.46) port 443 (#0)\n* Initializing NSS with certpath: sql:/etc/pki/nssdb\n*   CAfile: /etc/pki/tls/certs/ca-bundle.crt\n  CApath: none\n* SSL connection using TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256\n* Server certificate:\n*       subject: CN=sni39227.cloudflaressl.com,OU=PositiveSSL Multi-Domain,OU=Domain Control Validated\n*       start date: Oct 18 00:00:00 2014 GMT\n*       expire date: Sep 30 23:59:59 2015 GMT\n*       common name: sni39227.cloudflaressl.com\n*       issuer: CN=COMODO ECC Domain Validation Secure Server CA 2,O=COMODO CA Limited,L=Salford,ST=Greater Manchester,C=GB\n> GET / HTTP/1.1\n> User-Agent: curl/7.40.0\n> Host: test.do\n> Accept: */*\n>\n< HTTP/1.1 200 OK\n< Server: cloudflare-nginx\n< Date: Wed, 14 Jan 2015 08:12:54 GMT\n< Content-Type: text/html;charset=UTF-8\n< Transfer-Encoding: chunked\n< Connection: keep-alive\n< Set-Cookie: __cfduid=d6e2c461df85d0a83e150ebe378eadaea1421223174; expires=Thu, 14-Jan-16 08:12:54 GMT; path=/; domain=.test.do; HttpOnly\n< Cache-Control: no-cache,no-store,must-revalidate\n< X-Hudson-Theme: default\n< Set-Cookie: JSESSIONID.ed7330dc=125ittf9euro417715g1ljvbo;Path=/;Secure;HttpOnly\n< Expires: Thu, 01 Jan 1970 00:00:00 GMT\n< X-Hudson: 1.395\n< X-Jenkins: 1.594\n< X-Jenkins-Session: 7b4bcba4\n< X-Hudson-CLI-Port: 53595\n< X-Jenkins-CLI-Port: 53595\n< X-Jenkins-CLI2-Port: 53595\n< X-Frame-Options: sameorigin\n< X-Instance-Identity: MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoY90flR67oYHcdawaNBM4t8grQmoqa0jSYZPGo+ZgMh6E0QR+32AcOHYmDGOF/pVLl9EDH/t6h9dFeHg0huPi/zIL1iGh9ZhK/ar4q4+IXLmLNnwwcJ6+CeGCShNVQ/kB8ilkNCX0IXqVBbXVntmX/CenUgqMeMNdSvIzD0k8oTolQ+zTATytF4vNYbwFOwuOYqFEy3gZuwPt1oH6+IyN+3Ey5ksc9H/ukedQ+fpu6RE8gWdVT7alro2XOpVEdg0FLNPmnVBqtWJr+OVaEGuzL5Ol+23HDeVGAuMCKZqpCyi79wy2wGbDZFcA4l1afrwVISOwRsfHo+jioZcJLEgbQIDAQAB\n< X-SSH-Endpoint: test.do:45609\n< CF-RAY: 1a885f0694920583-PRG\n<\n{ [2938 bytes data]\n* Connection #0 to host test.do left intact"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1154941,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2014-3707 curl: incorrect handle duplication after COPYPOSTFIELDS",
+			"bugzilla": {
+				"bug_id": "1154941",
+				"alias": "CVE-2014-3707",
+				"creation_ts": "2014-10-21 05:12:02 +0000",
+				"short_desc": "CVE-2014-3707 curl: incorrect handle duplication after COPYPOSTFIELDS",
+				"delta_ts": "2023-05-12 05:44:25 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"1160724",
+					"1160725",
+					"1175776",
+					"1215062"
+				],
+				"blocked": [
+					{
+						"bug_id": "1154942",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1193283",
+						"error": "NotPermitted"
+					},
+					{
+						"bug_id": "1210268",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2015:2159",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7593917",
+						"comment_count": "0",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-10-21 05:12:02 +0000",
+						"thetext": "Daniel Stenberg reported the following vulnerability in cURL:\n\n\"\"\nlibcurl's function curl_easy_duphandle() has a bug that can lead to libcurl\neventually sending off sensitive data that was not intended for sending.\n\nWhen doing an HTTP POST transfer with libcurl, you can use the\n`CURLOPT_COPYPOSTFIELDS` option to specify a memory area holding the data to\nsend to the remote server. The memory area's size is set with a separate\noption, for example `CURLOPT_POSTFIELDSIZE`.\n\nAs the name implies, the data in the specified buffer is copied to a privately\nheld memory buffer that libcurl allocates on the heap. The memory area is\nassociated with the common CURL handle, often referred to as an \"easy handle\".\n\nThis handle can be duplicated by an application to create an identical copy,\nand all the already set options and data is then also similarly cloned and\nwill be associated with the newly returned handle. This also includes the data\nto send in an HTTP POST request.\n\nThe internal libcurl function that duplicates options from the old handle to\nthe new had two problems:\n\n1. It mistakenly treated the post data buffer as if it was a C string. A C\n   string ends with a zero byte, and subsequently strdup() was used to\n   duplicate the post data buffer. A post data buffer can perfectly\n   legitimately contain a zero byte, or it may not contain any zero byte at\n   all (including no trailing one) - leading to strdup() either making a too\n   small duplicate, a too large one or crash due to reading an inaccessible\n   memory area. The strdup() of course allocates memory off the heap.\n\n2. After duplication of the handle data, the pointer used to read from when\n   sending the data was not updated. So when sending off the post, libcurl\n   would still read from the original handle's buffer which at that time could\n   have been freed or reused for other purposes.\n\nWhen libcurl subsequently constructs the HTTP POST request and includes data\nfor the protocol body it will memcpy() data from that pointer using the old\nsize and the old pointer. This makes a read from the wrong place and can lead\nto libcurl inserting data into the request that happens to be stored at that\nplaces in memory at that time.\n\nWe are not aware of anyone having been able to actually exploit this for\nnefarious purposes, but we can't exclude that it is possible or even might\nalready have been exploited.\n\nINFO\n----\n\nThis bug requires `CURLOPT_COPYPOSTFIELDS` and `curl_easy_duphandle()` to be\nused in that order, and then the duplicate handle must be used to perform the\nHTTP POST.\n\nThe curl tool is not affected, it does not use this sequence.\n\"\"\"\n\nThis issue affects versions 7.17.1 up to and including 7.38.0. It has been fixed in version 7.39.0\n\nAcknowledgements:\n\nRed Hat would like to thank the cURL project for reporting this issue. Upstream acknowledges Symeon Paraschoudis as the original reporter."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7593922",
+						"comment_count": "2",
+						"who": {
+							"text": "mmcallis",
+							"name": "Murray McAllister"
+						},
+						"bug_when": "2014-10-21 05:14:16 +0000",
+						"thetext": "Created attachment 948796\npreliminary patch from upstream"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7609985",
+						"comment_count": "5",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-10-24 19:45:47 +0000",
+						"thetext": "This issue affects applications that set CURLOPT_COPYPOSTFIELDS options on a curl handle a subsequently duplicate the handle (using curl_easy_duphandle()).\n\nDuring the handle duplication, libcurl may read memory outside of the bounds of allocated buffer if POST data set using CURLOPT_COPYPOSTFIELDS was not NUL terminated.  The out of bounds access occurs in strdup()/strlen().  This can cause crash if unmapped memory is reached before NUL byte is found, but such crash is unlikely.\n\nDue to another bug in the handle duplication code, POST data in the copied handle is not used even if no new POST data are set before performing the request.  Instead, data from the buffer associated with the original handle is used.  Therefore, if the original handle is freed, or if new POST data is set on it between duplication and the use of the new handle, libcurl may use data from an already freed buffer.\n\nThere are no applications in Red Hat Enterprise Linux that uses libcurl in the way that would make them vulnerable to this issue.  The CURLOPT_COPYPOSTFIELDS option is only used by PHP, when PHP script sets CURLOPT_POSTFIELDS option with data that is not array or object.  As string arguments used with PHP curl_setopt(CURLOPT_POSTFIELDS) are unlikely to be NUL terminated, strdup() out of bounds read is likely to happen in curl_copy_handle().\n\nUpstream advisory lists curl versions 7.17.1 and later to be affected by this problem.  The version 7.17.1 is the one that introduced the CURLOPT_COPYPOSTFIELDS option.  The curl packages in Red Hat Enterprise Linux 5 and earlier are based on older upstream curl versions and hence were not affected by this issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7642891",
+						"comment_count": "6",
+						"who": {
+							"text": "mprpic",
+							"name": "Martin Prpič"
+						},
+						"bug_when": "2014-11-05 10:47:33 +0000",
+						"thetext": "This issue is now public.\n\nExternal Reference:\n\nhttp://curl.haxx.se/docs/adv_20141105.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7643260",
+						"comment_count": "7",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2014-11-05 12:57:51 +0000",
+						"thetext": "fixed in curl-7.39.0-1.fc22\n\nfixed in curl-7.37.0-9.fc21\n\nfixed in curl-7.32.0-15.fc20\n\nfixed in curl-7.29.0-25.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7643522",
+						"comment_count": "8",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-11-05 13:47:59 +0000",
+						"thetext": "Upstream commit:\n\nhttps://github.com/bagder/curl/commit/b3875606925536f82fc61f3114ac42f29eaf6945"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7643530",
+						"comment_count": "9",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2014-11-05 13:50:03 +0000",
+						"thetext": "\nCreated mingw-curl tracking bugs for this issue:\n\nAffects: fedora-all [bug 1160724]\nAffects: epel-7 [bug 1160725]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7655385",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-10 06:43:29 +0000",
+						"thetext": "curl-7.37.0-9.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7655387",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-10 06:43:55 +0000",
+						"thetext": "curl-7.32.0-15.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7667307",
+						"comment_count": "12",
+						"who": {
+							"text": "vdanen",
+							"name": "Vincent Danen"
+						},
+						"bug_when": "2014-11-12 21:24:53 +0000",
+						"thetext": "Statement:\n\nThis issue does not affect the versions of curl as shipped with Red Hat Enterprise Linux 5.\n\nNote that there are no applications provided with Red Hat Enterprise Linux that use the vulnerable CURLOPT_COPYPOSTFIELDS option, except PHP which could only be affected if used in an extremely unlikely scenario or via the script's author."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7721841",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-01 18:56:46 +0000",
+						"thetext": "curl-7.32.0-16.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7761066",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-13 09:46:33 +0000",
+						"thetext": "curl-7.32.0-17.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7763193",
+						"comment_count": "15",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-15 04:28:15 +0000",
+						"thetext": "curl-7.37.0-11.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7799695",
+						"comment_count": "18",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-03 18:59:39 +0000",
+						"thetext": "curl-7.29.0-27.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8465514",
+						"comment_count": "21",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-07-22 05:43:58 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n\nVia RHSA-2015:1254 https://rhn.redhat.com/errata/RHSA-2015-1254.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8836578",
+						"comment_count": "23",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-11-19 07:07:01 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 7\n\nVia RHSA-2015:2159 https://rhn.redhat.com/errata/RHSA-2015-2159.html"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1166239,
+			"title": "Please include \"low-speed-limit: avoid timeout flood\" patch into fedora curl package",
+			"bugzilla": {
+				"bug_id": "1166239",
+				"creation_ts": "2014-11-20 15:49:57 +0000",
+				"short_desc": "Please include \"low-speed-limit: avoid timeout flood\" patch into fedora curl package",
+				"delta_ts": "2015-01-03 18:59:38 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"blocked": [
+					{
+						"bug_id": "1133330",
+						"creation_ts": "2014-08-24 17:07:02 +0000",
+						"short_desc": "dnf takes 60-100% cpu while downloading packages",
+						"delta_ts": "2014-11-20 15:49:57 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "NOTABUG",
+						"priority": "unspecified",
+						"bug_severity": "unspecified",
+						"depends_on": [
+							"1166239"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7412876",
+								"comment_count": "0",
+								"who": {
+									"text": "luto",
+									"name": "Andy Lutomirski"
+								},
+								"bug_when": "2014-08-24 17:07:02 +0000",
+								"thetext": "Even when dnf is just downloading packages, it seems to take a lot of CPU time.  This makes my laptop sad.  Is it easily fixable?"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7417891",
+								"comment_count": "1",
+								"who": {
+									"text": "jsilhan",
+									"name": "Honza Silhan"
+								},
+								"bug_when": "2014-08-26 09:05:02 +0000",
+								"thetext": "Hi, I haven't noticed more CPU consumption during downloading. How does yum perform on your laptop? Is is happening with deltas or regular packages? Closing this. If another user experience the same problem and I would be able to reproduce it, then I will reconsider this issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7650018",
+								"comment_count": "2",
+								"who": {
+									"text": "luto",
+									"name": "Andy Lutomirski"
+								},
+								"bug_when": "2014-11-07 05:49:27 +0000",
+								"thetext": "I haven't checked yum lately, but this is 100% reproducible for me.  I think it's caused by:\n\nhttps://github.com/Tojaj/librepo/issues/34"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7650270",
+								"comment_count": "3",
+								"who": {
+									"text": "jzeleny",
+									"name": "Jan Zeleny"
+								},
+								"bug_when": "2014-11-07 07:38:36 +0000",
+								"thetext": "Based on comment 2, I'm adding Tomas to CC to take a look at this."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7651300",
+								"comment_count": "4",
+								"who": {
+									"text": "tmlcoch",
+									"name": "Tomas Mlcoch"
+								},
+								"bug_when": "2014-11-07 12:53:05 +0000",
+								"thetext": "Hi Andy,\nI've commented on the issue on github [1].\n\nI have a few questions:\n\n1. What version of librepo and related libraries are you using just now?\n(e.g. $ rpm -q dnf librepo libcurl)\n\n2. What type of connection are you using and what speed?\n\n3. Could you please provide a librepo debug output from a run that was affected by this issue?\n(e.g. $ sudo LIBREPO_DEBUG=1 dnf update 2>&1 | tee librepo.debug.out)\n\nad 2. I think that such high load could be justifiable in case you have high speed internet connection (e.g. 100Mbps) and you are downloading from a close mirror that serves you data with that speed.\n\nRegards\nTomas\n\n[1] https://github.com/Tojaj/librepo/issues/34#issuecomment-62120477"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7652049",
+								"comment_count": "5",
+								"who": {
+									"text": "luto",
+									"name": "Andy Lutomirski"
+								},
+								"bug_when": "2014-11-07 16:24:04 +0000",
+								"thetext": "$ rpm -q dnf librepo libcurl\ndnf-0.5.4-2.fc20.noarch\nlibrepo-1.7.5-1.fc20.x86_64\nlibcurl-7.32.0-14.fc20.x86_64\nlibcurl-7.32.0-14.fc20.i686\n\nI'm on a 7 Mbps connection or so on a Sandy Bridge laptop that should be able to handle that kind of throughput without much effort.  It's a fast wireless link, and the bottleneck is the router on the other end that's running fq-codel.  (It would be very slightly faster but with much higher latency if I turned off the shaping.)"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7652052",
+								"comment_count": "6",
+								"who": {
+									"text": "luto",
+									"name": "Andy Lutomirski"
+								},
+								"bug_when": "2014-11-07 16:24:43 +0000",
+								"thetext": "Created attachment 955004\nLIBREPO_DEBUG=1 output"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7691732",
+								"comment_count": "7",
+								"who": {
+									"text": "tmlcoch",
+									"name": "Tomas Mlcoch"
+								},
+								"bug_when": "2014-11-20 15:13:14 +0000",
+								"thetext": "Thanks for all the effort!\nI guess the issue could be related to this bug in Curl [1]\n(Related librepo issue on github: [2]).\nThe curl bug is fixed now [3], but the version of curl (7.38.0) that contains the fix is not available in fedora yet.\n\n[1] http://curl.haxx.se/mail/lib-2014-06/0242.html\n[2] https://github.com/Tojaj/librepo/issues/31\n[3] https://github.com/bagder/curl/commit/cacdc27f52ba"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7691745",
+								"comment_count": "8",
+								"who": {
+									"text": "tmlcoch",
+									"name": "Tomas Mlcoch"
+								},
+								"bug_when": "2014-11-20 15:14:42 +0000",
+								"thetext": "Kamil, would it be possible to include the patch [3] into Fedora's libcurl?\n\n[3] https://github.com/bagder/curl/commit/cacdc27f52ba"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7691886",
+								"comment_count": "9",
+								"who": {
+									"text": "kdudka",
+									"name": "Kamil Dudka"
+								},
+								"bug_when": "2014-11-20 15:42:10 +0000",
+								"thetext": "(In reply to Tomas Mlcoch from comment #8)\n> Kamil, would it be possible to include the patch [3] into Fedora's libcurl?\n> \n> [3] https://github.com/bagder/curl/commit/cacdc27f52ba\n\nSure thing.  Just reassign/clone this bug for curl.  I will take care of that."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7691913",
+						"comment_count": "0",
+						"who": {
+							"text": "tmlcoch",
+							"name": "Tomas Mlcoch"
+						},
+						"bug_when": "2014-11-20 15:49:57 +0000",
+						"thetext": "Current version of libcurl that is available in Fedora contains a \"multi_addtimeout has a long timeout list\" bug [1]. The fix for the bug is already available [2] since curl 7.38.0.\n\nPlease include the patch [2] or rebase the package.\n\nMy curl version:\n$ rpm -q curl libcurl\ncurl-7.37.0-9.fc21.x86_64\nlibcurl-7.37.0-9.fc21.x86_64\n\nThanks\nTomas\n\n[1] http://curl.haxx.se/mail/lib-2014-06/0235.html\n[2] https://github.com/bagder/curl/commit/cacdc27f52ba"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7696659",
+						"comment_count": "1",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-21 16:43:05 +0000",
+						"thetext": "curl-7.37.0-10.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/curl-7.37.0-10.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7696976",
+						"comment_count": "2",
+						"who": {
+							"text": "luto",
+							"name": "Andy Lutomirski"
+						},
+						"bug_when": "2014-11-21 18:03:23 +0000",
+						"thetext": "Thanks.\n\nFWIW, I built curl-7.39.0-1.fc20.x86_64 by rebuilding the master version for f20, and it seems to work."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7701709",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-24 14:34:10 +0000",
+						"thetext": "curl-7.29.0-26.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/curl-7.29.0-26.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7701713",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-24 14:34:21 +0000",
+						"thetext": "curl-7.32.0-16.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/curl-7.32.0-16.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7706581",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-25 15:28:03 +0000",
+						"thetext": "Package curl-7.32.0-16.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing curl-7.32.0-16.fc20'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-15706/curl-7.32.0-16.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7721840",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-01 18:56:43 +0000",
+						"thetext": "curl-7.32.0-16.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751802",
+						"comment_count": "7",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2014-12-10 15:38:13 +0000",
+						"thetext": "The original upstream patch causes bug #1172572, new packages are being built..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751969",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 16:11:07 +0000",
+						"thetext": "curl-7.37.0-11.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/curl-7.37.0-11.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751978",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 16:12:22 +0000",
+						"thetext": "curl-7.32.0-17.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/curl-7.32.0-17.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751982",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 16:12:34 +0000",
+						"thetext": "curl-7.29.0-27.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/curl-7.29.0-27.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7757515",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-12 04:20:16 +0000",
+						"thetext": "curl-7.37.0-10.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7761065",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-13 09:46:31 +0000",
+						"thetext": "curl-7.32.0-17.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7763192",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-15 04:28:13 +0000",
+						"thetext": "curl-7.37.0-11.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7799694",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-03 18:59:38 +0000",
+						"thetext": "curl-7.29.0-27.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1166567,
+			"title": "curl: Disable out-of-protocol fallback to SSL 3.0",
+			"bugzilla": {
+				"bug_id": "1166567",
+				"creation_ts": "2014-11-21 09:13:34 +0000",
+				"short_desc": "curl: Disable out-of-protocol fallback to SSL 3.0",
+				"delta_ts": "2015-01-03 18:59:36 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "1154060",
+						"creation_ts": "2014-10-17 12:28:07 +0000",
+						"short_desc": "curl: Disable out-of-protocol fallback to SSL 3.0",
+						"delta_ts": "2015-11-19 07:06:48 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"1166567"
+						],
+						"blocked": [
+							{
+								"bug_id": "1110700",
+								"error": "NotPermitted"
+							},
+							{
+								"bug_id": "1154059",
+								"creation_ts": "2014-10-17 12:26:15 +0000",
+								"short_desc": "curl: Disable out-of-protocol fallback to SSL 3.0",
+								"delta_ts": "2015-07-22 05:43:47 +0000",
+								"bug_status": "CLOSED",
+								"resolution": "ERRATA",
+								"priority": "high",
+								"bug_severity": "high",
+								"depends_on": [
+									"1154060"
+								],
+								"blocked": [
+									{
+										"bug_id": "1159820",
+										"error": "NotPermitted"
+									},
+									{
+										"bug_id": "1159926",
+										"error": "NotPermitted"
+									}
+								],
+								"external_bugs": {
+									"text": "RHSA-2015:1254",
+									"name": "Red Hat Product Errata"
+								},
+								"long_desc": [
+									{
+										"isprivate": "0",
+										"commentid": "7586090",
+										"comment_count": "0",
+										"who": {
+											"text": "fweimer",
+											"name": "Florian Weimer"
+										},
+										"bug_when": "2014-10-17 12:26:15 +0000",
+										"thetext": "We should disable the retry-with-SSL-3.0 behavior in curl because it can be trivially triggered by an on-path attacker to cause a protocol downgrade, and SSL 3.0 has several known weaknesses.  This curl behavior is quite surprising because it is restricted to the NSS backend, and other systems which use the OpenSSL or GNUTLS backend do not share this behavior.\n\nAt this stage, it is best to leave SSL 3.0 enabled.  (The in-protocol version negotiation has not been broken, sosome TLS version will be used automatically if supported by the server.)\n\nThis might reintroduce bug 525496 and bug 527771, so a system-wide knob to re-enable the SSL 3.0 fallback might be necessary.  Perhaps the existence of a file like /etc/sysconfig/curl/enable-ssl-fallback could re-enable the old behavior."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "7605633",
+										"comment_count": "3",
+										"who": {
+											"text": "thoger",
+											"name": "Tomas Hoger"
+										},
+										"bug_when": "2014-10-23 16:02:06 +0000",
+										"thetext": "(In reply to Florian Weimer from comment #0)\n> This might reintroduce bug 525496 and bug 527771, so a system-wide knob to\n> re-enable the SSL 3.0 fallback might be necessary.  Perhaps the existence of\n> a file like /etc/sysconfig/curl/enable-ssl-fallback could re-enable the old\n> behavior.\n\nOr environment variable?  CURL_ENABLE_SSL_FALLBACK?\n\nDo curl try to fall back across multiple versions (TLS 1.1 -> TLS 1.0 -> SSL 3.0), or if connection attempt with the highest supported fails, it goes straight to SSL 3.0?"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "7605658",
+										"comment_count": "4",
+										"who": {
+											"text": "kdudka",
+											"name": "Kamil Dudka"
+										},
+										"bug_when": "2014-10-23 16:06:58 +0000",
+										"thetext": "(In reply to Tomas Hoger from comment #3)\n> Or environment variable?  CURL_ENABLE_SSL_FALLBACK?\n\nThat would also work I guess.\n\n> Do curl try to fall back across multiple versions (TLS 1.1 -> TLS 1.0 -> SSL\n> 3.0), or if connection attempt with the highest supported fails, it goes\n> straight to SSL 3.0?\n\nThe fallback implemented by libcurl goes straight to SSL 3.0."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "8465511",
+										"comment_count": "12",
+										"who": {
+											"text": "errata-xmlrpc",
+											"name": "errata-xmlrpc"
+										},
+										"bug_when": "2015-07-22 05:43:47 +0000",
+										"thetext": "Since the problem described in this bug report should be\nresolved in a recent advisory, it has been closed with a\nresolution of ERRATA.\n\nFor information on the advisory, and where to find the updated\nfiles, follow the link below.\n\nIf the solution does not work for you, open a new bug report.\n\nhttps://rhn.redhat.com/errata/RHSA-2015-1254.html"
+									}
+								]
+							},
+							{
+								"bug_id": "1191021",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:2159",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "7586156",
+								"comment_count": "0",
+								"who": {
+									"text": "fweimer",
+									"name": "Florian Weimer"
+								},
+								"bug_when": "2014-10-17 12:28:07 +0000",
+								"thetext": "+++ This bug was initially created as a clone of Bug #1154059 +++\n\nWe should disable the retry-with-SSL-3.0 behavior in curl because it can be trivially triggered by an on-path attacker to cause a protocol downgrade, and SSL 3.0 has several known weaknesses.  This curl behavior is quite surprising because it is restricted to the NSS backend, and other systems which use the OpenSSL or GNUTLS backend do not share this behavior.\n\nAt this stage, it is best to leave SSL 3.0 enabled.  (The in-protocol version negotiation has not been broken, sosome TLS version will be used automatically if supported by the server.)\n\nThis might reintroduce bug 525496 and bug 527771, so a system-wide knob to re-enable the SSL 3.0 fallback might be necessary.  Perhaps the existence of a file like /etc/sysconfig/curl/enable-ssl-fallback could re-enable the old behavior."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "7622580",
+								"comment_count": "2",
+								"who": {
+									"text": "kdudka",
+									"name": "Kamil Dudka"
+								},
+								"bug_when": "2014-10-29 14:26:08 +0000",
+								"thetext": "The code in question has been removed from upstream libcurl:\n\nhttps://github.com/bagder/curl/compare/07048941a4...276741af4d"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8836577",
+								"comment_count": "30",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-11-19 07:06:48 +0000",
+								"thetext": "Since the problem described in this bug report should be\nresolved in a recent advisory, it has been closed with a\nresolution of ERRATA.\n\nFor information on the advisory, and where to find the updated\nfiles, follow the link below.\n\nIf the solution does not work for you, open a new bug report.\n\nhttps://rhn.redhat.com/errata/RHSA-2015-2159.html"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7694555",
+						"comment_count": "0",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2014-11-21 09:13:34 +0000",
+						"thetext": "+++ This bug was initially created as a clone of Bug #1154060 +++\n\n+++ This bug was initially created as a clone of Bug #1154059 +++\n\nWe should disable the retry-with-SSL-3.0 behavior in curl because it can be trivially triggered by an on-path attacker to cause a protocol downgrade, and SSL 3.0 has several known weaknesses.  This curl behavior is quite surprising because it is restricted to the NSS backend, and other systems which use the OpenSSL or GNUTLS backend do not share this behavior.\n\nAt this stage, it is best to leave SSL 3.0 enabled.  (The in-protocol version negotiation has not been broken, sosome TLS version will be used automatically if supported by the server.)\n\nThis might reintroduce bug 525496 and bug 527771, so a system-wide knob to re-enable the SSL 3.0 fallback might be necessary.  Perhaps the existence of a file like /etc/sysconfig/curl/enable-ssl-fallback could re-enable the old behavior.\n\n--- Additional comment from Kamil Dudka on 2014-10-29 15:26:08 CET ---\n\nThe code in question has been removed from upstream libcurl:\n\nhttps://github.com/bagder/curl/compare/07048941a4...276741af4d"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7696658",
+						"comment_count": "1",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-21 16:43:03 +0000",
+						"thetext": "curl-7.37.0-10.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/curl-7.37.0-10.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7701708",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-24 14:34:08 +0000",
+						"thetext": "curl-7.29.0-26.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/curl-7.29.0-26.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7701712",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-24 14:34:20 +0000",
+						"thetext": "curl-7.32.0-16.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/curl-7.32.0-16.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7706580",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-11-25 15:28:02 +0000",
+						"thetext": "Package curl-7.32.0-16.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing curl-7.32.0-16.fc20'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-15706/curl-7.32.0-16.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7721839",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-01 18:56:40 +0000",
+						"thetext": "curl-7.32.0-16.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751968",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 16:11:05 +0000",
+						"thetext": "curl-7.37.0-11.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/curl-7.37.0-11.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751977",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 16:12:21 +0000",
+						"thetext": "curl-7.32.0-17.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/curl-7.32.0-17.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751981",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 16:12:33 +0000",
+						"thetext": "curl-7.29.0-27.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/curl-7.29.0-27.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7757514",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-12 04:20:15 +0000",
+						"thetext": "curl-7.37.0-10.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7761064",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-13 09:46:30 +0000",
+						"thetext": "curl-7.32.0-17.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7763191",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-15 04:28:11 +0000",
+						"thetext": "curl-7.37.0-11.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7799693",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-03 18:59:36 +0000",
+						"thetext": "curl-7.29.0-27.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1172572,
+			"title": "XBMC issues due to Curl",
+			"bugzilla": {
+				"bug_id": "1172572",
+				"creation_ts": "2014-12-10 11:43:54 +0000",
+				"short_desc": "XBMC issues due to Curl",
+				"delta_ts": "2015-01-03 18:59:32 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "7750370",
+						"comment_count": "0",
+						"who": {
+							"text": "john.brines",
+							"name": "John Brines"
+						},
+						"bug_when": "2014-12-10 11:43:54 +0000",
+						"thetext": "Description of problem:\n\nUnable to update XBMC addons, if I downgrade Curl and Libcurl it works fine\n\n\nVersion-Release number of selected component (if applicable): 7.38\n\n\nHow reproducible:\n\nUpgrade to the current version.\n\n\nSteps to Reproduce:\n1. Make sure Fedora is up to date\n2. Install XBMC and then try and view the addons.\n3. Downgrade curl and libcurl\n\nActual results:\n\n\nExpected results:\n\n\nAdditional info:\n\n15:18:34 T:139895504410368   ERROR: CCurlFile::FillBuffer - Failed: Timeout was reached(28)\n15:18:34 T:139895504410368   ERROR: CCurlFile::CReadState::Connect, didn't get any data from stream.\n15:18:36 T:139895504410368   ERROR: CCurlFile::FillBuffer - Failed: Timeout was reached(28)\n15:18:36 T:139895504410368   ERROR: CCurlFile::CReadState::Connect, didn't get any data from stream.\n15:18:38 T:139895504410368   ERROR: CCurlFile::FillBuffer - Failed: Timeout was reached(28)\n15:18:38 T:139895504410368   ERROR: CCurlFile::CReadState::Connect, didn't get any data from stream.\n15:18:40 T:139895504410368   ERROR: CCurlFile::FillBuffer - Failed: Timeout was reached(28)\n15:18:40 T:139895504410368   ERROR: CCurlFile::CReadState::Connect, didn't get any data from stream.\n15:18:42 T:139895504410368   ERROR: CCurlFile::FillBuffer - Failed: Timeout was reached(28)\n15:18:42 T:139895504410368   ERROR: CCurlFile::CReadState::Connect, didn't get any data from stream.\n15:18:42 T:139894838609664   ERROR: CCurlFile::FillBuffer - Failed: Timeout was reached(28)\n15:18:42 T:139894838609664   ERROR: CCurlFile::CReadState::Connect, didn't get any data from stream.\n15:18:42 T:139894838609664   ERROR: Open - failed to open source <http://mirrors.xbmc.org/addons/gotham/addons.xml.md5>\n15:18:44 T:139895504410368   ERROR: CCurlFile::FillBuffer - Failed: Timeout was reached(28)\n15:18:44 T:139895504410368   ERROR: CCurlFile::CReadState::Connect, didn't get any data from stream.\n15:18:46 T:139895504410368   ERROR: CCurlFile::FillBuffer - Failed: Timeout was reached(28)\n15:18:46 T:139895504410368   ERROR: CCurlFile::CReadState::Connect, didn't get any data from stream.\n15:18:48 T:139895504410368   ERROR: CCurlFile::FillBuffer - Failed: Timeout was reached(28)\n15:18:48 T:139895504410368   ERROR: CCurlFile::CReadState::Connect, didn't get any data from stream.\n15:18:50 T:139895504410368   ERROR: CCurlFile::FillBuffer - Failed: Timeout was reached(28)\n15:18:50 T:139895504410368   ERROR: CCurlFile::CReadState::Connect, didn't get any data from stream.\n15:18:52 T:139894838609664   ERROR: CCurlFile::FillBuffer - Failed: Timeout was reached(28)\n15:18:52 T:139894838609664   ERROR: CCurlFile::CReadState::Connect, didn't get any data from stream.\n15:18:52 T:139894838609664   ERROR: Open - failed to open source <http://mirrors.xbmc.org/addons/frodo/addons.xml.md5>"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7750425",
+						"comment_count": "1",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2014-12-10 12:06:52 +0000",
+						"thetext": "Please state the exact NVRs of working/non-working (lib)curl packages:\n\n$ rpm -qa curl libcurl\n\nHow can one install XBMC on Fedora and make it trigger this bug?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7750546",
+						"comment_count": "2",
+						"who": {
+							"text": "john.brines",
+							"name": "John Brines"
+						},
+						"bug_when": "2014-12-10 12:43:23 +0000",
+						"thetext": "I will get the NVRs tonight.\n\nTo install XBMC - sudo yum install xbmc\n\nrun xbmc, then follow this for addons - http://kodi.wiki/view/Quick_start_guide#XBMC.2FKodi_add-ons"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7750681",
+						"comment_count": "3",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2014-12-10 13:09:29 +0000",
+						"thetext": "(In reply to John Brines from comment #2)\n> To install XBMC - sudo yum install xbmc\n\nIt does not seem to be included in the official Fedora 20 yum repository.\n\n[kdudka@f20 ~]$ sudo yum install xbmc\nLoaded plugins: langpacks, refresh-packagekit\nNo package xbmc available.\nError: Nothing to do"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7750691",
+						"comment_count": "4",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2014-12-10 13:12:57 +0000",
+						"thetext": "... and there is no (lib)curl 7.38 in Fedora 20."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7750858",
+						"comment_count": "5",
+						"who": {
+							"text": "john.brines",
+							"name": "John Brines"
+						},
+						"bug_when": "2014-12-10 13:39:43 +0000",
+						"thetext": "I got my information rom here - http://gamblisfx.com/how-to-install-xbmc-on-fedora-20/\n\nI may have got the version wrong but I know it is the latest version of Curl."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7750970",
+						"comment_count": "6",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2014-12-10 14:00:44 +0000",
+						"thetext": "(In reply to John Brines from comment #5)\n> I got my information rom here -\n> http://gamblisfx.com/how-to-install-xbmc-on-fedora-20/\n\nThe page says it is distributed via the RPM Fusion yum repository.\n\n> I may have got the version wrong but I know it is the latest version of Curl.\n\nLatest upstream version of curl is 7.39.0 but Fedora 20 uses curl-7.32.0-16.fc20."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751208",
+						"comment_count": "7",
+						"who": {
+							"text": "john.brines",
+							"name": "John Brines"
+						},
+						"bug_when": "2014-12-10 14:51:32 +0000",
+						"thetext": "Hi There,\n\nAll I did was yum install xbmc\n\nAlso see this post and you will see other are having the issue.\n\nhttp://forum.kodi.tv/showthread.php?tid=204740&pid=1853266#pid1853266\n\nJohn."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751570",
+						"comment_count": "8",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2014-12-10 15:08:31 +0000",
+						"thetext": "Please check whether it works with libcurl-7.32.0-15.fc20 from Koji:\n\nhttp://koji.fedoraproject.org/koji/buildinfo?buildID=590401\n\nThis can be caused by the fix for bug #1166239."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751609",
+						"comment_count": "9",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2014-12-10 15:14:15 +0000",
+						"thetext": "This is actually already fixed upstream:\n\nhttps://github.com/bagder/curl/commit/d9762a7c\n\nI will backport it for Fedora..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751966",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 16:11:03 +0000",
+						"thetext": "curl-7.37.0-11.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/curl-7.37.0-11.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751975",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 16:12:18 +0000",
+						"thetext": "curl-7.32.0-17.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/curl-7.32.0-17.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751979",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-10 16:12:30 +0000",
+						"thetext": "curl-7.29.0-27.fc19 has been submitted as an update for Fedora 19.\nhttps://admin.fedoraproject.org/updates/curl-7.29.0-27.fc19"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7751993",
+						"comment_count": "13",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2014-12-10 16:16:08 +0000",
+						"thetext": "(In reply to Kamil Dudka from comment #8)\n> Please check whether it works with libcurl-7.32.0-15.fc20 from Koji:\n\nBetter to test curl-7.32.0-17.fc20, which contains both the fixes now."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7754187",
+						"comment_count": "14",
+						"who": {
+							"text": "john.brines",
+							"name": "John Brines"
+						},
+						"bug_when": "2014-12-11 08:06:21 +0000",
+						"thetext": "I did a yum updare and it updated curl and libcurl and now it is working but curl isn't at the version that is above (curl-7.32.0-17.fc20), how do I get the latest version?\n\nlibcurl-7.32.0-16.fc20.x86_64\ncurl-7.32.0-16.fc20.x86_64"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7754221",
+						"comment_count": "15",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2014-12-11 08:19:54 +0000",
+						"thetext": "You can install it from the Updates Testing yum repository once the new packages reach the mirrors.  If you need them sooner than that, you can install them directly from Koji:\n\nsudo yum install https://kojipkgs.fedoraproject.org//packages/curl/7.32.0/17.fc20/x86_64/curl-7.32.0-17.fc20.x86_64.rpm https://kojipkgs.fedoraproject.org//packages/curl/7.32.0/17.fc20/x86_64/libcurl-7.32.0-17.fc20.x86_64.rpm https://kojipkgs.fedoraproject.org//packages/curl/7.32.0/17.fc20/x86_64/libcurl-devel-7.32.0-17.fc20.x86_64.rpm https://kojipkgs.fedoraproject.org//packages/curl/7.32.0/17.fc20/x86_64/curl-debuginfo-7.32.0-17.fc20.x86_64.rpm"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7754316",
+						"comment_count": "16",
+						"who": {
+							"text": "john.brines",
+							"name": "John Brines"
+						},
+						"bug_when": "2014-12-11 08:47:33 +0000",
+						"thetext": "That worked, tanks do much for your help, this is a very efficient service.\n\nJohn."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7754449",
+						"comment_count": "17",
+						"who": {
+							"text": "frollic",
+							"name": "frollic nilsson"
+						},
+						"bug_when": "2014-12-11 09:27:00 +0000",
+						"thetext": "Can this be back ported (or forward) to FC21 ? \n\nThis bug is in curl/libcurl FC21 and FC22\n\nI tried \n\ncurl-7.37.0-9.fc21.x86_64\nlibcurl-7.37.0-9.fc21.x86_64\n\ncurl-7.39.0-1.fc22.x86_64\nlibcurl-7.39.0-1.fc22.x86_64\n\nboth appear to have the same bug."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7754610",
+						"comment_count": "18",
+						"who": {
+							"text": "kdudka",
+							"name": "Kamil Dudka"
+						},
+						"bug_when": "2014-12-11 10:06:28 +0000",
+						"thetext": "(In reply to frollic nilsson from comment #17)\n> Can this be back ported (or forward) to FC21 ?\n\nThere already is an update submitted for Fedora 21.  See comment #10.\n\n> This bug is in curl/libcurl FC21 and FC22\n> \n> I tried \n> \n> curl-7.37.0-9.fc21.x86_64\n> libcurl-7.37.0-9.fc21.x86_64\n> \n> curl-7.39.0-1.fc22.x86_64\n> libcurl-7.39.0-1.fc22.x86_64\n> \n> both appear to have the same bug.\n\nlibcurl-7.39.0-1.fc22 should be free of this bug as the fix is already contained in upstream curl-7.39.0.  Please retest."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7754669",
+						"comment_count": "19",
+						"who": {
+							"text": "frollic",
+							"name": "frollic nilsson"
+						},
+						"bug_when": "2014-12-11 10:25:08 +0000",
+						"thetext": "Thanks,\n\nI missed the minor update posted, I went straight from -9.fc21 to the fc22.\n\nJust upgraded my XBMC box from FC20 to 21, going to give it another go with -11.fc21. \n\nthank you for a fast response."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7757393",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-12 04:06:37 +0000",
+						"thetext": "Package curl-7.32.0-17.fc20:\n* should fix your issue,\n* was pushed to the Fedora 20 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing curl-7.32.0-17.fc20'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2014-16538/curl-7.32.0-17.fc20\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7761062",
+						"comment_count": "21",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-13 09:46:26 +0000",
+						"thetext": "curl-7.32.0-17.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7763189",
+						"comment_count": "22",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2014-12-15 04:28:08 +0000",
+						"thetext": "curl-7.37.0-11.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "7799690",
+						"comment_count": "23",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-01-03 18:59:32 +0000",
+						"thetext": "curl-7.29.0-27.fc19 has been pushed to the Fedora 19 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "curl-7.37.0-11.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "libcurl-devel",
+						"version": "7.37.0",
+						"release": "11.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "curl",
+						"version": "7.37.0",
+						"release": "11.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "libcurl",
+						"version": "7.37.0",
+						"release": "11.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "curl-debuginfo",
+						"version": "7.37.0",
+						"release": "11.fc21",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "curl-debuginfo",
+						"version": "7.37.0",
+						"release": "11.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "curl",
+						"version": "7.37.0",
+						"release": "11.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "libcurl-devel",
+						"version": "7.37.0",
+						"release": "11.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "libcurl",
+						"version": "7.37.0",
+						"release": "11.fc21",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "curl",
+						"version": "7.37.0",
+						"release": "11.fc21",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "curl",
+						"version": "7.37.0",
+						"release": "11.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libcurl-devel",
+						"version": "7.37.0",
+						"release": "11.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "curl-debuginfo",
+						"version": "7.37.0",
+						"release": "11.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libcurl",
+						"version": "7.37.0",
+						"release": "11.fc21",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 213239,
+			"text": "This update has been submitted for testing by kdudka. ",
+			"timestamp": "2014-12-10 16:11:29",
+			"update_id": 27174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 213240,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/19746/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-12-10 16:25:19",
+			"update_id": 27174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 213241,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/19746/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-12-10 16:27:32",
+			"update_id": 27174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 213242,
+			"karma": 1,
+			"timestamp": "2014-12-10 18:51:36",
+			"update_id": 27174,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/e62e23c1caf417ad1bdcdc782599b0f0e7235e20f62677c811d58ee98c9e83c0?s=24&d=retro",
+				"id": 1078,
+				"name": "empateeterno",
+				"openid": "empateeterno.id.fedoraproject.org"
+			},
+			"user_id": 1078
+		},
+		{
+			"id": 213243,
+			"text": "Critical path update approved",
+			"timestamp": "2014-12-10 18:51:37",
+			"update_id": 27174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 213244,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2014-12-11 05:16:44",
+			"update_id": 27174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 213245,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2014-12-12 04:14:07",
+			"update_id": 27174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 213246,
+			"karma": 1,
+			"text": "Looks good",
+			"timestamp": "2014-12-12 12:11:28",
+			"update_id": 27174,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/8565c2dfa53d10789f72ad8acb147dcde3c431f668cde1916a812d1d8f945875?s=24&d=retro",
+				"email": "pnemade@redhat.com",
+				"groups": [
+					{
+						"name": "provenpackager"
+					},
+					{
+						"name": "packager"
+					},
+					{
+						"name": "giti18n"
+					},
+					{
+						"name": "gitinscript2"
+					},
+					{
+						"name": "gitwordxtr"
+					},
+					{
+						"name": "gityum-langpacks"
+					},
+					{
+						"name": "svnsystem-config-language"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "gitutrrs-web"
+					},
+					{
+						"name": "svnlohit"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "svniok"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "gitiok2"
+					},
+					{
+						"name": "gitfontpackages"
+					},
+					{
+						"name": "gitredhatlsb"
+					},
+					{
+						"name": "cla_redhat"
+					},
+					{
+						"name": "cvslohit-fonts"
+					}
+				],
+				"id": 262,
+				"name": "pnemade",
+				"openid": "pnemade.id.fedoraproject.org"
+			},
+			"user_id": 262
+		},
+		{
+			"id": 213247,
+			"karma": 1,
+			"text": "Looks good to me",
+			"timestamp": "2014-12-13 14:01:55",
+			"update_id": 27174,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/ac39755efbdc824df2580b7d0cc16b3671192b547c0baa9028581e2e65c4917a?s=24&d=retro",
+				"email": "serge.de.souza@gmail.com",
+				"id": 1936,
+				"name": "caxica",
+				"openid": "caxica.id.fedoraproject.org"
+			},
+			"user_id": 1936
+		},
+		{
+			"id": 213248,
+			"text": "This update has reached the stable karma threshold and will be pushed to the stable updates repository",
+			"timestamp": "2014-12-13 14:01:59",
+			"update_id": 27174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 213249,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/20932/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2014-12-13 14:12:40",
+			"update_id": 27174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 213250,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2014-12-14 16:31:31",
+			"update_id": 27174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 213251,
+			"text": "Thanks for the feedback!",
+			"timestamp": "2014-12-14 23:05:19",
+			"update_id": 27174,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/59906f618fb1dbd8d6673e6c8ffaabd8c2ef89bf8d5ce891502e702873a67a6d?s=24&d=retro",
+				"email": "kdudka@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "gitcgt"
+					},
+					{
+						"name": "gitcsmock"
+					},
+					{
+						"name": "gitnsspem"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "aufover"
+					},
+					{
+						"name": "gitcscppc"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "gitcswrap"
+					},
+					{
+						"name": "gitcodescan-diff"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "openscanhub"
+					}
+				],
+				"id": 576,
+				"name": "kdudka",
+				"openid": "kdudka.id.fedoraproject.org"
+			},
+			"user_id": 576
+		},
+		{
+			"id": 213252,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2014-12-15 04:27:51",
+			"update_id": 27174,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"date_pushed": "2014-12-15 04:27:51",
+	"date_stable": "2014-12-15 04:27:51",
+	"date_submitted": "2014-12-10 16:11:17",
+	"date_testing": "2014-12-12 04:14:07",
+	"karma": 3,
+	"meets_testing_requirements": true,
+	"notes": "- make CURLOPT_LOW_SPEED_LIMIT work again with threaded resolver (#1172572)\n- allow to use TLS 1.1 and TLS 1.2 (#1153814)\r\n- disable libcurl-level downgrade to SSLv3 (#1166567)\r\n- low-speed-limit: avoid timeout flood (#1166239)\n- fix handling of CURLOPT_COPYPOSTFIELDS in curl_easy_duphandle (CVE-2014-3707)\r\n",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "curl-7.37.0-11.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2014-16605",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2014-16605",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/59906f618fb1dbd8d6673e6c8ffaabd8c2ef89bf8d5ce891502e702873a67a6d?s=24&d=retro",
+		"email": "kdudka@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "gitcgt"
+			},
+			{
+				"name": "gitcsmock"
+			},
+			{
+				"name": "gitnsspem"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "aufover"
+			},
+			{
+				"name": "gitcscppc"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "gitcswrap"
+			},
+			{
+				"name": "gitcodescan-diff"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "openscanhub"
+			}
+		],
+		"id": 576,
+		"name": "kdudka",
+		"openid": "kdudka.id.fedoraproject.org"
+	},
+	"version_hash": "d74ced9739fe36397bed1cad49ba757bf81540b9"
+}

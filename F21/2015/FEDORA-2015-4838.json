@@ -1,0 +1,792 @@
+{
+	"alias": "FEDORA-2015-4838",
+	"bugs": [
+		{
+			"bug_id": 1203352,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2015-1815 setroubleshoot: command injection via crafted file name",
+			"bugzilla": {
+				"bug_id": "1203352",
+				"alias": "CVE-2015-1815",
+				"creation_ts": "2015-03-18 16:32:09 +0000",
+				"short_desc": "CVE-2015-1815 setroubleshoot: command injection via crafted file name",
+				"delta_ts": "2023-05-12 08:08:48 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security",
+				"priority": "high",
+				"bug_severity": "high",
+				"depends_on": [
+					"1203973",
+					"1203974",
+					"1203975",
+					"1203976",
+					"1203977",
+					"1206050"
+				],
+				"blocked": [
+					{
+						"bug_id": "1203354",
+						"error": "NotPermitted"
+					}
+				],
+				"external_bugs": {
+					"text": "RHSA-2015:0729",
+					"name": "Red Hat Product Errata"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8055149",
+						"comment_count": "0",
+						"who": {
+							"text": "mprpic",
+							"name": "Martin Prpič"
+						},
+						"bug_when": "2015-03-18 16:32:09 +0000",
+						"thetext": "It was found that setroubleshoot did not sanitize file names supplied in a shell command look-up for RPMs associated with access violation reports. An attacker could use this flaw to escalate their privileges on the system by supplying a specially crafted file to the underlying shell command.\n\nThe vulnerable code in util.py:\n\n266 def get_rpm_nvr_by_file_path_temporary(name):\n267     if name is None or not os.path.exists(name):\n268         return None\n269 \n270     nvr = None\n271     try:\n272         import commands\n273         rc, output = commands.getstatusoutput(\"rpm -qf '%s'\" % name)\n274         if rc == 0:\n275             nvr = output\n276     except:\n277         syslog.syslog(syslog.LOG_ERR, \"failed to retrieve rpm info for %s\" %     name)\n278     return nvr\n\nAcknowledgements:\n\nRed Hat would like to thank Sebastian Krahmer of the SUSE Security Team for\nreporting this issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8057943",
+						"comment_count": "4",
+						"who": {
+							"text": "plautrba",
+							"name": "Petr Lautrbach"
+						},
+						"bug_when": "2015-03-19 10:59:12 +0000",
+						"thetext": "Created attachment 1003803\ndon't use unsecure commands.getstatusoutput in for getting rpm nvr\n\nsubprocess module methods doesn't use shell by default."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8066851",
+						"comment_count": "12",
+						"who": {
+							"text": "plautrba",
+							"name": "Petr Lautrbach"
+						},
+						"bug_when": "2015-03-20 10:46:57 +0000",
+						"thetext": "(In reply to Huzaifa S. Sidhpurwala from comment #10)\n> This looks insufficient.  What if a filename is e.g. \"-a\"?\n> \n> BTW, at least my copy of RPM doesn't appear to support \"--\" to stop\n> sub-option parsing.\n> \n> In general, this design feels very fragile.  I'd disable the feature.\n\nThinking more about this I'd use the proposed patch:\n\n- You should not be able to run arbitrary code using only an argument of rpm command. \n- When you have \"-a\" file, rpm command will get \"/tmp/-a\" as an argument, not \"-a\" directly"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8068068",
+						"comment_count": "13",
+						"who": {
+							"text": "plautrba",
+							"name": "Petr Lautrbach"
+						},
+						"bug_when": "2015-03-20 15:56:29 +0000",
+						"thetext": "Created attachment 1004551\nfix get_rpm_nvr_*_temporary functions\n\n- use subprocess.check_output() instead of commands.getstatusoutput()\n- use os.path.abspath() to get a normalized absolutized version of the name."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8085488",
+						"comment_count": "16",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2015-03-26 08:06:04 +0000",
+						"thetext": "Public via:\n\nhttp://www.openwall.com/lists/oss-security/2015/03/26/1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8085504",
+						"comment_count": "17",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2015-03-26 08:12:31 +0000",
+						"thetext": "\nCreated setroubleshoot tracking bugs for this issue:\n\nAffects: fedora-all [bug 1206050]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8086166",
+						"comment_count": "18",
+						"who": {
+							"text": "thoger",
+							"name": "Tomas Hoger"
+						},
+						"bug_when": "2015-03-26 12:00:02 +0000",
+						"thetext": "Write-up and public exploit from the reporter:\n\nhttps://github.com/stealth/troubleshooter"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8086883",
+						"comment_count": "19",
+						"who": {
+							"text": "errata-xmlrpc",
+							"name": "errata-xmlrpc"
+						},
+						"bug_when": "2015-03-26 13:56:51 +0000",
+						"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n  Red Hat Enterprise Linux 7\n  Red Hat Enterprise Linux 5\n\nVia RHSA-2015:0729 https://rhn.redhat.com/errata/RHSA-2015-0729.html"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8103482",
+						"comment_count": "20",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-31 21:59:02 +0000",
+						"thetext": "setroubleshoot-3.2.22-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8122035",
+						"comment_count": "21",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-08 06:55:58 +0000",
+						"thetext": "setroubleshoot-3.2.17-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8122063",
+						"comment_count": "22",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-08 06:58:48 +0000",
+						"thetext": "setroubleshoot-3.2.22-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 1206050,
+			"security": true,
+			"title": "CVE-2015-1815 setroubleshoot: command injection via crafted file name [fedora-all]",
+			"bugzilla": {
+				"bug_id": "1206050",
+				"creation_ts": "2015-03-26 08:12:17 +0000",
+				"short_desc": "CVE-2015-1815 setroubleshoot: command injection via crafted file name [fedora-all]",
+				"delta_ts": "2015-04-08 06:58:46 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "1203352",
+						"alias": "CVE-2015-1815",
+						"creation_ts": "2015-03-18 16:32:09 +0000",
+						"short_desc": "CVE-2015-1815 setroubleshoot: command injection via crafted file name",
+						"delta_ts": "2023-05-12 08:08:48 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"1203973",
+							"1203974",
+							"1203975",
+							"1203976",
+							"1203977",
+							"1206050"
+						],
+						"blocked": [
+							{
+								"bug_id": "1203354",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2015:0729",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "8055149",
+								"comment_count": "0",
+								"who": {
+									"text": "mprpic",
+									"name": "Martin Prpič"
+								},
+								"bug_when": "2015-03-18 16:32:09 +0000",
+								"thetext": "It was found that setroubleshoot did not sanitize file names supplied in a shell command look-up for RPMs associated with access violation reports. An attacker could use this flaw to escalate their privileges on the system by supplying a specially crafted file to the underlying shell command.\n\nThe vulnerable code in util.py:\n\n266 def get_rpm_nvr_by_file_path_temporary(name):\n267     if name is None or not os.path.exists(name):\n268         return None\n269 \n270     nvr = None\n271     try:\n272         import commands\n273         rc, output = commands.getstatusoutput(\"rpm -qf '%s'\" % name)\n274         if rc == 0:\n275             nvr = output\n276     except:\n277         syslog.syslog(syslog.LOG_ERR, \"failed to retrieve rpm info for %s\" %     name)\n278     return nvr\n\nAcknowledgements:\n\nRed Hat would like to thank Sebastian Krahmer of the SUSE Security Team for\nreporting this issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8057943",
+								"comment_count": "4",
+								"who": {
+									"text": "plautrba",
+									"name": "Petr Lautrbach"
+								},
+								"bug_when": "2015-03-19 10:59:12 +0000",
+								"thetext": "Created attachment 1003803\ndon't use unsecure commands.getstatusoutput in for getting rpm nvr\n\nsubprocess module methods doesn't use shell by default."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8066851",
+								"comment_count": "12",
+								"who": {
+									"text": "plautrba",
+									"name": "Petr Lautrbach"
+								},
+								"bug_when": "2015-03-20 10:46:57 +0000",
+								"thetext": "(In reply to Huzaifa S. Sidhpurwala from comment #10)\n> This looks insufficient.  What if a filename is e.g. \"-a\"?\n> \n> BTW, at least my copy of RPM doesn't appear to support \"--\" to stop\n> sub-option parsing.\n> \n> In general, this design feels very fragile.  I'd disable the feature.\n\nThinking more about this I'd use the proposed patch:\n\n- You should not be able to run arbitrary code using only an argument of rpm command. \n- When you have \"-a\" file, rpm command will get \"/tmp/-a\" as an argument, not \"-a\" directly"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8068068",
+								"comment_count": "13",
+								"who": {
+									"text": "plautrba",
+									"name": "Petr Lautrbach"
+								},
+								"bug_when": "2015-03-20 15:56:29 +0000",
+								"thetext": "Created attachment 1004551\nfix get_rpm_nvr_*_temporary functions\n\n- use subprocess.check_output() instead of commands.getstatusoutput()\n- use os.path.abspath() to get a normalized absolutized version of the name."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8085488",
+								"comment_count": "16",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2015-03-26 08:06:04 +0000",
+								"thetext": "Public via:\n\nhttp://www.openwall.com/lists/oss-security/2015/03/26/1"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8085504",
+								"comment_count": "17",
+								"who": {
+									"text": "huzaifas",
+									"name": "Huzaifa S. Sidhpurwala"
+								},
+								"bug_when": "2015-03-26 08:12:31 +0000",
+								"thetext": "\nCreated setroubleshoot tracking bugs for this issue:\n\nAffects: fedora-all [bug 1206050]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8086166",
+								"comment_count": "18",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2015-03-26 12:00:02 +0000",
+								"thetext": "Write-up and public exploit from the reporter:\n\nhttps://github.com/stealth/troubleshooter"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8086883",
+								"comment_count": "19",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2015-03-26 13:56:51 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 6\n  Red Hat Enterprise Linux 7\n  Red Hat Enterprise Linux 5\n\nVia RHSA-2015:0729 https://rhn.redhat.com/errata/RHSA-2015-0729.html"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8103482",
+								"comment_count": "20",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-03-31 21:59:02 +0000",
+								"thetext": "setroubleshoot-3.2.22-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8122035",
+								"comment_count": "21",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-04-08 06:55:58 +0000",
+								"thetext": "setroubleshoot-3.2.17-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "8122063",
+								"comment_count": "22",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2015-04-08 06:58:48 +0000",
+								"thetext": "setroubleshoot-3.2.22-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "8085502",
+						"comment_count": "0",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2015-03-26 08:12:17 +0000",
+						"thetext": "\nThis is an automatically created tracking bug!  It was created to ensure\nthat one or more security vulnerabilities are fixed in affected versions\nof Fedora.\n\nFor comments that are specific to the vulnerability please use bugs filed\nagainst the \"Security Response\" product referenced in the \"Blocks\" field.\n\nFor more information see:\nhttp://fedoraproject.org/wiki/Security/TrackingBugs\n\nWhen submitting as an update, use the fedpkg template provided in the next\ncomment(s).  This will include the bug IDs of this tracking bug as well as\nthe relevant top-level CVE bugs.\n\nPlease also mention the CVE IDs being fixed in the RPM changelog and the\nfedpkg commit message.\n\nNOTE: this issue affects multiple supported versions of Fedora. While only\none tracking bug has been filed, please correct all affected versions at\nthe same time.  If you need to fix the versions independent of each other,\nyou may clone this bug as appropriate.\n\n[bug automatically created by: add-tracking-bugs]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8085503",
+						"comment_count": "1",
+						"who": {
+							"text": "huzaifas",
+							"name": "Huzaifa S. Sidhpurwala"
+						},
+						"bug_when": "2015-03-26 08:12:29 +0000",
+						"thetext": "\nUse the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=1203352,1206050\n\n# Description of your update\nnotes=Security fix for CVE-2015-1815\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi update submission link instead:\n\nhttps://admin.fedoraproject.org/updates/new/?type_=security&bugs=1203352,1206050"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8085560",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-26 08:31:55 +0000",
+						"thetext": "setroubleshoot-3.2.22-1.fc22 has been submitted as an update for Fedora 22.\nhttps://admin.fedoraproject.org/updates/setroubleshoot-3.2.22-1.fc22"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8085580",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-26 08:43:26 +0000",
+						"thetext": "setroubleshoot-3.2.22-1.fc21 has been submitted as an update for Fedora 21.\nhttps://admin.fedoraproject.org/updates/setroubleshoot-3.2.22-1.fc21"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8085936",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-26 10:29:34 +0000",
+						"thetext": "setroubleshoot-3.2.17-2.fc20 has been submitted as an update for Fedora 20.\nhttps://admin.fedoraproject.org/updates/setroubleshoot-3.2.17-2.fc20"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8093970",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-29 04:27:53 +0000",
+						"thetext": "Package setroubleshoot-3.2.22-1.fc22:\n* should fix your issue,\n* was pushed to the Fedora 22 testing repository,\n* should be available at your local mirror within two days.\nUpdate it with:\n# su -c 'yum update --enablerepo=updates-testing setroubleshoot-3.2.22-1.fc22'\nas soon as you are able to.\nPlease go to the following url:\nhttps://admin.fedoraproject.org/updates/FEDORA-2015-4792/setroubleshoot-3.2.22-1.fc22\nthen log in and leave karma (feedback)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8103481",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-03-31 21:59:00 +0000",
+						"thetext": "setroubleshoot-3.2.22-1.fc22 has been pushed to the Fedora 22 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8122034",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-08 06:55:56 +0000",
+						"thetext": "setroubleshoot-3.2.17-2.fc20 has been pushed to the Fedora 20 stable repository.  If problems still persist, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "8122062",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2015-04-08 06:58:46 +0000",
+						"thetext": "setroubleshoot-3.2.22-1.fc21 has been pushed to the Fedora 21 stable repository.  If problems still persist, please make note of it in this bug report."
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"nvr": "setroubleshoot-3.2.22-1.fc21",
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"armv7hl": [
+					{
+						"name": "setroubleshoot",
+						"version": "3.2.22",
+						"release": "1.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "setroubleshoot-server",
+						"version": "3.2.22",
+						"release": "1.fc21",
+						"arch": "armv7hl"
+					},
+					{
+						"name": "setroubleshoot-debuginfo",
+						"version": "3.2.22",
+						"release": "1.fc21",
+						"arch": "armv7hl"
+					}
+				],
+				"i686": [
+					{
+						"name": "setroubleshoot-debuginfo",
+						"version": "3.2.22",
+						"release": "1.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "setroubleshoot",
+						"version": "3.2.22",
+						"release": "1.fc21",
+						"arch": "i686"
+					},
+					{
+						"name": "setroubleshoot-server",
+						"version": "3.2.22",
+						"release": "1.fc21",
+						"arch": "i686"
+					}
+				],
+				"src": [
+					{
+						"name": "setroubleshoot",
+						"version": "3.2.22",
+						"release": "1.fc21",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "setroubleshoot",
+						"version": "3.2.22",
+						"release": "1.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "setroubleshoot-server",
+						"version": "3.2.22",
+						"release": "1.fc21",
+						"arch": "x86_64"
+					},
+					{
+						"name": "setroubleshoot-debuginfo",
+						"version": "3.2.22",
+						"release": "1.fc21",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 64731,
+			"text": "This update has been submitted for testing by plautrba. ",
+			"timestamp": "2015-03-26 08:43:28",
+			"update_id": 9124,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 64732,
+			"text": "Taskotron: depcheck test PASSED on i386. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/51736/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-03-26 09:07:10",
+			"update_id": 9124,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 64733,
+			"text": "Taskotron: depcheck test PASSED on x86_64. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/51736/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-03-26 09:13:53",
+			"update_id": 9124,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 64734,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2015-03-27 16:49:48",
+			"update_id": 9124,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 64735,
+			"text": "This update is currently being pushed to the Fedora 21 testing updates repository.",
+			"timestamp": "2015-03-27 17:36:28",
+			"update_id": 9124,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 64736,
+			"text": "This update has been pushed to testing",
+			"timestamp": "2015-03-29 04:32:11",
+			"update_id": 9124,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 64737,
+			"karma": 1,
+			"text": "No problems noted",
+			"timestamp": "2015-03-31 15:42:54",
+			"update_id": 9124,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/c2ecee97201bcd0f51d0ecc4592ea9cb88494a459d2bbf2b4040a268d5962be3?s=24&d=retro",
+				"email": "sgrubb@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "cla_redhat"
+					},
+					{
+						"name": "svnaqueduct"
+					},
+					{
+						"name": "gitlibcap-ng"
+					},
+					{
+						"name": "svnlibcap-ng"
+					},
+					{
+						"name": "svnaudit"
+					}
+				],
+				"id": 312,
+				"name": "sgrubb",
+				"openid": "sgrubb.id.fedoraproject.org"
+			},
+			"user_id": 312
+		},
+		{
+			"id": 64738,
+			"text": "This update has reached 7 days in testing and can be pushed to stable now if the maintainer wishes",
+			"timestamp": "2015-04-05 04:34:46",
+			"update_id": 9124,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 64739,
+			"text": "This update has been submitted for stable by plautrba. ",
+			"timestamp": "2015-04-07 07:46:13",
+			"update_id": 9124,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 64740,
+			"text": "Taskotron: upgradepath test PASSED on noarch. Result log:\nhttps://taskotron.fedoraproject.org/taskmaster//builders/x86_64/builds/55694/steps/runtask/logs/stdio\n(results are informative only)",
+			"timestamp": "2015-04-07 08:43:40",
+			"update_id": 9124,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/taskotron-24.png",
+				"email": "taskotron@fedoraproject.org",
+				"groups": [
+					{}
+				],
+				"id": 100,
+				"name": "taskotron",
+				"openid": "taskotron.id.fedoraproject.org"
+			},
+			"user_id": 100
+		},
+		{
+			"id": 64741,
+			"text": "This update is currently being pushed to the Fedora 21 stable updates repository.",
+			"timestamp": "2015-04-07 17:21:16",
+			"update_id": 9124,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 64742,
+			"text": "This update has been pushed to stable",
+			"timestamp": "2015-04-08 06:58:48",
+			"update_id": 9124,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"date_pushed": "2015-04-08 06:58:48",
+	"date_stable": "2015-04-08 06:58:48",
+	"date_submitted": "2015-03-26 08:43:23",
+	"date_testing": "2015-03-29 04:32:11",
+	"karma": 1,
+	"meets_testing_requirements": true,
+	"notes": "Security fix for CVE-2015-1815",
+	"pushed": true,
+	"release": {
+		"branch": "f21",
+		"candidate_tag": "f21-updates-candidate",
+		"composed_by_bodhi": true,
+		"dist_tag": "f21",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 21",
+		"mail_template": "fedora_errata_template",
+		"name": "F21",
+		"override_tag": "f21-override",
+		"package_manager": "dnf",
+		"pending_stable_tag": "f21-updates-pending",
+		"pending_testing_tag": "f21-updates-testing-pending",
+		"stable_tag": "f21-updates",
+		"state": "archived",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f21-updates-testing",
+		"version": "21"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"title": "setroubleshoot-3.2.22-1.fc21",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2015-4838",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2015-4838",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/1d2b7b530e9680d2995e90fd59e1b0ab3cd18a94ee5456d0453e4ae7ed224de5?s=24&d=retro",
+		"email": "plautrba@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "hgsetroubleshoot"
+			},
+			{
+				"name": "gitsce-community-content"
+			},
+			{
+				"name": "gitopenscap"
+			},
+			{
+				"name": "gitsetroubleshoot"
+			}
+		],
+		"id": 732,
+		"name": "plautrba",
+		"openid": "plautrba.id.fedoraproject.org"
+	},
+	"version_hash": "3a4f63ecf39942c15ba0d5a0ed658b151d0711ea"
+}
