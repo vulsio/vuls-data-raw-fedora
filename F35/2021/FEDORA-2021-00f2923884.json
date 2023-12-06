@@ -208,7 +208,7 @@
 								"comment_count": "21",
 								"who": {
 									"text": "pviktori",
-									"name": "Petr Viktorin (@encukou)"
+									"name": "Petr Viktorin (pviktori)"
 								},
 								"bug_when": "2021-03-02 09:41:09 +0000",
 								"thetext": "> The default for the proxy is to accept only \"&\" parameter separator in URLs, but the\n> default of Python in the affected versions was to also accept \";\" as a URL parameter\n> separator. Therefore the default configuration of Python and the proxy can lead to\n> Web Cache Poisoning and leak sensitive data.\n\nThe issue is that this is only the default for *some* proxies, not all. To fix the CVE,\nthe behavior needs to match in both the application and in any & all proxies used, which\nmight all come from different vendors."
@@ -219,7 +219,7 @@
 								"comment_count": "23",
 								"who": {
 									"text": "pviktori",
-									"name": "Petr Viktorin (@encukou)"
+									"name": "Petr Viktorin (pviktori)"
 								},
 								"bug_when": "2021-03-02 15:52:07 +0000",
 								"thetext": "The upstream fix breaks backwards compatibility, which we want to avoid in RHEL. Especially since there are applications that use the ';' separator -- the proper fix for those would be to configure both the proxy and the app to use ';'.\nSo, here is our current plan about what to do:\n\n- Python 3.9:\n  Use the upstream behavior (split only on '&' by default, pass separator=';' to split on ';', no option to split on both).\n  This should be a 0-day update. The python39 module isn't released yet, so there's no compatiblity break.\n\n- Python 3.8: \n  - backport the `separator` argument, so users can choose to split either on '&' or on ';' eplicitly\n  - default changes to upstream (only split on '&')\n  - by setting an environment variable, you can restore the old behavior (split on both '&' or ';' by default) or choose to split on ';' by default.\n\n- Python 3.6 and 2.7:\n  - backport the `separator` argument, so users can choose to split either on '&' or on ';' eplicitly\n  - by setting an environment variable, you can choose the default separator ('&', ';', or both)\n  - if the variable is not set, the default stays as in older versions (split on both '&' and ';')\n  - if the variable is not set AND `separator` is not given AND the input includes ';', trigger a warning about the unsafe behavior. Ideally, link to a KB article in the warning.\n\nThe environment variable would be:\n  PYTHON_URLLIB_QS_SEPARATOR=unsafe\n  PYTHON_URLLIB_QS_SEPARATOR=';'\n  PYTHON_URLLIB_QS_SEPARATOR='&'"
@@ -230,7 +230,7 @@
 								"comment_count": "32",
 								"who": {
 									"text": "pviktori",
-									"name": "Petr Viktorin (@encukou)"
+									"name": "Petr Viktorin (pviktori)"
 								},
 								"bug_when": "2021-03-05 14:34:29 +0000",
 								"thetext": "> An alternative to \"unsafe\" would be to accept \"&;\" and \";&\".  A concern with \"unsafe\" is that it's only unsafe in certain specific configurations.\n\nSure, but if future versions of Python fix the CVE by not accepting both separators at all. I'd rather push people toward selecting just one.\n\n\n> Should the warning be emitted only when you try to parse a query string with a semicolon?\n\nThere's a balance between that and spamming warnings all the time. I don't know which would be better."
@@ -241,7 +241,7 @@
 								"comment_count": "33",
 								"who": {
 									"text": "pviktori",
-									"name": "Petr Viktorin (@encukou)"
+									"name": "Petr Viktorin (pviktori)"
 								},
 								"bug_when": "2021-03-05 14:52:10 +0000",
 								"thetext": "Tomáš raised one more consideration: should the default be configurable with a config file, rather than just an envorinment variable.\nThat way, we could make CVE scanners satisfied that the issue is mitigated across a system.\n\nWould that be useful?"
