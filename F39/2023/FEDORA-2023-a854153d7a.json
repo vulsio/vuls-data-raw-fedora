@@ -1,0 +1,1639 @@
+{
+	"alias": "FEDORA-2023-a854153d7a",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 1892137,
+			"title": "Firefox keeps on on asking for `Please enter the password for the PKCS#11 token PIV_II\" with a yubikey installed",
+			"bugzilla": {
+				"bug_id": "1892137",
+				"creation_ts": "2020-10-28 02:07:38 +0000",
+				"short_desc": "Firefox keeps on on asking for `Please enter the password for the PKCS#11 token PIV_II\" with a yubikey installed",
+				"delta_ts": "2023-12-14 15:14:19 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "CommonBugs, Reopened, Triaged",
+				"priority": "medium",
+				"bug_severity": "unspecified",
+				"external_bugs": {
+					"text": "p11-glue/p11-kit/pull/374",
+					"name": "Github"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "14439531",
+						"comment_count": "0",
+						"who": {
+							"text": "dopey",
+							"name": "Andy Wang"
+						},
+						"bug_when": "2020-10-28 02:07:38 +0000",
+						"thetext": "Created attachment 1724667\nscreenshot showing security devices\n\nDescription of problem:\nSince installing a fresh Fedora 33 system (on two machines with yubikey 5c nano and a yubikey 5 nano used for totp and mfa) I continually get prompted by firefox to \"Please enter the password for the PKCS#11 token PIV_II.\"  The device is loaded by the p11-kit-proxy.\n\nI have no password for the yubikey and have no idea what password this is asking for and it makes firefox pretty much unusable."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14439532",
+						"comment_count": "1",
+						"who": {
+							"text": "dopey",
+							"name": "Andy Wang"
+						},
+						"bug_when": "2020-10-28 02:08:34 +0000",
+						"thetext": "A similar issue was reported against Red Hat Satellite but it appears to not be Satellite specific.  See Bug 1742881."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14444243",
+						"comment_count": "2",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2020-10-29 12:11:43 +0000",
+						"thetext": "If you do not use smartcard capabilities of your yubikey, the easiest solution is just to remove opensc package. Otherwise, this is an issue of NSS which tries to login to all tokens (if the server asks for certificate authentication?). This should be solved with PKCS#11 3.0, where OpenSC will be able to tell nss that it does not have to login to the token, because it has all the certificates publicly readable.\n\nI have the needed changes ready in the following PR [1] so if you can reliably reproduce the issue, I can build you a new opensc to check if it solves your issue.\n\n[1] https://github.com/OpenSC/OpenSC/pull/2096"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14451733",
+						"comment_count": "3",
+						"who": {
+							"text": "dopey",
+							"name": "Andy Wang"
+						},
+						"bug_when": "2020-11-02 01:08:15 +0000",
+						"thetext": "Jakub - I tried to get that PR to apply against 0.20.0 and didn't work right.  If you can easily build an rpm I'd be wiling to try it, otherwise, I'll try to find some time to give it a shot most likely next weekend."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14464334",
+						"comment_count": "4",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2020-11-03 16:14:54 +0000",
+						"thetext": "Hi,\nI did a build of latest OpenSC 0.21.0-rc1 + the PKCS#11 3.0 patch from above in the following copr repo:\n\nhttps://copr.fedorainfracloud.org/coprs/jjelen/opensc-latest/\n\nPlease, let me know if it addresses the issue for you."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14473430",
+						"comment_count": "5",
+						"who": {
+							"text": "dopey",
+							"name": "Andy Wang"
+						},
+						"bug_when": "2020-11-04 07:59:39 +0000",
+						"thetext": "Jakub - I didn't see an fc33 build in your copr repo and the rawhide one didn't work (glibc symbol problem) so i rebuilt the src rpm on my system and installed it.\n\nI'm not seeing any change in behavior.  Is updating the package all that should have been necessary?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14478026",
+						"comment_count": "6",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2020-11-05 08:24:18 +0000",
+						"thetext": "Oh, my bad. Forgot to add the Fedora 33. It is building there now.\n\nYou might need to restart Firefox to see the effect.\n\nBut I just realized, that this will not work because p11-kit proxy does not have the required PKCS #11 3.0 features [1] to proxy this functionality so it still uses the old interface.\n\nSo the simplest fro you would be removing the opensc package now.\n\n[1] https://github.com/p11-glue/p11-kit/issues/214"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14484206",
+						"comment_count": "7",
+						"who": {
+							"text": "mhulan",
+							"name": "Marek Hulan"
+						},
+						"bug_when": "2020-11-06 15:01:11 +0000",
+						"thetext": "I have updated the opensc package from the copr repo on my Fedora 33, however it still appears in newly opened firefox. Do I need to restart some service or reboot?\n\nrpm -q opensc\nopensc-0.21.0-0.1.fc33.x86_64"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14493192",
+						"comment_count": "8",
+						"who": {
+							"text": "mh",
+							"name": "Marcel Haerry"
+						},
+						"bug_when": "2020-11-10 13:41:56 +0000",
+						"thetext": "I can confirm that removing the opensc package won't trigger the password prompt anymore.\n\nWhat makes the password prompt really ugly is that it completely blocks Firefox and thus your are for example disconnected from an ongoing conference call until you click cancel on the password prompt."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14498353",
+						"comment_count": "9",
+						"who": {
+							"text": "logans",
+							"name": "Scott K Logan"
+						},
+						"bug_when": "2020-11-11 20:55:42 +0000",
+						"thetext": "> I have updated the opensc package from the copr repo on my Fedora 33, however it still appears in newly opened firefox.\n\nI see the same behavior, even after a complete reboot. The patched package doesn't appear to resolve this issue.\n\n> I can confirm that removing the opensc package won't trigger the password prompt anymore.\n\nI see the same behavior after removing the package entirely. Unlike disabling pcscd, which also squelches the prompt, I can still use yubioath-desktop after removing opensc."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14529983",
+						"comment_count": "10",
+						"who": {
+							"text": "iheim",
+							"name": "Itamar Heim"
+						},
+						"bug_when": "2020-11-22 18:36:30 +0000",
+						"thetext": "same behaviour. did not happen with same yubikey on previous laptop with fedora 32."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14641044",
+						"comment_count": "11",
+						"who": {
+							"text": "mhoyer",
+							"name": "Martin Hoyer"
+						},
+						"bug_when": "2021-01-04 15:02:48 +0000",
+						"thetext": "Also hitting this w/ opensc-0.21.0-1.fc33.x86_64"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14643926",
+						"comment_count": "12",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2021-01-05 12:02:32 +0000",
+						"thetext": "(In reply to Martin Hoyer from comment #11)\n> Also hitting this w/ opensc-0.21.0-1.fc33.x86_64\n\nNo surprise. We still need the last bits in p11-kit:\n\nhttps://github.com/p11-glue/p11-kit/issues/214"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14722226",
+						"comment_count": "13",
+						"who": {
+							"text": "prisingh",
+							"name": "Pritam Singh"
+						},
+						"bug_when": "2021-01-28 15:34:27 +0000",
+						"thetext": "I continuously see popup triggered by firefox to \"Please enter the password for the PKCS#11 token OpenDNSSEC.\" in RHEL84"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "14825230",
+						"comment_count": "14",
+						"who": {
+							"text": "rock-lobster.zw2q7"
+						},
+						"bug_when": "2021-02-26 23:06:35 +0000",
+						"thetext": "Just a quick note since I do not see it mentioned here yet: installing firefox as a snap package seems to resolve the issue, as a temporary workaround."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15025617",
+						"comment_count": "15",
+						"who": {
+							"text": "rkudyba",
+							"name": "RobbieTheK"
+						},
+						"bug_when": "2021-05-03 19:39:48 +0000",
+						"thetext": "Seeing this on Fedora 33\n\nrpm -q opensc\npackage opensc is not installed\n\nrpm -qa|grep firefox\nfirefox-88.0-5.fc33.x86_64"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15028739",
+						"comment_count": "16",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2021-05-04 14:00:47 +0000",
+						"thetext": "That sounds weird. What do you get from the p11-kit if you list enabled modules?\n\n$ p11-kit list-modules"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15028901",
+						"comment_count": "17",
+						"who": {
+							"text": "rkudyba",
+							"name": "RobbieTheK"
+						},
+						"bug_when": "2021-05-04 14:23:17 +0000",
+						"thetext": "(In reply to Jakub Jelen from comment #16)\n> That sounds weird. What do you get from the p11-kit if you list enabled\n> modules?\n> \n> $ p11-kit list-modules\n\np11-kit list-modules\np11-kit-trust: p11-kit-trust.so\n    library-description: PKCS#11 Kit Trust Module\n    library-manufacturer: PKCS#11 Kit\n    library-version: 0.23\n    token: System Trust\n        manufacturer: PKCS#11 Kit\n        model: p11-kit-trust\n        serial-number: 1\n        hardware-version: 0.23\n        flags:\n               token-initialized\n    token: Default Trust\n        manufacturer: PKCS#11 Kit\n        model: p11-kit-trust\n        serial-number: 1\n        hardware-version: 0.23\n        flags:\n               write-protected\n               token-initialized\nsofthsm2: /usr/lib64/pkcs11/libsofthsm2.so\n    library-description: Implementation of PKCS11\n    library-manufacturer: SoftHSM\n    library-version: 2.6\n    token: OpenDNSSEC\n        manufacturer: SoftHSM project\n        model: SoftHSM v2\n        serial-number: 3cd425b382827b40\n        hardware-version: 2.6\n        firmware-version: 2.6\n        flags:\n               rng\n               login-required\n               user-pin-initialized\n               restore-key-not-needed\n               token-initialized\n               user-pin-count-low\n    token:\n        manufacturer: SoftHSM project\n        model: SoftHSM v2\n        serial-number:\n        hardware-version: 2.6\n        firmware-version: 2.6\n        flags:\n               rng\n               login-required\n               restore-key-not-needed\n               so-pin-locked\n               so-pin-to-be-changed\n[root@oldstorm autograder-full-stack]#"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15029208",
+						"comment_count": "18",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2021-05-04 15:10:35 +0000",
+						"thetext": "So this is probably asking you for a pin for your softhsm, not for the PIV/yubikey."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15063659",
+						"comment_count": "19",
+						"who": {
+							"text": "bfahr",
+							"name": "Bob Fahr"
+						},
+						"bug_when": "2021-05-15 21:17:40 +0000",
+						"thetext": "This is also happening on a clean install of Fedora34."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15115444",
+						"comment_count": "20",
+						"who": {
+							"text": "brian",
+							"name": "Brian Hoppus"
+						},
+						"bug_when": "2021-05-29 00:00:14 +0000",
+						"thetext": "I am also seeing this on Fedora 34 with a brand new yubikey 5 nano."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15218806",
+						"comment_count": "21",
+						"who": {
+							"text": "vakulkar",
+							"name": "Vasu Kulkarni"
+						},
+						"bug_when": "2021-06-23 16:01:01 +0000",
+						"thetext": "Same issue after I upgraded my laptop to fedora 34. Is there a fix or workaround?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15226797",
+						"comment_count": "22",
+						"who": {
+							"text": "orion",
+							"name": "Orion Poplawski"
+						},
+						"bug_when": "2021-06-25 21:04:41 +0000",
+						"thetext": "We're seeing this with RHEL8.  However, we do make use of the SC feature of our YKs, just not with Firefox or Thunderbird.  Is there a way to disable loading p11-kit though some mozilla config file?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15229673",
+						"comment_count": "23",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2021-06-28 06:21:48 +0000",
+						"thetext": "(In reply to Orion Poplawski from comment #22)\n> We're seeing this with RHEL8.  However, we do make use of the SC feature of\n> our YKs, just not with Firefox or Thunderbird.  Is there a way to disable\n> loading p11-kit though some mozilla config file?\n\nAs already mentioned in https://access.redhat.com/articles/4253861\n\nyou can add\n\ndisable-in: firefox thunderbird\n\ninto the\n\n/usr/share/p11-kit/modules/opensc.module\n\nas a temporary workaround."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15341933",
+						"comment_count": "24",
+						"who": {
+							"text": "ecrosby1971"
+						},
+						"bug_when": "2021-07-31 15:28:55 +0000",
+						"thetext": "(In reply to Vasu Kulkarni from comment #21)\n> Same issue after I upgraded my laptop to fedora 34. Is there a fix or\n> workaround?\n\nI'm in a simular situation as @Vasu.\n\nMy situation: I've upgraded to Fedora 34. Didn't have this issue before in Fedora 33 with the same YubiKey. What is the fix, if there is one?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15417208",
+						"comment_count": "25",
+						"who": {
+							"text": "skyler",
+							"name": "Skyler Hawthorne"
+						},
+						"bug_when": "2021-08-24 14:30:39 +0000",
+						"thetext": "This is also happening for me with a Yubikey 5 in Fedora 34 in Firefox, and it's quite annoying. Has any progress been made?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15417391",
+						"comment_count": "26",
+						"who": {
+							"text": "rbohne",
+							"name": "Robert Bohne"
+						},
+						"bug_when": "2021-08-24 15:10:45 +0000",
+						"thetext": "I disabled the opensc module (OpenSC smartcard framework) for Firefox and Vivaldi (another browser [0]) on Fedora 34 silverblue:\n\n$ sudo p11-kit list-modules\np11-kit-trust: p11-kit-trust.so\n    library-description: PKCS#11 Kit Trust Module\n    library-manufacturer: PKCS#11 Kit\n    library-version: 0.23\n    token: System Trust\n        manufacturer: PKCS#11 Kit\n        model: p11-kit-trust\n        serial-number: 1\n        hardware-version: 0.23\n        flags:\n               token-initialized\n    token: Default Trust\n        manufacturer: PKCS#11 Kit\n        model: p11-kit-trust\n        serial-number: 1\n        hardware-version: 0.23\n        flags:\n               write-protected\n               token-initialized\nopensc: opensc-pkcs11.so\n    library-description: OpenSC smartcard framework\n    library-manufacturer: OpenSC Project\n    library-version: 0.22\n    token: PIV_II\n        manufacturer: piv_II\n        model: PKCS#15 emulated\n        serial-number: 00000000\n        flags:\n               rng\n               login-required\n               user-pin-initialized\n               token-initialized\n               user-pin-locked\n\n$ mkdir -p ~/.config/pkcs11/module\n$ cp /usr/share/p11-kit/modules/opensc.module ~/.config/pkcs11/modules/\n$ echo \"disable-in: firefox vivaldi-bin\" >> ~/.config/pkcs11/modules/opensc.module\n$ cat ~/.config/pkcs11/modules/opensc.module\n# This file describes how to load the opensc module\n# See: https://p11-glue.github.io/p11-glue/p11-kit/manual/pkcs11-conf.html\n# or man pkcs11.conf\n\n# This is a relative path, which means it will be loaded from\n# the p11-kit default path which is usually $(libdir)/pkcs11.\n# Doing it this way allows for packagers to package opensc for\n# 32-bit and 64-bit and make them parallel installable\nmodule: opensc-pkcs11.so\ndisable-in: firefox vivaldi-bin\n\nThis solved the problem for me. \n\nHere is a gist with some Screenshots: https://gist.github.com/rbo/9121b2f4adbd928db8a87d2aa14c756d\n\n\n[0] https://vivaldi.com"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15418617",
+						"comment_count": "27",
+						"who": {
+							"text": "skyler",
+							"name": "Skyler Hawthorne"
+						},
+						"bug_when": "2021-08-24 22:48:21 +0000",
+						"thetext": "Does disabling OpenSC make it so you can't use your yubikey for 2fa on websites that support it? If so, that's not really a solution."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15419193",
+						"comment_count": "28",
+						"who": {
+							"text": "rbohne",
+							"name": "Robert Bohne"
+						},
+						"bug_when": "2021-08-25 06:34:53 +0000",
+						"thetext": "Disabling OpenSC disables only the smartcard feature [0] of your yubikey for your browser. 2FA is not affected, because it acts as a keyboard.\n\n$ swaymsg -t get_inputs -r | jq '.[] | select(.name==\"Yubico Yubikey 4 OTP+U2F+CCID\") '\n{\n  \"identifier\": \"4176:1031:Yubico_Yubikey_4_OTP+U2F+CCID\",\n  \"name\": \"Yubico Yubikey 4 OTP+U2F+CCID\",\n  \"vendor\": 4176,\n  \"product\": 1031,\n  \"type\": \"keyboard\",\n  \"xkb_layout_names\": [\n    \"English (intl., with AltGr dead keys)\"\n  ],\n  \"xkb_active_layout_index\": 0,\n  \"xkb_active_layout_name\": \"English (intl., with AltGr dead keys)\",\n  \"libinput\": {\n    \"send_events\": \"enabled\"\n  }\n}\n\n\n[0] https://www.yubico.com/authentication-standards/smart-card/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15474804",
+						"comment_count": "29",
+						"who": {
+							"text": "skyler",
+							"name": "Skyler Hawthorne"
+						},
+						"bug_when": "2021-09-07 14:09:36 +0000",
+						"thetext": "I see, thanks. I actually tried following these steps, and it did not stop the prompts."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15477859",
+						"comment_count": "30",
+						"who": {
+							"text": "ecrosby1971"
+						},
+						"bug_when": "2021-09-08 10:29:15 +0000",
+						"thetext": "Same for me. I executed those steps and I am still getting the prompts."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15477884",
+						"comment_count": "31",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2021-09-08 10:35:28 +0000",
+						"thetext": "Please, provide exact error messages. If you removed OpenSC (and restarted Firefox), you can not get prompts to enter PIN for PIV_II."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15478384",
+						"comment_count": "32",
+						"who": {
+							"text": "ecrosby1971"
+						},
+						"bug_when": "2021-09-08 12:43:54 +0000",
+						"thetext": "It's fixed. I followed the wrong instructions. Removing opensc fixed the issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15485348",
+						"comment_count": "33",
+						"who": {
+							"text": "skyler",
+							"name": "Skyler Hawthorne"
+						},
+						"bug_when": "2021-09-09 23:56:18 +0000",
+						"thetext": "(In reply to Jakub Jelen from comment #31)\n> Please, provide exact error messages. If you removed OpenSC (and restarted\n> Firefox), you can not get prompts to enter PIN for PIV_II.\n\nWhat error messages? There are no errors, just prompts. Do I have to uninstall OpenSC? That's a lot different than the instructions in previous comments that say to make a config file that disables it in Firefox: https://bugzilla.redhat.com/show_bug.cgi?id=1892137#c26\n\nAlso the problem is clearly Firefox, not OpenSC. Why is it giving these prompts at all, let alone repeatedly?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15486053",
+						"comment_count": "34",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2021-09-10 07:41:43 +0000",
+						"thetext": "If the steps in comment #26 do not work, its a bug in p11-kit. Another step is removing opensc if you do not use it.\n\nThe Firefox should not ask for the PIN if the p11-kit would support PKCS#11 3.0 [1].\n\n[1] https://github.com/p11-glue/p11-kit/pull/374"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15610138",
+						"comment_count": "35",
+						"who": {
+							"text": "dhill",
+							"name": "David Hill"
+						},
+						"bug_when": "2021-10-23 00:34:47 +0000",
+						"thetext": "It happens on rawhide too ... never had this issue before.  I did open https://bugzilla.redhat.com/show_bug.cgi?id=2016724 for this too.  Since it's on rawhide too, maybe we should make either BZ child of each others.\n\nBtw, I also have a ubikey so this is a great catch."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15644559",
+						"comment_count": "36",
+						"who": {
+							"text": "bcotton",
+							"name": "Ben Cotton"
+						},
+						"bug_when": "2021-11-04 13:38:37 +0000",
+						"thetext": "This message is a reminder that Fedora 33 is nearing its end of life.\nFedora will stop maintaining and issuing updates for Fedora 33 on 2021-11-30.\nIt is Fedora's policy to close all bug reports from releases that are no longer\nmaintained. At that time this bug will be closed as EOL if it remains open with a\nFedora 'version' of '33'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora 33 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora, you are encouraged  change the 'version' to a later Fedora \nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15645721",
+						"comment_count": "37",
+						"who": {
+							"text": "bcotton",
+							"name": "Ben Cotton"
+						},
+						"bug_when": "2021-11-04 14:08:13 +0000",
+						"thetext": "This message is a reminder that Fedora 33 is nearing its end of life.\nFedora will stop maintaining and issuing updates for Fedora 33 on 2021-11-30.\nIt is Fedora's policy to close all bug reports from releases that are no longer\nmaintained. At that time this bug will be closed as EOL if it remains open with a\nFedora 'version' of '33'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora 33 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora, you are encouraged  change the 'version' to a later Fedora \nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15647971",
+						"comment_count": "38",
+						"who": {
+							"text": "bcotton",
+							"name": "Ben Cotton"
+						},
+						"bug_when": "2021-11-04 15:05:10 +0000",
+						"thetext": "This message is a reminder that Fedora 33 is nearing its end of life.\nFedora will stop maintaining and issuing updates for Fedora 33 on 2021-11-30.\nIt is Fedora's policy to close all bug reports from releases that are no longer\nmaintained. At that time this bug will be closed as EOL if it remains open with a\nFedora 'version' of '33'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, simply change the 'version' \nto a later Fedora version.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora 33 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora, you are encouraged  change the 'version' to a later Fedora \nversion prior this bug is closed as described in the policy above.\n\nAlthough we aim to fix as many bugs as possible during every release's \nlifetime, sometimes those efforts are overtaken by events. Often a \nmore recent Fedora release includes newer upstream software that fixes \nbugs or makes them obsolete."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15728639",
+						"comment_count": "39",
+						"who": {
+							"text": "bcotton",
+							"name": "Ben Cotton"
+						},
+						"bug_when": "2021-11-30 19:15:41 +0000",
+						"thetext": "Fedora 33 changed to end-of-life (EOL) status on 2021-11-30. Fedora 33 is\nno longer maintained, which means that it will not receive any further\nsecurity or bug fix updates. As a result we are closing this bug.\n\nIf you can reproduce this bug against a currently maintained version of\nFedora please feel free to reopen this bug against that version. If you\nare unable to reopen this bug, please file a new report against the\ncurrent release. If you experience problems, please add a comment to this\nbug.\n\nThank you for reporting this bug and we are sorry it could not be fixed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15731027",
+						"comment_count": "40",
+						"who": {
+							"text": "ogajduse",
+							"name": "Ondrej Gajdusek"
+						},
+						"bug_when": "2021-12-01 11:33:05 +0000",
+						"thetext": "Fix is not there yet. Let's keep this one open."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15741330",
+						"comment_count": "41",
+						"who": {
+							"text": "dasgeekchannel",
+							"name": "Ryan"
+						},
+						"bug_when": "2021-12-03 20:38:41 +0000",
+						"thetext": "FEDORA 35 Fresh Install: \n\nThis issue is still occuring in Fedora 35 fresh install on HP DragonFly Elite. Used Yubikey to authenticate 2FA, sync is turned on within Mozilla Firefox. Browser is stock version that comes with Fedora 35. The prompt happens each time I open the Firefox browser and periodically pops-up during browsing. It's a very intrusive bug as it continues to interupt work. Adding to make sure everyone is aware this is still occuring in 35.\n\nThanks!\n\nStep to recreate:\n- Fresh install Fedora 35\n- Turn on Firefox Sync\n- Yubikey plugged into system for 2FA"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15806609",
+						"comment_count": "42",
+						"who": {
+							"text": "entwickler"
+						},
+						"bug_when": "2022-01-03 10:05:29 +0000",
+						"thetext": "Same happens to me with Fedora 35: with a Yubikey 5 NFC plugged in, Firefox displayed the password-querying dialog,\nwhen opening a URL, where the server asked for a client certificate. \nThis was reproducible.\n\nComment #23 solved this annoying behaviour for me.\n\nopensc version 0.22.0-1.fc35, Firefox 95.0.2."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15829640",
+						"comment_count": "43",
+						"who": {
+							"text": "arthur.garbage",
+							"name": "Arthur"
+						},
+						"bug_when": "2022-01-10 22:10:39 +0000",
+						"thetext": "Yes, comment #23 (I used the second option, the one that disables yubikey sc feature) worked for me as well. I never got any prompts from Brave but I did from FF upon Yubikey installation. I used https://webauth.io/ for testing of my Yubikey with 2FA/OTP, which always worked with Brave but had its issues with FF (browser would hang on either registration or login with Yubikey). This seems to fix that issue as well. I can log on using FF and Yubikey"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15831783",
+						"comment_count": "44",
+						"who": {
+							"text": "kpfleming",
+							"name": "Kevin P. Fleming"
+						},
+						"bug_when": "2022-01-11 13:48:41 +0000",
+						"thetext": "F35 user, Firefox 95.0.2 (from RPMs, not Flatpak), Yubikey 4 Nano. Same issue appeared after installing the Yubikey.\n\nThe file change from comment #23 did not solve the problem for me, but using the 'larger hammer' approach of disabling the CCID interface using the Yubikey Manager did :-)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15840245",
+						"comment_count": "45",
+						"who": {
+							"text": "mmtechslv",
+							"name": "Farid Musa"
+						},
+						"bug_when": "2022-01-13 11:24:38 +0000",
+						"thetext": "Comment #23 worked for me. Thanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15852141",
+						"comment_count": "46",
+						"who": {
+							"text": "dborkows",
+							"name": "Dan Borkowski"
+						},
+						"bug_when": "2022-01-17 20:55:43 +0000",
+						"thetext": "https://bugzilla.redhat.com/show_bug.cgi?id=1892137#c23 worked for me as well.  Though I opted to apply it according to the suggestion in https://bugzilla.redhat.com/show_bug.cgi?id=1892137#c26\n\n\n$ mkdir -p ~/.config/pkcs11/modules\n$ cp /usr/share/p11-kit/modules/opensc.module ~/.config/pkcs11/modules/\n$ echo \"disable-in: firefox thunderbird\" >> ~/.config/pkcs11/modules/opensc.module\n$ cat ~/.config/pkcs11/modules/opensc.module \n# This file describes how to load the opensc module\n# See: https://p11-glue.github.io/p11-glue/p11-kit/manual/pkcs11-conf.html\n# or man pkcs11.conf\n\n# This is a relative path, which means it will be loaded from\n# the p11-kit default path which is usually $(libdir)/pkcs11.\n# Doing it this way allows for packagers to package opensc for\n# 32-bit and 64-bit and make them parallel installable\nmodule: opensc-pkcs11.so\ndisable-in: firefox thunderbird\n$ cat /etc/redhat-release \nFedora release 35 (Thirty Five)\n$ rpm -q firefox opensc\nfirefox-95.0.2-2.fc35.x86_64\nopensc-0.22.0-1.fc35.x86_64\n$ ykman info\nDevice type: YubiKey 5C Nano\nSerial number: XXXXXXXX\nFirmware version: 5.4.3\nForm factor: Nano (USB-C)\nEnabled USB interfaces: OTP, FIDO, CCID\n\nApplications\nFIDO2       \tEnabled \t\nOTP         \tEnabled \t\nFIDO U2F    \tEnabled \t\nOATH        \tEnabled \t\nYubiHSM Auth\tDisabled\t\nOpenPGP     \tEnabled \t\nPIV         \tEnabled"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "15935888",
+						"comment_count": "47",
+						"who": {
+							"text": "bcotton",
+							"name": "Ben Cotton"
+						},
+						"bug_when": "2022-02-08 21:10:47 +0000",
+						"thetext": "This bug appears to have been reported against 'rawhide' during the Fedora 36 development cycle.\nChanging version to 36."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16245957",
+						"comment_count": "48",
+						"who": {
+							"text": "quent.haas",
+							"name": "Quentin Haas"
+						},
+						"bug_when": "2022-05-13 21:04:10 +0000",
+						"thetext": "Still happens in RHEL8.6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16569198",
+						"comment_count": "49",
+						"who": {
+							"text": "quent.haas",
+							"name": "Quentin Haas"
+						},
+						"bug_when": "2022-08-20 21:21:38 +0000",
+						"thetext": "Less frequent in RHEL 9.0, only seems to happen when something touches the network stack (e.g. VM with bridged network starts, vpn connect/disconnect, etc)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16751274",
+						"comment_count": "50",
+						"who": {
+							"text": "ekanter",
+							"name": "Eugene Kanter"
+						},
+						"bug_when": "2022-11-02 20:00:20 +0000",
+						"thetext": "(In reply to Andy Wang from comment #0)\n> \n> I have no password for the yubikey and have no idea what password this is\n> asking for and it makes firefox pretty much unusable.\n\nWhoever issued the yubikey for you should have provided initial PIN.\nEntering a valid PIN, once per Firefox/Thunderbird session, seems sufficient."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16828741",
+						"comment_count": "51",
+						"who": {
+							"text": "nuno.dias",
+							"name": "Nuno Dias"
+						},
+						"bug_when": "2022-11-29 10:44:14 +0000",
+						"thetext": "I'm on Fedora 37 with firefox-107.0-4.fc37.x86_64\n\nFor me the message is this ... \n\nPlease enter the password for the PKCS#11 token GemSAFE V1 (Auth PIN).\n\nFor normal user this is a crypt message, and it's impossible to close the popup windows if I close one another gets popup in the end firefox is not responding and I have several windows requesting the same with the message above.\nThe only wayto stop this madness is to kill firefox."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16853166",
+						"comment_count": "52",
+						"who": {
+							"text": "vbenes",
+							"name": "Vladimir Benes"
+						},
+						"bug_when": "2022-12-06 12:11:41 +0000",
+						"thetext": "I still see it with F37 and firefox-107.0-4.fc37.x86_64 and opensc-0.22.0-7.fc37\n\nThe error is:\nPlease enter the password for the PKCS#11 token PIV_II.\n\nI have a yubikey installed to authenticate into the openVPN network only."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16854426",
+						"comment_count": "53",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2022-12-06 19:30:28 +0000",
+						"thetext": "Vladimir or anyone, do you have specific website, where you are getting the prompts for reproducer?\n\nBob, can you let the guys here know what debug information you need to be able to debug this further? Would some pkcs11 trace (through log-calls in p11-kit) be enough or do you need some debug log from NSS to see why the NSS is still asking?\n\nI start feeling that the p11-kit is not here to blame as from some of my previous testing, the profile information was passed through also with the old API, but I would have to double-check."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16854989",
+						"comment_count": "54",
+						"who": {
+							"text": "rrelyea",
+							"name": "Bob Relyea"
+						},
+						"bug_when": "2022-12-06 23:20:55 +0000",
+						"thetext": "There is an environment variable you can set to see PKCS #11 calls from NSS, but it requires starting firefox from the command line (and may be a bit confused by the firefox threading... \n\nThe environment variable is:\nNSS_DEBUG_PKCS11_MODULE\n\nInstructions to enable them is available here: https://www-archive.mozilla.org/projects/security/pki/nss/tech-notes/tn2\n\nThe name you use for NSS_DEBUG_PKCS11_MODULE is the module name (not the slot name), You can find all the loaded modules in Firefox by looking at Settings->Privacy & Security->Security Devices (Security devices button is toward the bottom of the page.) The module names are on the left of the page.\n\nAlso, including the list of modules in the bug would be useful as well. You should see whatever slot you see in the password prompt in under the module list."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16855828",
+						"comment_count": "55",
+						"who": {
+							"text": "vbenes",
+							"name": "Vladimir Benes"
+						},
+						"bug_when": "2022-12-07 07:29:16 +0000",
+						"thetext": "(In reply to Jakub Jelen from comment #53)\n> Vladimir or anyone, do you have specific website, where you are getting the\n> prompts for reproducer?\n> \n> Bob, can you let the guys here know what debug information you need to be\n> able to debug this further? Would some pkcs11 trace (through log-calls in\n> p11-kit) be enough or do you need some debug log from NSS to see why the NSS\n> is still asking?\n> \n> I start feeling that the p11-kit is not here to blame as from some of my\n> previous testing, the profile information was passed through also with the\n> old API, but I would have to double-check.\n\nhttps://finance.yahoo.com/quote/NQ%3DF?p=NQ%3DF\n\nremoving the opensc package helped. I have a clean install of Fedora 37 now."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16856048",
+						"comment_count": "56",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2022-12-07 08:44:05 +0000",
+						"thetext": "(In reply to Vladimir Benes from comment #55)\n> (In reply to Jakub Jelen from comment #53)\n> > Vladimir or anyone, do you have specific website, where you are getting the\n> > prompts for reproducer?\n> > \n> > Bob, can you let the guys here know what debug information you need to be\n> > able to debug this further? Would some pkcs11 trace (through log-calls in\n> > p11-kit) be enough or do you need some debug log from NSS to see why the NSS\n> > is still asking?\n> > \n> > I start feeling that the p11-kit is not here to blame as from some of my\n> > previous testing, the profile information was passed through also with the\n> > old API, but I would have to double-check.\n> \n> https://finance.yahoo.com/quote/NQ%3DF?p=NQ%3DF\n> \n> removing the opensc package helped. I have a clean install of Fedora 37 now.\n\nSo you are not using yubikeys's piv applet, but just the otp or something? In that case you dont obviously need opensc. But as you can reproduce the problem, providing more information might be helpful as I never saw this issue myself with opensc installed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16864768",
+						"comment_count": "57",
+						"who": {
+							"text": "ekanter",
+							"name": "Eugene Kanter"
+						},
+						"bug_when": "2022-12-09 19:34:06 +0000",
+						"thetext": "yubikey comes from the factory with PIV password 123456. enter it once per session and no more problems."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16967744",
+						"comment_count": "58",
+						"who": {
+							"text": "jonathan.dundas"
+						},
+						"bug_when": "2023-01-14 20:12:36 +0000",
+						"thetext": "The yubikey is just attached to the system all the time, as is relatively normal if you use 2FA. Every time you start a firefox profile it then prompts you and you have to get rid of the window every time. Having to close a useless dialog every time firefox starts is obviously an error or bug. There used to be some fix in some opensc config file, but it seems to have stopped working a year ago."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16967875",
+						"comment_count": "59",
+						"who": {
+							"text": "ekanter",
+							"name": "Eugene Kanter"
+						},
+						"bug_when": "2023-01-14 23:08:44 +0000",
+						"thetext": "(In reply to jonathan.dundas from comment #58)\n> The yubikey is just attached to the system all the time, as is relatively\n> normal if you use 2FA. Every time you start a firefox profile it then\n> prompts you and you have to get rid of the window every time. Having to\n> close a useless dialog every time firefox starts is obviously an error or\n> bug. There used to be some fix in some opensc config file, but it seems to\n> have stopped working a year ago.\n\nOpen Firefox preferences, type: security devices in the search field, click on Security Devices button, then on p11-kit-proxy and, finally, Unload. No more prompts for the duration of the session. \nIf someone knows how to permanently disable p11-kit-proxy please respond."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16970818",
+						"comment_count": "60",
+						"who": {
+							"text": "bfahr",
+							"name": "Bob Fahr"
+						},
+						"bug_when": "2023-01-16 14:58:17 +0000",
+						"thetext": "(In reply to Eugene Kanter from comment #59)\n> Open Firefox preferences, type: security devices in the search field, click\n> on Security Devices button, then on p11-kit-proxy and, finally, Unload. No\n> more prompts for the duration of the session. \n> If someone knows how to permanently disable p11-kit-proxy please respond.\n\nThe solution in Comment 26 worked as a permanent solution for me."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17198863",
+						"comment_count": "61",
+						"who": {
+							"text": "traxtopel"
+						},
+						"bug_when": "2023-04-18 15:46:46 +0000",
+						"thetext": "The workaround using disable-in works well for firefox.\nHas anyone managed to do the same with google-chome?\nStill prompts me."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17214957",
+						"comment_count": "62",
+						"who": {
+							"text": "bcotton",
+							"name": "Ben Cotton"
+						},
+						"bug_when": "2023-04-25 16:40:49 +0000",
+						"thetext": "This message is a reminder that Fedora Linux 36 is nearing its end of life.\nFedora will stop maintaining and issuing updates for Fedora Linux 36 on 2023-05-16.\nIt is Fedora's policy to close all bug reports from releases that are no longer\nmaintained. At that time this bug will be closed as EOL if it remains open with a\n'version' of '36'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, change the 'version' \nto a later Fedora Linux version. Note that the version field may be hidden.\nClick the \"Show advanced fields\" button if you do not see it.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora Linux 36 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora Linux, you are encouraged to change the 'version' to a later version\nprior to this bug being closed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17217748",
+						"comment_count": "63",
+						"who": {
+							"text": "jonathan.dundas"
+						},
+						"bug_when": "2023-04-25 17:49:01 +0000",
+						"thetext": "Can this get updated as still an issue on Fedora 38? It still happens, this is still an issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17367855",
+						"comment_count": "64",
+						"who": {
+							"text": "quent.haas",
+							"name": "Quentin Haas"
+						},
+						"bug_when": "2023-06-06 19:59:51 +0000",
+						"thetext": "Still an issue in RHEL 9.2"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17597458",
+						"comment_count": "65",
+						"who": {
+							"text": "jed.s.baldwin",
+							"name": "Jed Baldwin"
+						},
+						"bug_when": "2023-09-08 16:55:50 +0000",
+						"thetext": "This is still an issue in Fedora 38."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17598956",
+						"comment_count": "66",
+						"who": {
+							"text": "awilliam",
+							"name": "Adam Williamson"
+						},
+						"bug_when": "2023-09-09 23:48:39 +0000",
+						"thetext": "We should really document this..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17744533",
+						"comment_count": "67",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2023-11-07 17:36:22 +0000",
+						"thetext": "In the end, this is indeed an issue in the OpenSC ...\n\nShould be fixed with with the following upstream PR:\n\nhttps://github.com/OpenSC/OpenSC/pull/2928\nhttps://github.com/OpenSC/OpenSC/pull/2924\n\nI can provide a test builds if somebody is interested in testing this out.\n\nThis will likely get fixed with the next release due in coming weeks/month."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17806549",
+						"comment_count": "68",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-12-14 15:05:35 +0000",
+						"thetext": "FEDORA-2023-c7e4c9af51 has been submitted as an update to Fedora 38. https://bodhi.fedoraproject.org/updates/FEDORA-2023-c7e4c9af51"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17806561",
+						"comment_count": "69",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-12-14 15:14:19 +0000",
+						"thetext": "FEDORA-2023-a854153d7a has been submitted as an update to Fedora 39. https://bodhi.fedoraproject.org/updates/FEDORA-2023-a854153d7a"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2191749,
+			"title": "[abrt] opensc: memcpy(): pkcs11-tool killed by SIGABRT",
+			"bugzilla": {
+				"bug_id": "2191749",
+				"creation_ts": "2023-04-29 00:36:38 +0000",
+				"short_desc": "[abrt] opensc: memcpy(): pkcs11-tool killed by SIGABRT",
+				"delta_ts": "2023-12-14 15:14:25 +0000",
+				"bug_status": "MODIFIED",
+				"bug_file_loc": "https://retrace.fedoraproject.org/faf/reports/bthash/a8613e9c4a8d102069c3a5f56330f480b0c319b",
+				"keywords": "Triaged",
+				"priority": "medium",
+				"bug_severity": "unspecified",
+				"external_bugs": {
+					"text": "FC-819",
+					"name": "Red Hat Issue Tracker"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17229914",
+						"comment_count": "0",
+						"who": {
+							"text": "m.merklinger",
+							"name": "M. Merklinger"
+						},
+						"bug_when": "2023-04-29 00:36:38 +0000",
+						"thetext": "Description of problem:\nI executed the command `pkcs11-tool -l --login-type so --so-pin 12345678 --keypairgen --key-type rsa:2048` to generate a new key on the smartcard. The connected smartcard was a Nitrokey Pro.\n\nVersion-Release number of selected component:\nopensc-0.23.0-3.fc38\n\nAdditional info:\nreporter:       libreport-2.17.9\ntype:           CCpp\nreason:         pkcs11-tool killed by SIGABRT\njournald_cursor: s=7e20d1102e0a4c84aee515be2aa44067;i=bda73;b=4c0e4e5a3abf4f59a1f38d6b4f496033;m=5517bee92;t=5fa6e37806baf;x=3d7ab7b083867fba\nexecutable:     /usr/bin/pkcs11-tool\ncmdline:        pkcs11-tool -l --login-type so --so-pin 12345678 --keypairgen --key-type rsa:2048\ncgroup:         0::/user.slice/user-1000.slice/user@1000.service/app.slice/vte-spawn-bd8e100e-7009-41db-89f7-fd2f522a6add.scope\nrootdir:        /\nuid:            1000\nkernel:         6.2.12-300.fc38.x86_64\npackage:        opensc-0.23.0-3.fc38\nrunlevel:       N 5\nbacktrace_rating: 4\ncrash_function: memcpy\ncomment:        I executed the command `pkcs11-tool -l --login-type so --so-pin 12345678 --keypairgen --key-type rsa:2048` to generate a new key on the smartcard. The connected smartcard was a Nitrokey Pro.\n\nTruncated backtrace:\nThread no. 1 (12 frames)\n #7 memcpy at /usr/include/bits/string_fortified.h:29\n #8 pgp_calculate_and_store_fingerprint at /usr/src/debug/opensc-0.23.0-3.fc38.x86_64/src/libopensc/card-openpgp.c:2704\n #9 pgp_parse_and_set_pubkey_output at /usr/src/debug/opensc-0.23.0-3.fc38.x86_64/src/libopensc/card-openpgp.c:2930\n #10 pgp_gen_key at /usr/src/debug/opensc-0.23.0-3.fc38.x86_64/src/libopensc/card-openpgp.c:3073\n #11 pgp_card_ctl at /usr/src/debug/opensc-0.23.0-3.fc38.x86_64/src/libopensc/card-openpgp.c:3564\n #12 sc_card_ctl at /usr/src/debug/opensc-0.23.0-3.fc38.x86_64/src/libopensc/card.c:1065\n #13 openpgp_generate_key_rsa at ../pkcs15init/pkcs15-openpgp.c:250\n #14 openpgp_generate_key at ../pkcs15init/pkcs15-openpgp.c:378\n #15 sc_pkcs15init_generate_key at ../pkcs15init/pkcs15-lib.c:1611\n #16 pkcs15_gen_keypair at /usr/src/debug/opensc-0.23.0-3.fc38.x86_64/src/pkcs11/framework-pkcs15.c:3335\n #17 C_GenerateKeyPair at /usr/src/debug/opensc-0.23.0-3.fc38.x86_64/src/pkcs11/pkcs11-object.c:1180\n #19 gen_keypair at /usr/src/debug/opensc-0.23.0-3.fc38.x86_64/src/tools/pkcs11-tool.c:3121"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17229915",
+						"comment_count": "1",
+						"who": {
+							"text": "m.merklinger",
+							"name": "M. Merklinger"
+						},
+						"bug_when": "2023-04-29 00:36:42 +0000",
+						"thetext": "Created attachment 1960941\nFile: proc_pid_status"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17229916",
+						"comment_count": "2",
+						"who": {
+							"text": "m.merklinger",
+							"name": "M. Merklinger"
+						},
+						"bug_when": "2023-04-29 00:36:43 +0000",
+						"thetext": "Created attachment 1960942\nFile: maps"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17229917",
+						"comment_count": "3",
+						"who": {
+							"text": "m.merklinger",
+							"name": "M. Merklinger"
+						},
+						"bug_when": "2023-04-29 00:36:45 +0000",
+						"thetext": "Created attachment 1960943\nFile: limits"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17229922",
+						"comment_count": "4",
+						"who": {
+							"text": "m.merklinger",
+							"name": "M. Merklinger"
+						},
+						"bug_when": "2023-04-29 00:38:06 +0000",
+						"thetext": "I executed the command `pkcs11-tool -l --login-type so --so-pin 12345678 --keypairgen --key-type rsa:2048` to generate a new key on the smartcard. The connected smartcard was a Nitrokey Pro.\n\n\nreporter:       libreport-2.17.9\ntype:           CCpp\nreason:         pkcs11-tool killed by SIGABRT\njournald_cursor: s=7e20d1102e0a4c84aee515be2aa44067;i=bda73;b=4c0e4e5a3abf4f59a1f38d6b4f496033;m=5517bee92;t=5fa6e37806baf;x=3d7ab7b083867fba\nexecutable:     /usr/bin/pkcs11-tool\ncmdline:        pkcs11-tool -l --login-type so --so-pin 12345678 --keypairgen --key-type rsa:2048\ncgroup:         0::/user.slice/user-1000.slice/user@1000.service/app.slice/vte-spawn-bd8e100e-7009-41db-89f7-fd2f522a6add.scope\nrootdir:        /\nuid:            1000\nkernel:         6.2.12-300.fc38.x86_64\npackage:        opensc-0.23.0-3.fc38\nrunlevel:       N 5\nbacktrace_rating: 4\ncrash_function: memcpy\ncomment:        I executed the command `pkcs11-tool -l --login-type so --so-pin 12345678 --keypairgen --key-type rsa:2048` to generate a new key on the smartcard. The connected smartcard was a Nitrokey Pro."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17235820",
+						"comment_count": "5",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2023-05-02 12:08:04 +0000",
+						"thetext": "Thank you for the bug report and reproducer! If I see right, the same code is in the upstream OpenSC so it will likely be an issue in there too. Can you open a new issue in https://github.com/OpenSC/OpenSC/\n\nI unfortunately do not have Nitrokey Pro to check what is going on there, but I assume some sanity check for the results of the conversion in ushort2bebytes() is needed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17516987",
+						"comment_count": "6",
+						"who": {
+							"text": "jjelen",
+							"name": "Jakub Jelen"
+						},
+						"bug_when": "2023-08-07 14:59:58 +0000",
+						"thetext": "This was reported upstream as https://github.com/OpenSC/OpenSC/issues/2775 and fixed with the following commit:\n\nhttps://github.com/OpenSC/OpenSC/commit/e8fba322a2f4d06ec5c74fe80f9e2b0e9fdefec6\n\nDo you need a fix in some particular version of Fedora or is it ok to wait for the next upstream release (which should happen hopefully in autumn)?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17535583",
+						"comment_count": "7",
+						"who": {
+							"text": "m.merklinger",
+							"name": "M. Merklinger"
+						},
+						"bug_when": "2023-08-14 14:31:38 +0000",
+						"thetext": "The next upstream release is enough. Thank you!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17806550",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-12-14 15:05:41 +0000",
+						"thetext": "FEDORA-2023-c7e4c9af51 has been submitted as an update to Fedora 38. https://bodhi.fedoraproject.org/updates/FEDORA-2023-c7e4c9af51"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17806562",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-12-14 15:14:25 +0000",
+						"thetext": "FEDORA-2023-a854153d7a has been submitted as an update to Fedora 39. https://bodhi.fedoraproject.org/updates/FEDORA-2023-a854153d7a"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2240912,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2023-40660 OpenSC: Potential PIN bypass when card tracks its own login state",
+			"bugzilla": {
+				"bug_id": "2240912",
+				"alias": "CVE-2023-40660",
+				"creation_ts": "2023-09-27 08:41:14 +0000",
+				"short_desc": "CVE-2023-40660 OpenSC: Potential PIN bypass when card tracks its own login state",
+				"delta_ts": "2023-11-22 10:13:52 +0000",
+				"bug_status": "NEW",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"2248092"
+				],
+				"blocked": [
+					{
+						"bug_id": "2240943",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17669588",
+						"comment_count": "0",
+						"who": {
+							"text": "trathi",
+							"name": "TEJ RATHI"
+						},
+						"bug_when": "2023-09-27 08:41:14 +0000",
+						"thetext": "When the token/card was plugged into the computer and authenticated from one process, it could be used to provide cryptographic operations from different process when the empty, zero-length PIN and the token can track the login status using some of its internals. This is dangerous for OS logon/screen unlock and small tokens that are plugged permanently to the computer. The bypass was removed and OpenSC implemented explicit logout for most of the card drivers to prevent leaving unattended logged-in tokens\n\nAffected versions: OpenSC 0.17.0 - 0.23.0\n\nhttps://github.com/OpenSC/OpenSC/issues/2792#issuecomment-1674806651\nhttps://github.com/OpenSC/OpenSC/wiki/OpenSC-security-advisories\nhttps://github.com/OpenSC/OpenSC/releases/tag/0.24.0-rc1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17735140",
+						"comment_count": "2",
+						"who": {
+							"text": "trathi",
+							"name": "TEJ RATHI"
+						},
+						"bug_when": "2023-11-06 05:20:26 +0000",
+						"thetext": "Created opensc tracking bugs for this issue:\n\nAffects: fedora-all [bug 2248092]"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2240913,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2023-40661 OpenSC: multiple memory issues with pkcs15-init (enrollment tool)",
+			"bugzilla": {
+				"bug_id": "2240913",
+				"alias": "CVE-2023-40661",
+				"creation_ts": "2023-09-27 08:41:15 +0000",
+				"short_desc": "CVE-2023-40661 OpenSC: multiple memory issues with pkcs15-init (enrollment tool)",
+				"delta_ts": "2023-11-22 10:13:49 +0000",
+				"bug_status": "NEW",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"2248099"
+				],
+				"blocked": [
+					{
+						"bug_id": "2240943",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17669589",
+						"comment_count": "0",
+						"who": {
+							"text": "trathi",
+							"name": "TEJ RATHI"
+						},
+						"bug_when": "2023-09-27 08:41:15 +0000",
+						"thetext": "Several memory issues that are security relevant that were reported since the release of OpenSC 0.23.0 and that are relevant to the handling the card enrollment process using pkcs15-init.\n\nAll of these require physical access to the computer at the time user or administrator would be enrolling the cards (generating keys and loading certificates, other card/token management) operations. The attack requires crafted USB device or smart card that would present the system with specially crafted responses to the APDUs so they are considered a high-complexity and low-severity. This issue is not exploitable just by using a PKCS#11 module as done in most of the end-user deployments.\n\nhttps://github.com/OpenSC/OpenSC/issues/2792#issuecomment-1674806651\nhttps://github.com/OpenSC/OpenSC/wiki/OpenSC-security-advisories\nhttps://github.com/OpenSC/OpenSC/releases/tag/0.24.0-rc1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17669671",
+						"comment_count": "1",
+						"who": {
+							"text": "trathi",
+							"name": "TEJ RATHI"
+						},
+						"bug_when": "2023-09-27 08:51:05 +0000",
+						"thetext": "All memory issues reference bugs:\n\n* Stack buffer overflow in sc_pkcs15_get_lastupdate in pkcs15init\nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=60769 \nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=60527\n\n * Heap buffer overflow in setcos_create_key in pkcs15init\nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=60672 \n\n * Heap buffer overflow in cosm_new_file in pkcs15init\nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=60650 \n\n * Heap double free in sc_pkcs15_free_object_content\nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=60616 \n\n * Stack buffer overflow in cflex_delete_file in pkcs15init\nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=58932 \n\n * Heap buffer overflow in sc_hsm_write_ef in pkcs15init\nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=56213 \n\n * Stack buffer overflow while parsing pkcs15 profile files\nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=55998 \nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=55851\n\n * Stack buffer overflow in muscle driver in pkcs15init\nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=54312 \n\n * Stack buffer overflow in cardos driver in pkcs15init\nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=53927"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17735177",
+						"comment_count": "3",
+						"who": {
+							"text": "trathi",
+							"name": "TEJ RATHI"
+						},
+						"bug_when": "2023-11-06 06:13:51 +0000",
+						"thetext": "Created opensc tracking bugs for this issue:\n\nAffects: fedora-all [bug 2248099]"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2240914,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2023-4535 OpenSC: out-of-bounds read in MyEID driver handling encryption using symmetric keys",
+			"bugzilla": {
+				"bug_id": "2240914",
+				"alias": "CVE-2023-4535",
+				"creation_ts": "2023-09-27 08:41:17 +0000",
+				"short_desc": "CVE-2023-4535 OpenSC: out-of-bounds read in MyEID driver handling encryption using symmetric keys",
+				"delta_ts": "2023-11-14 14:41:23 +0000",
+				"bug_status": "NEW",
+				"keywords": "Security",
+				"priority": "low",
+				"bug_severity": "low",
+				"depends_on": [
+					"2248101"
+				],
+				"blocked": [
+					{
+						"bug_id": "2240943",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17669590",
+						"comment_count": "0",
+						"who": {
+							"text": "trathi",
+							"name": "TEJ RATHI"
+						},
+						"bug_when": "2023-09-27 08:41:17 +0000",
+						"thetext": "An out-of-bounds read in MyEID driver handling encryption using symmetric keys. An attacker with physical access to the computer running opensc and crafted USB device or smart card that would present the system with specially crafted responses to the APDUs so they are considered a high-complexity and low-severity.\n\nThis issue is in the code handling symmetric keys, which are not widely used for example for desktop login so most of the deployments are not affected.\n\nhttps://github.com/OpenSC/OpenSC/issues/2792#issuecomment-1674806651\nhttps://github.com/OpenSC/OpenSC/wiki/OpenSC-security-advisories\nhttps://github.com/OpenSC/OpenSC/releases/tag/0.24.0-rc1"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17735183",
+						"comment_count": "3",
+						"who": {
+							"text": "trathi",
+							"name": "TEJ RATHI"
+						},
+						"bug_when": "2023-11-06 06:23:56 +0000",
+						"thetext": "Created opensc tracking bugs for this issue:\n\nAffects: fedora-all [bug 2248101]"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2248092,
+			"security": true,
+			"title": "CVE-2023-40660 opensc: Potential PIN bypass when card tracks its own login state [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2248092",
+				"creation_ts": "2023-11-06 05:20:14 +0000",
+				"short_desc": "CVE-2023-40660 opensc: Potential PIN bypass when card tracks its own login state [fedora-all]",
+				"delta_ts": "2023-12-14 15:14:31 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Security, SecurityTracking, Triaged",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "2240912",
+						"alias": "CVE-2023-40660",
+						"creation_ts": "2023-09-27 08:41:14 +0000",
+						"short_desc": "CVE-2023-40660 OpenSC: Potential PIN bypass when card tracks its own login state",
+						"delta_ts": "2023-11-22 10:13:52 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"2248092"
+						],
+						"blocked": [
+							{
+								"bug_id": "2240943",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "17669588",
+								"comment_count": "0",
+								"who": {
+									"text": "trathi",
+									"name": "TEJ RATHI"
+								},
+								"bug_when": "2023-09-27 08:41:14 +0000",
+								"thetext": "When the token/card was plugged into the computer and authenticated from one process, it could be used to provide cryptographic operations from different process when the empty, zero-length PIN and the token can track the login status using some of its internals. This is dangerous for OS logon/screen unlock and small tokens that are plugged permanently to the computer. The bypass was removed and OpenSC implemented explicit logout for most of the card drivers to prevent leaving unattended logged-in tokens\n\nAffected versions: OpenSC 0.17.0 - 0.23.0\n\nhttps://github.com/OpenSC/OpenSC/issues/2792#issuecomment-1674806651\nhttps://github.com/OpenSC/OpenSC/wiki/OpenSC-security-advisories\nhttps://github.com/OpenSC/OpenSC/releases/tag/0.24.0-rc1"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17735140",
+								"comment_count": "2",
+								"who": {
+									"text": "trathi",
+									"name": "TEJ RATHI"
+								},
+								"bug_when": "2023-11-06 05:20:26 +0000",
+								"thetext": "Created opensc tracking bugs for this issue:\n\nAffects: fedora-all [bug 2248092]"
+							}
+						]
+					}
+				],
+				"external_bugs": {
+					"text": "FC-1021",
+					"name": "Red Hat Issue Tracker"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17735138",
+						"comment_count": "0",
+						"who": {
+							"text": "trathi",
+							"name": "TEJ RATHI"
+						},
+						"bug_when": "2023-11-06 05:20:14 +0000",
+						"thetext": "\nMore information about this security flaw is available in the following bug:\n\nhttp://bugzilla.redhat.com/show_bug.cgi?id=2240912\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17735139",
+						"comment_count": "1",
+						"who": {
+							"text": "trathi",
+							"name": "TEJ RATHI"
+						},
+						"bug_when": "2023-11-06 05:20:18 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2240912,2248092\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17806551",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-12-14 15:05:47 +0000",
+						"thetext": "FEDORA-2023-c7e4c9af51 has been submitted as an update to Fedora 38. https://bodhi.fedoraproject.org/updates/FEDORA-2023-c7e4c9af51"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17806563",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-12-14 15:14:31 +0000",
+						"thetext": "FEDORA-2023-a854153d7a has been submitted as an update to Fedora 39. https://bodhi.fedoraproject.org/updates/FEDORA-2023-a854153d7a"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2248099,
+			"security": true,
+			"title": "CVE-2023-40661 opensc: multiple memory issues with pkcs15-init (enrollment tool) [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2248099",
+				"creation_ts": "2023-11-06 06:13:40 +0000",
+				"short_desc": "CVE-2023-40661 opensc: multiple memory issues with pkcs15-init (enrollment tool) [fedora-all]",
+				"delta_ts": "2023-12-14 15:14:34 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Security, SecurityTracking, Triaged",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "2240913",
+						"alias": "CVE-2023-40661",
+						"creation_ts": "2023-09-27 08:41:15 +0000",
+						"short_desc": "CVE-2023-40661 OpenSC: multiple memory issues with pkcs15-init (enrollment tool)",
+						"delta_ts": "2023-11-22 10:13:49 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"2248099"
+						],
+						"blocked": [
+							{
+								"bug_id": "2240943",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "17669589",
+								"comment_count": "0",
+								"who": {
+									"text": "trathi",
+									"name": "TEJ RATHI"
+								},
+								"bug_when": "2023-09-27 08:41:15 +0000",
+								"thetext": "Several memory issues that are security relevant that were reported since the release of OpenSC 0.23.0 and that are relevant to the handling the card enrollment process using pkcs15-init.\n\nAll of these require physical access to the computer at the time user or administrator would be enrolling the cards (generating keys and loading certificates, other card/token management) operations. The attack requires crafted USB device or smart card that would present the system with specially crafted responses to the APDUs so they are considered a high-complexity and low-severity. This issue is not exploitable just by using a PKCS#11 module as done in most of the end-user deployments.\n\nhttps://github.com/OpenSC/OpenSC/issues/2792#issuecomment-1674806651\nhttps://github.com/OpenSC/OpenSC/wiki/OpenSC-security-advisories\nhttps://github.com/OpenSC/OpenSC/releases/tag/0.24.0-rc1"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17669671",
+								"comment_count": "1",
+								"who": {
+									"text": "trathi",
+									"name": "TEJ RATHI"
+								},
+								"bug_when": "2023-09-27 08:51:05 +0000",
+								"thetext": "All memory issues reference bugs:\n\n* Stack buffer overflow in sc_pkcs15_get_lastupdate in pkcs15init\nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=60769 \nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=60527\n\n * Heap buffer overflow in setcos_create_key in pkcs15init\nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=60672 \n\n * Heap buffer overflow in cosm_new_file in pkcs15init\nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=60650 \n\n * Heap double free in sc_pkcs15_free_object_content\nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=60616 \n\n * Stack buffer overflow in cflex_delete_file in pkcs15init\nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=58932 \n\n * Heap buffer overflow in sc_hsm_write_ef in pkcs15init\nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=56213 \n\n * Stack buffer overflow while parsing pkcs15 profile files\nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=55998 \nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=55851\n\n * Stack buffer overflow in muscle driver in pkcs15init\nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=54312 \n\n * Stack buffer overflow in cardos driver in pkcs15init\nhttps://bugs.chromium.org/p/oss-fuzz/issues/detail?id=53927"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17735177",
+								"comment_count": "3",
+								"who": {
+									"text": "trathi",
+									"name": "TEJ RATHI"
+								},
+								"bug_when": "2023-11-06 06:13:51 +0000",
+								"thetext": "Created opensc tracking bugs for this issue:\n\nAffects: fedora-all [bug 2248099]"
+							}
+						]
+					}
+				],
+				"external_bugs": {
+					"text": "FC-1022",
+					"name": "Red Hat Issue Tracker"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17735175",
+						"comment_count": "0",
+						"who": {
+							"text": "trathi",
+							"name": "TEJ RATHI"
+						},
+						"bug_when": "2023-11-06 06:13:40 +0000",
+						"thetext": "\nMore information about this security flaw is available in the following bug:\n\nhttp://bugzilla.redhat.com/show_bug.cgi?id=2240913\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17735176",
+						"comment_count": "1",
+						"who": {
+							"text": "trathi",
+							"name": "TEJ RATHI"
+						},
+						"bug_when": "2023-11-06 06:13:43 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2240913,2248099\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17806552",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-12-14 15:05:51 +0000",
+						"thetext": "FEDORA-2023-c7e4c9af51 has been submitted as an update to Fedora 38. https://bodhi.fedoraproject.org/updates/FEDORA-2023-c7e4c9af51"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17806565",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-12-14 15:14:34 +0000",
+						"thetext": "FEDORA-2023-a854153d7a has been submitted as an update to Fedora 39. https://bodhi.fedoraproject.org/updates/FEDORA-2023-a854153d7a"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2248101,
+			"security": true,
+			"title": "CVE-2023-4535 opensc: out-of-bounds read in MyEID driver handling encryption using symmetric keys [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2248101",
+				"creation_ts": "2023-11-06 06:23:45 +0000",
+				"short_desc": "CVE-2023-4535 opensc: out-of-bounds read in MyEID driver handling encryption using symmetric keys [fedora-all]",
+				"delta_ts": "2023-12-14 15:14:38 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Security, SecurityTracking, Triaged",
+				"priority": "low",
+				"bug_severity": "low",
+				"blocked": [
+					{
+						"bug_id": "2240914",
+						"alias": "CVE-2023-4535",
+						"creation_ts": "2023-09-27 08:41:17 +0000",
+						"short_desc": "CVE-2023-4535 OpenSC: out-of-bounds read in MyEID driver handling encryption using symmetric keys",
+						"delta_ts": "2023-11-14 14:41:23 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"2248101"
+						],
+						"blocked": [
+							{
+								"bug_id": "2240943",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "17669590",
+								"comment_count": "0",
+								"who": {
+									"text": "trathi",
+									"name": "TEJ RATHI"
+								},
+								"bug_when": "2023-09-27 08:41:17 +0000",
+								"thetext": "An out-of-bounds read in MyEID driver handling encryption using symmetric keys. An attacker with physical access to the computer running opensc and crafted USB device or smart card that would present the system with specially crafted responses to the APDUs so they are considered a high-complexity and low-severity.\n\nThis issue is in the code handling symmetric keys, which are not widely used for example for desktop login so most of the deployments are not affected.\n\nhttps://github.com/OpenSC/OpenSC/issues/2792#issuecomment-1674806651\nhttps://github.com/OpenSC/OpenSC/wiki/OpenSC-security-advisories\nhttps://github.com/OpenSC/OpenSC/releases/tag/0.24.0-rc1"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17735183",
+								"comment_count": "3",
+								"who": {
+									"text": "trathi",
+									"name": "TEJ RATHI"
+								},
+								"bug_when": "2023-11-06 06:23:56 +0000",
+								"thetext": "Created opensc tracking bugs for this issue:\n\nAffects: fedora-all [bug 2248101]"
+							}
+						]
+					}
+				],
+				"external_bugs": {
+					"text": "FC-1023",
+					"name": "Red Hat Issue Tracker"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17735181",
+						"comment_count": "0",
+						"who": {
+							"text": "trathi",
+							"name": "TEJ RATHI"
+						},
+						"bug_when": "2023-11-06 06:23:45 +0000",
+						"thetext": "\nMore information about this security flaw is available in the following bug:\n\nhttp://bugzilla.redhat.com/show_bug.cgi?id=2240914\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17735182",
+						"comment_count": "1",
+						"who": {
+							"text": "trathi",
+							"name": "TEJ RATHI"
+						},
+						"bug_when": "2023-11-06 06:23:48 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=low\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2240914,2248101\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17806553",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-12-14 15:05:55 +0000",
+						"thetext": "FEDORA-2023-c7e4c9af51 has been submitted as an update to Fedora 38. https://bodhi.fedoraproject.org/updates/FEDORA-2023-c7e4c9af51"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17806566",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2023-12-14 15:14:38 +0000",
+						"thetext": "FEDORA-2023-a854153d7a has been submitted as an update to Fedora 39. https://bodhi.fedoraproject.org/updates/FEDORA-2023-a854153d7a"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "opensc-0.24.0-1.fc39",
+			"release_id": 70,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "opensc-debuginfo",
+						"version": "0.24.0",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "opensc-debugsource",
+						"version": "0.24.0",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "opensc",
+						"version": "0.24.0",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					}
+				],
+				"i686": [
+					{
+						"name": "opensc-debuginfo",
+						"version": "0.24.0",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "opensc-debugsource",
+						"version": "0.24.0",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "opensc",
+						"version": "0.24.0",
+						"release": "1.fc39",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "opensc-debuginfo",
+						"version": "0.24.0",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "opensc",
+						"version": "0.24.0",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "opensc-debugsource",
+						"version": "0.24.0",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "opensc-debuginfo",
+						"version": "0.24.0",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "opensc",
+						"version": "0.24.0",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "opensc-debugsource",
+						"version": "0.24.0",
+						"release": "1.fc39",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "opensc",
+						"version": "0.24.0",
+						"release": "1.fc39",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "opensc-debugsource",
+						"version": "0.24.0",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "opensc-debuginfo",
+						"version": "0.24.0",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "opensc",
+						"version": "0.24.0",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3322767,
+			"text": "This update has been submitted for testing by vhanulik. ",
+			"timestamp": "2023-12-14 15:14:14",
+			"update_id": 572363,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3322768,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2023-12-14 15:14:14",
+			"update_id": 572363,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath_groups": "",
+	"date_submitted": "2023-12-14 15:14:14",
+	"notes": "New upstream release (#2240701) with security fixes for CVE-2023-40660, CVE-2023-4535, CVE-2023-40661",
+	"release": {
+		"branch": "f39",
+		"candidate_tag": "f39-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f39",
+		"eol": "2024-11-12",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 39",
+		"mail_template": "fedora_errata_template",
+		"name": "F39",
+		"override_tag": "f39-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f39-signing-pending",
+		"pending_stable_tag": "f39-updates-pending",
+		"pending_testing_tag": "f39-updates-testing-pending",
+		"stable_tag": "f39-updates",
+		"state": "current",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f39-updates-testing",
+		"version": "39"
+	},
+	"request": "testing",
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "medium",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "pending",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "opensc-0.24.0-1.fc39",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2023-a854153d7a",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2023-a854153d7a",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/ff14bbfa730ffa611faeb17f6bbf6db9557bd6cbd8a3b1a1fee0b83d83d78e69?s=24&d=retro",
+		"email": "vhanulik@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 7814,
+		"name": "vhanulik",
+		"openid": "vhanulik.id.fedoraproject.org"
+	},
+	"version_hash": "44494c620e009cef929ee84d7b206b18ec5ce8b6"
+}
