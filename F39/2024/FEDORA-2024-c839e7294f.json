@@ -1,0 +1,1179 @@
+{
+	"alias": "FEDORA-2024-c839e7294f",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2255563,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2023-51764 postfix: SMTP smuggling vulnerability",
+			"bugzilla": {
+				"bug_id": "2255563",
+				"alias": "CVE-2023-51764",
+				"creation_ts": "2023-12-21 21:58:42 +0000",
+				"short_desc": "CVE-2023-51764 postfix: SMTP smuggling vulnerability",
+				"delta_ts": "2024-01-02 17:33:02 +0000",
+				"bug_status": "NEW",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"2255565",
+					"2255870",
+					"2255566"
+				],
+				"blocked": [
+					{
+						"bug_id": "2255562",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17814226",
+						"comment_count": "0",
+						"who": {
+							"text": "rgatica",
+							"name": "Robb Gatica"
+						},
+						"bug_when": "2023-12-21 21:58:42 +0000",
+						"thetext": "Summary:\nDepending on how SMTP servers/software are configured to interpret the end-of-data sequence (e.g., <CR><LF>.<CR><LF>), an attacker can break out of the message data to \"smuggle\" SMTP commands to send spoofed emails that pass SPF checks. \n\nDescription:\nBy exploiting interpretation differences of the SMTP protocol, it is possible to smuggle/send spoofed e-mails - hence SMTP smuggling - while still passing SPF alignment checks. During this research, two types of SMTP smuggling, outbound and inbound, were discovered. These allowed sending spoofed e-mails from millions of domains (e.g., admin[@]outlook.com) to millions of receiving SMTP servers (e.g., Amazon, PayPal, eBay). Identified vulnerabilities in Microsoft and GMX were quickly fixed, however, SEC Consult urges companies using the also affected Cisco Secure Email product to manually update their vulnerable default configuration. \n\nReferences:\nhttps://sec-consult.com/blog/detail/smtp-smuggling-spoofing-e-mails-worldwide/\nhttps://www.mail-archive.com/postfix-users@postfix.org/msg100901.html\nhttps://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1059230"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17814244",
+						"comment_count": "1",
+						"who": {
+							"text": "rgatica",
+							"name": "Robb Gatica"
+						},
+						"bug_when": "2023-12-21 22:18:41 +0000",
+						"thetext": "Mitigations per Postfix:\n\n-----\n\nAs part of a non-responsible disclosure process, SEC Consult has\npublished an email spoofing attack that involves a composition of\ndifferent mail service behaviors with respect to broken line endings.\n\n\nA short-term fix may deployed now, before the upcoming long holiday:\n\n- Postfix 3.9 (stable release early 2024), rejects unuthorised\n  pipelining by default: \"smtpd_forbid_unauth_pipelining = yes\".\n\n- Postfix 3.8.1, 3.7.6, 3.6.10 and 3.5.20 include the same feature,\n  but the \"smtpd_forbid_unauth_pipelining\" parameter defaults to\n  \"no\".\n\nSetting \"smtpd_forbid_unauth_pipelining = yes\" may break legitimate\nSMTP clients that mis-implement SMTP, but such clients are exceedingly\nrare, especially when email is sent across the Internet.\n\nThis short-term fix will stop the published form of the attack, but\nother forms exist that will not be stopped in this manner.\n\nThe longer-term fix stops all forms of the smuggling attacks and is\nin testing. For most sites, this fix will be too late for deployment\nbefore a long holiday break, when typically production changes are\nnot allowed until January."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17814248",
+						"comment_count": "2",
+						"who": {
+							"text": "rgatica",
+							"name": "Robb Gatica"
+						},
+						"bug_when": "2023-12-21 22:21:00 +0000",
+						"thetext": "Mitigations for Sendmail, per OSS thread:\n\n-----\n\nsendmail 8.18.0.2 has options to handle this too, e.g., Accept only CR LF . CR LF as end of an SMTP message as required by the RFCs when the new srv_features option 'o' is used.\n\nAnd for those who read the source code there's also an FFR:\n\t/* enable checking for \"bare LF\" in message */\n\t\"_FFR_BARE_LF\","
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17814253",
+						"comment_count": "3",
+						"who": {
+							"text": "rgatica",
+							"name": "Robb Gatica"
+						},
+						"bug_when": "2023-12-21 22:22:02 +0000",
+						"thetext": "Created postfix tracking bugs for this issue:\n\nAffects: fedora-all [bug 2255565]\n\n\nCreated sendmail tracking bugs for this issue:\n\nAffects: fedora-all [bug 2255566]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17814960",
+						"comment_count": "5",
+						"who": {
+							"text": "pgnd",
+							"name": "pgnd"
+						},
+						"bug_when": "2023-12-22 17:45:57 +0000",
+						"thetext": "fyi, postfix 3.8.4, is out today, with fix that addresses the Smuggling Vulnerability,\n\nFrom: postfix-announce@postfix.org\nSent:  at Friday, Dec 22, 2023, 11:30 AM EST\nTo: postfix-announce@postfix.org Cc: postfix-users@postfix.org\nSubject: [pfx-ann] Postfix stable release 3.8.4\n\n> [An on-line version of this announcement will be available at https://www.postfix.org/announcements/postfix-3.8.4.html]\n> \n> Fixed with Postfix 3.8.4:\n> \n>    * Security: this release adds support to defend\n>      against an email spoofing attack (SMTP smuggling) on\n>      recipients at a Postfix server. For background, see\n>      https://www.postfix.org/smtp-smuggling.html.\n> \n>      Sites concerned about SMTP smuggling attacks should enable this\n>      feature on Internet-facing Postfix servers. For compatibility\n>      with non-standard clients, Postfix by default excludes clients\n>      in mynetworks from this countermeasure.\n> \n>      The recommended settings are:\n> \n> \t# Optionally disconnect remote SMTP clients that send bare newlines,\n> \t# but allow local clients with non-standard SMTP implementations\n> \t# such as netcat, fax machines, or load balancer health checks.\n> \t#\n> \tsmtpd_forbid_bare_newline = yes\n> \tsmtpd_forbid_bare_newline_exclusions = $mynetworks\n> \n>      The smtpd_forbid_bare_newline feature is disabled by default.\n\n\nNOTE also that 3.9.x is planned for a \"soon\" release ..."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2255565,
+			"security": true,
+			"title": "TRIAGE  postfix: sendmail and postfix: SMTP smuggling vulnerability [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2255565",
+				"creation_ts": "2023-12-21 22:21:41 +0000",
+				"short_desc": "TRIAGE  postfix: sendmail and postfix: SMTP smuggling vulnerability [fedora-all]",
+				"delta_ts": "2024-01-02 23:04:42 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "2255563",
+						"alias": "CVE-2023-51764",
+						"creation_ts": "2023-12-21 21:58:42 +0000",
+						"short_desc": "CVE-2023-51764 postfix: SMTP smuggling vulnerability",
+						"delta_ts": "2024-01-02 17:33:02 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"2255565",
+							"2255870",
+							"2255566"
+						],
+						"blocked": [
+							{
+								"bug_id": "2255562",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "17814226",
+								"comment_count": "0",
+								"who": {
+									"text": "rgatica",
+									"name": "Robb Gatica"
+								},
+								"bug_when": "2023-12-21 21:58:42 +0000",
+								"thetext": "Summary:\nDepending on how SMTP servers/software are configured to interpret the end-of-data sequence (e.g., <CR><LF>.<CR><LF>), an attacker can break out of the message data to \"smuggle\" SMTP commands to send spoofed emails that pass SPF checks. \n\nDescription:\nBy exploiting interpretation differences of the SMTP protocol, it is possible to smuggle/send spoofed e-mails - hence SMTP smuggling - while still passing SPF alignment checks. During this research, two types of SMTP smuggling, outbound and inbound, were discovered. These allowed sending spoofed e-mails from millions of domains (e.g., admin[@]outlook.com) to millions of receiving SMTP servers (e.g., Amazon, PayPal, eBay). Identified vulnerabilities in Microsoft and GMX were quickly fixed, however, SEC Consult urges companies using the also affected Cisco Secure Email product to manually update their vulnerable default configuration. \n\nReferences:\nhttps://sec-consult.com/blog/detail/smtp-smuggling-spoofing-e-mails-worldwide/\nhttps://www.mail-archive.com/postfix-users@postfix.org/msg100901.html\nhttps://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1059230"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17814244",
+								"comment_count": "1",
+								"who": {
+									"text": "rgatica",
+									"name": "Robb Gatica"
+								},
+								"bug_when": "2023-12-21 22:18:41 +0000",
+								"thetext": "Mitigations per Postfix:\n\n-----\n\nAs part of a non-responsible disclosure process, SEC Consult has\npublished an email spoofing attack that involves a composition of\ndifferent mail service behaviors with respect to broken line endings.\n\n\nA short-term fix may deployed now, before the upcoming long holiday:\n\n- Postfix 3.9 (stable release early 2024), rejects unuthorised\n  pipelining by default: \"smtpd_forbid_unauth_pipelining = yes\".\n\n- Postfix 3.8.1, 3.7.6, 3.6.10 and 3.5.20 include the same feature,\n  but the \"smtpd_forbid_unauth_pipelining\" parameter defaults to\n  \"no\".\n\nSetting \"smtpd_forbid_unauth_pipelining = yes\" may break legitimate\nSMTP clients that mis-implement SMTP, but such clients are exceedingly\nrare, especially when email is sent across the Internet.\n\nThis short-term fix will stop the published form of the attack, but\nother forms exist that will not be stopped in this manner.\n\nThe longer-term fix stops all forms of the smuggling attacks and is\nin testing. For most sites, this fix will be too late for deployment\nbefore a long holiday break, when typically production changes are\nnot allowed until January."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17814248",
+								"comment_count": "2",
+								"who": {
+									"text": "rgatica",
+									"name": "Robb Gatica"
+								},
+								"bug_when": "2023-12-21 22:21:00 +0000",
+								"thetext": "Mitigations for Sendmail, per OSS thread:\n\n-----\n\nsendmail 8.18.0.2 has options to handle this too, e.g., Accept only CR LF . CR LF as end of an SMTP message as required by the RFCs when the new srv_features option 'o' is used.\n\nAnd for those who read the source code there's also an FFR:\n\t/* enable checking for \"bare LF\" in message */\n\t\"_FFR_BARE_LF\","
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17814253",
+								"comment_count": "3",
+								"who": {
+									"text": "rgatica",
+									"name": "Robb Gatica"
+								},
+								"bug_when": "2023-12-21 22:22:02 +0000",
+								"thetext": "Created postfix tracking bugs for this issue:\n\nAffects: fedora-all [bug 2255565]\n\n\nCreated sendmail tracking bugs for this issue:\n\nAffects: fedora-all [bug 2255566]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17814960",
+								"comment_count": "5",
+								"who": {
+									"text": "pgnd",
+									"name": "pgnd"
+								},
+								"bug_when": "2023-12-22 17:45:57 +0000",
+								"thetext": "fyi, postfix 3.8.4, is out today, with fix that addresses the Smuggling Vulnerability,\n\nFrom: postfix-announce@postfix.org\nSent:  at Friday, Dec 22, 2023, 11:30 AM EST\nTo: postfix-announce@postfix.org Cc: postfix-users@postfix.org\nSubject: [pfx-ann] Postfix stable release 3.8.4\n\n> [An on-line version of this announcement will be available at https://www.postfix.org/announcements/postfix-3.8.4.html]\n> \n> Fixed with Postfix 3.8.4:\n> \n>    * Security: this release adds support to defend\n>      against an email spoofing attack (SMTP smuggling) on\n>      recipients at a Postfix server. For background, see\n>      https://www.postfix.org/smtp-smuggling.html.\n> \n>      Sites concerned about SMTP smuggling attacks should enable this\n>      feature on Internet-facing Postfix servers. For compatibility\n>      with non-standard clients, Postfix by default excludes clients\n>      in mynetworks from this countermeasure.\n> \n>      The recommended settings are:\n> \n> \t# Optionally disconnect remote SMTP clients that send bare newlines,\n> \t# but allow local clients with non-standard SMTP implementations\n> \t# such as netcat, fax machines, or load balancer health checks.\n> \t#\n> \tsmtpd_forbid_bare_newline = yes\n> \tsmtpd_forbid_bare_newline_exclusions = $mynetworks\n> \n>      The smtpd_forbid_bare_newline feature is disabled by default.\n\n\nNOTE also that 3.9.x is planned for a \"soon\" release ..."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17814249",
+						"comment_count": "0",
+						"who": {
+							"text": "rgatica",
+							"name": "Robb Gatica"
+						},
+						"bug_when": "2023-12-21 22:21:41 +0000",
+						"thetext": "\nMore information about this security flaw is available in the following bug:\n\nhttp://bugzilla.redhat.com/show_bug.cgi?id=2255563\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17814250",
+						"comment_count": "1",
+						"who": {
+							"text": "rgatica",
+							"name": "Robb Gatica"
+						},
+						"bug_when": "2023-12-21 22:21:42 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2255563,2255565\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17821571",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-01-02 22:58:09 +0000",
+						"thetext": "FEDORA-2024-c839e7294f has been submitted as an update to Fedora 39. https://bodhi.fedoraproject.org/updates/FEDORA-2024-c839e7294f"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17821579",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-01-02 23:04:42 +0000",
+						"thetext": "FEDORA-2024-5c186175f2 has been submitted as an update to Fedora 38. https://bodhi.fedoraproject.org/updates/FEDORA-2024-5c186175f2"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2255641,
+			"title": "postfix-3.8.4 is available",
+			"bugzilla": {
+				"bug_id": "2255641",
+				"creation_ts": "2023-12-22 16:31:56 +0000",
+				"short_desc": "postfix-3.8.4 is available",
+				"delta_ts": "2024-01-02 23:04:45 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "FutureFeature, Triaged",
+				"priority": "unspecified",
+				"bug_severity": "unspecified",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17814917",
+						"comment_count": "0",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2023-12-22 16:31:56 +0000",
+						"thetext": "Releases retrieved: 3.8.4\nUpstream release that is considered latest: 3.8.4\nCurrent version/release in rawhide: 3.8.3-2.fc40\nURL: https://www.postfix.org\n\nPlease consult the package updates policy before you issue an update to a stable branch: https://docs.fedoraproject.org/en-US/fesco/Updates_Policy/\n\n\nMore information about the service that created this bug can be found at: https://docs.fedoraproject.org/en-US/package-maintainers/Upstream_Release_Monitoring\n\n\nPlease keep in mind that with any upstream change, there may also be packaging changes that need to be made. Specifically, please remember that it is your responsibility to review the new version to ensure that the licensing is still correct and that no non-free or legally problematic items have been added upstream.\n\n\nBased on the information from Anitya: https://release-monitoring.org/project/3693/\n\n\nTo change the monitoring settings for the project, please visit:\nhttps://src.fedoraproject.org/rpms/postfix"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17814918",
+						"comment_count": "1",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2023-12-22 16:32:02 +0000",
+						"thetext": "Scratch build failed. Details below:\n\nBuilderException: Build failed:\nCommand '['rpmbuild', '-D', '_sourcedir .', '-D', '_topdir .', '-bs', '/var/tmp/thn-2o2vjrjq/postfix.spec']' returned non-zero exit status 1.\n\nStdOut:\nwarning: %patchN is deprecated (8 usages found), use %patch N (or %patch -P N)\nsetting SOURCE_DATE_EPOCH=1703203200\nerror: Bad file: ./postfix-3.8.4.tar.gz: No such file or directory\n\nRPM build warnings:\n    %patchN is deprecated (8 usages found), use %patch N (or %patch -P N)\n\nRPM build errors:\n    Bad file: ./postfix-3.8.4.tar.gz: No such file or directory\n\n\nTraceback:\n  File \"/usr/local/lib/python3.11/site-packages/hotness/use_cases/package_scratch_build_use_case.py\", line 56, in build\n    result = self.builder.build(request.package, request.opts)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/hotness/builders/koji.py\", line 229, in build\n    raise BuilderException(\n\nIf you think this issue is caused by some bug in the-new-hotness, please report it on the-new-hotness issue tracker: https://github.com/fedora-infra/the-new-hotness/issues"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17814919",
+						"comment_count": "2",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2023-12-22 16:32:03 +0000",
+						"thetext": "Created attachment 2005461\nUpdate to 3.8.4 (#2255641)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17814986",
+						"comment_count": "3",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2023-12-22 18:18:53 +0000",
+						"thetext": "Scratch build failed. Details below:\n\nBuilderException: Build failed:\nCommand '['rpmbuild', '-D', '_sourcedir .', '-D', '_topdir .', '-bs', '/var/tmp/thn-qudr2mdy/postfix.spec']' returned non-zero exit status 1.\n\nStdOut:\nwarning: %patchN is deprecated (8 usages found), use %patch N (or %patch -P N)\nsetting SOURCE_DATE_EPOCH=1703203200\nerror: Bad file: ./postfix-3.8.4.tar.gz: No such file or directory\n\nRPM build warnings:\n    %patchN is deprecated (8 usages found), use %patch N (or %patch -P N)\n\nRPM build errors:\n    Bad file: ./postfix-3.8.4.tar.gz: No such file or directory\n\n\nTraceback:\n  File \"/usr/local/lib/python3.11/site-packages/hotness/use_cases/package_scratch_build_use_case.py\", line 56, in build\n    result = self.builder.build(request.package, request.opts)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/hotness/builders/koji.py\", line 229, in build\n    raise BuilderException(\n\nIf you think this issue is caused by some bug in the-new-hotness, please report it on the-new-hotness issue tracker: https://github.com/fedora-infra/the-new-hotness/issues"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17814987",
+						"comment_count": "4",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2023-12-22 18:18:54 +0000",
+						"thetext": "Created attachment 2005480\nUpdate to 3.8.4 (#2255641)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17815047",
+						"comment_count": "5",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2023-12-22 20:06:06 +0000",
+						"thetext": "Scratch build failed. Details below:\n\nBuilderException: Build failed:\nCommand '['rpmbuild', '-D', '_sourcedir .', '-D', '_topdir .', '-bs', '/var/tmp/thn-d3oy2fke/postfix.spec']' returned non-zero exit status 1.\n\nStdOut:\nwarning: %patchN is deprecated (8 usages found), use %patch N (or %patch -P N)\nsetting SOURCE_DATE_EPOCH=1703203200\nerror: Bad file: ./postfix-3.8.4.tar.gz: No such file or directory\n\nRPM build warnings:\n    %patchN is deprecated (8 usages found), use %patch N (or %patch -P N)\n\nRPM build errors:\n    Bad file: ./postfix-3.8.4.tar.gz: No such file or directory\n\n\nTraceback:\n  File \"/usr/local/lib/python3.11/site-packages/hotness/use_cases/package_scratch_build_use_case.py\", line 56, in build\n    result = self.builder.build(request.package, request.opts)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/hotness/builders/koji.py\", line 229, in build\n    raise BuilderException(\n\nIf you think this issue is caused by some bug in the-new-hotness, please report it on the-new-hotness issue tracker: https://github.com/fedora-infra/the-new-hotness/issues"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17815048",
+						"comment_count": "6",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2023-12-22 20:06:07 +0000",
+						"thetext": "Created attachment 2005505\nUpdate to 3.8.4 (#2255641)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17815109",
+						"comment_count": "7",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2023-12-22 21:36:16 +0000",
+						"thetext": "Scratch build failed. Details below:\n\nBuilderException: Build failed:\nCommand '['rpmbuild', '-D', '_sourcedir .', '-D', '_topdir .', '-bs', '/var/tmp/thn-d56atpat/postfix.spec']' returned non-zero exit status 1.\n\nStdOut:\nwarning: %patchN is deprecated (8 usages found), use %patch N (or %patch -P N)\nsetting SOURCE_DATE_EPOCH=1703203200\nerror: Bad file: ./postfix-3.8.4.tar.gz: No such file or directory\n\nRPM build warnings:\n    %patchN is deprecated (8 usages found), use %patch N (or %patch -P N)\n\nRPM build errors:\n    Bad file: ./postfix-3.8.4.tar.gz: No such file or directory\n\n\nTraceback:\n  File \"/usr/local/lib/python3.11/site-packages/hotness/use_cases/package_scratch_build_use_case.py\", line 56, in build\n    result = self.builder.build(request.package, request.opts)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/hotness/builders/koji.py\", line 229, in build\n    raise BuilderException(\n\nIf you think this issue is caused by some bug in the-new-hotness, please report it on the-new-hotness issue tracker: https://github.com/fedora-infra/the-new-hotness/issues"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17815110",
+						"comment_count": "8",
+						"who": {
+							"text": "upstream-release-monitoring",
+							"name": "Upstream Release Monitoring"
+						},
+						"bug_when": "2023-12-22 21:36:17 +0000",
+						"thetext": "Created attachment 2005532\nUpdate to 3.8.4 (#2255641)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17815559",
+						"comment_count": "9",
+						"who": {
+							"text": "xose.vazquez",
+							"name": "Xose Vazquez Perez"
+						},
+						"bug_when": "2023-12-23 22:48:36 +0000",
+						"thetext": "(In reply to Upstream Release Monitoring from comment #0)\n\n> Releases retrieved: 3.8.4\n> Upstream release that is considered latest: 3.8.4\n> Current version/release in rawhide: 3.8.3-2.fc40\n> URL: https://www.postfix.org\n> Based on the information from Anitya: https://release-monitoring.org/project/3693/\n> To change the monitoring settings for the project, please visit: https://src.fedoraproject.org/rpms/postfix\n\n- SMTP Smuggling: https://www.postfix.org/smtp-smuggling.html\n\n- Postfix stable release 3.8.4: https://www.postfix.org/announcements/postfix-3.8.4.html\n\n * Fixed with Postfix 3.8.4:\n\n    Security: this release adds support to defend against an email spoofing\nattack (SMTP smuggling) on recipients at a Postfix server. For background, see\nhttps://www.postfix.org/smtp-smuggling.html.\n\n    Sites concerned about SMTP smuggling attacks should enable this feature on\nInternet-facing Postfix servers. For compatibility with non-standard clients,\nPostfix by default excludes clients in mynetworks from this countermeasure.\n\n    The recommended settings are:\n\n        # Optionally disconnect remote SMTP clients that send bare newlines,\n        # but allow local clients with non-standard SMTP implementations\n        # such as netcat, fax machines, or load balancer health checks.\n        #\n        smtpd_forbid_bare_newline = yes\n        smtpd_forbid_bare_newline_exclusions = $mynetworks\n\n    The smtpd_forbid_bare_newline feature is disabled by default."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17821566",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-01-02 22:47:24 +0000",
+						"thetext": "FEDORA-2024-539cef4607 has been submitted as an update to Fedora 40. https://bodhi.fedoraproject.org/updates/FEDORA-2024-539cef4607"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17821570",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-01-02 22:57:11 +0000",
+						"thetext": "FEDORA-2024-539cef4607 has been pushed to the Fedora 40 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17821572",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-01-02 22:58:12 +0000",
+						"thetext": "FEDORA-2024-c839e7294f has been submitted as an update to Fedora 39. https://bodhi.fedoraproject.org/updates/FEDORA-2024-c839e7294f"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17821580",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-01-02 23:04:45 +0000",
+						"thetext": "FEDORA-2024-5c186175f2 has been submitted as an update to Fedora 38. https://bodhi.fedoraproject.org/updates/FEDORA-2024-5c186175f2"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 2,
+			"nvr": "postfix-3.8.4-1.fc39",
+			"release_id": 70,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "postfix-sqlite",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "postfix-cdb-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "postfix-pcre",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "postfix-pgsql-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "postfix-mysql",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "postfix-ldap",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "postfix-lmdb-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "postfix-sqlite-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "postfix-lmdb",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "postfix-pgsql",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "postfix-pcre-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "postfix-ldap-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "postfix-perl-scripts",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "postfix",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "postfix-cdb",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "postfix-mysql-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "postfix-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "postfix-debugsource",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					}
+				],
+				"i686": [
+					{
+						"name": "postfix-perl-scripts",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "postfix-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "postfix",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "postfix-debugsource",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "postfix-ldap",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "postfix-mysql-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "postfix-ldap-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "postfix-lmdb-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "postfix-lmdb",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "postfix-pgsql-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "postfix-pcre-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "postfix-pcre",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "postfix-mysql",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "postfix-pgsql",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "postfix-cdb-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "postfix-sqlite-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "postfix-sqlite",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "postfix-cdb",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "postfix-ldap",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "postfix-pcre",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "postfix-lmdb",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "postfix-pgsql",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "postfix-mysql",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "postfix-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "postfix",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "postfix-debugsource",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "postfix-sqlite",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "postfix-cdb",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "postfix-perl-scripts",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "postfix-ldap-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "postfix-mysql-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "postfix-lmdb-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "postfix-pgsql-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "postfix-pcre-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "postfix-cdb-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "postfix-sqlite-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "postfix",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "postfix-debugsource",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "postfix-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "postfix-perl-scripts",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "postfix-ldap",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "postfix-mysql-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "postfix-ldap-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "postfix-lmdb-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "postfix-pgsql-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "postfix-pcre-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "postfix-lmdb",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "postfix-mysql",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "postfix-pgsql",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "postfix-pcre",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "postfix-cdb-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "postfix-sqlite-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "postfix-cdb",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "postfix-sqlite",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "postfix",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "postfix-debugsource",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "postfix-mysql-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "postfix-perl-scripts",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "postfix-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "postfix",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "postfix-ldap",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "postfix-ldap-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "postfix-lmdb-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "postfix-pgsql-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "postfix-pcre-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "postfix-lmdb",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "postfix-mysql",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "postfix-pgsql",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "postfix-pcre",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "postfix-cdb-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "postfix-sqlite-debuginfo",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "postfix-sqlite",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "postfix-cdb",
+						"epoch": 2,
+						"version": "3.8.4",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3337158,
+			"text": "This update has been submitted for testing by jskarvad. ",
+			"timestamp": "2024-01-02 22:58:05",
+			"update_id": 575283,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3337159,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2024-01-02 22:58:05",
+			"update_id": 575283,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath_groups": "",
+	"date_submitted": "2024-01-02 22:58:05",
+	"locked": true,
+	"notes": "Security fix for CVE-2023-51764.",
+	"release": {
+		"branch": "f39",
+		"candidate_tag": "f39-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f39",
+		"eol": "2024-11-12",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 39",
+		"mail_template": "fedora_errata_template",
+		"name": "F39",
+		"override_tag": "f39-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f39-signing-pending",
+		"pending_stable_tag": "f39-updates-pending",
+		"pending_testing_tag": "f39-updates-testing-pending",
+		"stable_tag": "f39-updates",
+		"state": "current",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f39-updates-testing",
+		"version": "39"
+	},
+	"request": "testing",
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "medium",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "pending",
+	"suggest": "unspecified",
+	"test_cases": [
+		{
+			"id": 227,
+			"name": "QA:Testcase Postfix"
+		}
+	],
+	"test_gating_status": "waiting",
+	"title": "postfix-3.8.4-1.fc39",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2024-c839e7294f",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2024-c839e7294f",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/ccc672094c5197c6a07761eca84a5f20d750e98f19a5f9132e7e92494cf3a5ab?s=24&d=retro",
+		"email": "jskarvad@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "cla_redhat"
+			},
+			{
+				"name": "3d-printing-sig"
+			},
+			{
+				"name": "gittuned"
+			}
+		],
+		"id": 591,
+		"name": "jskarvad",
+		"openid": "jskarvad.id.fedoraproject.org"
+	},
+	"version_hash": "0959673dfa42c04d921c59865611de672703712e"
+}
