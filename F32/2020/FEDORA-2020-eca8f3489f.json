@@ -277,7 +277,7 @@
 						"bug_id": "2258062",
 						"creation_ts": "2024-01-12 13:40:12 +0000",
 						"short_desc": "dnsmasq: use local-service=host to configure initial secure configuration [fedora-all]",
-						"delta_ts": "2024-01-13 00:56:07 +0000",
+						"delta_ts": "2024-01-17 12:57:42 +0000",
 						"bug_status": "MODIFIED",
 						"keywords": "Reopened, Security, SecurityTracking",
 						"priority": "unspecified",
@@ -432,6 +432,17 @@
 								},
 								"bug_when": "2024-01-13 00:56:07 +0000",
 								"thetext": "Built this change into Rawhide. Would like to push it also into Fedora 39, unless some issues arise."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17844874",
+								"comment_count": "4",
+								"who": {
+									"text": "pemensik",
+									"name": "Petr Menšík"
+								},
+								"bug_when": "2024-01-17 12:57:42 +0000",
+								"thetext": "Given some confusion announcement on devel list [1] caused, let me explain when conflict with default services.\n\n1) if default configuration is not changed, dnsmasq will listen on 127.0.0.1 and ::1 before and also after this change. It does *not* conflict with systemd-resolved enabled in Fedora by default.\n\n2) if configuration is changed properly, it will on interface or addresses specified. Because systemd-resolved listens on address not configured explicitly on interface address, it will not conflict either.\n# /etc/dnsmasq.d/iface.conf\ninterface=lo\nbind-interfaces\n\nYou can obtain listening addresses by command: sudo ss -lnp sport = :domain\n\n3) if configuration uses bind-dynamic, it will work fine as well. Useful when interface is using DHCP and is not prepared immediately when starting.\n# /etc/dnsmasq.d/iface.conf\nbind-dynamic\ninterface=eth0\n\n\n4) if configuration is changed only partially, conflict might arise. without explicitly used bind-interfaces or bind-dynamic option in configuration or in command-line, dnsmasq will listen on address 0.0.0.0 and ::. It then tries to drop requests not allowed by interface option, if they are specified.\n# /etc/dnsmasq.d/iface.conf\ninterface=lo\n\nIn this case dnsmasq will conflict with systemd-resolved listening on address 127.0.0.53. One of them will fail to start this way, but behaves exactly according to configuration provided. It would conflict also with alternative dnsmasq instances used by libvirt networks, or any other program listening on port 53 on any address. If this is not what you want, please modify your configuration to use 1), 2) or 3) variant.\n\nVery similar result will happen if just local-service=host is commented out in /etc/dnsmasq.conf, but no interface or listen-address is specified to limit served networks. This will make your dnsmasq open resolver, which can be misused by anyone having access to it for attacks against other recursive service. It is possible to restrict access just by firewall and it should be enabled by default on Fedora, but configuring dnsmasq more explicitly is considered better alternative.\n\nRunning dnsmasq without any interface=<name> or listen-address=<address> options is *not* recommended.\n\n1. https://lists.fedoraproject.org/archives/list/devel@lists.fedoraproject.org/thread/2ZPFK3JNU5XW6E7OCOA4CUGQETRNRRMU/"
 							}
 						]
 					},
