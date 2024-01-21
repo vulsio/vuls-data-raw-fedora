@@ -4999,7 +4999,7 @@
 				"bug_id": "2254370",
 				"creation_ts": "2023-12-13 15:40:05 +0000",
 				"short_desc": "GRUB2 Fails to boot off XFS Partition",
-				"delta_ts": "2024-01-20 19:00:20 +0000",
+				"delta_ts": "2024-01-21 17:38:32 +0000",
 				"bug_status": "ON_QA",
 				"priority": "unspecified",
 				"bug_severity": "high",
@@ -5630,6 +5630,72 @@
 						},
 						"bug_when": "2024-01-19 20:42:40 +0000",
 						"thetext": "I suspect the fix for this causes https://bugzilla.redhat.com/show_bug.cgi?id=2259266 - BIOS boot from XFS /boot is broken, at least on qemu, in Rawhide."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17850502",
+						"comment_count": "57",
+						"who": {
+							"text": "nuxi",
+							"name": "Jon DeVree"
+						},
+						"bug_when": "2024-01-21 15:47:38 +0000",
+						"thetext": "Sorry I'm a little late to the party. I just found out about the bug report.\n\nSo to start with:\n1. Big thanks to Shane for that disk image\n2. None of the bugs have anything to do with the version of xfsprogs used to create the filesystem.\n\nThis bug is caused by a directory entry being structured like this: (The output is what xfs_db shows for the directry entry for /boot/grub2/i386-pc from the fedora39-110.qcow2.xz image)\n\nu3.bmx[0-3] = [startoff,startblock,blockcount,extentflag]\n0:[0,8461707,1,0]\n1:[1,8498650,1,0]\n2:[3,9638708,1,0]\n3:[8388608,8461706,1,0]\n\n(Note: Don't worry about extent #3 with block #8388608. That is leaf information that GRUB's parser almost entirely ignores.)\n\nSo there are 3 valid data blocks 0, 1, and 3. But GRUB's iterator code doesn't parse this extent list, it actually infers the number of data blocks from the inode.size field. This inference includes the unmapped data blocks like block #2: (Although it excludes the leaf blocks like #8388608)\n\nxfs_db> dblock 2\nfile data block is unmapped\n\nSo when GRUB reads this directory it proceeds to iterate over blocks 0, 1, 2, and 3. The original XFS parser ended up skipping this unmapped data block as a side effect of its attempt to incorrectly read leaf information from the end of the data block. When I fixed the code that was incorrectly parsing the leaf information, I unknowingly removed the only code preventing GRUB from trying to parse unmapped data blocks.\n\nAssuming GRUB returns a zero'ed block of memory for the unmapped data block, the fix could be as simple as checking each block for the magic number. (Warning: there are at least four cromulent magic numbers.) If GRUB is returning garbage data for the unmapped data block then the fix is going to be much more complicated.\n\n(In reply to Adam Williamson from comment #56)\n> I suspect the fix for this causes\n> https://bugzilla.redhat.com/show_bug.cgi?id=2259266 - BIOS boot from XFS\n> /boot is broken, at least on qemu, in Rawhide.\n\nyes, reverting this patch will cause a different XFS parser bug. If Fedora wishes to revert the patch they need to also revert the original fuzzer patch (https://git.savannah.gnu.org/cgit/grub.git/commit/grub-core/fs/xfs.c?id=ef7850c757fb3dd2462a512cfa0ff19c89fcc0b1) and probably the other followup fix (https://git.savannah.gnu.org/cgit/grub.git/commit/grub-core/fs/xfs.c?id=ad7fb8e2e02bb1dd0475ead9919c1c82514d2ef8) for it as well."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17850518",
+						"comment_count": "58",
+						"who": {
+							"text": "tessarek",
+							"name": "Helmut K. C. Tessarek"
+						},
+						"bug_when": "2024-01-21 16:16:12 +0000",
+						"thetext": "> When I fixed the code that was incorrectly parsing the leaf information, I unknowingly removed the only code preventing GRUB from trying to parse unmapped data blocks.\n\nHmm, so putting that code back would fix the issue without having to revert anything, am I correct? If so, is this in the works and what has to be done on Fedora's side?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17850537",
+						"comment_count": "59",
+						"who": {
+							"text": "nuxi",
+							"name": "Jon DeVree"
+						},
+						"bug_when": "2024-01-21 16:48:38 +0000",
+						"thetext": "(In reply to Helmut K. C. Tessarek from comment #58)\n> > When I fixed the code that was incorrectly parsing the leaf information, I unknowingly removed the only code preventing GRUB from trying to parse unmapped data blocks.\n> \n> Hmm, so putting that code back would fix the issue without having to revert\n> anything, am I correct? If so, is this in the works and what has to be done\n> on Fedora's side?\n\nThat is effectively the same as reverting the patch. Mis-parsing the XFS data structures may have been beneficial in this case, but it broke parsing directories in other cases. I suggested a fix in the paragraph after the one that you quoted."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17850538",
+						"comment_count": "60",
+						"who": {
+							"text": "tessarek",
+							"name": "Helmut K. C. Tessarek"
+						},
+						"bug_when": "2024-01-21 16:56:57 +0000",
+						"thetext": "I wasn't able to edit my comment. By \"putting that code back\", I meant the part that checks for unmapped data blocks... I am not sure which project you are part of: XFS, grub upstream, grub fedora.\nWhat I am asking was whether the code shouldn't be rather fixed upstream."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17850549",
+						"comment_count": "61",
+						"who": {
+							"text": "nuxi",
+							"name": "Jon DeVree"
+						},
+						"bug_when": "2024-01-21 17:34:22 +0000",
+						"thetext": "(In reply to Helmut K. C. Tessarek from comment #60)\n> I wasn't able to edit my comment. By \"putting that code back\", I meant the\n> part that checks for unmapped data blocks...\n\nI also wish I had an edit button, after posting comment #59 I might not have been clear in comment #57\n\nGRUB was not checking for unmapped data blocks, it skipped them as a side effect of incorrectly parsing the XFS data structures. So the code that parsed the structures wrong and the code that \"checked\" for unmapped blocks is the same code.\n\n\n> I am not sure which project you are part of: XFS, grub upstream, grub fedora.\n\nNone, I am the author of the patch. (I just updated my bugzilla display name to make that more obvious)\n\nI'm just trying to fill in some blanks so that Fedora can make an informed decision on revert or fix."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17850550",
+						"comment_count": "62",
+						"who": {
+							"text": "tessarek",
+							"name": "Helmut K. C. Tessarek"
+						},
+						"bug_when": "2024-01-21 17:38:32 +0000",
+						"thetext": "Thanks for the info. Now it makes sense to me."
 					}
 				]
 			}
