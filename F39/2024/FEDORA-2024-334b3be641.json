@@ -1,0 +1,527 @@
+{
+	"alias": "FEDORA-2024-334b3be641",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2249960,
+			"security": true,
+			"title": "SELinux is preventing rm from getattr access on the filesystem /.",
+			"bugzilla": {
+				"bug_id": "2249960",
+				"creation_ts": "2023-11-16 04:03:30 +0000",
+				"short_desc": "SELinux is preventing rm from getattr access on the filesystem /.",
+				"delta_ts": "2024-01-26 23:19:54 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Security, SELinux",
+				"priority": "low",
+				"bug_severity": "medium",
+				"external_bugs": {
+					"text": "fedora-selinux/selinux-policy/pull/1985",
+					"name": "Github"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17762164",
+						"comment_count": "0",
+						"who": {
+							"text": "dmacpher",
+							"name": "Dan Macpherson"
+						},
+						"bug_when": "2023-11-16 04:03:30 +0000",
+						"thetext": "I'm getting a weird AVC message on a freshly installed Fedora 39 system:\n\nSELinux is preventing rm from getattr access on the filesystem /.\n\n*****  Plugin catchall (100. confidence) suggests   **************************\n\nIf you believe that rm should be allowed getattr access on the  filesystem by default.\nThen you should report this as a bug.\nYou can generate a local policy module to allow this access.\nDo\nallow this access for now by executing:\n# ausearch -c 'rm' --raw | audit2allow -M my-rm\n# semodule -X 300 -i my-rm.pp\n\nAdditional Information:\nSource Context                system_u:system_r:alsa_t:s0\nTarget Context                system_u:object_r:fs_t:s0\nTarget Objects                / [ filesystem ]\nSource                        rm\nSource Path                   rm\nPort                          <Unknown>\nHost                          danslaptop\nSource RPM Packages           \nTarget RPM Packages           \nSELinux Policy RPM            selinux-policy-targeted-39.1-1.fc39.noarch\nLocal Policy RPM              selinux-policy-targeted-39.1-1.fc39.noarch\nSelinux Enabled               True\nPolicy Type                   targeted\nEnforcing Mode                Enforcing\nHost Name                     danslaptop\nPlatform                      Linux danslaptop 6.5.11-300.fc39.x86_64 #1 SMP\n                              PREEMPT_DYNAMIC Wed Nov  8 22:37:57 UTC 2023\n                              x86_64\nAlert Count                   1\nFirst Seen                    2023-11-16 12:46:00 AEST\nLast Seen                     2023-11-16 12:46:00 AEST\nLocal ID                      e115ce4d-7525-4d93-8c0a-31c4e7a20806\n\nRaw Audit Messages\ntype=AVC msg=audit(1700102760.194:134): avc:  denied  { getattr } for  pid=1349 comm=\"rm\" name=\"/\" dev=\"dm-0\" ino=2 scontext=system_u:system_r:alsa_t:s0 tcontext=system_u:object_r:fs_t:s0 tclass=filesystem permissive=0\n\n\nHash: rm,alsa_t,fs_t,filesystem,getattr\n\nThis message usually occurs during the Fedora boot process.\n\nNot sure why something with alsa_t context would need to use rm on my root directory, even if to just use getattr. I don't feel comfortable applying a policy module until I know what I'm dealing with here is safe.\n\n\n\nReproducible: Always"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17763334",
+						"comment_count": "1",
+						"who": {
+							"text": "zpytela",
+							"name": "Zdenek Pytela"
+						},
+						"bug_when": "2023-11-16 16:56:00 +0000",
+						"thetext": "It actually is that for the rm command with undisclosed arguments, getattr on / at dm-0 is needed which may be perfectly legit, but you are right it's better to understand it first. Please enable full auditing and try to reproduce the problem.\n\nhttps://fedoraproject.org/wiki/SELinux/Debugging#Enable_full_auditing"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17777097",
+						"comment_count": "2",
+						"who": {
+							"text": "dmacpher",
+							"name": "Dan Macpherson"
+						},
+						"bug_when": "2023-11-23 14:52:49 +0000",
+						"thetext": "Thanks, Zdenek. That gives a bit more detail:\n\ntype=PROCTITLE msg=audit(24/11/23 00:43:55.945:138) : proctitle=/bin/rm -rf /var/lib/alsa/card3.conf.d \ntype=SYSCALL msg=audit(24/11/23 00:43:55.945:138) : arch=x86_64 syscall=fstatfs success=no exit=EACCES(Permission denied) a0=0x3 a1=0x7ffe009d5e10 a2=0xf a3=0x4 items=0 ppid=1346 pid=1347 auid=unset uid=root gid=root euid=root suid=root fsuid=root egid=root sgid=root fsgid=root tty=(none) ses=unset comm=rm exe=/usr/bin/rm subj=system_u:system_r:alsa_t:s0 key=(null) \ntype=AVC msg=audit(24/11/23 00:43:55.945:138) : avc:  denied  { getattr } for  pid=1347 comm=rm name=/ dev=\"dm-0\" ino=2 scontext=system_u:system_r:alsa_t:s0 tcontext=system_u:object_r:fs_t:s0 tclass=filesystem permissive=0\n\nSeems like it's trying to remove an alsa config.\n\nSeems somewhat benign. Still hesitant about allowing a local policy on rm for my root directory. What do you think I should do?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17777214",
+						"comment_count": "3",
+						"who": {
+							"text": "zpytela",
+							"name": "Zdenek Pytela"
+						},
+						"bug_when": "2023-11-23 16:05:22 +0000",
+						"thetext": "A PATH record was not a part of the audit log?\n\nIt's just the statfs() syscall.\nLet's try a local module:\n\n# cat local_alsa_rm.cil\n(allow alsa_t fs_t (filesystem (getattr)))\n\n# semodule -i local_alsa_rm.cil\n\nand reproduce if there are any additional denials."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17784750",
+						"comment_count": "4",
+						"who": {
+							"text": "dmacpher",
+							"name": "Dan Macpherson"
+						},
+						"bug_when": "2023-11-29 15:42:41 +0000",
+						"thetext": "Hi Zdenek,\n\nInstalled the module you mentioned and tried reproducing today. I don't seem to get the alert anymore.\n\nIs there anything else I should test out?\n\n- Dan"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17814908",
+						"comment_count": "5",
+						"who": {
+							"text": "zpytela",
+							"name": "Zdenek Pytela"
+						},
+						"bug_when": "2023-12-22 16:27:31 +0000",
+						"thetext": "No, thank you, I've just submitted a PR to address it."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17835546",
+						"comment_count": "6",
+						"who": {
+							"text": "zpytela",
+							"name": "Zdenek Pytela"
+						},
+						"bug_when": "2024-01-11 13:53:37 +0000",
+						"thetext": "*** Bug 2257905 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17859962",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-01-26 23:19:54 +0000",
+						"thetext": "FEDORA-2024-334b3be641 has been submitted as an update to Fedora 39. https://bodhi.fedoraproject.org/updates/FEDORA-2024-334b3be641"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2252484,
+			"title": "avc denials policykit_auth_t policykit_t spamd_update_t Fedora 39",
+			"bugzilla": {
+				"bug_id": "2252484",
+				"creation_ts": "2023-12-01 23:27:51 +0000",
+				"short_desc": "avc denials policykit_auth_t policykit_t spamd_update_t Fedora 39",
+				"delta_ts": "2024-01-26 23:19:57 +0000",
+				"bug_status": "MODIFIED",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"external_bugs": {
+					"text": "fedora-selinux/selinux-policy/pull/1984",
+					"name": "Github"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17787792",
+						"comment_count": "0",
+						"who": {
+							"text": "edgar.hoch",
+							"name": "Edgar Hoch"
+						},
+						"bug_when": "2023-12-01 23:27:51 +0000",
+						"thetext": "After installing Fedora 39 using my kickstart file with many packages (17637 currently) I got some avc denials.\n\nausearch --raw -m avc | audit2allow\n\nresults in\n\n#============= policykit_auth_t ==============\nallow policykit_auth_t proc_net_t:lnk_file read;\nallow policykit_auth_t sysctl_net_t:dir search;\nallow policykit_auth_t sysctl_net_t:file { getattr open read };\n\n#============= policykit_t ==============\nallow policykit_t proc_net_t:lnk_file read;\nallow policykit_t sysctl_net_t:dir search;\nallow policykit_t sysctl_net_t:file { getattr open read };\n\n#============= spamd_update_t ==============\nallow spamd_update_t self:cap_userns sys_ptrace;\nallow spamd_update_t sysfs_t:dir read;\nallow spamd_update_t sysfs_t:file read;\n\n\nReproducible: Always"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17787793",
+						"comment_count": "1",
+						"who": {
+							"text": "edgar.hoch",
+							"name": "Edgar Hoch"
+						},
+						"bug_when": "2023-12-01 23:29:17 +0000",
+						"thetext": "Created attachment 2002411\nOutput of \"ausearch --raw -m avc\" in permissive mode"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17789686",
+						"comment_count": "2",
+						"who": {
+							"text": "zpytela",
+							"name": "Zdenek Pytela"
+						},
+						"bug_when": "2023-12-04 09:27:35 +0000",
+						"thetext": "Edgar,\n\nSome of the reported denials have been addressed, but I don't have enough information about the sys_ptrace, do you have a direct reproducer, or can you collect denials with full auditing enabled?\n\nhttps://fedoraproject.org/wiki/SELinux/Debugging#Enable_full_auditing"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17810688",
+						"comment_count": "3",
+						"who": {
+							"text": "edgar.hoch",
+							"name": "Edgar Hoch"
+						},
+						"bug_when": "2023-12-18 23:19:00 +0000",
+						"thetext": "Sorry for the delay.\n\nI found that the denials was reported every day short after midnight. I checked cron and systemd and found that services logrotate.service, sa-update.service and unbound-anchor.service are timed for midnight every day.\n\nFor logrotate.service, one file contains \"pgrep\", but I don't think that this caused the denial message, because it doesn't contain \"spamd\".\n/etc/logrotate.d/glusterfs:    /usr/bin/killall -HUP `pgrep -f \"glusterfs.*snapd\"` > /dev/null 2>&1 || true\n\nBut sa-update.service calls /usr/share/spamassassin/sa-update.cron, which contains the following lines:\n\nfor daemon in mimedefang spamd amavisd spampd; do\n    /usr/bin/pgrep -f $daemon >& /dev/null\n    [ $? -eq 0 ] && SAUPDATE=yes\ndone\n\nSo I think the message is caused by package spamassassin-4.0.0-6.fc39.x86_64 .\n\ntype=AVC msg=audit(1702854015.017:42859): avc:  denied  { sys_ptrace } for  pid=1077477 comm=\"pgrep\" capability=19  scontext=system_u:system_r:spamd_update_t:s0 tcontext=system_u:system_r:spamd_update_t:s0 tclass=cap_userns permissive=1\n\nI hope this helps."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17813963",
+						"comment_count": "4",
+						"who": {
+							"text": "zpytela",
+							"name": "Zdenek Pytela"
+						},
+						"bug_when": "2023-12-21 16:35:21 +0000",
+						"thetext": "It's helpful, thank you, I haven't reproduced it yet."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17859963",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-01-26 23:19:57 +0000",
+						"thetext": "FEDORA-2024-334b3be641 has been submitted as an update to Fedora 39. https://bodhi.fedoraproject.org/updates/FEDORA-2024-334b3be641"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2255693,
+			"title": "SELinux is preventing systemd-sleep from setattr access on the file /sys/firmware/efi/efivars/HibernateLocation-8cf2644b-4b0b-428f-9387-6d876050dc67.",
+			"bugzilla": {
+				"bug_id": "2255693",
+				"creation_ts": "2023-12-23 06:21:41 +0000",
+				"short_desc": "SELinux is preventing systemd-sleep from setattr access on the file /sys/firmware/efi/efivars/HibernateLocation-8cf2644b-4b0b-428f-9387-6d876050dc67.",
+				"delta_ts": "2024-01-26 23:20:01 +0000",
+				"bug_status": "MODIFIED",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"external_bugs": {
+					"text": "fedora-selinux/selinux-policy/pull/1988",
+					"name": "Github"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17815362",
+						"comment_count": "0",
+						"who": {
+							"text": "dpw818"
+						},
+						"bug_when": "2023-12-23 06:21:41 +0000",
+						"thetext": "I had a similar issue in Bug 2251508, and this was fixed after an update.  However, after a system update this evening, I am getting SELinux errors again.  Fortunately this time the suggested policy works as a workaround, which it hadn't before.\n\nBelow is the SELinux Alert:\n\n--------\n\nSELinux is preventing systemd-sleep from setattr access on the file /sys/firmware/efi/efivars/HibernateLocation-8cf2644b-4b0b-428f-9387-6d876050dc67.\n\n*****  Plugin catchall (100. confidence) suggests   **************************\n\nIf you believe that systemd-sleep should be allowed setattr access on the HibernateLocation-8cf2644b-4b0b-428f-9387-6d876050dc67 file by default.\nThen you should report this as a bug.\nYou can generate a local policy module to allow this access.\nDo\nallow this access for now by executing:\n# ausearch -c 'systemd-sleep' --raw | audit2allow -M my-systemdsleep\n# semodule -X 300 -i my-systemdsleep.pp\n\nAdditional Information:\nSource Context                system_u:system_r:systemd_sleep_t:s0\nTarget Context                system_u:object_r:efivarfs_t:s0\nTarget Objects                /sys/firmware/efi/efivars/HibernateLocation-\n                              8cf2644b-4b0b-428f-9387-6d876050dc67 [ file ]\nSource                        systemd-sleep\nSource Path                   systemd-sleep\nPort                          <Unknown>\nHost                          localhost.localdomain\nSource RPM Packages           \nTarget RPM Packages           \nSELinux Policy RPM            selinux-policy-targeted-39.3-1.fc39.noarch\nLocal Policy RPM              selinux-policy-targeted-39.3-1.fc39.noarch\nSelinux Enabled               True\nPolicy Type                   targeted\nEnforcing Mode                Enforcing\nHost Name                     localhost.localdomain\nPlatform                      Linux localhost.localdomain 6.6.7-200.fc39.x86_64\n                              #1 SMP PREEMPT_DYNAMIC Wed Dec 13 21:43:37 UTC\n                              2023 x86_64\nAlert Count                   1\nFirst Seen                    2023-12-23 01:07:05 EST\nLast Seen                     2023-12-23 01:07:05 EST\nLocal ID                      28b7603c-7372-42bc-a5e7-89716134d7dc\n\nRaw Audit Messages\ntype=AVC msg=audit(1703311625.363:336): avc:  denied  { setattr } for  pid=3817 comm=\"systemd-sleep\" path=\"/sys/firmware/efi/efivars/HibernateLocation-8cf2644b-4b0b-428f-9387-6d876050dc67\" dev=\"efivarfs\" ino=510 scontext=system_u:system_r:systemd_sleep_t:s0 tcontext=system_u:object_r:efivarfs_t:s0 tclass=file permissive=0\n\n\nHash: systemd-sleep,systemd_sleep_t,efivarfs_t,file,setattr\n\n\nReproducible: Always\n\nSteps to Reproduce:\nTry to put computer to sleep.\nActual Results:  \nComputer doesn't sleeps but generates an SELinux warning.\n\nExpected Results:  \nComputer should sleep."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17826280",
+						"comment_count": "1",
+						"who": {
+							"text": "zpytela",
+							"name": "Zdenek Pytela"
+						},
+						"bug_when": "2024-01-05 15:29:18 +0000",
+						"thetext": "*** Bug 2256947 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17830578",
+						"comment_count": "2",
+						"who": {
+							"text": "zpytela",
+							"name": "Zdenek Pytela"
+						},
+						"bug_when": "2024-01-08 11:53:11 +0000",
+						"thetext": "*** Bug 2257252 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17859964",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-01-26 23:20:01 +0000",
+						"thetext": "FEDORA-2024-334b3be641 has been submitted as an update to Fedora 39. https://bodhi.fedoraproject.org/updates/FEDORA-2024-334b3be641"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2258637,
+			"title": "[selinux] systemd cannot flush the privatetmp cache used by php-fpm",
+			"bugzilla": {
+				"bug_id": "2258637",
+				"creation_ts": "2024-01-16 16:56:27 +0000",
+				"short_desc": "[selinux] systemd cannot flush the privatetmp cache used by php-fpm",
+				"delta_ts": "2024-01-26 23:20:05 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "SELinux",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"external_bugs": {
+					"text": "fedora-selinux/selinux-policy/pull/1999",
+					"name": "Github"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17843697",
+						"comment_count": "0",
+						"who": {
+							"text": "felix.bouynot"
+						},
+						"bug_when": "2024-01-16 16:56:27 +0000",
+						"thetext": "The default php-fpm service is using PrivateTmp (maybe it would do the same without it): \n\n```\n# It's not recommended to modify this file in-place, because it\n# will be overwritten during upgrades.  If you want to customize,\n# the best way is to use the \"systemctl edit\" command.\n\n[Unit]\nDescription=The PHP FastCGI Process Manager\nAfter=syslog.target network.target\n\n[Service]\nType=notify\nExecStart=/usr/sbin/php-fpm --nodaemonize\nExecReload=/bin/kill -USR2 $MAINPID\nPrivateTmp=true\nRuntimeDirectory=php-fpm\nRuntimeDirectoryMode=0755\n\n[Install]\nWantedBy=multi-user.target\n```\n\n\n\n\n\n\nThe default tmp folder for php-fpm have the `httpd_tmp_t` type:\n\n```\n# nsenter -t 2795763 -m ls -lahZ /tmp\n*total 0\ndrwxrwxrwt. 3 root     root     system_u:object_r:tmp_t:s0        60 Jan 16 16:33 .\ndr-xr-xr-x. 1 root     root     system_u:object_r:root_t:s0      138 Sep 13 04:36 ..\ndrwxr-xr-x. 2 librenms librenms system_u:object_r:httpd_tmp_t:s0  60 Jan 16 16:25 HTML\n```\n```\n# nsenter -t 2795763 -m ls -lahZ /tmp/HTML\ntotal 96K\ndrwxr-xr-x. 2 librenms librenms system_u:object_r:httpd_tmp_t:s0  60 Jan 16 16:25 .\ndrwxrwxrwt. 3 root     root     system_u:object_r:tmp_t:s0        60 Jan 16 16:33 ..\n-rw-r--r--. 1 librenms librenms system_u:object_r:httpd_tmp_t:s0 94K Jan 16 16:25 4.15.0,f474c0a322b208e83d22d3aef33ecb184bc71d31,1.ser\n```\n\n\n\n\n\n\nWhen I'm trying to restart php-fpm with `systemctl restart php-fpm.service`, I'll get this error:\n```\n# audit2allow -a\n#============= init_t ==============\n\nallow init_t httpd_tmp_t:dir { remove_name rmdir }\n```\n\n\n\n\n\n\nNote that in the default namespace there is no folder using this type: `find / -xdev -type d -context '*httpd_tmp_t*' -printf '%-50Z%p\\n'` prints no result.\n\nReproducible: Always\n\nSteps to Reproduce:\n1. dnf install -y php-fpm php-opcache\n2. systemctl enable --now php-fpm\n3. use php to write in its tmp folder\n4. systemctl restart php-fpm\n5. audit2allow -a\nActual Results:  \n# audit2allow -a\n#============= init_t ==============\n\nallow init_t httpd_tmp_t:dir { remove_name rmdir }\n#\n\nExpected Results:  \n# audit2allow -a\n#"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17843732",
+						"comment_count": "1",
+						"who": {
+							"text": "zpytela",
+							"name": "Zdenek Pytela"
+						},
+						"bug_when": "2024-01-16 17:29:43 +0000",
+						"thetext": "Hello,\n\nCan you please share unfiltered AVC denials?\n\nCan you use a local module to see if the following rule is sufficient?\n\n\nf39# cat local_phpfpm_privatetmp.cil \n(typeattributeset systemd_private_tmp_type httpd_tmp_t)\nf39# semodule -i local_phpfpm_privatetmp.cil\n<reproduce>\nf39# semodule -r local_phpfpm_privatetmp"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17844694",
+						"comment_count": "2",
+						"who": {
+							"text": "felix.bouynot"
+						},
+						"bug_when": "2024-01-17 10:34:16 +0000",
+						"thetext": "Hi,\n\nHere are the AVC, is this enough for you or do you need another output?\n```\n# grep httpd_tmp_t /var/log/audit/audit.log\ntype=AVC msg=audit(1705416946.390:978789): avc:  denied  { remove_name } for  pid=2719019 comm=\"(sd-rmrf)\" name=\"4.15.0,f474c0a322b208e83d22d3aef33ecb184bc71d31,1.ser\" dev=\"tmpfs\" ino=621 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:httpd_tmp_t:s0 tclass=dir permissive=0\ntype=AVC msg=audit(1705416946.390:978790): avc:  denied  { rmdir } for  pid=2719019 comm=\"(sd-rmrf)\" name=\"HTML\" dev=\"tmpfs\" ino=620 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:httpd_tmp_t:s0 tclass=dir permissive=0\n```\n\n\n\n\n\n\nI can reproduce the same issue on my laptop, so here are the tests with your module, it looks like your module is enough: \n```\n$ systemctl show --property=MainPID --value php-fpm.service\n7484\n$ sudo nsenter -t 7484 -m mkdir -p /tmp/HTML/test\n$ sudo nsenter -t 7484 -m chcon system_u:object_r:httpd_tmp_t:s0 /tmp/HTML\n$ sudo nsenter -t 7484 -m ls -lahZ /tmp\ntotal 0\ndrwxrwxrwt. 3 root root system_u:object_r:tmp_t:s0        60 17 janv. 11:20 .\ndr-xr-xr-x. 1 root root system_u:object_r:root_t:s0      192 24 nov.  14:41 ..\ndrwxr-xr-x. 3 root root system_u:object_r:httpd_tmp_t:s0  60 17 janv. 11:20 HTML\n$ sudo systemctl restart php-fpm\n$ sudo grep httpd_tmp_t /var/log/audit/audit.log\ntype=AVC msg=audit(1705486932.024:438): avc:  denied  { remove_name } for  pid=8044 comm=\"(sd-rmrf)\" name=\"test\" dev=\"tmpfs\" ino=169 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:httpd_tmp_t:s0 tclass=dir permissive=0\ntype=AVC msg=audit(1705486932.024:439): avc:  denied  { rmdir } for  pid=8044 comm=\"(sd-rmrf)\" name=\"HTML\" dev=\"tmpfs\" ino=168 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:httpd_tmp_t:s0 tclass=dir permissive=0\n$ sudo audit2allow -a\n\n\n#============= init_t ==============\nallow init_t httpd_tmp_t:dir { remove_name rmdir };\n$ sudo semodule -i local_phpfpm_privatetmp.cil\n$ sudo nsenter -t 7484 -m ls -lahZ /tmp\nnsenter: cannot open /proc/7484/ns/mnt: Aucun fichier ou dossier de ce type\n$ systemctl show --property=MainPID --value php-fpm.service\n8046\n$ sudo nsenter -t 8046 -m ls -lahZ /tmp\ntotal 0\ndrwxrwxrwt. 2 root root system_u:object_r:tmp_t:s0   40 17 janv. 11:22 .\ndr-xr-xr-x. 1 root root system_u:object_r:root_t:s0 192 24 nov.  14:41 ..\n$ sudo nsenter -t 8046 -m mkdir -p /tmp/HTML/test\n$ sudo nsenter -t 8046 -m chcon system_u:object_r:httpd_tmp_t:s0 /tmp/HTML\n$ sudo systemctl restart php-fpm\n$ sudo grep httpd_tmp_t /var/log/audit/audit.log\ntype=AVC msg=audit(1705486932.024:438): avc:  denied  { remove_name } for  pid=8044 comm=\"(sd-rmrf)\" name=\"test\" dev=\"tmpfs\" ino=169 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:httpd_tmp_t:s0 tclass=dir permissive=0\ntype=AVC msg=audit(1705486932.024:439): avc:  denied  { rmdir } for  pid=8044 comm=\"(sd-rmrf)\" name=\"HTML\" dev=\"tmpfs\" ino=168 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:httpd_tmp_t:s0 tclass=dir permissive=0\n```\n\nAlso even if systemd cannot delete the directory, it looks like the namespace is properly deleted (before your module installation)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17844717",
+						"comment_count": "3",
+						"who": {
+							"text": "felix.bouynot"
+						},
+						"bug_when": "2024-01-17 10:57:13 +0000",
+						"thetext": "Also, the real use case is a LibreNMS installation."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17844746",
+						"comment_count": "4",
+						"who": {
+							"text": "zpytela",
+							"name": "Zdenek Pytela"
+						},
+						"bug_when": "2024-01-17 11:29:48 +0000",
+						"thetext": "No further data needed at the moment. Can you remove your module from policy and use the one I provided instead?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17844835",
+						"comment_count": "5",
+						"who": {
+							"text": "felix.bouynot"
+						},
+						"bug_when": "2024-01-17 12:21:26 +0000",
+						"thetext": "Yes that's what I did on my laptop to reproduce the bug and see there was no more avc after I installed your policy."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17847010",
+						"comment_count": "6",
+						"who": {
+							"text": "zpytela",
+							"name": "Zdenek Pytela"
+						},
+						"bug_when": "2024-01-18 19:56:24 +0000",
+						"thetext": "Thank you for your cooperation."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17859965",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-01-26 23:20:05 +0000",
+						"thetext": "FEDORA-2024-334b3be641 has been submitted as an update to Fedora 39. https://bodhi.fedoraproject.org/updates/FEDORA-2024-334b3be641"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "selinux-policy-39.4-1.fc39",
+			"release_id": 70,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "selinux-policy-sandbox",
+						"version": "39.4",
+						"release": "1.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "selinux-policy-devel",
+						"version": "39.4",
+						"release": "1.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "selinux-policy",
+						"version": "39.4",
+						"release": "1.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "selinux-policy-mls",
+						"version": "39.4",
+						"release": "1.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "selinux-policy-doc",
+						"version": "39.4",
+						"release": "1.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "selinux-policy-minimum",
+						"version": "39.4",
+						"release": "1.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "selinux-policy-targeted",
+						"version": "39.4",
+						"release": "1.fc39",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "selinux-policy",
+						"version": "39.4",
+						"release": "1.fc39",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3364222,
+			"text": "This update has been submitted for testing by zpytela. ",
+			"timestamp": "2024-01-26 23:19:50",
+			"update_id": 580851,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3364223,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2024-01-26 23:19:52",
+			"update_id": 580851,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"critpath_groups": "core critical-path-compose critical-path-server",
+	"date_submitted": "2024-01-26 23:19:50",
+	"locked": true,
+	"notes": " New F39 selinux-policy build",
+	"release": {
+		"branch": "f39",
+		"candidate_tag": "f39-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f39",
+		"eol": "2024-11-12",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 39",
+		"mail_template": "fedora_errata_template",
+		"name": "F39",
+		"override_tag": "f39-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f39-signing-pending",
+		"pending_stable_tag": "f39-updates-pending",
+		"pending_testing_tag": "f39-updates-testing-pending",
+		"stable_tag": "f39-updates",
+		"state": "current",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f39-updates-testing",
+		"version": "39"
+	},
+	"request": "testing",
+	"require_bugs": true,
+	"require_testcases": true,
+	"requirements": "",
+	"severity": "medium",
+	"stable_days": 14,
+	"stable_karma": 5,
+	"status": "pending",
+	"suggest": "unspecified",
+	"test_gating_status": "waiting",
+	"title": "selinux-policy-39.4-1.fc39",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2024-334b3be641",
+	"unstable_karma": -2,
+	"updateid": "FEDORA-2024-334b3be641",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/fa33e951fa0f70b249420eacb15d7ca2c28568af29cad38060788c51a0a80a2a?s=24&d=retro",
+		"email": "zpytela@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 5290,
+		"name": "zpytela",
+		"openid": "zpytela.id.fedoraproject.org"
+	},
+	"version_hash": "2a5db7a13c18180a7e7d15f538cc343a526f989f"
+}
