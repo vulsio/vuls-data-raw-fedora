@@ -2,6 +2,176 @@
 	"alias": "FEDORA-2024-d16d94b00d",
 	"bugs": [
 		{
+			"bug_id": 2257983,
+			"title": "Change in kernel 6.6.2 to 6.6.3 prevents transfer of SELinux file context label from nfs server to nfs client (option seclabel)",
+			"bugzilla": {
+				"bug_id": "2257983",
+				"creation_ts": "2024-01-11 23:03:46 +0000",
+				"short_desc": "Change in kernel 6.6.2 to 6.6.3 prevents transfer of SELinux file context label from nfs server to nfs client (option seclabel)",
+				"delta_ts": "2024-02-25 16:34:26 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Regression",
+				"priority": "unspecified",
+				"bug_severity": "high",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17836239",
+						"comment_count": "0",
+						"who": {
+							"text": "edgar.hoch",
+							"name": "Edgar Hoch"
+						},
+						"bug_when": "2024-01-11 23:03:46 +0000",
+						"thetext": "I have used option security_label in /etc/exports since many years.\nIt ensures that nfs clients present the same selinux file context labels as the exported file system have.\n\nI have updated our nfs server to Fedora 39. Now selinux file context labels are nfs_t instead of the labels that are on the exported file system.\nI use the same exports configuration as in Fedora 35 and Fedora 37.\n\nI didn't find anything on internet, bugzilla, ask.fedora, manpages, etc. about a change about this.\nI also checked the fedora kernel config file, the compile option is still enabled.\n\nroot@myserver:~# grep -i security_label /lib/modules/6.6.9-200.fc39.x86_64/config\nCONFIG_NFS_V4_SECURITY_LABEL=y\nCONFIG_NFSD_V4_SECURITY_LABEL=y\nCONFIG_CEPH_FS_SECURITY_LABEL=y\n\nI analyzed network traffic between a Fedora 39 nfs client and nfs servers running Fedora 39, Fedora 38, Fedora 37, Fedora 35, using tcpdump and wireshark.\nNFS packages from Fedora 35 and 37 have in opcode GETATTR an subfield Attr mask[2], which contains reco_attr: Security_label. This subfield doesn't exist in nfs packages from nfs servers running Fedora 38 and 39 (they only have Attr mask[0] and Attr mask[1]).\n\nIs this a bug, is this intended, and how can I get the right selinux labels back on nfs clients?\n\nThere was a similar bug in Fedora 26, see bug 1478135. But in the meantime it works fine.\n\nI'm not sure if the bug is in nfs-tools or the kernel, or another package.\n\n\nReproducible: Always"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17836241",
+						"comment_count": "1",
+						"who": {
+							"text": "edgar.hoch",
+							"name": "Edgar Hoch"
+						},
+						"bug_when": "2024-01-11 23:10:14 +0000",
+						"thetext": "Created attachment 2008364\nScreenshot of wireshark from Fedora 35 nfs network package opcode GETATTR Attr mask[2]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17839875",
+						"comment_count": "2",
+						"who": {
+							"text": "matt",
+							"name": "Matt Kinni"
+						},
+						"bug_when": "2024-01-14 13:49:22 +0000",
+						"thetext": "Hi Edgar, glad you posted this.  I've observed the same on my own machine after upgrading from Fedora 38 to Fedora 39 - no selinux contexts get served up and everything comes over as 'nfs_t' on my kerberized home mount.  /etc/exports has not been touched in ages"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17852249",
+						"comment_count": "3",
+						"who": {
+							"text": "edgar.hoch",
+							"name": "Edgar Hoch"
+						},
+						"bug_when": "2024-01-22 18:28:21 +0000",
+						"thetext": "I have done more tests.\n\nMounting a filesystem exported by a nfs server running Fedora 35, Fedora 37, Fedora 38 on a nfs client running Fedora 39 still works as expected:\nSELinux context labels are the same on nfs server and nfs client.\nFedora recognizes the SELinux labels, mount option \"seclabel\" may be used, but it it always automatically mounted with option \"seclabel\".\n\nMounting a filesystem exported by a nfs server running Fedora 39 on a nfs client running Fedora 35, Fedora 37, Fedora 38, Fedora 39 does not work as expected:\nAll SELinux context labels on the nfs client are type nfs_t.\nMount option \"seclabel\" is ignored. \"mount\" listing does not include option \"seclabel\".\n\nSo it seems to me that Fedora 39 nfs client can handle SELinux context labels, but Fedora 39 nfs server does not export / send SELinux context labels to the nfs client.\n\nCurrently running kernel-6.6.12-200.fc39.x86_64 nfs-utils-2.6.4-0.rc3.fc39.x86_64 ."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17852366",
+						"comment_count": "4",
+						"who": {
+							"text": "edgar.hoch",
+							"name": "Edgar Hoch"
+						},
+						"bug_when": "2024-01-22 19:40:12 +0000",
+						"thetext": "I also tried kernel-6.7.1-200.fc39.x86_64, but it doesn't change the behavior."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17852842",
+						"comment_count": "5",
+						"who": {
+							"text": "edgar.hoch",
+							"name": "Edgar Hoch"
+						},
+						"bug_when": "2024-01-23 00:50:30 +0000",
+						"thetext": "Another info:\n\nI had a virtual machine running Fedora 38, last booted at Fri Aug 25 16:31 with kernel 6.4.11-200.fc38.\nThis was the machine I had used as test nfs server for Fedora 38, as listed above.\nSELinux labels worked fine at this stage.\n\nNow I have applied all outstanding updates and have rebooted it with kernel 6.6.12-100.fc38.\nNow it shows the same wrong behavior as Fedora 39.\n\nSo it seams that some updated packages between Aug 25 2023 and now has caused the change of behavior.\nBut currently I don't know which packages it is."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17852866",
+						"comment_count": "6",
+						"who": {
+							"text": "edgar.hoch",
+							"name": "Edgar Hoch"
+						},
+						"bug_when": "2024-01-23 01:10:09 +0000",
+						"thetext": "I have rebooted the vm noticed above with the old kernel 6.4.11-200.fc38.\nThis brought the old, right behavior back, the SELinux labels from the nfs client are the same as on the nfs server.\n\nSo it seams to me that some change in kernel between 6.4.11-200 and 6.6.12-100 causes the problem.\nSo changing the component to kernel."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17852960",
+						"comment_count": "7",
+						"who": {
+							"text": "edgar.hoch",
+							"name": "Edgar Hoch"
+						},
+						"bug_when": "2024-01-23 02:46:03 +0000",
+						"thetext": "I did more tests, installing and booting several kernel versions from Fedora 38 and 39 for the nfs server.\n\nkernel-6.5.12-200.fc38.x86_64 works, uses seclabel\nkernel-6.6.2-101.fc38.x86_64 works, uses seclabel\nkernel-6.6.3-100.fc38.x86_64 doesn't work, ignores seclabel\nkernel-6.6.4-100.fc38.x86_64 doesn't work, ignores seclabel\nkernel-6.6.6-100.fc38.x86_64 doesn't work, ignores seclabel\nkernel-6.6.12-100.fc38.x86_64 doesn't work, ignores seclabel\n\nkernel-6.6.1-300.fc39.x86_64 works, uses seclabel\nkernel-6.6.2-201.fc39.x86_64 works, uses seclabel\nkernel-6.6.3-200.fc39.x86_64 doesn't work, ignores seclabel\nkernel-6.6.11-200.fc39.x86_64 doesn't work, ignores seclabel\nkernel-6.6.12-200.fc39.x86_64 doesn't work, ignores seclabel\n\nSo, it seams to me that a change from kernel version 6.6.2 to 6.6.3 has introduced this nfs SELinux problem."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17857135",
+						"comment_count": "8",
+						"who": {
+							"text": "edgar.hoch",
+							"name": "Edgar Hoch"
+						},
+						"bug_when": "2024-01-24 22:04:39 +0000",
+						"thetext": "I tried also the following kernel versions on the nfs server, but the problem still exists.\n\nkernel-6.7.1-200.fc39.x86_64\nkernel-6.8.0-0.rc1.20240124git615d30064886.13.fc39.x86_64\n\nI also re-checked kernel 6.6.2 and 6.6.3, and confirm that kernel 6.6.3 introduces the problem with nfs_t instead of the real SELinux file context. Anything else on the nfs server except the running kernel version is the same.\n\nI have read the changelog [1] of kernel 6.6.3, but I don't see something that may have removed the security_label from nfs. Maybe someone with more kernel source knowledge recognizes the change that causes the problem.\n\n[1] https://cdn.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.6.3"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17858191",
+						"comment_count": "9",
+						"who": {
+							"text": "stephen.smalley.work",
+							"name": "Stephen Smalley"
+						},
+						"bug_when": "2024-01-25 13:39:24 +0000",
+						"thetext": "I haven't yet bisected but looking at that ChangeLog the most likely candidate appears to be:\ncommit 37dab33f754abd24b384d2b7b07349dc6611381b\nAuthor: Ondrej Mosnacek <omosnace@redhat.com>\nDate:   Tue Oct 31 13:32:07 2023 +0100\n\n    lsm: fix default return value for inode_getsecctx\n    \n    commit b36995b8609a5a8fe5cf259a1ee768fcaed919f8 upstream.\n    \n    -EOPNOTSUPP is the return value that implements a \"no-op\" hook, not 0.\n    \n    Without this fix having only the BPF LSM enabled (with no programs\n    attached) can cause uninitialized variable reads in\n    nfsd4_encode_fattr(), because the BPF hook returns 0 without touching\n    the 'ctxlen' variable and the corresponding 'contextlen' variable in\n    nfsd4_encode_fattr() remains uninitialized, yet being treated as valid\n    based on the 0 return value.\n    \n    Cc: stable@vger.kernel.org\n    Fixes: 98e828a0650f (\"security: Refactor declaration of LSM hooks\")\n    Reported-by: Benjamin Coddington <bcodding@redhat.com>\n    Signed-off-by: Ondrej Mosnacek <omosnace@redhat.com>\n    Signed-off-by: Paul Moore <paul@paul-moore.com>\n    Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17859449",
+						"comment_count": "10",
+						"who": {
+							"text": "omosnace",
+							"name": "Ondrej Mosnacek"
+						},
+						"bug_when": "2024-01-26 14:35:40 +0000",
+						"thetext": "Indeed it was that commit that broke it. I posted a fix here:\n\nhttps://lore.kernel.org/linux-security-module/20240126104403.1040692-1-omosnace@redhat.com/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17900716",
+						"comment_count": "11",
+						"who": {
+							"text": "edgar.hoch",
+							"name": "Edgar Hoch"
+						},
+						"bug_when": "2024-02-24 02:54:13 +0000",
+						"thetext": "Ondrej, Stephen,\nmany thanks for your help and the fix, and for including it in upstream kernel.\n\nNow I have installed kernel 6.7.6. It solves the problem!\n\nWill you include it in bodhi for this kernel, so this bug will be auto-closed?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17900849",
+						"comment_count": "12",
+						"who": {
+							"text": "omosnace",
+							"name": "Ondrej Mosnacek"
+						},
+						"bug_when": "2024-02-24 08:59:25 +0000",
+						"thetext": "(In reply to Edgar Hoch from comment #11)\n> Now I have installed kernel 6.7.6. It solves the problem!\n> \n> Will you include it in bodhi for this kernel, so this bug will be\n> auto-closed?\n\nI can't do that, since I didn't create the update. Justin, could you please add this bug to https://bodhi.fedoraproject.org/updates/FEDORA-2024-d16d94b00d?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17901849",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-02-25 16:34:26 +0000",
+						"thetext": "FEDORA-2024-d16d94b00d (kernel-6.7.6-200.fc39) has been submitted as an update to Fedora 39.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-d16d94b00d"
+					}
+				]
+			}
+		},
+		{
 			"bug_id": 2265269,
 			"feedback": [
 				{
@@ -3823,18 +3993,32 @@
 				"openid": "frantisekz.id.fedoraproject.org"
 			},
 			"user_id": 2240
+		},
+		{
+			"id": 3425617,
+			"text": "jforbes edited this update.",
+			"timestamp": "2024-02-25 16:34:19",
+			"update_id": 592130,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
 		}
 	],
 	"content_type": "rpm",
 	"critpath": true,
 	"critpath_groups": "critical-path-base critical-path-compose",
 	"date_approved": "2024-02-25 10:42:32",
+	"date_modified": "2024-02-25 16:34:21",
 	"date_pushed": "2024-02-24 01:08:57",
 	"date_submitted": "2024-02-23 23:48:09",
 	"date_testing": "2024-02-24 01:08:57",
 	"karma": 15,
 	"meets_testing_requirements": true,
-	"notes": "The 6.7.6 stable kernel update contains a number of important fixes across the tree.",
+	"notes": "The 6.7.6 stable kernel update contains a number of important fixes across the tree.\n",
 	"pushed": true,
 	"release": {
 		"branch": "f39",
