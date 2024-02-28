@@ -1,0 +1,551 @@
+{
+	"alias": "FEDORA-2024-38faa9a2a8",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2264597,
+			"security": true,
+			"title": "TRIAGE CVE-2023-52161 iwd: potential authorization bypass [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2264597",
+				"creation_ts": "2024-02-16 19:43:40 +0000",
+				"short_desc": "TRIAGE CVE-2023-52161 iwd: potential authorization bypass [fedora-all]",
+				"delta_ts": "2024-02-28 16:32:38 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "2264596",
+						"alias": "CVE-2023-52161",
+						"creation_ts": "2024-02-16 19:43:33 +0000",
+						"short_desc": "CVE-2023-52161 iwd: potential authorization bypass",
+						"delta_ts": "2024-02-16 19:43:47 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"2264597"
+						],
+						"blocked": [
+							{
+								"bug_id": "2264592",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "17891597",
+								"comment_count": "0",
+								"who": {
+									"text": "rgatica",
+									"name": "Robb Gatica"
+								},
+								"bug_when": "2024-02-16 19:43:33 +0000",
+								"thetext": "The vulnerability in IWD stems from its implementation of the 4-way handshake, which is used when connecting to any protected WiFi network for the first time. It is exploitable when IWD is operating in Access Point (AP) mode.\n\nVulnerable versions of IWD fail to verify in which order message 2 or 4 of the handshake are received, i.e. it fails to store or check what the expected next message should be in the handshake. Instead, IWD simply accepts any message.\n\nIn the code snippet below (see referenced link) you can see that the vulnerability is in the function eapol_auth_key_handle, which is called whenever a 4-way handshake messages is received by the AP. In line 9 it checks whether the AP has already sent message 1 of the 4-way handshake, i.e. to verify that a handshake is in progress. However, in lines 12-16 there is no check for whether the AP now expects message 2 or 4. Instead, whatever message arrives next is processed.\n\nThis means that when an attacker is connecting to an IWD network, they can skip message 2 and immediately send message 4 in order to gain full access to the network. In the event of such an attack, IWD will still try to verify the MIC (Message Integrity Code) of the received message 4.\n\nHowever, it falls back to using an all-zero PTK (Pairwise Transient Key), which is the default in the absence of a valid PTK derived on receipt of message 2, as that step has been skipped in this exploit. So therefore all an attacker has to do is send a message 4 where the MIC is calculated using an all-zero PTK in order for it to be verified by IWD and the handshake completed. From this point on, IWD will accept encrypted data frames from the attacker, which are also encrypted using the all-zero PTK, giving them full access to the WiFi network.\n\nNOTE: While there is a patch for wpa_supplicant, it's not clear if this was reported/fixed in iwd.\n\nReferences:\nhttps://www.top10vpn.com/research/wifi-vulnerabilities/"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17891600",
+								"comment_count": "1",
+								"who": {
+									"text": "rgatica",
+									"name": "Robb Gatica"
+								},
+								"bug_when": "2024-02-16 19:43:47 +0000",
+								"thetext": "Created iwd tracking bugs for this issue:\n\nAffects: fedora-all [bug 2264597]"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17891598",
+						"comment_count": "0",
+						"who": {
+							"text": "rgatica",
+							"name": "Robb Gatica"
+						},
+						"bug_when": "2024-02-16 19:43:40 +0000",
+						"thetext": "\nMore information about this security flaw is available in the following bug:\n\nhttp://bugzilla.redhat.com/show_bug.cgi?id=2264596\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17891599",
+						"comment_count": "1",
+						"who": {
+							"text": "rgatica",
+							"name": "Robb Gatica"
+						},
+						"bug_when": "2024-02-16 19:43:42 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2264596,2264597\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17907203",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-02-28 15:44:11 +0000",
+						"thetext": "FEDORA-2024-fdce971b84 (iwd-2.15-1.fc39 and libell-0.63-1.fc39) has been submitted as an update to Fedora 39.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-fdce971b84"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17907205",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-02-28 15:44:16 +0000",
+						"thetext": "FEDORA-2024-58c59bfa4c (iwd-2.15-1.fc40 and libell-0.63-1.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-58c59bfa4c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17907250",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-02-28 16:32:38 +0000",
+						"thetext": "FEDORA-2024-38faa9a2a8 (iwd-2.15-1.fc38 and libell-0.63-1.fc38) has been submitted as an update to Fedora 38.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-38faa9a2a8"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "iwd-2.15-1.fc38",
+			"release_id": 66,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "iwd",
+						"version": "2.15",
+						"release": "1.fc38",
+						"arch": "aarch64"
+					},
+					{
+						"name": "iwd-debugsource",
+						"version": "2.15",
+						"release": "1.fc38",
+						"arch": "aarch64"
+					},
+					{
+						"name": "iwd-debuginfo",
+						"version": "2.15",
+						"release": "1.fc38",
+						"arch": "aarch64"
+					}
+				],
+				"i686": [
+					{
+						"name": "iwd-debuginfo",
+						"version": "2.15",
+						"release": "1.fc38",
+						"arch": "i686"
+					},
+					{
+						"name": "iwd",
+						"version": "2.15",
+						"release": "1.fc38",
+						"arch": "i686"
+					},
+					{
+						"name": "iwd-debugsource",
+						"version": "2.15",
+						"release": "1.fc38",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "iwd-debuginfo",
+						"version": "2.15",
+						"release": "1.fc38",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "iwd",
+						"version": "2.15",
+						"release": "1.fc38",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "iwd-debugsource",
+						"version": "2.15",
+						"release": "1.fc38",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "iwd-debuginfo",
+						"version": "2.15",
+						"release": "1.fc38",
+						"arch": "s390x"
+					},
+					{
+						"name": "iwd-debugsource",
+						"version": "2.15",
+						"release": "1.fc38",
+						"arch": "s390x"
+					},
+					{
+						"name": "iwd",
+						"version": "2.15",
+						"release": "1.fc38",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "iwd",
+						"version": "2.15",
+						"release": "1.fc38",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "iwd-debuginfo",
+						"version": "2.15",
+						"release": "1.fc38",
+						"arch": "x86_64"
+					},
+					{
+						"name": "iwd",
+						"version": "2.15",
+						"release": "1.fc38",
+						"arch": "x86_64"
+					},
+					{
+						"name": "iwd-debugsource",
+						"version": "2.15",
+						"release": "1.fc38",
+						"arch": "x86_64"
+					}
+				]
+			}
+		},
+		{
+			"epoch": 0,
+			"nvr": "libell-0.63-1.fc38",
+			"release_id": 66,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "libell-debuginfo",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libell-debugsource",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libell",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libell-devel",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "aarch64"
+					}
+				],
+				"i686": [
+					{
+						"name": "libell-debuginfo",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "i686"
+					},
+					{
+						"name": "libell-debugsource",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "i686"
+					},
+					{
+						"name": "libell",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "i686"
+					},
+					{
+						"name": "libell-devel",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "libell-debuginfo",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libell",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libell-debugsource",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libell-devel",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "libell-debuginfo",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "s390x"
+					},
+					{
+						"name": "libell",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "s390x"
+					},
+					{
+						"name": "libell-debugsource",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "s390x"
+					},
+					{
+						"name": "libell-devel",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "libell",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "libell-debuginfo",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libell-debugsource",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libell-devel",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libell",
+						"version": "0.63",
+						"release": "1.fc38",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3429543,
+			"text": "This update has been submitted for testing by pbrobinson. ",
+			"timestamp": "2024-02-28 16:32:35",
+			"update_id": 593281,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3429544,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2024-02-28 16:32:36",
+			"update_id": 593281,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath_groups": "",
+	"date_submitted": "2024-02-28 16:32:35",
+	"notes": "iwd 2.15:\n\n    Fix issue with notice events for connection timeouts.\n    Fix issue with reason code and deauthenticate event.\n    Fix issue with handling basename() functionality.\n\nlibell 0.63:\n\n    Fix issue with handling ending boundary of the PEM.\n\n",
+	"release": {
+		"branch": "f38",
+		"candidate_tag": "f38-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f38",
+		"eol": "2024-05-14",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 38",
+		"mail_template": "fedora_errata_template",
+		"name": "F38",
+		"override_tag": "f38-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f38-signing-pending",
+		"pending_stable_tag": "f38-updates-pending",
+		"pending_testing_tag": "f38-updates-testing-pending",
+		"stable_tag": "f38-updates",
+		"state": "current",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f38-updates-testing",
+		"version": "38"
+	},
+	"request": "testing",
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "medium",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "pending",
+	"suggest": "reboot",
+	"test_gating_status": "ignored",
+	"title": "iwd-2.15-1.fc38 libell-0.63-1.fc38",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2024-38faa9a2a8",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2024-38faa9a2a8",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/861506b8dba9fe9ee12a83ce2cd7c6fff15091298f9f1a4e6149876490c53e9b?s=24&d=retro",
+		"email": "pbrobinson@gmail.com",
+		"groups": [
+			{
+				"name": "proventesters"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "bodhiadmin"
+			},
+			{
+				"name": "sysadmin-main"
+			},
+			{
+				"name": "releng-team"
+			},
+			{
+				"name": "fedora-s390"
+			},
+			{
+				"name": "gitfedora-arm-installer"
+			},
+			{
+				"name": "gitspin-kickstarts"
+			},
+			{
+				"name": "cvsadmin"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "fedora-ppc"
+			},
+			{
+				"name": "alt-sugar"
+			},
+			{
+				"name": "torrentadmin"
+			},
+			{
+				"name": "sysadmin-cvs"
+			},
+			{
+				"name": "gitfedora-wiki"
+			},
+			{
+				"name": "sysadmin-releng"
+			},
+			{
+				"name": "aarch64"
+			},
+			{
+				"name": "sysadmin"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedora-arm"
+			},
+			{
+				"name": "sysadmin-secondary"
+			},
+			{
+				"name": "iot"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "arm-qa"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "gitpungi"
+			}
+		],
+		"id": 96,
+		"name": "pbrobinson",
+		"openid": "pbrobinson.id.fedoraproject.org"
+	},
+	"version_hash": "89d0fc11f05421c11c05ef6574d6d3d592b2b931"
+}
