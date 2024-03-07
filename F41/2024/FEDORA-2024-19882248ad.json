@@ -1,0 +1,769 @@
+{
+	"alias": "FEDORA-2024-19882248ad",
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2141080,
+			"security": true,
+			"title": "CVE-2007-4559 python3.6: python: tarfile module directory traversal [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2141080",
+				"creation_ts": "2022-11-08 17:24:56 +0000",
+				"short_desc": "CVE-2007-4559 python3.6: python: tarfile module directory traversal [fedora-all]",
+				"delta_ts": "2024-03-07 16:28:58 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Reopened, Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "263261",
+						"alias": "CVE-2007-4559",
+						"creation_ts": "2007-08-29 13:17:48 +0000",
+						"short_desc": "CVE-2007-4559 python: tarfile module directory traversal",
+						"delta_ts": "2024-01-30 13:25:23 +0000",
+						"bug_status": "NEW",
+						"bug_file_loc": "http://nvd.nist.gov/nvd.cfm?cvename=CVE-2007-4559",
+						"keywords": "Reopened, Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"2141080",
+							"315281",
+							"315291",
+							"2141077",
+							"2141078",
+							"2141079",
+							"2141081",
+							"2141082",
+							"2141083",
+							"2141084",
+							"2141085",
+							"2141086",
+							"2141317",
+							"2141318",
+							"2141319",
+							"2141320",
+							"2141321",
+							"2141322",
+							"2141323",
+							"2141324",
+							"2141325",
+							"2141326",
+							"2141327",
+							"2141328",
+							"2203890",
+							"2203905",
+							"2207691",
+							"2207692",
+							"2207715",
+							"2207997",
+							"2217897",
+							"2217902",
+							"2217916",
+							"2217917",
+							"2218233",
+							"2218234",
+							"2218235",
+							"2218237",
+							"2218240",
+							"2218241",
+							"2218243",
+							"2218246",
+							"2218247",
+							"2218248",
+							"2218249",
+							"2218267",
+							"2218274",
+							"2218275",
+							"2218277",
+							"2218870",
+							"2218873",
+							"2218875",
+							"2218876",
+							"2219388",
+							"2219407",
+							"2219408"
+						],
+						"blocked": [
+							{
+								"bug_id": "2129409",
+								"error": "NotPermitted"
+							}
+						],
+						"external_bugs": {
+							"text": "RHSA-2024:0587",
+							"name": "Red Hat Product Errata"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "1404029",
+								"comment_count": "0",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2007-08-29 13:17:48 +0000",
+								"thetext": "Common Vulnerabilities and Exposures assigned an identifier CVE-2007-4559\nto the following vulnerability:\n\nDirectory traversal vulnerability in the (1) extract and (2) extractall\nfunctions in the tarfile module in Python allows user-assisted remote attackers\nto overwrite arbitrary files via a .. (dot dot) sequence in filenames in a TAR\narchive, a related issue to CVE-2001-1267.\n\nReferences:\n\nIssue and additional attack vectors were discussed in following thread on\npython-dev mailinglist:\n\nhttp://mail.python.org/pipermail/python-dev/2007-August/074290.html\n\nUpstream bug tracking possible fixes for the issue:\n\nhttp://bugs.python.org/issue1044"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "1404168",
+								"comment_count": "1",
+								"who": {
+									"text": "james.antill",
+									"name": "James Antill"
+								},
+								"bug_when": "2007-08-29 14:34:50 +0000",
+								"thetext": " Ok, so they seem confused about whether they wanted to fix anything or just\ndefine what it currently does as \"correct\".\n Also the patches they are proposing only \"fix\" paths in a tarfile prefixed with\n\"../\" or \"/\" ... they are trying to fix the symlink attacks by just checking the\nresult of the link (which is very different from what GNUtar does).\n And I'm not sure that's all of the known tar attacks, is it?\n\n Summary:\n\n. symlinks linking to just \"..\" work (can be used repeatedly to walk up the tree).\n. symlinks pointing to absolute paths can't be used.\n. path checking doesn't check for either \"./../foo\" or \"xyz/../../foo\" type attacks.\n. failure against the security checks results in an exception being thrown.\n. I'm pretty sure self._check_path(os.path.join(tarinfo.name, tarinfo.linkname))\nis wrong, I think they meant \"current path inside the tarfile\" not \"path of\nsymlink\" ... so that \"foo.html -> ../src/foo.html\" works if the link is in a\ndocs directory.\n"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "1405880",
+								"comment_count": "2",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2007-08-30 14:34:07 +0000",
+								"thetext": "James, thanks for feedback.\n\nI've re-checked list of directory traversal vulnerabilities reported against tar\nin past few years.  Not very surprisingly, reported attack vectors use either\nabsolute paths or paths with '..'s.  Such path can be used in file/directory\nname or in (directory) symlink.  Additionally, there were some issues specific\nto implementation of the checks ('/../' detected correctly, but not '//../').\n\n\n. symlinks linking to just \"..\" work (can be used repeatedly to walk up the tree).\n\nGood point.  You seem to be right with that.\n\n. symlinks pointing to absolute paths can't be used.\n\nAll \"suspicious\" symlinks are ignored / not extracted.\n\n. path checking doesn't check for either \"./../foo\" or \"xyz/../../foo\" type attacks.\n\nIt does.  Patch is using normpath() to normalize paths, hence both of your\nexample paths get normalized to: ../foo and are tested after normalization.\n\n. I'm pretty sure self._check_path(os.path.join(tarinfo.name, tarinfo.linkname))\nis wrong, I think they meant \"current path inside the tarfile\" not \"path of\nsymlink\" ... so that \"foo.html -> ../src/foo.html\" works if the link is in a\ndocs directory.\n\nYes, that part seems to be incorrect...  I assume tarinfo.name is\ndir/in/tarfile/symlink.  So in your example tarinfo.name would be docs/foo.html\nand join + normpath would yield docs/src/foo.html ... not correct.\n\n\nCurrent upstream opinion seems to be that module's behavior conforms to\nstandards and it just should not be used to extract archives from untrusted sources.\n"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "1410050",
+								"comment_count": "3",
+								"who": {
+									"text": "james.antill",
+									"name": "James Antill"
+								},
+								"bug_when": "2007-09-04 14:57:04 +0000",
+								"thetext": "> . symlinks pointing to absolute paths can't be used.\n> All \"suspicious\" symlinks are ignored / not extracted.\n\nRight, it's just I could see it being \"common\" to have symlinks to /home/* or\n/var/*. So people might treat that as a regression. But, yeh, it's also possible\npeople have a use for tarfiles with symlinks to ../foo in them.\n\n> . path checking doesn't check for either \"./../foo\" or \"xyz/../../foo\" type\nattacks.\n> It does.  Patch is using normpath()\n\n Ahh, my bad, I don't see how that can do the right thing in the general case\nbut it'll be secure :).\n\n> Current upstream opinion seems to be that module's behavior conforms to\nstandards and it just should not be used to extract archives from untrusted sources.\n\n Fair enough, I'm not sure we should care anymore than upstream then (although\nmaybe maybe more specifically say don't use the module with any tarfiles you\nhaven't created).\n"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "1426110",
+								"comment_count": "4",
+								"who": {
+									"text": "thoger",
+									"name": "Tomas Hoger"
+								},
+								"bug_when": "2007-09-18 14:46:34 +0000",
+								"thetext": "Upstream bug report resolved with following update to documentation:\n\nNever extract archives from untrusted sources without prior inspection.\nIt is possible that files are created outside of 'path', e.g. members\nthat have absolute filenames starting with \"/\" or filenames with\ntwo dots \"..\".\n\n\nThere probably not much we can do without diverging significantly from upstream\nversion."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "3441136",
+								"comment_count": "6",
+								"who": {
+									"text": "vdanen",
+									"name": "Vincent Danen"
+								},
+								"bug_when": "2010-12-22 22:25:48 +0000",
+								"thetext": "Upstream has resolved this issue (http://bugs.python.org/issue1044#msg55464):\n\n\"After careful consideration and a private discussion with Martin I do no\nlonger think that we have a security issue here. tarfile.py does nothing\nwrong, its behaviour conforms to the pax definition and pathname\nresolution guidelines in POSIX. There is no known or possible practical\nexploit.\n\nI update the documentation with a warning, that it might be dangerous to\nextract archives from untrusted sources. That is the only thing to be\ndone IMO.\"\n\nAnd the documentation \"fix\":\n\nhttp://svn.python.org/view/python/trunk/Doc/library/tarfile.rst?r1=57764&r2=57763&pathrev=57764\n\nIf upstream does not feel this is a security issue, as stated in comment #4, neither should we."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "16768631",
+								"comment_count": "7",
+								"who": {
+									"text": "gsuckevi",
+									"name": "Guilherme de Almeida Suckevicz"
+								},
+								"bug_when": "2022-11-08 17:21:28 +0000",
+								"thetext": "Due to recent media attention about this vulnerability upstream is considering fixing this issue.\n\nUpstream discussion about the fix: https://github.com/python/cpython/issues/73974"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "16768659",
+								"comment_count": "8",
+								"who": {
+									"text": "gsuckevi",
+									"name": "Guilherme de Almeida Suckevicz"
+								},
+								"bug_when": "2022-11-08 17:25:39 +0000",
+								"thetext": "Created mingw-python3 tracking bugs for this issue:\n\nAffects: fedora-all [bug 2141078]\n\n\nCreated python2.7 tracking bugs for this issue:\n\nAffects: fedora-all [bug 2141079]\n\n\nCreated python3.10 tracking bugs for this issue:\n\nAffects: fedora-all [bug 2141084]\n\n\nCreated python3.11 tracking bugs for this issue:\n\nAffects: fedora-all [bug 2141085]\n\n\nCreated python3.12 tracking bugs for this issue:\n\nAffects: fedora-all [bug 2141086]\n\n\nCreated python3.6 tracking bugs for this issue:\n\nAffects: fedora-all [bug 2141080]\n\n\nCreated python3.7 tracking bugs for this issue:\n\nAffects: fedora-all [bug 2141081]\n\n\nCreated python3.8 tracking bugs for this issue:\n\nAffects: fedora-all [bug 2141082]\n\n\nCreated python3.9 tracking bugs for this issue:\n\nAffects: fedora-all [bug 2141083]\n\n\nCreated python34 tracking bugs for this issue:\n\nAffects: epel-all [bug 2141077]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17078006",
+								"comment_count": "17",
+								"who": {
+									"text": "pviktori",
+									"name": "Petr Viktorin (pviktori)"
+								},
+								"bug_when": "2023-02-27 17:12:57 +0000",
+								"thetext": "I've posted a technical solution for upstream approval: https://peps.python.org/pep-0706/\n(It is important, in the long term, that this is coordinated with the larger Python ecosystem.)\n\nFor RHEL we're planning additional (system-specific) ways to configure the default. Refusing to unpack some (potentially dangerous) tarballs is, obviously, a behavior change, so there's a trade-off between security vs. backwards compatibility."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17740818",
+								"comment_count": "37",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-07 08:12:51 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 9\n\nVia RHSA-2023:6324 https://access.redhat.com/errata/RHSA-2023:6324"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17740922",
+								"comment_count": "38",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-07 08:18:17 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 9\n\nVia RHSA-2023:6494 https://access.redhat.com/errata/RHSA-2023:6494"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17741062",
+								"comment_count": "39",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-07 08:22:20 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 9\n\nVia RHSA-2023:6659 https://access.redhat.com/errata/RHSA-2023:6659"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17741072",
+								"comment_count": "40",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-07 08:22:37 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 9\n\nVia RHSA-2023:6694 https://access.redhat.com/errata/RHSA-2023:6694"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17745648",
+								"comment_count": "41",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-08 08:17:08 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Software Collections for Red Hat Enterprise Linux 7\n\nVia RHSA-2023:6793 https://access.redhat.com/errata/RHSA-2023:6793"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17757694",
+								"comment_count": "42",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-14 15:16:02 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2023:6914 https://access.redhat.com/errata/RHSA-2023:6914"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17757755",
+								"comment_count": "43",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-14 15:18:40 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2023:7024 https://access.redhat.com/errata/RHSA-2023:7024"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17757756",
+								"comment_count": "44",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-14 15:18:41 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2023:7024 https://access.redhat.com/errata/RHSA-2023:7024"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17757764",
+								"comment_count": "45",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-14 15:19:08 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2023:7034 https://access.redhat.com/errata/RHSA-2023:7034"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17757770",
+								"comment_count": "46",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-14 15:19:18 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2023:7050 https://access.redhat.com/errata/RHSA-2023:7050"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17757872",
+								"comment_count": "47",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-14 15:22:05 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2023:7151 https://access.redhat.com/errata/RHSA-2023:7151"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17757878",
+								"comment_count": "48",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2023-11-14 15:22:15 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8\n\nVia RHSA-2023:7176 https://access.redhat.com/errata/RHSA-2023:7176"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17854155",
+								"comment_count": "55",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2024-01-23 17:24:41 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8.6 Extended Update Support\n\nVia RHSA-2024:0374 https://access.redhat.com/errata/RHSA-2024:0374"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17856701",
+								"comment_count": "56",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2024-01-24 16:49:27 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8.6 Extended Update Support\n\nVia RHSA-2024:0430 https://access.redhat.com/errata/RHSA-2024:0430"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17867683",
+								"comment_count": "57",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2024-01-30 13:25:20 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8.8 Extended Update Support\n\nVia RHSA-2024:0587 https://access.redhat.com/errata/RHSA-2024:0587"
+							}
+						]
+					}
+				],
+				"external_bugs": {
+					"text": "python3.6/pull-request/88",
+					"name": "Fedora Package Sources"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "16768645",
+						"comment_count": "0",
+						"who": {
+							"text": "gsuckevi",
+							"name": "Guilherme de Almeida Suckevicz"
+						},
+						"bug_when": "2022-11-08 17:24:56 +0000",
+						"thetext": "\nMore information about this security flaw is available in the following bug:\n\nhttp://bugzilla.redhat.com/show_bug.cgi?id=263261\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "16768646",
+						"comment_count": "1",
+						"who": {
+							"text": "gsuckevi",
+							"name": "Guilherme de Almeida Suckevicz"
+						},
+						"bug_when": "2022-11-08 17:24:59 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=263261,2141080\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17218716",
+						"comment_count": "2",
+						"who": {
+							"text": "bcotton",
+							"name": "Ben Cotton"
+						},
+						"bug_when": "2023-04-25 18:11:01 +0000",
+						"thetext": "This message is a reminder that Fedora Linux 36 is nearing its end of life.\nFedora will stop maintaining and issuing updates for Fedora Linux 36 on 2023-05-16.\nIt is Fedora's policy to close all bug reports from releases that are no longer\nmaintained. At that time this bug will be closed as EOL if it remains open with a\n'version' of '36'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, change the 'version' \nto a later Fedora Linux version. Note that the version field may be hidden.\nClick the \"Show advanced fields\" button if you do not see it.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora Linux 36 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora Linux, you are encouraged to change the 'version' to a later version\nprior to this bug being closed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17773041",
+						"comment_count": "3",
+						"who": {
+							"text": "amoloney",
+							"name": "Aoife Moloney"
+						},
+						"bug_when": "2023-11-23 00:29:40 +0000",
+						"thetext": "This message is a reminder that Fedora Linux 37 is nearing its end of life.\nFedora will stop maintaining and issuing updates for Fedora Linux 37 on 2023-12-05.\nIt is Fedora's policy to close all bug reports from releases that are no longer\nmaintained. At that time this bug will be closed as EOL if it remains open with a\n'version' of '37'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, change the 'version' \nto a later Fedora Linux version. Note that the version field may be hidden.\nClick the \"Show advanced fields\" button if you do not see it.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora Linux 37 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora Linux, you are encouraged to change the 'version' to a later version\nprior to this bug being closed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17919342",
+						"comment_count": "4",
+						"who": {
+							"text": "mhroncok",
+							"name": "Miro Hrončok"
+						},
+						"bug_when": "2024-03-07 11:46:32 +0000",
+						"thetext": "https://src.fedoraproject.org/rpms/python3.6/pull-request/88"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17919552",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-03-07 15:16:11 +0000",
+						"thetext": "FEDORA-2024-19882248ad (python3.6-3.6.15-27.fc41) has been submitted as an update to Fedora 41.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-19882248ad"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17919563",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-03-07 15:22:01 +0000",
+						"thetext": "FEDORA-2024-46374d2703 (python3.6-3.6.15-27.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-46374d2703"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17919564",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-03-07 15:22:04 +0000",
+						"thetext": "FEDORA-2024-ebb3c95344 (python3.6-3.6.15-27.fc38) has been submitted as an update to Fedora 38.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-ebb3c95344"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17919565",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-03-07 15:23:20 +0000",
+						"thetext": "FEDORA-2024-19882248ad (python3.6-3.6.15-27.fc41) has been pushed to the Fedora 41 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17919641",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-03-07 16:28:58 +0000",
+						"thetext": "FEDORA-2024-d1f1084584 (python3.6-3.6.15-27.fc39) has been submitted as an update to Fedora 39.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-d1f1084584"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "python3.6-3.6.15-27.fc41",
+			"release_id": 80,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "python3.6-debugsource",
+						"version": "3.6.15",
+						"release": "27.fc41",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3.6-debuginfo",
+						"version": "3.6.15",
+						"release": "27.fc41",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3.6",
+						"version": "3.6.15",
+						"release": "27.fc41",
+						"arch": "aarch64"
+					}
+				],
+				"i686": [
+					{
+						"name": "python3.6-debuginfo",
+						"version": "3.6.15",
+						"release": "27.fc41",
+						"arch": "i686"
+					},
+					{
+						"name": "python3.6-debugsource",
+						"version": "3.6.15",
+						"release": "27.fc41",
+						"arch": "i686"
+					},
+					{
+						"name": "python3.6",
+						"version": "3.6.15",
+						"release": "27.fc41",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "python3.6-debuginfo",
+						"version": "3.6.15",
+						"release": "27.fc41",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3.6-debugsource",
+						"version": "3.6.15",
+						"release": "27.fc41",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3.6",
+						"version": "3.6.15",
+						"release": "27.fc41",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "python3.6-debuginfo",
+						"version": "3.6.15",
+						"release": "27.fc41",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3.6",
+						"version": "3.6.15",
+						"release": "27.fc41",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3.6-debugsource",
+						"version": "3.6.15",
+						"release": "27.fc41",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "python3.6",
+						"version": "3.6.15",
+						"release": "27.fc41",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "python3.6-debuginfo",
+						"version": "3.6.15",
+						"release": "27.fc41",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3.6-debugsource",
+						"version": "3.6.15",
+						"release": "27.fc41",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3.6",
+						"version": "3.6.15",
+						"release": "27.fc41",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3441049,
+			"text": "This update was automatically created",
+			"timestamp": "2024-03-07 15:16:07",
+			"update_id": 595568,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3441053,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2024-03-07 15:16:19",
+			"update_id": 595568,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3441058,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2024-03-07 15:21:06",
+			"update_id": 595568,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3441059,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2024-03-07 15:21:06",
+			"update_id": 595568,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3441065,
+			"text": "This update has been submitted for stable by bodhi",
+			"timestamp": "2024-03-07 15:23:17",
+			"update_id": 595568,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath_groups": "",
+	"date_approved": "2024-03-07 15:23:17",
+	"date_pushed": "2024-03-07 15:23:17",
+	"date_stable": "2024-03-07 15:23:17",
+	"date_submitted": "2024-03-07 15:16:07",
+	"date_testing": "2024-03-07 15:21:06",
+	"meets_testing_requirements": true,
+	"notes": "Automatic update for python3.6-3.6.15-27.fc41.\n\n##### **Changelog**\n\n```\n* Thu Feb 29 2024 Charalampos Stratakis <cstratak@redhat.com> - 3.6.15-27\n- Security fix for CVE-2007-4559\n- Fixes: rhbz#2141080\n\n```",
+	"pushed": true,
+	"release": {
+		"branch": "rawhide",
+		"candidate_tag": "f41-updates-candidate",
+		"create_automatic_updates": true,
+		"dist_tag": "f41",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 41",
+		"mail_template": "fedora_errata_template",
+		"name": "F41",
+		"override_tag": "f41-override",
+		"package_manager": "unspecified",
+		"pending_signing_tag": "f41-signing-pending",
+		"pending_stable_tag": "f41-updates-pending",
+		"pending_testing_tag": "f41-updates-testing-pending",
+		"stable_tag": "f41",
+		"state": "pending",
+		"testing_tag": "f41-updates-testing",
+		"version": "41"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "python3.6-3.6.15-27.fc41",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2024-19882248ad",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2024-19882248ad",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/132a6c64fa9fbe9311973f5c5c6a70942b256d23d62be638718fe091076731cf?s=24&d=retro",
+		"email": "mhroncok@redhat.com",
+		"groups": [
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "python-sig"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "3d-printing-sig"
+			},
+			{
+				"name": "python-packagers-sig"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "sysadmin-badges"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "sysadmin"
+			},
+			{
+				"name": "lua-packagers-sig"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "cvsadmin"
+			},
+			{
+				"name": "ambassadors"
+			},
+			{
+				"name": "packaging-committee"
+			},
+			{
+				"name": "advocates"
+			}
+		],
+		"id": 533,
+		"name": "churchyard",
+		"openid": "churchyard.id.fedoraproject.org"
+	},
+	"version_hash": "3c5b97c9715ad7724d4c56b7a6d7921a18ccbeee"
+}
