@@ -1,0 +1,1112 @@
+{
+	"alias": "FEDORA-2024-c42ea059d0",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2255387,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2023-2794 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability within the decode_deliver() function",
+			"bugzilla": {
+				"bug_id": "2255387",
+				"alias": "ZDI-CAN-20971",
+				"creation_ts": "2023-12-20 14:07:51 +0000",
+				"short_desc": "CVE-2023-2794 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability within the decode_deliver() function",
+				"delta_ts": "2023-12-20 14:57:06 +0000",
+				"bug_status": "NEW",
+				"keywords": "Security",
+				"priority": "high",
+				"bug_severity": "high",
+				"depends_on": [
+					"2255388"
+				],
+				"blocked": [
+					{
+						"bug_id": "2208145",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17812778",
+						"comment_count": "0",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:07:51 +0000",
+						"thetext": "ofono is a Open Source Telephony on Linux\nstack overflow bug is triggered within the decode_deliver() function during SMS decoding\nhere assumed that the attack scenario is accessible from a compromised modem or possibily accessible from a malicious base station or just SMS\n\nthere is a bound check for this memcpy length in decode_submit(), but they forgot it in decode_deliver()\npartial code path is here\n    - at_cmt_notify()\n    - ofono_sms_deliver_notify()\n    - sms_decode()\n    - decode_deliver()\n```\n\n~~~C++\nstatic gboolean decode_deliver(const unsigned char *pdu, int len,\n                                struct sms *out)\n{\n        int offset = 0;\n        int expected;\n        unsigned char octet;\n\n        out->type = SMS_TYPE_DELIVER;\n\n        if (!next_octet(pdu, len, &offset, &octet))\n                return FALSE;\n\n        out->deliver.mms = !is_bit_set(octet, 2);\n        out->deliver.sri = is_bit_set(octet, 5);\n        out->deliver.udhi = is_bit_set(octet, 6);\n        out->deliver.rp = is_bit_set(octet, 7);\n\n        if (!sms_decode_address_field(pdu, len, &offset,\n                                        FALSE, &out->deliver.oaddr))\n                return FALSE;\n\n        if (!next_octet(pdu, len, &offset, &out->deliver.pid))\n                return FALSE;\n\n        if (!next_octet(pdu, len, &offset, &out->deliver.dcs))\n                return FALSE;\n\n        if (!sms_decode_scts(pdu, len, &offset, &out->deliver.scts))\n                return FALSE;\n\n        if (!next_octet(pdu, len, &offset, &out->deliver.udl))\n                return FALSE;\n\n        expected = sms_udl_in_bytes(out->deliver.udl, out->deliver.dcs);\n\n        if ((len - offset) < expected)\n                return FALSE;\n\n        memcpy(out->deliver.ud, pdu + offset, expected); \t\t\t\t// overflow here, expected is from SMS PDU\n\n        return TRUE;\n}\n~~~\n\nASAN report\n```\n=================================================================\n==116975==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7ffcf34201bc at pc 0x7f027e049846 bp 0x7ffcf341fea0 sp 0x7ffcf341f648\nWRITE of size 203 at 0x7ffcf34201bc thread T0\n    #0 0x7f027e049845 in __interceptor_memcpy ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:827\n    #1 0x556caadab9e3 in decode_deliver src/smsutil.c:782\n    #2 0x556caadb14bf in sms_decode src/smsutil.c:1574\n    #3 0x556caad4d08d in main src/main.c:225\n    #4 0x7f027da2350f in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58\n    #5 0x7f027da235c8 in __libc_start_main_impl ../csu/libc-start.c:381\n    #6 0x556caaaec274 in _start (/root/ofono/src/ofonod+0x12b274)\n\nAddress 0x7ffcf34201bc is located in stack of thread T0 at offset 316 in frame\n    #0 0x556caad4cedd in main src/main.c:205\n\n  This frame has 1 object(s):\n    [48, 316) 'sms1' (line 212) <== Memory access at offset 316 overflows this variable\nHINT: this may be a false positive if your program uses some custom stack unwind mechanism, swapcontext or vfork\n      (longjmp and C++ exceptions *are* supported)\nSUMMARY: AddressSanitizer: stack-buffer-overflow ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:827 in __interceptor_memcpy\nShadow bytes around the buggy address:\n  0x10001e67bfe0: f1 f1 01 f2 04 f3 f3 f3 00 00 00 00 00 00 00 00\n  0x10001e67bff0: 00 00 00 00 00 00 00 00 f1 f1 f1 f1 04 f3 f3 f3\n  0x10001e67c000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10001e67c010: f1 f1 f1 f1 f1 f1 00 00 00 00 00 00 00 00 00 00\n  0x10001e67c020: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n=>0x10001e67c030: 00 00 00 00 00 00 00[04]f3 f3 f3 f3 f3 f3 f3 f3\n  0x10001e67c040: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10001e67c050: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10001e67c060: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10001e67c070: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10001e67c080: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\nShadow byte legend (one shadow byte represents 8 application bytes):\n  Addressable:           00\n  Partially addressable: 01 02 03 04 05 06 07\n  Heap left redzone:       fa\n  Freed heap region:       fd\n  Stack left redzone:      f1\n  Stack mid redzone:       f2\n  Stack right redzone:     f3\n  Stack after return:      f5\n  Stack use after scope:   f8\n  Global redzone:          f9\n  Global init order:       f6\n  Poisoned by user:        f7\n  Container overflow:      fc\n  Array cookie:            ac\n  Intra object redzone:    bb\n  ASan internal:           fe\n  Left alloca redzone:     ca\n  Right alloca redzone:    cb\n==116975==ABORTING\n```"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17812781",
+						"comment_count": "1",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:08:10 +0000",
+						"thetext": "Created ofono tracking bugs for this issue:\n\nAffects: fedora-all [bug 2255388]"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2255388,
+			"security": true,
+			"title": "CVE-2023-2794 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2255388",
+				"creation_ts": "2023-12-20 14:07:57 +0000",
+				"short_desc": "CVE-2023-2794 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability [fedora-all]",
+				"delta_ts": "2024-03-19 21:02:16 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "2255387",
+						"alias": "ZDI-CAN-20971",
+						"creation_ts": "2023-12-20 14:07:51 +0000",
+						"short_desc": "CVE-2023-2794 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability within the decode_deliver() function",
+						"delta_ts": "2023-12-20 14:57:06 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"2255388"
+						],
+						"blocked": [
+							{
+								"bug_id": "2208145",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "17812778",
+								"comment_count": "0",
+								"who": {
+									"text": "saroy",
+									"name": "Sandipan Roy"
+								},
+								"bug_when": "2023-12-20 14:07:51 +0000",
+								"thetext": "ofono is a Open Source Telephony on Linux\nstack overflow bug is triggered within the decode_deliver() function during SMS decoding\nhere assumed that the attack scenario is accessible from a compromised modem or possibily accessible from a malicious base station or just SMS\n\nthere is a bound check for this memcpy length in decode_submit(), but they forgot it in decode_deliver()\npartial code path is here\n    - at_cmt_notify()\n    - ofono_sms_deliver_notify()\n    - sms_decode()\n    - decode_deliver()\n```\n\n~~~C++\nstatic gboolean decode_deliver(const unsigned char *pdu, int len,\n                                struct sms *out)\n{\n        int offset = 0;\n        int expected;\n        unsigned char octet;\n\n        out->type = SMS_TYPE_DELIVER;\n\n        if (!next_octet(pdu, len, &offset, &octet))\n                return FALSE;\n\n        out->deliver.mms = !is_bit_set(octet, 2);\n        out->deliver.sri = is_bit_set(octet, 5);\n        out->deliver.udhi = is_bit_set(octet, 6);\n        out->deliver.rp = is_bit_set(octet, 7);\n\n        if (!sms_decode_address_field(pdu, len, &offset,\n                                        FALSE, &out->deliver.oaddr))\n                return FALSE;\n\n        if (!next_octet(pdu, len, &offset, &out->deliver.pid))\n                return FALSE;\n\n        if (!next_octet(pdu, len, &offset, &out->deliver.dcs))\n                return FALSE;\n\n        if (!sms_decode_scts(pdu, len, &offset, &out->deliver.scts))\n                return FALSE;\n\n        if (!next_octet(pdu, len, &offset, &out->deliver.udl))\n                return FALSE;\n\n        expected = sms_udl_in_bytes(out->deliver.udl, out->deliver.dcs);\n\n        if ((len - offset) < expected)\n                return FALSE;\n\n        memcpy(out->deliver.ud, pdu + offset, expected); \t\t\t\t// overflow here, expected is from SMS PDU\n\n        return TRUE;\n}\n~~~\n\nASAN report\n```\n=================================================================\n==116975==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7ffcf34201bc at pc 0x7f027e049846 bp 0x7ffcf341fea0 sp 0x7ffcf341f648\nWRITE of size 203 at 0x7ffcf34201bc thread T0\n    #0 0x7f027e049845 in __interceptor_memcpy ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:827\n    #1 0x556caadab9e3 in decode_deliver src/smsutil.c:782\n    #2 0x556caadb14bf in sms_decode src/smsutil.c:1574\n    #3 0x556caad4d08d in main src/main.c:225\n    #4 0x7f027da2350f in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58\n    #5 0x7f027da235c8 in __libc_start_main_impl ../csu/libc-start.c:381\n    #6 0x556caaaec274 in _start (/root/ofono/src/ofonod+0x12b274)\n\nAddress 0x7ffcf34201bc is located in stack of thread T0 at offset 316 in frame\n    #0 0x556caad4cedd in main src/main.c:205\n\n  This frame has 1 object(s):\n    [48, 316) 'sms1' (line 212) <== Memory access at offset 316 overflows this variable\nHINT: this may be a false positive if your program uses some custom stack unwind mechanism, swapcontext or vfork\n      (longjmp and C++ exceptions *are* supported)\nSUMMARY: AddressSanitizer: stack-buffer-overflow ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:827 in __interceptor_memcpy\nShadow bytes around the buggy address:\n  0x10001e67bfe0: f1 f1 01 f2 04 f3 f3 f3 00 00 00 00 00 00 00 00\n  0x10001e67bff0: 00 00 00 00 00 00 00 00 f1 f1 f1 f1 04 f3 f3 f3\n  0x10001e67c000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10001e67c010: f1 f1 f1 f1 f1 f1 00 00 00 00 00 00 00 00 00 00\n  0x10001e67c020: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n=>0x10001e67c030: 00 00 00 00 00 00 00[04]f3 f3 f3 f3 f3 f3 f3 f3\n  0x10001e67c040: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10001e67c050: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10001e67c060: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10001e67c070: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10001e67c080: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\nShadow byte legend (one shadow byte represents 8 application bytes):\n  Addressable:           00\n  Partially addressable: 01 02 03 04 05 06 07\n  Heap left redzone:       fa\n  Freed heap region:       fd\n  Stack left redzone:      f1\n  Stack mid redzone:       f2\n  Stack right redzone:     f3\n  Stack after return:      f5\n  Stack use after scope:   f8\n  Global redzone:          f9\n  Global init order:       f6\n  Poisoned by user:        f7\n  Container overflow:      fc\n  Array cookie:            ac\n  Intra object redzone:    bb\n  ASan internal:           fe\n  Left alloca redzone:     ca\n  Right alloca redzone:    cb\n==116975==ABORTING\n```"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17812781",
+								"comment_count": "1",
+								"who": {
+									"text": "saroy",
+									"name": "Sandipan Roy"
+								},
+								"bug_when": "2023-12-20 14:08:10 +0000",
+								"thetext": "Created ofono tracking bugs for this issue:\n\nAffects: fedora-all [bug 2255388]"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17812779",
+						"comment_count": "0",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:07:57 +0000",
+						"thetext": "\nMore information about this security flaw is available in the following bug:\n\nhttp://bugzilla.redhat.com/show_bug.cgi?id=2255387\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17812780",
+						"comment_count": "1",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:08:01 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=high\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2255387,2255388\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17910153",
+						"comment_count": "2",
+						"who": {
+							"text": "fedora-admin-xmlrpc",
+							"name": "Fedora Admin user for bugzilla script actions"
+						},
+						"bug_when": "2024-03-01 00:11:06 +0000",
+						"thetext": "This package has changed maintainer in Fedora. Reassigning to the new maintainer of this component."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17934598",
+						"comment_count": "3",
+						"who": {
+							"text": "fedora-admin-xmlrpc",
+							"name": "Fedora Admin user for bugzilla script actions"
+						},
+						"bug_when": "2024-03-19 12:22:11 +0000",
+						"thetext": "This package has changed maintainer in Fedora. Reassigning to the new maintainer of this component."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17935574",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-03-19 21:02:16 +0000",
+						"thetext": "FEDORA-2024-c42ea059d0 (ofono-2.5-1.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-c42ea059d0"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2255394,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2023-4232 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability within the decode_status_report() function",
+			"bugzilla": {
+				"bug_id": "2255394",
+				"alias": "ZDI-CAN-21014",
+				"creation_ts": "2023-12-20 14:17:04 +0000",
+				"short_desc": "CVE-2023-4232 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability within the decode_status_report() function",
+				"delta_ts": "2023-12-20 14:58:00 +0000",
+				"bug_status": "NEW",
+				"keywords": "Security",
+				"priority": "high",
+				"bug_severity": "high",
+				"depends_on": [
+					"2255395"
+				],
+				"blocked": [
+					{
+						"bug_id": "2208145",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17812796",
+						"comment_count": "0",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:17:04 +0000",
+						"thetext": "ofono is a Open Source Telephony on Linux stack overflow bug is triggered within the decode_status_report() function during SMS decoding here assumed that the attack scenario is accessible from a compromised modem or possibily accessible from a malicious base station or just SMS\n\nthere is a bound check for this memcpy length in decode_submit(), but they forgot it in decode_status_report() this is a variant from ZDI-CAN-20971 partial code path is here\n    - at_cmt_notify()\n    - ofono_sms_deliver_notify()\n    - sms_decode()\n    - decode_status_report()\n```\n\n~~~C++\nstatic gboolean decode_status_report(const unsigned char *pdu, int len,\n                                        struct sms *out) { ...\n        if (out->status_report.pi & 0x04) {\n                int expected;\n\n                if (!next_octet(pdu, len, &offset, &out->status_report.udl))\n                        return FALSE;\n\n                expected = sms_udl_in_bytes(out->status_report.udl,\n                                                out->status_report.dcs);\n\n                if ((len - offset) < expected)\n                        return FALSE;\n\n                memcpy(out->status_report.ud, pdu + offset, expected);          // overflow here, expected is from SMS PDU\n        }\n\n        return TRUE;\n}\n~~~\n\nASAN report\n```\n=================================================================\n==118708==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7fffffffe26c at pc 0x7ffff7849846 bp 0x7fffffffdf50 sp 0x7fffffffd6f8 WRITE of size 224 at 0x7fffffffe26c thread T0\n    #0 0x7ffff7849845 in __interceptor_memcpy ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:827\n    #1 0x555555940bb5 in decode_status_report src/smsutil.c:1077\n    #2 0x55555594449c in sms_decode src/smsutil.c:1571\n    #3 0x5555558e008d in main src/main.c:225\n    #4 0x7ffff742350f in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58\n    #5 0x7ffff74235c8 in __libc_start_main_impl ../csu/libc-start.c:381\n    #6 0x55555567f274 in _start (/root/ofono/src/ofonod+0x12b274)\n\nAddress 0x7fffffffe26c is located in stack of thread T0 at offset 316 in frame\n    #0 0x5555558dfedd in main src/main.c:205\n\n  This frame has 1 object(s):\n    [48, 316) 'sms1' (line 212) <== Memory access at offset 316 overflows this variable\nHINT: this may be a false positive if your program uses some custom stack unwind mechanism, swapcontext or vfork\n      (longjmp and C++ exceptions *are* supported)\nSUMMARY: AddressSanitizer: stack-buffer-overflow ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:827 in __interceptor_memcpy Shadow bytes around the buggy address:\n  0x10007fff7bf0: 00 00 f1 f1 f1 f1 f1 f1 01 f2 04 f3 f3 f3 00 00\n  0x10007fff7c00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 f1 f1\n  0x10007fff7c10: f1 f1 04 f3 f3 f3 00 00 00 00 00 00 00 00 00 00\n  0x10007fff7c20: 00 00 00 00 00 00 f1 f1 f1 f1 f1 f1 00 00 00 00\n  0x10007fff7c30: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n=>0x10007fff7c40: 00 00 00 00 00 00 00 00 00 00 00 00 00[04]f3 f3\n  0x10007fff7c50: f3 f3 f3 f3 f3 f3 00 00 00 00 00 00 00 00 00 00\n  0x10007fff7c60: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10007fff7c70: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10007fff7c80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10007fff7c90: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 Shadow byte legend (one shadow byte represents 8 application bytes):\n  Addressable:           00\n  Partially addressable: 01 02 03 04 05 06 07\n  Heap left redzone:       fa\n  Freed heap region:       fd\n  Stack left redzone:      f1\n  Stack mid redzone:       f2\n  Stack right redzone:     f3\n  Stack after return:      f5\n  Stack use after scope:   f8\n  Global redzone:          f9\n  Global init order:       f6\n  Poisoned by user:        f7\n  Container overflow:      fc\n  Array cookie:            ac\n  Intra object redzone:    bb\n  ASan internal:           fe\n  Left alloca redzone:     ca\n  Right alloca redzone:    cb\n==118708==ABORTING\n```"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17812799",
+						"comment_count": "1",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:17:24 +0000",
+						"thetext": "Created ofono tracking bugs for this issue:\n\nAffects: fedora-all [bug 2255395]"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2255395,
+			"security": true,
+			"title": "CVE-2023-4232 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2255395",
+				"creation_ts": "2023-12-20 14:17:14 +0000",
+				"short_desc": "CVE-2023-4232 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability [fedora-all]",
+				"delta_ts": "2024-03-19 21:02:20 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "2255394",
+						"alias": "ZDI-CAN-21014",
+						"creation_ts": "2023-12-20 14:17:04 +0000",
+						"short_desc": "CVE-2023-4232 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability within the decode_status_report() function",
+						"delta_ts": "2023-12-20 14:58:00 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"2255395"
+						],
+						"blocked": [
+							{
+								"bug_id": "2208145",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "17812796",
+								"comment_count": "0",
+								"who": {
+									"text": "saroy",
+									"name": "Sandipan Roy"
+								},
+								"bug_when": "2023-12-20 14:17:04 +0000",
+								"thetext": "ofono is a Open Source Telephony on Linux stack overflow bug is triggered within the decode_status_report() function during SMS decoding here assumed that the attack scenario is accessible from a compromised modem or possibily accessible from a malicious base station or just SMS\n\nthere is a bound check for this memcpy length in decode_submit(), but they forgot it in decode_status_report() this is a variant from ZDI-CAN-20971 partial code path is here\n    - at_cmt_notify()\n    - ofono_sms_deliver_notify()\n    - sms_decode()\n    - decode_status_report()\n```\n\n~~~C++\nstatic gboolean decode_status_report(const unsigned char *pdu, int len,\n                                        struct sms *out) { ...\n        if (out->status_report.pi & 0x04) {\n                int expected;\n\n                if (!next_octet(pdu, len, &offset, &out->status_report.udl))\n                        return FALSE;\n\n                expected = sms_udl_in_bytes(out->status_report.udl,\n                                                out->status_report.dcs);\n\n                if ((len - offset) < expected)\n                        return FALSE;\n\n                memcpy(out->status_report.ud, pdu + offset, expected);          // overflow here, expected is from SMS PDU\n        }\n\n        return TRUE;\n}\n~~~\n\nASAN report\n```\n=================================================================\n==118708==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7fffffffe26c at pc 0x7ffff7849846 bp 0x7fffffffdf50 sp 0x7fffffffd6f8 WRITE of size 224 at 0x7fffffffe26c thread T0\n    #0 0x7ffff7849845 in __interceptor_memcpy ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:827\n    #1 0x555555940bb5 in decode_status_report src/smsutil.c:1077\n    #2 0x55555594449c in sms_decode src/smsutil.c:1571\n    #3 0x5555558e008d in main src/main.c:225\n    #4 0x7ffff742350f in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58\n    #5 0x7ffff74235c8 in __libc_start_main_impl ../csu/libc-start.c:381\n    #6 0x55555567f274 in _start (/root/ofono/src/ofonod+0x12b274)\n\nAddress 0x7fffffffe26c is located in stack of thread T0 at offset 316 in frame\n    #0 0x5555558dfedd in main src/main.c:205\n\n  This frame has 1 object(s):\n    [48, 316) 'sms1' (line 212) <== Memory access at offset 316 overflows this variable\nHINT: this may be a false positive if your program uses some custom stack unwind mechanism, swapcontext or vfork\n      (longjmp and C++ exceptions *are* supported)\nSUMMARY: AddressSanitizer: stack-buffer-overflow ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:827 in __interceptor_memcpy Shadow bytes around the buggy address:\n  0x10007fff7bf0: 00 00 f1 f1 f1 f1 f1 f1 01 f2 04 f3 f3 f3 00 00\n  0x10007fff7c00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 f1 f1\n  0x10007fff7c10: f1 f1 04 f3 f3 f3 00 00 00 00 00 00 00 00 00 00\n  0x10007fff7c20: 00 00 00 00 00 00 f1 f1 f1 f1 f1 f1 00 00 00 00\n  0x10007fff7c30: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n=>0x10007fff7c40: 00 00 00 00 00 00 00 00 00 00 00 00 00[04]f3 f3\n  0x10007fff7c50: f3 f3 f3 f3 f3 f3 00 00 00 00 00 00 00 00 00 00\n  0x10007fff7c60: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10007fff7c70: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10007fff7c80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10007fff7c90: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 Shadow byte legend (one shadow byte represents 8 application bytes):\n  Addressable:           00\n  Partially addressable: 01 02 03 04 05 06 07\n  Heap left redzone:       fa\n  Freed heap region:       fd\n  Stack left redzone:      f1\n  Stack mid redzone:       f2\n  Stack right redzone:     f3\n  Stack after return:      f5\n  Stack use after scope:   f8\n  Global redzone:          f9\n  Global init order:       f6\n  Poisoned by user:        f7\n  Container overflow:      fc\n  Array cookie:            ac\n  Intra object redzone:    bb\n  ASan internal:           fe\n  Left alloca redzone:     ca\n  Right alloca redzone:    cb\n==118708==ABORTING\n```"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17812799",
+								"comment_count": "1",
+								"who": {
+									"text": "saroy",
+									"name": "Sandipan Roy"
+								},
+								"bug_when": "2023-12-20 14:17:24 +0000",
+								"thetext": "Created ofono tracking bugs for this issue:\n\nAffects: fedora-all [bug 2255395]"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17812797",
+						"comment_count": "0",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:17:14 +0000",
+						"thetext": "\nMore information about this security flaw is available in the following bug:\n\nhttp://bugzilla.redhat.com/show_bug.cgi?id=2255394\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17812798",
+						"comment_count": "1",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:17:16 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=high\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2255394,2255395\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17910154",
+						"comment_count": "2",
+						"who": {
+							"text": "fedora-admin-xmlrpc",
+							"name": "Fedora Admin user for bugzilla script actions"
+						},
+						"bug_when": "2024-03-01 00:11:07 +0000",
+						"thetext": "This package has changed maintainer in Fedora. Reassigning to the new maintainer of this component."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17934599",
+						"comment_count": "3",
+						"who": {
+							"text": "fedora-admin-xmlrpc",
+							"name": "Fedora Admin user for bugzilla script actions"
+						},
+						"bug_when": "2024-03-19 12:22:13 +0000",
+						"thetext": "This package has changed maintainer in Fedora. Reassigning to the new maintainer of this component."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17935575",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-03-19 21:02:20 +0000",
+						"thetext": "FEDORA-2024-c42ea059d0 (ofono-2.5-1.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-c42ea059d0"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2255396,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2023-4233 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability within the sms_decode_address_field() function",
+			"bugzilla": {
+				"bug_id": "2255396",
+				"alias": "ZDI-CAN-20996",
+				"creation_ts": "2023-12-20 14:27:46 +0000",
+				"short_desc": "CVE-2023-4233 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability within the sms_decode_address_field() function",
+				"delta_ts": "2024-02-04 07:45:14 +0000",
+				"bug_status": "NEW",
+				"keywords": "Security",
+				"priority": "high",
+				"bug_severity": "high",
+				"depends_on": [
+					"2255397"
+				],
+				"blocked": [
+					{
+						"bug_id": "2208145",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17812814",
+						"comment_count": "0",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:27:46 +0000",
+						"thetext": "ofono is a Open Source Telephony on Linux\nstack overflow bug is triggered within the sms_decode_address_field() function during SMS PDU decoding\nhere assumed that the attack scenario is accessible from a compromised modem or possibily accessible from a malicious base station or just SMS\n\npartial code path is here\n    - at_cmt_notify()\n    - ofono_sms_deliver_notify()\n    - sms_decode()\n    - decode_deliver()\n    - sms_decode_address_field()\n```\n\n~~~C++\ngboolean sms_decode_address_field(const unsigned char *pdu, int len,\n                                        int *offset, gboolean sc,\n                                        struct sms_address *out)\n{\n        unsigned char addr_len;\n        unsigned char addr_type;\n        int byte_len;\n\n        if (!next_octet(pdu, len, offset, &addr_len))\n                return FALSE;\n\n        if (sc && addr_len == 0) {\n                out->address[0] = '\\0';\n                return TRUE;\n        }\n\n        if (!next_octet(pdu, len, offset, &addr_type))\n                return FALSE;\n\n        if (sc)\n                byte_len = addr_len - 1;\n        else\n                byte_len = (addr_len + 1) / 2;\n\n        if ((len - *offset) < byte_len)\n                return FALSE;\n\n        out->number_type = bit_field(addr_type, 4, 3);\n        out->numbering_plan = bit_field(addr_type, 0, 4);\n\n        if (out->number_type != SMS_NUMBER_TYPE_ALPHANUMERIC) {\n                extract_bcd_number(pdu + *offset, byte_len, out->address);                      // overflow within extract_bcd_number(), addr_len is from SMS PDU\n                *offset += byte_len;\n        } else {\n...\n}\n\nvoid extract_bcd_number(const unsigned char *buf, int len, char *out)\n{\n        static const char digit_lut[] = \"0123456789*#abc\\0\";\n        unsigned char oct;\n        int i;\n\n        for (i = 0; i < len; i++) {\n                oct = buf[i];\n\n                out[i * 2] = digit_lut[oct & 0x0f];\n                out[i * 2 + 1] = digit_lut[(oct & 0xf0) >> 4];\n        }\n\n        out[i * 2] = '\\0';\n}\n~~~\n\nASAN report\n```\n=================================================================\n==116978==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7ffd18b788ac at pc 0x556e7631ff99 bp 0x7ffd18b78450 sp 0x7ffd18b78440\nWRITE of size 1 at 0x7ffd18b788ac thread T0\n    #0 0x556e7631ff98 in extract_bcd_number src/smsutil.c:86\n    #1 0x556e76322c72 in sms_decode_address_field src/smsutil.c:650\n    #2 0x556e763237c3 in decode_deliver src/smsutil.c:761\n    #3 0x556e76329456 in sms_decode src/smsutil.c:1567\n    #4 0x556e762c508d in main src/main.c:225\n    #5 0x7f635c42350f in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58\n    #6 0x7f635c4235c8 in __libc_start_main_impl ../csu/libc-start.c:381\n    #7 0x556e76064274 in _start (/root/ofono/src/ofonod+0x12b274)\n\nAddress 0x7ffd18b788ac is located in stack of thread T0 at offset 316 in frame\n    #0 0x556e762c4edd in main src/main.c:205\n\n  This frame has 1 object(s):\n    [48, 316) 'sms1' (line 212) <== Memory access at offset 316 overflows this variable\nHINT: this may be a false positive if your program uses some custom stack unwind mechanism, swapcontext or vfork\n      (longjmp and C++ exceptions *are* supported)\nSUMMARY: AddressSanitizer: stack-buffer-overflow src/smsutil.c:86 in extract_bcd_number\nShadow bytes around the buggy address:\n  0x1000231670c0: 01 f2 04 f3 f3 f3 00 00 00 00 00 00 00 00 00 00\n  0x1000231670d0: 00 00 00 00 00 00 f1 f1 f1 f1 04 f3 f3 f3 00 00\n  0x1000231670e0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 f1 f1\n  0x1000231670f0: f1 f1 f1 f1 00 00 00 00 00 00 00 00 00 00 00 00\n  0x100023167100: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n=>0x100023167110: 00 00 00 00 00[04]f3 f3 f3 f3 f3 f3 f3 f3 00 00\n  0x100023167120: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x100023167130: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x100023167140: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x100023167150: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x100023167160: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\nShadow byte legend (one shadow byte represents 8 application bytes):\n  Addressable:           00\n  Partially addressable: 01 02 03 04 05 06 07\n  Heap left redzone:       fa\n  Freed heap region:       fd\n  Stack left redzone:      f1\n  Stack mid redzone:       f2\n  Stack right redzone:     f3\n  Stack after return:      f5\n  Stack use after scope:   f8\n  Global redzone:          f9\n  Global init order:       f6\n  Poisoned by user:        f7\n  Container overflow:      fc\n  Array cookie:            ac\n  Intra object redzone:    bb\n  ASan internal:           fe\n  Left alloca redzone:     ca\n  Right alloca redzone:    cb\n==116978==ABORTING\n```"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17812817",
+						"comment_count": "1",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:28:08 +0000",
+						"thetext": "Created ofono tracking bugs for this issue:\n\nAffects: fedora-all [bug 2255397]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17873720",
+						"comment_count": "2",
+						"who": {
+							"text": "sebastianenewell",
+							"name": "Debra Hallman"
+						},
+						"bug_when": "2024-02-04 07:45:14 +0000",
+						"thetext": "I can't solve this bug.\nSource: https://uno-online.io"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2255397,
+			"security": true,
+			"title": "CVE-2023-4233 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2255397",
+				"creation_ts": "2023-12-20 14:27:52 +0000",
+				"short_desc": "CVE-2023-4233 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability [fedora-all]",
+				"delta_ts": "2024-03-19 21:02:23 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "2255396",
+						"alias": "ZDI-CAN-20996",
+						"creation_ts": "2023-12-20 14:27:46 +0000",
+						"short_desc": "CVE-2023-4233 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability within the sms_decode_address_field() function",
+						"delta_ts": "2024-02-04 07:45:14 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"2255397"
+						],
+						"blocked": [
+							{
+								"bug_id": "2208145",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "17812814",
+								"comment_count": "0",
+								"who": {
+									"text": "saroy",
+									"name": "Sandipan Roy"
+								},
+								"bug_when": "2023-12-20 14:27:46 +0000",
+								"thetext": "ofono is a Open Source Telephony on Linux\nstack overflow bug is triggered within the sms_decode_address_field() function during SMS PDU decoding\nhere assumed that the attack scenario is accessible from a compromised modem or possibily accessible from a malicious base station or just SMS\n\npartial code path is here\n    - at_cmt_notify()\n    - ofono_sms_deliver_notify()\n    - sms_decode()\n    - decode_deliver()\n    - sms_decode_address_field()\n```\n\n~~~C++\ngboolean sms_decode_address_field(const unsigned char *pdu, int len,\n                                        int *offset, gboolean sc,\n                                        struct sms_address *out)\n{\n        unsigned char addr_len;\n        unsigned char addr_type;\n        int byte_len;\n\n        if (!next_octet(pdu, len, offset, &addr_len))\n                return FALSE;\n\n        if (sc && addr_len == 0) {\n                out->address[0] = '\\0';\n                return TRUE;\n        }\n\n        if (!next_octet(pdu, len, offset, &addr_type))\n                return FALSE;\n\n        if (sc)\n                byte_len = addr_len - 1;\n        else\n                byte_len = (addr_len + 1) / 2;\n\n        if ((len - *offset) < byte_len)\n                return FALSE;\n\n        out->number_type = bit_field(addr_type, 4, 3);\n        out->numbering_plan = bit_field(addr_type, 0, 4);\n\n        if (out->number_type != SMS_NUMBER_TYPE_ALPHANUMERIC) {\n                extract_bcd_number(pdu + *offset, byte_len, out->address);                      // overflow within extract_bcd_number(), addr_len is from SMS PDU\n                *offset += byte_len;\n        } else {\n...\n}\n\nvoid extract_bcd_number(const unsigned char *buf, int len, char *out)\n{\n        static const char digit_lut[] = \"0123456789*#abc\\0\";\n        unsigned char oct;\n        int i;\n\n        for (i = 0; i < len; i++) {\n                oct = buf[i];\n\n                out[i * 2] = digit_lut[oct & 0x0f];\n                out[i * 2 + 1] = digit_lut[(oct & 0xf0) >> 4];\n        }\n\n        out[i * 2] = '\\0';\n}\n~~~\n\nASAN report\n```\n=================================================================\n==116978==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7ffd18b788ac at pc 0x556e7631ff99 bp 0x7ffd18b78450 sp 0x7ffd18b78440\nWRITE of size 1 at 0x7ffd18b788ac thread T0\n    #0 0x556e7631ff98 in extract_bcd_number src/smsutil.c:86\n    #1 0x556e76322c72 in sms_decode_address_field src/smsutil.c:650\n    #2 0x556e763237c3 in decode_deliver src/smsutil.c:761\n    #3 0x556e76329456 in sms_decode src/smsutil.c:1567\n    #4 0x556e762c508d in main src/main.c:225\n    #5 0x7f635c42350f in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58\n    #6 0x7f635c4235c8 in __libc_start_main_impl ../csu/libc-start.c:381\n    #7 0x556e76064274 in _start (/root/ofono/src/ofonod+0x12b274)\n\nAddress 0x7ffd18b788ac is located in stack of thread T0 at offset 316 in frame\n    #0 0x556e762c4edd in main src/main.c:205\n\n  This frame has 1 object(s):\n    [48, 316) 'sms1' (line 212) <== Memory access at offset 316 overflows this variable\nHINT: this may be a false positive if your program uses some custom stack unwind mechanism, swapcontext or vfork\n      (longjmp and C++ exceptions *are* supported)\nSUMMARY: AddressSanitizer: stack-buffer-overflow src/smsutil.c:86 in extract_bcd_number\nShadow bytes around the buggy address:\n  0x1000231670c0: 01 f2 04 f3 f3 f3 00 00 00 00 00 00 00 00 00 00\n  0x1000231670d0: 00 00 00 00 00 00 f1 f1 f1 f1 04 f3 f3 f3 00 00\n  0x1000231670e0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 f1 f1\n  0x1000231670f0: f1 f1 f1 f1 00 00 00 00 00 00 00 00 00 00 00 00\n  0x100023167100: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n=>0x100023167110: 00 00 00 00 00[04]f3 f3 f3 f3 f3 f3 f3 f3 00 00\n  0x100023167120: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x100023167130: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x100023167140: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x100023167150: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x100023167160: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\nShadow byte legend (one shadow byte represents 8 application bytes):\n  Addressable:           00\n  Partially addressable: 01 02 03 04 05 06 07\n  Heap left redzone:       fa\n  Freed heap region:       fd\n  Stack left redzone:      f1\n  Stack mid redzone:       f2\n  Stack right redzone:     f3\n  Stack after return:      f5\n  Stack use after scope:   f8\n  Global redzone:          f9\n  Global init order:       f6\n  Poisoned by user:        f7\n  Container overflow:      fc\n  Array cookie:            ac\n  Intra object redzone:    bb\n  ASan internal:           fe\n  Left alloca redzone:     ca\n  Right alloca redzone:    cb\n==116978==ABORTING\n```"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17812817",
+								"comment_count": "1",
+								"who": {
+									"text": "saroy",
+									"name": "Sandipan Roy"
+								},
+								"bug_when": "2023-12-20 14:28:08 +0000",
+								"thetext": "Created ofono tracking bugs for this issue:\n\nAffects: fedora-all [bug 2255397]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17873720",
+								"comment_count": "2",
+								"who": {
+									"text": "sebastianenewell",
+									"name": "Debra Hallman"
+								},
+								"bug_when": "2024-02-04 07:45:14 +0000",
+								"thetext": "I can't solve this bug.\nSource: https://uno-online.io"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17812815",
+						"comment_count": "0",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:27:52 +0000",
+						"thetext": "\nMore information about this security flaw is available in the following bug:\n\nhttp://bugzilla.redhat.com/show_bug.cgi?id=2255396\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17812816",
+						"comment_count": "1",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:27:55 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=high\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2255396,2255397\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17910155",
+						"comment_count": "2",
+						"who": {
+							"text": "fedora-admin-xmlrpc",
+							"name": "Fedora Admin user for bugzilla script actions"
+						},
+						"bug_when": "2024-03-01 00:11:09 +0000",
+						"thetext": "This package has changed maintainer in Fedora. Reassigning to the new maintainer of this component."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17934600",
+						"comment_count": "3",
+						"who": {
+							"text": "fedora-admin-xmlrpc",
+							"name": "Fedora Admin user for bugzilla script actions"
+						},
+						"bug_when": "2024-03-19 12:22:15 +0000",
+						"thetext": "This package has changed maintainer in Fedora. Reassigning to the new maintainer of this component."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17935576",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-03-19 21:02:23 +0000",
+						"thetext": "FEDORA-2024-c42ea059d0 (ofono-2.5-1.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-c42ea059d0"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2255399,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2023-4234 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability within the decode_submit_report() function",
+			"bugzilla": {
+				"bug_id": "2255399",
+				"alias": "ZDI-CAN-21015",
+				"creation_ts": "2023-12-20 14:31:01 +0000",
+				"short_desc": "CVE-2023-4234 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability within the decode_submit_report() function",
+				"delta_ts": "2023-12-20 14:57:22 +0000",
+				"bug_status": "NEW",
+				"keywords": "Security",
+				"priority": "high",
+				"bug_severity": "high",
+				"depends_on": [
+					"2255400"
+				],
+				"blocked": [
+					{
+						"bug_id": "2208145",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17812823",
+						"comment_count": "0",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:31:01 +0000",
+						"thetext": "ofono is a Open Source Telephony on Linux\nstack overflow bug is triggered within the decode_submit_report() function during SMS decoding\nhere assumed that the attack scenario is accessible from a compromised modem or possibily accessible from a malicious base station or just SMS\n\nthere is a bound check for this memcpy length in decode_submit(), but they forgot it in decode_submit_report()\nthis is a variant from ZDI-CAN-20971\npartial code path is here\n    - at_cmt_notify()\n    - ofono_sms_deliver_notify()\n    - sms_decode()\n    - decode_submit_report()\n```\n\n~~~C++\n\nstatic gboolean decode_submit_report(const unsigned char *pdu, int len,\n                                        struct sms *out)\n{\n...\n        if (pi & 0x04) {\n                int expected;\n\n                if (!next_octet(pdu, len, &offset, &udl))\n                        return FALSE;\n\n                expected = sms_udl_in_bytes(udl, dcs);\n\n                if ((len - offset) < expected)\n                        return FALSE;\n\n                if (out->type == SMS_TYPE_SUBMIT_REPORT_ERROR) {\n                        out->submit_err_report.udl = udl;\n                        memcpy(out->submit_err_report.ud,\n                                        pdu + offset, expected); // overflow here, expected is from SMS PDU\n                } else {\n                        out->submit_ack_report.udl = udl;\n                        memcpy(out->submit_ack_report.ud,\n                                        pdu + offset, expected);\n                }\n        }\n\n        return TRUE;\n}\n~~~\n\nASAN report\n```\n=================================================================\n==118728==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7ffd6df4c7bc at pc 0x7ff353a49846 bp 0x7ffd6df4c470 sp 0x7ffd6df4bc18\nWRITE of size 240 at 0x7ffd6df4c7bc thread T0\n    #0 0x7ff353a49845 in __interceptor_memcpy ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:827\n    #1 0x5612928c6d77 in decode_submit_report src/smsutil.c:946\n    #2 0x5612928cb479 in sms_decode src/smsutil.c:1569\n    #3 0x56129286708d in main src/main.c:225\n    #4 0x7ff35362350f in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58\n    #5 0x7ff3536235c8 in __libc_start_main_impl ../csu/libc-start.c:381\n    #6 0x561292606274 in _start (/root/ofono/src/ofonod+0x12b274)\n\nAddress 0x7ffd6df4c7bc is located in stack of thread T0 at offset 316 in frame\n    #0 0x561292866edd in main src/main.c:205\n\n  This frame has 1 object(s):\n    [48, 316) 'sms1' (line 212) <== Memory access at offset 316 overflows this variable\nHINT: this may be a false positive if your program uses some custom stack unwind mechanism, swapcontext or vfork\n      (longjmp and C++ exceptions *are* supported)\nSUMMARY: AddressSanitizer: stack-buffer-overflow ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:827 in __interceptor_memcpy\nShadow bytes around the buggy address:\n  0x10002dbe18a0: 01 f2 01 f2 04 f3 f3 f3 00 00 00 00 00 00 00 00\n  0x10002dbe18b0: 00 00 00 00 00 00 00 00 f1 f1 f1 f1 04 f3 f3 f3\n  0x10002dbe18c0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10002dbe18d0: f1 f1 f1 f1 f1 f1 00 00 00 00 00 00 00 00 00 00\n  0x10002dbe18e0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n=>0x10002dbe18f0: 00 00 00 00 00 00 00[04]f3 f3 f3 f3 f3 f3 f3 f3\n  0x10002dbe1900: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10002dbe1910: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10002dbe1920: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10002dbe1930: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10002dbe1940: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\nShadow byte legend (one shadow byte represents 8 application bytes):\n  Addressable:           00\n  Partially addressable: 01 02 03 04 05 06 07\n  Heap left redzone:       fa\n  Freed heap region:       fd\n  Stack left redzone:      f1\n  Stack mid redzone:       f2\n  Stack right redzone:     f3\n  Stack after return:      f5\n  Stack use after scope:   f8\n  Global redzone:          f9\n  Global init order:       f6\n  Poisoned by user:        f7\n  Container overflow:      fc\n  Array cookie:            ac\n  Intra object redzone:    bb\n  ASan internal:           fe\n  Left alloca redzone:     ca\n  Right alloca redzone:    cb\n==118728==ABORTING\n```"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17812826",
+						"comment_count": "1",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:31:18 +0000",
+						"thetext": "Created ofono tracking bugs for this issue:\n\nAffects: fedora-all [bug 2255400]"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2255400,
+			"security": true,
+			"title": "CVE-2023-4234 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2255400",
+				"creation_ts": "2023-12-20 14:31:07 +0000",
+				"short_desc": "CVE-2023-4234 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability [fedora-all]",
+				"delta_ts": "2024-03-19 21:02:27 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "2255399",
+						"alias": "ZDI-CAN-21015",
+						"creation_ts": "2023-12-20 14:31:01 +0000",
+						"short_desc": "CVE-2023-4234 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability within the decode_submit_report() function",
+						"delta_ts": "2023-12-20 14:57:22 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"2255400"
+						],
+						"blocked": [
+							{
+								"bug_id": "2208145",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "17812823",
+								"comment_count": "0",
+								"who": {
+									"text": "saroy",
+									"name": "Sandipan Roy"
+								},
+								"bug_when": "2023-12-20 14:31:01 +0000",
+								"thetext": "ofono is a Open Source Telephony on Linux\nstack overflow bug is triggered within the decode_submit_report() function during SMS decoding\nhere assumed that the attack scenario is accessible from a compromised modem or possibily accessible from a malicious base station or just SMS\n\nthere is a bound check for this memcpy length in decode_submit(), but they forgot it in decode_submit_report()\nthis is a variant from ZDI-CAN-20971\npartial code path is here\n    - at_cmt_notify()\n    - ofono_sms_deliver_notify()\n    - sms_decode()\n    - decode_submit_report()\n```\n\n~~~C++\n\nstatic gboolean decode_submit_report(const unsigned char *pdu, int len,\n                                        struct sms *out)\n{\n...\n        if (pi & 0x04) {\n                int expected;\n\n                if (!next_octet(pdu, len, &offset, &udl))\n                        return FALSE;\n\n                expected = sms_udl_in_bytes(udl, dcs);\n\n                if ((len - offset) < expected)\n                        return FALSE;\n\n                if (out->type == SMS_TYPE_SUBMIT_REPORT_ERROR) {\n                        out->submit_err_report.udl = udl;\n                        memcpy(out->submit_err_report.ud,\n                                        pdu + offset, expected); // overflow here, expected is from SMS PDU\n                } else {\n                        out->submit_ack_report.udl = udl;\n                        memcpy(out->submit_ack_report.ud,\n                                        pdu + offset, expected);\n                }\n        }\n\n        return TRUE;\n}\n~~~\n\nASAN report\n```\n=================================================================\n==118728==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7ffd6df4c7bc at pc 0x7ff353a49846 bp 0x7ffd6df4c470 sp 0x7ffd6df4bc18\nWRITE of size 240 at 0x7ffd6df4c7bc thread T0\n    #0 0x7ff353a49845 in __interceptor_memcpy ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:827\n    #1 0x5612928c6d77 in decode_submit_report src/smsutil.c:946\n    #2 0x5612928cb479 in sms_decode src/smsutil.c:1569\n    #3 0x56129286708d in main src/main.c:225\n    #4 0x7ff35362350f in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58\n    #5 0x7ff3536235c8 in __libc_start_main_impl ../csu/libc-start.c:381\n    #6 0x561292606274 in _start (/root/ofono/src/ofonod+0x12b274)\n\nAddress 0x7ffd6df4c7bc is located in stack of thread T0 at offset 316 in frame\n    #0 0x561292866edd in main src/main.c:205\n\n  This frame has 1 object(s):\n    [48, 316) 'sms1' (line 212) <== Memory access at offset 316 overflows this variable\nHINT: this may be a false positive if your program uses some custom stack unwind mechanism, swapcontext or vfork\n      (longjmp and C++ exceptions *are* supported)\nSUMMARY: AddressSanitizer: stack-buffer-overflow ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:827 in __interceptor_memcpy\nShadow bytes around the buggy address:\n  0x10002dbe18a0: 01 f2 01 f2 04 f3 f3 f3 00 00 00 00 00 00 00 00\n  0x10002dbe18b0: 00 00 00 00 00 00 00 00 f1 f1 f1 f1 04 f3 f3 f3\n  0x10002dbe18c0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10002dbe18d0: f1 f1 f1 f1 f1 f1 00 00 00 00 00 00 00 00 00 00\n  0x10002dbe18e0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n=>0x10002dbe18f0: 00 00 00 00 00 00 00[04]f3 f3 f3 f3 f3 f3 f3 f3\n  0x10002dbe1900: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10002dbe1910: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10002dbe1920: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10002dbe1930: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10002dbe1940: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\nShadow byte legend (one shadow byte represents 8 application bytes):\n  Addressable:           00\n  Partially addressable: 01 02 03 04 05 06 07\n  Heap left redzone:       fa\n  Freed heap region:       fd\n  Stack left redzone:      f1\n  Stack mid redzone:       f2\n  Stack right redzone:     f3\n  Stack after return:      f5\n  Stack use after scope:   f8\n  Global redzone:          f9\n  Global init order:       f6\n  Poisoned by user:        f7\n  Container overflow:      fc\n  Array cookie:            ac\n  Intra object redzone:    bb\n  ASan internal:           fe\n  Left alloca redzone:     ca\n  Right alloca redzone:    cb\n==118728==ABORTING\n```"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17812826",
+								"comment_count": "1",
+								"who": {
+									"text": "saroy",
+									"name": "Sandipan Roy"
+								},
+								"bug_when": "2023-12-20 14:31:18 +0000",
+								"thetext": "Created ofono tracking bugs for this issue:\n\nAffects: fedora-all [bug 2255400]"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17812824",
+						"comment_count": "0",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:31:07 +0000",
+						"thetext": "\nMore information about this security flaw is available in the following bug:\n\nhttp://bugzilla.redhat.com/show_bug.cgi?id=2255399\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17812825",
+						"comment_count": "1",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:31:10 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=high\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2255399,2255400\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17910156",
+						"comment_count": "2",
+						"who": {
+							"text": "fedora-admin-xmlrpc",
+							"name": "Fedora Admin user for bugzilla script actions"
+						},
+						"bug_when": "2024-03-01 00:11:10 +0000",
+						"thetext": "This package has changed maintainer in Fedora. Reassigning to the new maintainer of this component."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17934601",
+						"comment_count": "3",
+						"who": {
+							"text": "fedora-admin-xmlrpc",
+							"name": "Fedora Admin user for bugzilla script actions"
+						},
+						"bug_when": "2024-03-19 12:22:16 +0000",
+						"thetext": "This package has changed maintainer in Fedora. Reassigning to the new maintainer of this component."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17935577",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-03-19 21:02:27 +0000",
+						"thetext": "FEDORA-2024-c42ea059d0 (ofono-2.5-1.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-c42ea059d0"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2255402,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2023-4235 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability within the decode_deliver_report() function",
+			"bugzilla": {
+				"bug_id": "2255402",
+				"alias": "ZDI-CAN-21016",
+				"creation_ts": "2023-12-20 14:37:31 +0000",
+				"short_desc": "CVE-2023-4235 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability within the decode_deliver_report() function",
+				"delta_ts": "2023-12-20 14:57:39 +0000",
+				"bug_status": "NEW",
+				"keywords": "Security",
+				"priority": "high",
+				"bug_severity": "high",
+				"depends_on": [
+					"2255403"
+				],
+				"blocked": [
+					{
+						"bug_id": "2208145",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17812845",
+						"comment_count": "0",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:37:31 +0000",
+						"thetext": "ofono is a Open Source Telephony on Linux stack overflow bug is triggered within the decode_deliver_report() function during SMS decoding here assumed that the attack scenario is accessible from a compromised modem or possibily accessible from a malicious base station or just SMS\n\nthere is a bound check for this memcpy length in decode_submit(), but they forgot it in decode_deliver_report() this is a variant from ZDI-CAN-20971 partial code path is here\n    - at_cmt_notify()\n    - ofono_sms_deliver_notify()\n    - sms_decode()\n    - decode_deliver_report()\n```\n\n~~~C++\nstatic gboolean decode_deliver_report(const unsigned char *pdu, int len,\n                                        struct sms *out) { ...\n        if (pi & 0x04) {\n                int expected;\n\n                if (!next_octet(pdu, len, &offset, &udl))\n                        return FALSE;\n\n                expected = sms_udl_in_bytes(udl, dcs);\n\n                if ((len - offset) < expected)\n                        return FALSE;\n\n                if (out->type == SMS_TYPE_DELIVER_REPORT_ERROR) {\n                        out->deliver_err_report.udl = udl;\n                        memcpy(out->deliver_err_report.ud,\n                                        pdu + offset, expected); // overflow here, expected is from SMS PDU\n                } else {\n                        out->deliver_ack_report.udl = udl;\n                        memcpy(out->deliver_ack_report.ud,\n                                        pdu + offset, expected);\n                }\n        }\n\n        return TRUE;\n}\n~~~\n\nASAN report\n```\n=================================================================\n==119365==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7fffffffe27c at pc 0x7ffff7849846 bp 0x7fffffffdf40 sp 0x7fffffffd6e8 WRITE of size 224 at 0x7fffffffe27c thread T0\n    #0 0x7ffff7849845 in __interceptor_memcpy ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:827\n    #1 0x555555941dc6 in decode_deliver_report src/smsutil.c:1227\n    #2 0x5555559444df in sms_decode src/smsutil.c:1576\n    #3 0x5555558e008d in main src/main.c:225\n    #4 0x7ffff742350f in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58\n    #5 0x7ffff74235c8 in __libc_start_main_impl ../csu/libc-start.c:381\n    #6 0x55555567f274 in _start (/root/ofono/src/ofonod+0x12b274)\n\nAddress 0x7fffffffe27c is located in stack of thread T0 at offset 316 in frame\n    #0 0x5555558dfedd in main src/main.c:205\n\n  This frame has 1 object(s):\n    [48, 316) 'sms1' (line 212) <== Memory access at offset 316 overflows this variable\nHINT: this may be a false positive if your program uses some custom stack unwind mechanism, swapcontext or vfork\n      (longjmp and C++ exceptions *are* supported)\nSUMMARY: AddressSanitizer: stack-buffer-overflow ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:827 in __interceptor_memcpy Shadow bytes around the buggy address:\n  0x10007fff7bf0: f1 f1 f1 f1 01 f2 01 f2 01 f2 01 f2 04 f3 f3 f3\n  0x10007fff7c00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10007fff7c10: f1 f1 f1 f1 04 f3 f3 f3 00 00 00 00 00 00 00 00\n  0x10007fff7c20: 00 00 00 00 00 00 00 00 f1 f1 f1 f1 f1 f1 00 00\n  0x10007fff7c30: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n=>0x10007fff7c40: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00[04]\n  0x10007fff7c50: f3 f3 f3 f3 f3 f3 f3 f3 00 00 00 00 00 00 00 00\n  0x10007fff7c60: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10007fff7c70: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10007fff7c80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10007fff7c90: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 Shadow byte legend (one shadow byte represents 8 application bytes):\n  Addressable:           00\n  Partially addressable: 01 02 03 04 05 06 07\n  Heap left redzone:       fa\n  Freed heap region:       fd\n  Stack left redzone:      f1\n  Stack mid redzone:       f2\n  Stack right redzone:     f3\n  Stack after return:      f5\n  Stack use after scope:   f8\n  Global redzone:          f9\n  Global init order:       f6\n  Poisoned by user:        f7\n  Container overflow:      fc\n  Array cookie:            ac\n  Intra object redzone:    bb\n  ASan internal:           fe\n  Left alloca redzone:     ca\n  Right alloca redzone:    cb\n==119365==ABORTING\n```"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17812848",
+						"comment_count": "1",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:37:53 +0000",
+						"thetext": "Created ofono tracking bugs for this issue:\n\nAffects: fedora-all [bug 2255403]"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2255403,
+			"security": true,
+			"title": "CVE-2023-4235 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2255403",
+				"creation_ts": "2023-12-20 14:37:42 +0000",
+				"short_desc": "CVE-2023-4235 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability [fedora-all]",
+				"delta_ts": "2024-03-19 21:02:30 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "2255402",
+						"alias": "ZDI-CAN-21016",
+						"creation_ts": "2023-12-20 14:37:31 +0000",
+						"short_desc": "CVE-2023-4235 ofono: SMS Decoder Stack-based Buffer Overflow Remote Code Execution Vulnerability within the decode_deliver_report() function",
+						"delta_ts": "2023-12-20 14:57:39 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"2255403"
+						],
+						"blocked": [
+							{
+								"bug_id": "2208145",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "17812845",
+								"comment_count": "0",
+								"who": {
+									"text": "saroy",
+									"name": "Sandipan Roy"
+								},
+								"bug_when": "2023-12-20 14:37:31 +0000",
+								"thetext": "ofono is a Open Source Telephony on Linux stack overflow bug is triggered within the decode_deliver_report() function during SMS decoding here assumed that the attack scenario is accessible from a compromised modem or possibily accessible from a malicious base station or just SMS\n\nthere is a bound check for this memcpy length in decode_submit(), but they forgot it in decode_deliver_report() this is a variant from ZDI-CAN-20971 partial code path is here\n    - at_cmt_notify()\n    - ofono_sms_deliver_notify()\n    - sms_decode()\n    - decode_deliver_report()\n```\n\n~~~C++\nstatic gboolean decode_deliver_report(const unsigned char *pdu, int len,\n                                        struct sms *out) { ...\n        if (pi & 0x04) {\n                int expected;\n\n                if (!next_octet(pdu, len, &offset, &udl))\n                        return FALSE;\n\n                expected = sms_udl_in_bytes(udl, dcs);\n\n                if ((len - offset) < expected)\n                        return FALSE;\n\n                if (out->type == SMS_TYPE_DELIVER_REPORT_ERROR) {\n                        out->deliver_err_report.udl = udl;\n                        memcpy(out->deliver_err_report.ud,\n                                        pdu + offset, expected); // overflow here, expected is from SMS PDU\n                } else {\n                        out->deliver_ack_report.udl = udl;\n                        memcpy(out->deliver_ack_report.ud,\n                                        pdu + offset, expected);\n                }\n        }\n\n        return TRUE;\n}\n~~~\n\nASAN report\n```\n=================================================================\n==119365==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7fffffffe27c at pc 0x7ffff7849846 bp 0x7fffffffdf40 sp 0x7fffffffd6e8 WRITE of size 224 at 0x7fffffffe27c thread T0\n    #0 0x7ffff7849845 in __interceptor_memcpy ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:827\n    #1 0x555555941dc6 in decode_deliver_report src/smsutil.c:1227\n    #2 0x5555559444df in sms_decode src/smsutil.c:1576\n    #3 0x5555558e008d in main src/main.c:225\n    #4 0x7ffff742350f in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58\n    #5 0x7ffff74235c8 in __libc_start_main_impl ../csu/libc-start.c:381\n    #6 0x55555567f274 in _start (/root/ofono/src/ofonod+0x12b274)\n\nAddress 0x7fffffffe27c is located in stack of thread T0 at offset 316 in frame\n    #0 0x5555558dfedd in main src/main.c:205\n\n  This frame has 1 object(s):\n    [48, 316) 'sms1' (line 212) <== Memory access at offset 316 overflows this variable\nHINT: this may be a false positive if your program uses some custom stack unwind mechanism, swapcontext or vfork\n      (longjmp and C++ exceptions *are* supported)\nSUMMARY: AddressSanitizer: stack-buffer-overflow ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:827 in __interceptor_memcpy Shadow bytes around the buggy address:\n  0x10007fff7bf0: f1 f1 f1 f1 01 f2 01 f2 01 f2 01 f2 04 f3 f3 f3\n  0x10007fff7c00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10007fff7c10: f1 f1 f1 f1 04 f3 f3 f3 00 00 00 00 00 00 00 00\n  0x10007fff7c20: 00 00 00 00 00 00 00 00 f1 f1 f1 f1 f1 f1 00 00\n  0x10007fff7c30: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n=>0x10007fff7c40: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00[04]\n  0x10007fff7c50: f3 f3 f3 f3 f3 f3 f3 f3 00 00 00 00 00 00 00 00\n  0x10007fff7c60: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10007fff7c70: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10007fff7c80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x10007fff7c90: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 Shadow byte legend (one shadow byte represents 8 application bytes):\n  Addressable:           00\n  Partially addressable: 01 02 03 04 05 06 07\n  Heap left redzone:       fa\n  Freed heap region:       fd\n  Stack left redzone:      f1\n  Stack mid redzone:       f2\n  Stack right redzone:     f3\n  Stack after return:      f5\n  Stack use after scope:   f8\n  Global redzone:          f9\n  Global init order:       f6\n  Poisoned by user:        f7\n  Container overflow:      fc\n  Array cookie:            ac\n  Intra object redzone:    bb\n  ASan internal:           fe\n  Left alloca redzone:     ca\n  Right alloca redzone:    cb\n==119365==ABORTING\n```"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17812848",
+								"comment_count": "1",
+								"who": {
+									"text": "saroy",
+									"name": "Sandipan Roy"
+								},
+								"bug_when": "2023-12-20 14:37:53 +0000",
+								"thetext": "Created ofono tracking bugs for this issue:\n\nAffects: fedora-all [bug 2255403]"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17812846",
+						"comment_count": "0",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:37:42 +0000",
+						"thetext": "\nMore information about this security flaw is available in the following bug:\n\nhttp://bugzilla.redhat.com/show_bug.cgi?id=2255402\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17812847",
+						"comment_count": "1",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2023-12-20 14:37:45 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=high\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2255402,2255403\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17910157",
+						"comment_count": "2",
+						"who": {
+							"text": "fedora-admin-xmlrpc",
+							"name": "Fedora Admin user for bugzilla script actions"
+						},
+						"bug_when": "2024-03-01 00:11:12 +0000",
+						"thetext": "This package has changed maintainer in Fedora. Reassigning to the new maintainer of this component."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17934602",
+						"comment_count": "3",
+						"who": {
+							"text": "fedora-admin-xmlrpc",
+							"name": "Fedora Admin user for bugzilla script actions"
+						},
+						"bug_when": "2024-03-19 12:22:18 +0000",
+						"thetext": "This package has changed maintainer in Fedora. Reassigning to the new maintainer of this component."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17935578",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-03-19 21:02:30 +0000",
+						"thetext": "FEDORA-2024-c42ea059d0 (ofono-2.5-1.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-c42ea059d0"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "ofono-2.5-1.fc40",
+			"release_id": 76,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "ofono-debuginfo",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "ofono-devel",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "ofono",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "ofono-debugsource",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					}
+				],
+				"i686": [
+					{
+						"name": "ofono-debuginfo",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "i686"
+					},
+					{
+						"name": "ofono-devel",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "i686"
+					},
+					{
+						"name": "ofono-debugsource",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "i686"
+					},
+					{
+						"name": "ofono",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "ofono-debuginfo",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "ofono-devel",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "ofono",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "ofono-debugsource",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "ofono-debuginfo",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "s390x"
+					},
+					{
+						"name": "ofono-debugsource",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "s390x"
+					},
+					{
+						"name": "ofono",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "s390x"
+					},
+					{
+						"name": "ofono-devel",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "ofono",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "ofono-debuginfo",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "ofono-devel",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "ofono",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "ofono-debugsource",
+						"version": "2.5",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3457627,
+			"text": "This update has been submitted for testing by suve. ",
+			"timestamp": "2024-03-19 21:02:12",
+			"update_id": 598664,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3457628,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2024-03-19 21:02:13",
+			"update_id": 598664,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath_groups": "",
+	"date_submitted": "2024-03-19 21:02:12",
+	"locked": true,
+	"notes": "Update to v2.5",
+	"release": {
+		"branch": "f40",
+		"candidate_tag": "f40-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f40",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 40",
+		"mail_template": "fedora_errata_template",
+		"name": "F40",
+		"override_tag": "f40-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f40-signing-pending",
+		"pending_stable_tag": "f40-updates-pending",
+		"pending_testing_tag": "f40-updates-testing-pending",
+		"stable_tag": "f40",
+		"state": "frozen",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f40-updates-testing",
+		"version": "40"
+	},
+	"request": "testing",
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "high",
+	"stable_days": 3,
+	"stable_karma": 3,
+	"status": "pending",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "ofono-2.5-1.fc40",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2024-c42ea059d0",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2024-c42ea059d0",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/64fd3409d03871041018dc48446c7acd4442f3e37f488feaf2e94cb15a3b9f2d?s=24&d=retro",
+		"email": "fedora@svgames.pl",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 3661,
+		"name": "suve",
+		"openid": "suve.id.fedoraproject.org"
+	},
+	"version_hash": "22d66c76079b22cc291e6da4765552a90dc270f3"
+}
