@@ -983,7 +983,7 @@
 						"alias": "CVE-2024-1488",
 						"creation_ts": "2024-02-14 12:41:40 +0000",
 						"short_desc": "CVE-2024-1488 unbound: unrestricted reconfiguration enabled to anyone that may lead to local privilege escalation",
-						"delta_ts": "2024-04-04 09:46:30 +0000",
+						"delta_ts": "2024-04-10 11:36:55 +0000",
 						"bug_status": "NEW",
 						"keywords": "Security",
 						"priority": "high",
@@ -997,6 +997,10 @@
 								"error": "NotPermitted"
 							}
 						],
+						"external_bugs": {
+							"text": "RHSA-2024:1750",
+							"name": "Red Hat Product Errata"
+						},
 						"long_desc": [
 							{
 								"isprivate": "0",
@@ -1019,6 +1023,39 @@
 								},
 								"bug_when": "2024-02-14 12:47:26 +0000",
 								"thetext": "Created unbound tracking bugs for this issue:\n\nAffects: fedora-all [bug 2264184]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17965838",
+								"comment_count": "8",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2024-04-10 09:58:17 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 9\n\nVia RHSA-2024:1750 https://access.redhat.com/errata/RHSA-2024:1750"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17965965",
+								"comment_count": "9",
+								"who": {
+									"text": "pemensik",
+									"name": "Petr Menšík"
+								},
+								"bug_when": "2024-04-10 11:24:42 +0000",
+								"thetext": "This vulnerability were caused by not correctly updated configuration file initial value. The core problem were presence of remote-control: section option control-use-cert: \"no\". That has caused unbound to not require certificate on localhost control interface. Default value of control-interface is to use ipv4 and ipv6 localhost addresses, unless specified explicitly. Without using certificate, there is nothing ensuring only unbound group members or root user can change runtime configuration.\n\nTest options using command \"unbound-control get_option control-interface\". If it returns only unix domain socket path, it will enforce only unbound members can use it. It can be tested by command:\n\n# ls -l $(unbound-control get_option control-interface)\n\nIt should list used rights as:\nsrw-rw----. 1 unbound unbound\n\nIf only unix domain socket is used for control, this is sufficient to ensure only privileged members. It does not need any change of unbound-control command configuration, it will use main /etc/unbound/unbound.conf file anyway.\n\n#  unbound-control status | grep control\noptions: reuseport control(namedpipe)\n\nIf at least one IPv4 or IPv6 address is used in control-interface option or it is empty, network socket is used (also). In that case, ensure control-key-file is accessible only to members of unbound group or alternative similar. Or only root user, as is current default.\n\n# ls -l $(unbound-control get_option control-key-file)\n-rw-------. 1 root unbound 2459 Apr 10 06:25 /etc/unbound/unbound_control.key\n\nEnsure also remote-control: section contains control-use-cert: \"yes\", which is built-in default in case it is missing.\n\nOf course mitigation of this vulnerability is also disabling control channel completely.\n\nEnforcement can be checked trivially by using sudo with unprivileged user, for example nobody:\n# sudo -u nobody unbound-control status\n[1712747431] unbound-control[6183:0] error: connect: Permission denied for /run/unbound/control\n\nThis should fail in correct configuration. But with unbound or root user it should succeed.\n# sudo unbound-control status\n\nIf using both IP addresses and unix domain socket, put addresses first. That should ensure SSL is required over addresses connections, ensuring only allowed users can see or change the configuration.\n\nCheck chosen control mode uses ssl:\n# unbound-control status | grep control\noptions: reuseport control(ssl)\n\nunbound-control -s ::1 can be used to manually specify which socket address to use. First is used by default, whatever (type) it is."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17965991",
+								"comment_count": "11",
+								"who": {
+									"text": "pemensik",
+									"name": "Petr Menšík"
+								},
+								"bug_when": "2024-04-10 11:36:55 +0000",
+								"thetext": "We strongly recommend to not mix unix domain socket and addresses in control-interface option. They may lead to unexpected behaviour."
 							}
 						]
 					}
