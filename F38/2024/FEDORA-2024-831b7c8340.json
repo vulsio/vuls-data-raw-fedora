@@ -22,7 +22,7 @@
 						"alias": "CVE-2024-3651",
 						"creation_ts": "2024-04-12 19:20:16 +0000",
 						"short_desc": "CVE-2024-3651 python-idna: potential DoS via resource consumption via specially crafted inputs to idna.encode()",
-						"delta_ts": "2024-04-12 19:33:38 +0000",
+						"delta_ts": "2024-04-15 14:35:16 +0000",
 						"bug_status": "NEW",
 						"keywords": "Security",
 						"priority": "medium",
@@ -68,6 +68,17 @@
 								},
 								"bug_when": "2024-04-12 19:23:46 +0000",
 								"thetext": "Created mingw-python-idna tracking bugs for this issue:\n\nAffects: fedora-all [bug 2274782]\n\n\nCreated python-idna tracking bugs for this issue:\n\nAffects: fedora-all [bug 2274780]\n\n\nCreated python-idna-ssl tracking bugs for this issue:\n\nAffects: epel-8 [bug 2274783]\nAffects: fedora-all [bug 2274781]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17972058",
+								"comment_count": "3",
+								"who": {
+									"text": "lbalhar",
+									"name": "Lumír Balhar"
+								},
+								"bug_when": "2024-04-15 14:35:16 +0000",
+								"thetext": "I don't know how to reproduce the issue. Even the changelog of idna does not mention it, the fix seems to be this commit: https://github.com/kjd/idna/commit/5beb28b9dd77912c0dd656d8b0fdba3eb80222e7\n\nI'm able to create something like this:\n\n```\nzwnj = '\\u200c'\nlatin = '\\u0061'\n\nidna.encode(latin * 10 + zwnj)\n```\n\nWith that input, the first for loop in the valid_contextj function runs 10 times (v3.6) instead of just once (v3.7). However, I'm not able to prepare an input where a significant difference between 3.6 and 3.7 would be visible when it comes to consumed resources or processing time.\n\nSo far, I'm only able to reproduce and verify the issue using cProfiler from Python. The following line:\n\nidna.encode(latin * 1000 + zwnj)\n\nProduces the following output of cProfiler for idna 3.6:\n\n$ python3 -m cProfile -s ncalls poc.py | head\n\n         14231 function calls (14181 primitive calls) in 0.005 seconds\n\n   Ordered by: call count\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n     5007    0.000    0.000    0.000    0.000 {built-in method builtins.ord}\n     2003    0.000    0.000    0.000    0.000 intranges.py:35(_decode_range)\n1096/1095    0.000    0.000    0.000    0.000 {built-in method builtins.len}\n     1024    0.000    0.000    0.000    0.000 {method 'get' of 'dict' objects}\n     1002    0.001    0.000    0.001    0.000 intranges.py:39(intranges_contain)\n\nand for idna 3.7:\n\n$ python3 -m cProfile -s ncalls poc.py | head\n\n         9337 function calls (9284 primitive calls) in 0.018 seconds\n\n   Ordered by: call count\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n     2003    0.000    0.000    0.000    0.000 intranges.py:35(_decode_range)\n1096/1095    0.000    0.000    0.000    0.000 {built-in method builtins.len}\n     1011    0.000    0.000    0.000    0.000 {built-in method builtins.ord}\n     1002    0.001    0.000    0.001    0.000 intranges.py:39(intranges_contain)\n     1002    0.000    0.000    0.000    0.000 intranges.py:32(_encode_range)\n\nSee the difference in the total function calls caused mostly by 5007 calls to ord function in the vulnerable version."
 							}
 						]
 					}
