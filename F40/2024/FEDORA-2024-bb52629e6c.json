@@ -1,0 +1,386 @@
+{
+	"alias": "FEDORA-2024-bb52629e6c",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2264332,
+			"title": "Chromium is unable to send/receive video on MS Teams",
+			"bugzilla": {
+				"bug_id": "2264332",
+				"creation_ts": "2024-02-15 03:30:05 +0000",
+				"short_desc": "Chromium is unable to send/receive video on MS Teams",
+				"delta_ts": "2024-05-31 21:11:55 +0000",
+				"bug_status": "MODIFIED",
+				"bug_file_loc": "https://issues.chromium.org/issues/41492618#comment11",
+				"keywords": "Desktop",
+				"priority": "unspecified",
+				"bug_severity": "high",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17888375",
+						"comment_count": "0",
+						"who": {
+							"text": "andre.ocosta",
+							"name": "Andre Costa"
+						},
+						"bug_when": "2024-02-15 03:30:05 +0000",
+						"thetext": "I first perceived the problem when I tried to make remote meetings through MS Teams and video could not be neither streamed outbound nor inbound. After filing a bug on Chromium's issue tracker [https://issues.chromium.org/issues/41492618), we were able to track the problem to the fact that on Fedora Chromium is incapable of dynamically loading H264 libs (even though they are installed), and therefore it cannot stream H264 content.\n\nThis first issue was closed as an MS Teams issue, so I created a new, more specific one (https://issues.chromium.org/issues/324534609), but this last one was closed as \"won't fix -- intended behavior\" with the final comment saying \"We don't provide support for distro builds. They often use custom Chromium patches. You'll need to reach out to Fedora.\". So, here we are, hoping this is the right place and the issue will finally be addressed.\n\nReproducible: Always\n\nSteps to Reproduce:\n1. Join a meeting with MS Teams \n2. Try to stream video of any kind (camera, screencast etc.)\n3.\nActual Results:  \nNo video of any kind is streamed inbound or outbound.\n\nExpected Results:  \nVideo should be properly sent and received."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17891675",
+						"comment_count": "1",
+						"who": {
+							"text": "andre.ocosta",
+							"name": "Andre Costa"
+						},
+						"bug_when": "2024-02-16 20:53:09 +0000",
+						"thetext": "Reproducing here the comments made by Chromium devs on https://issues.chromium.org/issues/324534609:\n\n> Proprietary codecs are only supported with proprietary_codecs=true ffmpeg_branding=Chrome. If you're setting use_system_ffmpeg, we also can't be sure what is actually supported locally.\n> If you don't set any additional flags, then H.264 should not work.\n\n(these are compile-time flags)\n\nI downloaded chromium-121.0.6167.184-1.fc39.src.rpm and there are 58 patches in total, including chromium-107-proprietary-codecs.patch that removes the following lines from media/BUILD.gn :\n\n-if (proprietary_codecs && media_use_ffmpeg) {\n-  assert(\n-      ffmpeg_branding != \"Chromium\",\n-      \"proprietary codecs and ffmpeg_branding set to Chromium are incompatible\")\n-}\n\nMy question is: considering all the patches applied, should chromium support h264 content on a Fedora installation with openh264 installed?\n\nFor the record, these are the h264 packages currently installed here:\n\nopenh264-2.3.1-2.fc39.x86_64\nmozilla-openh264-2.3.1-2.fc39.x86_64\ngstreamer1-plugin-openh264-1.22.1-1.fc39.x86_64\n\nChrome supports h264, but it uses its own ffmpeg libs. Firefox also supports h264, and it uses Fedora's openh264 libs."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17900006",
+						"comment_count": "2",
+						"who": {
+							"text": "andre.ocosta",
+							"name": "Andre Costa"
+						},
+						"bug_when": "2024-02-23 12:58:55 +0000",
+						"thetext": "For the record, I am already using ffmpeg from RPMFusion:\n\n❯ rpm -q --queryformat \"%{NAME} %{VERSION}: %{VENDOR}\\n\" ffmpeg ffmpeg-libs\nffmpeg 6.0.1: RPM Fusion\nffmpeg-libs 6.0.1: RPM Fusion\n\nI also followed the instructions from RPMFusion Multimedia howto [https://rpmfusion.org/Howto/Multimedia]. Still, running this JS Fiddle (https://jsfiddle.net/fippo/rLhug0dp/) shows \"undefined\" on Chromium, while on Chrome it shows\n\n{\"clockRate\":90000,\"mimeType\":\"video/H264\",\"sdpFmtpLine\":\"level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f\"}"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17900419",
+						"comment_count": "3",
+						"who": {
+							"text": "mszpak",
+							"name": "Marcin Zajaczkowski"
+						},
+						"bug_when": "2024-02-23 20:33:25 +0000",
+						"thetext": "I've also encountered that problem with Teams after Fedora upgrade to the version with chromium-freeworld not available anymore (\"because the version in Fedora should be able to do the same\" :) ).\n\nAs Teams (especially v2) has poor support also for Firefox (not to mention a lack of a native app), it is currently problematic to use Teams on Fedora 39 without using Google Chrome, manual compilation of Chromium (with changes patches) or using third party binaries :-/.\n\nMaybe it would be possible to address that on the Fedora side?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17969477",
+						"comment_count": "4",
+						"who": {
+							"text": "andre.ocosta",
+							"name": "Andre Costa"
+						},
+						"bug_when": "2024-04-12 18:36:08 +0000",
+						"thetext": "I changed the issue's title because I realized we might have a different problem.\n\nWith Chromium 123.0.6312.105-1, h264 codec seems to be supported; running the JSFiddle shows the same output as Chrome:\n\n{\"clockRate\":90000,\"mimeType\":\"video/H264\",\"sdpFmtpLine\":\"level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f\"}\n\nAlso, https://mozilla.github.io/webrtc-landing/pc_test_no_h264.html shows \"YES H.264 is supported!\".\n\nStill, I can't send nor receive video on MS Teams (Google Meet works just fine). Running chromium-browser on console shows this during a MS Teams call with video enabled:\n\n[41032:31:0412/152139.077691:ERROR:webrtc_video_engine.cc(1053)] No video codecs in common.\n[40118:40145:0412/152155.639260:ERROR:socket_manager.cc(141)] Failed to resolve address for world.relay.skype.com., errorcode: -105\n[40118:40145:0412/152155.639391:ERROR:socket_manager.cc(141)] Failed to resolve address for world.relay.skype.com., errorcode: -105\n[40118:40145:0412/152155.639416:ERROR:socket_manager.cc(141)] Failed to resolve address for world.relay.skype.com., errorcode: -105\n[41032:31:0412/152208.078466:ERROR:webrtc_video_engine.cc(1053)] No video codecs in common.\n[41032:31:0412/152208.079403:ERROR:webrtc_video_engine.cc(1053)] No video codecs in common.\n[41032:31:0412/152208.080315:ERROR:webrtc_video_engine.cc(1053)] No video codecs in common.\n[41032:31:0412/152208.081284:ERROR:webrtc_video_engine.cc(1053)] No video codecs in common.\n[41032:31:0412/152208.082167:ERROR:webrtc_video_engine.cc(1053)] No video codecs in common.\n[41032:31:0412/152208.083090:ERROR:webrtc_video_engine.cc(1053)] No video codecs in common.\n[41032:31:0412/152208.083959:ERROR:webrtc_video_engine.cc(1053)] No video codecs in common.\n[41032:31:0412/152208.084839:ERROR:webrtc_video_engine.cc(1053)] No video codecs in common.\n[41032:31:0412/152208.085685:ERROR:webrtc_video_engine.cc(1053)] No video codecs in common.\n[41032:31:0412/152208.086533:ERROR:webrtc_video_engine.cc(1053)] No video codecs in common.\n[41032:31:0412/152208.087527:ERROR:webrtc_video_engine.cc(1053)] No video codecs in common.\n[40118:40145:0412/152208.247626:ERROR:socket_manager.cc(141)] Failed to resolve address for world.relay.skype.com., errorcode: -105\n[40118:40145:0412/152208.247698:ERROR:socket_manager.cc(141)] Failed to resolve address for world.relay.skype.com., errorcode: -105\n[40118:40145:0412/152208.247726:ERROR:socket_manager.cc(141)] Failed to resolve address for world.relay.skype.com., errorcode: -105\n[40117:41160:0412/152210.225693:ERROR:vaapi_video_decoder.cc(1232)] failed Initialize()ing the frame pool\n[41032:31:0412/152248.003066:ERROR:stun_port.cc(101)] Binding request timed out from 192.168.0.x:54664 (enp3s0)\n[41032:31:0412/152248.003231:ERROR:stun_port.cc(101)] Binding request timed out from 192.168.68.x:52899 (wlp4s0)\n[41032:31:0412/152442.691530:ERROR:webrtc_video_engine.cc(1053)] No video codecs in common.\n\nThe same attempt with Chrome results in:\n\n[41648:41654:0412/153030.398312:ERROR:socket_manager.cc(141)] Failed to resolve address for world.relay.skype.com., errorcode: -105\n[41648:41654:0412/153030.398400:ERROR:socket_manager.cc(141)] Failed to resolve address for world.relay.skype.com., errorcode: -105\n[41648:41654:0412/153030.398450:ERROR:socket_manager.cc(141)] Failed to resolve address for world.relay.skype.com., errorcode: -105\n[41648:41654:0412/153042.551801:ERROR:socket_manager.cc(141)] Failed to resolve address for world.relay.skype.com., errorcode: -105\n[41648:41654:0412/153042.551849:ERROR:socket_manager.cc(141)] Failed to resolve address for world.relay.skype.com., errorcode: -105\n[41648:41654:0412/153042.551885:ERROR:socket_manager.cc(141)] Failed to resolve address for world.relay.skype.com., errorcode: -105\n[OpenH264] this = 0x0x3d0c19ccdf80, Warning:Actual input framerate 0.000000 is different from framerate in setting 30.000000, suggest to use other rate control modes\n[OpenH264] this = 0x0x3d0c19ccdf80, Warning:Actual input framerate 0.000000 is different from framerate in setting 30.000000, suggest to use other rate control modes\n\nSo, there is clearly a codec problem, but I can't pinpoint what it is."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18031860",
+						"comment_count": "5",
+						"who": {
+							"text": "andre.ocosta",
+							"name": "Andre Costa"
+						},
+						"bug_when": "2024-05-23 19:22:01 +0000",
+						"thetext": "For the record: I filed yet another bug on Chromium issue tracker (https://issues.chromium.org/issues/341991523), but all evidences point to the problem being specific to Chromium's Fedora build (e.g. it is able to send/receive video on Debian)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18037792",
+						"comment_count": "6",
+						"who": {
+							"text": "than",
+							"name": "Than Ngo"
+						},
+						"bug_when": "2024-05-29 07:34:47 +0000",
+						"thetext": "(In reply to Andre Costa from comment #5)\n> For the record: I filed yet another bug on Chromium issue tracker\n> (https://issues.chromium.org/issues/341991523), but all evidences point to\n> the problem being specific to Chromium's Fedora build (e.g. it is able to\n> send/receive video on Debian).\n\nthere's new scratch build with the proposed fix for this issue. Could you please download and test?\nPlease give the feedback\n\n   https://koji.fedoraproject.org/koji/taskinfo?taskID=118216347\n\nThanks"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18038062",
+						"comment_count": "7",
+						"who": {
+							"text": "than",
+							"name": "Than Ngo"
+						},
+						"bug_when": "2024-05-29 11:27:16 +0000",
+						"thetext": "*** Bug 2252489 has been marked as a duplicate of this bug. ***"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18038063",
+						"comment_count": "8",
+						"who": {
+							"text": "than",
+							"name": "Than Ngo"
+						},
+						"bug_when": "2024-05-29 11:30:04 +0000",
+						"thetext": "i want to mention that the above scratch build is only for f40"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18038638",
+						"comment_count": "9",
+						"who": {
+							"text": "andre.ocosta",
+							"name": "Andre Costa"
+						},
+						"bug_when": "2024-05-29 18:21:03 +0000",
+						"thetext": "i @than@redhat.com thanks for working on this. I downloaded this specific build you suggested, and I could successfully send and receive video and audio on MS Teams \\o/ (I tested with two different Teams accounts, one on the browser and another one on my mobile). I didn't test screensharing yet, but I would assume it will work considering video is being transmitted successfully.\n\nJust out of curiosity, what was the solution after all? Does the 'noopenh264' on the package name mean that chromium will now ship with its own libs, as (I assume) Chrome does?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18039338",
+						"comment_count": "10",
+						"who": {
+							"text": "than",
+							"name": "Than Ngo"
+						},
+						"bug_when": "2024-05-30 08:55:22 +0000",
+						"thetext": "The solution is simply that we link Chromium against noopenh264 library (the fake implementation of the OpenH264 library), regardless of the availability of the actual library.\nnoopenh264 is installed by default in Fedora Workstation. Then during the first system update, it should get replaced by the real openh264 package from Cisco's repository."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18042270",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-05-31 21:11:54 +0000",
+						"thetext": "FEDORA-2024-4e0ea1c22e (chromium-125.0.6422.141-1.fc39) has been submitted as an update to Fedora 39.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-4e0ea1c22e"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18042271",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-05-31 21:11:55 +0000",
+						"thetext": "FEDORA-2024-bb52629e6c (chromium-125.0.6422.141-1.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-bb52629e6c"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "chromium-125.0.6422.141-1.fc40",
+			"release_id": 76,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "chromium-common",
+						"version": "125.0.6422.141",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "chromedriver",
+						"version": "125.0.6422.141",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "chromium-headless",
+						"version": "125.0.6422.141",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "chromium",
+						"version": "125.0.6422.141",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "chromedriver",
+						"version": "125.0.6422.141",
+						"release": "1.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "chromium-common",
+						"version": "125.0.6422.141",
+						"release": "1.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "chromium",
+						"version": "125.0.6422.141",
+						"release": "1.fc40",
+						"arch": "ppc64le"
+					}
+				],
+				"src": [
+					{
+						"name": "chromium",
+						"version": "125.0.6422.141",
+						"release": "1.fc40",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "chromium-common",
+						"version": "125.0.6422.141",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "chromium-headless",
+						"version": "125.0.6422.141",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "chromium",
+						"version": "125.0.6422.141",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "chromedriver",
+						"version": "125.0.6422.141",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3543667,
+			"text": "This update has been submitted for testing by than. ",
+			"timestamp": "2024-05-31 21:11:52",
+			"update_id": 614513,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3543668,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2024-05-31 21:11:52",
+			"update_id": 614513,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath_groups": "",
+	"date_submitted": "2024-05-31 21:11:52",
+	"locked": true,
+	"notes": "update to 125.0.6422.141\n\n  * High CVE-2024-5493: Heap buffer overflow in WebRTC\n  * High CVE-2024-5494: Use after free in Dawn\n  * High CVE-2024-5495: Use after free in Dawn\n  * High CVE-2024-5496: Use after free in Media Session\n  * High CVE-2024-5497: Out of bounds memory access in Keyboard Inputs\n  * High CVE-2024-5498: Use after free in Presentation API\n  * High CVE-2024-5499: Out of bounds write in Streams API",
+	"release": {
+		"branch": "f40",
+		"candidate_tag": "f40-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f40",
+		"eol": "2025-05-13",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 40",
+		"mail_template": "fedora_errata_template",
+		"name": "F40",
+		"override_tag": "f40-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f40-signing-pending",
+		"pending_stable_tag": "f40-updates-pending",
+		"pending_testing_tag": "f40-updates-testing-pending",
+		"stable_tag": "f40-updates",
+		"state": "current",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f40-updates-testing",
+		"version": "40"
+	},
+	"request": "testing",
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "high",
+	"stable_days": 7,
+	"stable_karma": 1,
+	"status": "pending",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "chromium-125.0.6422.141-1.fc40",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2024-bb52629e6c",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2024-bb52629e6c",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/2487c5e0487dc7c408b91ef129910d9af23868620606e4f536ac1d3bb45ecc5b?s=24&d=retro",
+		"email": "than@redhat.com",
+		"groups": [
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "kde-sig"
+			},
+			{
+				"name": "svnswitchdesk"
+			},
+			{
+				"name": "cvsswitchdesk"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "svnkde-settings"
+			},
+			{
+				"name": "cvssystem-switch-mail"
+			},
+			{
+				"name": "svnfedora-kde-artwork"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "cla_redhat"
+			},
+			{
+				"name": "svnsystem-switch-displaymanager"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "gitsystem-config-users"
+			},
+			{
+				"name": "svnsystem-switch-mail"
+			},
+			{
+				"name": "signed_fpca"
+			}
+		],
+		"id": 822,
+		"name": "than",
+		"openid": "than.id.fedoraproject.org"
+	},
+	"version_hash": "52b9610c0a1deaa2e91b02b2a54d5f1ff695cac3"
+}
