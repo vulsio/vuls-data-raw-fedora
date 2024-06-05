@@ -1,0 +1,2624 @@
+{
+	"alias": "FEDORA-2024-c2e7b82022",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2266017,
+			"title": "virtinterfaced SIGABRT in xdr_remote_interface_lookup_by_mac_string_args() due to memory corruption",
+			"bugzilla": {
+				"bug_id": "2266017",
+				"creation_ts": "2024-02-26 10:16:15 +0000",
+				"short_desc": "virtinterfaced SIGABRT in xdr_remote_interface_lookup_by_mac_string_args() due to memory corruption",
+				"delta_ts": "2024-06-05 17:11:12 +0000",
+				"bug_status": "MODIFIED",
+				"bug_file_loc": "https://cockpit-logs.us-east-1.linodeobjects.com/pull-5903-20240212-230634-e54961ef-fedora-39-firefox-cockpit-project-cockpit-machines/log.html#60",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17902875",
+						"comment_count": "0",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-02-26 10:16:15 +0000",
+						"thetext": "In the last two months we have started to see a fair number of virtinterfaced crashes [1] in cockpit-machines tests, on Fedora 38 and 39 (we only just started testing on 40, but likely they happen there as well). As c-machines doesn't talk to virtinterfaced directly, it doesn't actually break the UI, but the tests also watch out for unexpected journal messages like crashes.\n\nOne of the two common libvirt crashes happens in e.g. [2][3]. All of these have \"journal\" links to the full systemd journals. (The other common crash is bug 2266014)\n\nThe stack trace of the relevant thread looks like this, with xdr_remote_interface_lookup_by_mac_string_args() being the key part:\n\n#0  0x00007fe1f170a834 __pthread_kill_implementation (libc.so.6 + 0x90834)\n#1  0x00007fe1f16b88ee raise (libc.so.6 + 0x3e8ee)\n#2  0x00007fe1f16a08ff abort (libc.so.6 + 0x268ff)\n#3  0x00007fe1f16a17d0 __libc_message.cold (libc.so.6 + 0x277d0)\n#4  0x00007fe1f17147a5 malloc_printerr (libc.so.6 + 0x9a7a5)\n#5  0x00007fe1f1716a9c _int_free (libc.so.6 + 0x9ca9c)\n#6  0x00007fe1f17193de free (libc.so.6 + 0x9f3de)\n#7  0x00007fe1f20f99b8 xdr_string (libtirpc.so.3 + 0x199b8)\n#8  0x00007fe1f1e5e592 xdr_remote_nonnull_string (libvirt.so.0 + 0x25e592)\n#9  0x00007fe1f1e69ded xdr_remote_interface_lookup_by_mac_string_args (libvirt.so.0 + 0x269ded)\n#10 0x00007fe1f20f8e6b xdr_free (libtirpc.so.3 + 0x18e6b)\n#11 0x00007fe1f1e281a7 virNetServerProgramDispatch (libvirt.so.0 + 0x2281a7)\n#12 0x00007fe1f1e2eb23 virNetServerProcessMsg (libvirt.so.0 + 0x22eb23)\n#13 0x00007fe1f1e2ec36 virNetServerHandleJob (libvirt.so.0 + 0x22ec36)\n#14 0x00007fe1f1d66c45 virThreadPoolWorker (libvirt.so.0 + 0x166c45)\n#15 0x00007fe1f1d65e00 virThreadHelper (libvirt.so.0 + 0x165e00)\n#16 0x00007fe1f1708897 start_thread (libc.so.6 + 0x8e897)\n#17 0x00007fe1f178f6fc __clone3 (libc.so.6 + 0x1156fc)\n\n\nFor both [2] and [3], the journal just said\n\n    virtinterfaced[2416]: free(): invalid pointer\n\nwhich isn't super helpful.\n\n\n[1] https://github.com/cockpit-project/cockpit-machines/issues/1391#issuecomment-1963676507\n[2] https://cockpit-logs.us-east-1.linodeobjects.com/pull-5903-20240212-230634-e54961ef-fedora-39-firefox-cockpit-project-cockpit-machines/log.html#60\n[3] https://cockpit-logs.us-east-1.linodeobjects.com/pull-1280-20240126-150137-d0fc7d9f-fedora-39-firefox/log.html#40\n\nReproducible: Couldn't Reproduce\n\nSteps to Reproduce:\nUnfortunately there is no direct reproducer. It happens sporadically, and in all tests (i.e. not one or two specific ones), which corresponds to \"we don't assert anything in it directly\".\n\n\nLike in bug 2266014 I've tried for about half an hour to locally run tests in a loop on my laptop, but as a good Heisenbug it never happened. So is there some extra information which we could collect to make this more useful? Note that it only crashes a few times a week in our CI (during hundreds of test runs)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17958428",
+						"comment_count": "1",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-04-04 09:47:57 +0000",
+						"thetext": "Yesterday's test run in https://cockpit-logs.us-east-1.linodeobjects.com/pull-6166-a97c224f-20240403-154431-fedora-40-cockpit-project-cockpit-machines/log.html#70 has shown another variant:\n\n#0  0x00007fcd502b2144 __pthread_kill_implementation (libc.so.6 + 0x98144)\n#1  0x00007fcd5025a65e raise (libc.so.6 + 0x4065e)\n#2  0x00007fcd50242902 abort (libc.so.6 + 0x28902)\n#3  0x00007fcd4ec5f901 log_assert_failed.cold (libudev.so.1 + 0x6901)\n#4  0x00007fcd4ec6921f udev_ref (libudev.so.1 + 0x1021f)\n#5  0x00007fcd4ec958d5 udevInterfaceGetXMLDesc (libvirt_driver_interface.so + 0x48d5)\n#6  0x00007fcd50942d75 virInterfaceGetXMLDesc (libvirt.so.0 + 0x342d75)\n#7  0x000055ef3de5a106 remoteDispatchInterfaceGetXMLDescHelper.lto_priv.0 (virtinterfaced + 0x66106)\n#8  0x00007fcd50806e29 virNetServerProgramDispatch (libvirt.so.0 + 0x206e29)\n#9  0x00007fcd5080d8a3 virNetServerProcessMsg (libvirt.so.0 + 0x20d8a3)\n#10 0x00007fcd5080d9b6 virNetServerHandleJob (libvirt.so.0 + 0x20d9b6)\n#11 0x00007fcd507456f5 virThreadPoolWorker (libvirt.so.0 + 0x1456f5)\n#12 0x00007fcd507448cd virThreadHelper (libvirt.so.0 + 0x1448cd)\n#13 0x00007fcd502b01b7 start_thread (libc.so.6 + 0x961b7)\n#14 0x00007fcd5033239c __clone3 (libc.so.6 + 0x11839c)\n\nbug 2266014 is already fixed/closed, and was about udevInterfaceLookupByMACString(). But this looks too close to be a coincidence, so for now I won't file another bug. If you want me to, I can though."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18023619",
+						"comment_count": "2",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-05-21 04:25:08 +0000",
+						"thetext": "A recent F40 run in https://cockpit-logs.us-east-1.linodeobjects.com/pull-1643-7d20b02f-20240519-191431-fedora-40-devel/log.html#83 has the same remoteDispatchInterfaceGetXMLDescHelper -> virInterfaceGetXMLDesc crash."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18023801",
+						"comment_count": "3",
+						"who": {
+							"text": "berrange",
+							"name": "Daniel Berrangé"
+						},
+						"bug_when": "2024-05-21 08:55:22 +0000",
+						"thetext": "> [1] https://github.com/cockpit-project/cockpit-machines/issues/1391#issuecomment-1963676507\n\nThat shows:\n\n  virtinterfaced[1858]: Assertion '*q > 0' failed at src/libudev/libudev.c:91, function udev_ref(). Aborting.\n\nwhich is the missing context I wanted from the stack trace in comment #1 and comment #2.\n\nIOW, we have a refcount underflow - it can't have wrapped since there's another assert_se call that should log a message on overflow.\n\nI can spot one bug in virInterfaceGetXMLDesc(), where it could fail to release a reference if an invalid flag is passed in, but that should be resulting in clear errors in your app code, and would result in an overflow eventually, not an underflow."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18052897",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-06-05 11:53:34 +0000",
+						"thetext": "FEDORA-2024-ee96e0c470 (libvirt-10.1.0-2.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-ee96e0c470"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18053182",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-06-05 16:47:42 +0000",
+						"thetext": "FEDORA-2024-c2e7b82022 (libvirt-9.7.0-4.fc39) has been submitted as an update to Fedora 39.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-c2e7b82022"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18053195",
+						"comment_count": "6",
+						"who": {
+							"text": "berrange",
+							"name": "Daniel Berrangé"
+						},
+						"bug_when": "2024-06-05 17:11:12 +0000",
+						"thetext": "> I can spot one bug in virInterfaceGetXMLDesc(), where it could fail to release a reference if an invalid flag is passed in, but that should be resulting in clear errors in your app code, and would result in an overflow eventually, not an underflow.\n\nThe update I've issued addresses that flaw. I'm fairly sceptical that it will solve the problem cockpit sees, but its worth a try as thus far I can't explain the problem otherwise."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2278616,
+			"parent": true,
+			"security": true,
+			"title": "CVE-2024-4418 libvirt: stack use-after-free in virNetClientIOEventLoop()",
+			"bugzilla": {
+				"bug_id": "2278616",
+				"alias": "CVE-2024-4418",
+				"creation_ts": "2024-05-02 12:29:32 +0000",
+				"short_desc": "CVE-2024-4418 libvirt: stack use-after-free in virNetClientIOEventLoop()",
+				"delta_ts": "2024-05-06 09:40:29 +0000",
+				"bug_status": "NEW",
+				"keywords": "Security",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"depends_on": [
+					"2278618"
+				],
+				"blocked": [
+					{
+						"bug_id": "2278620",
+						"error": "NotPermitted"
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17998703",
+						"comment_count": "0",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2024-05-02 12:29:32 +0000",
+						"thetext": "A race condition leading to a stack use-after-free bug was found in libvirt. Due to a bad assumption in the virNetClientIOEventLoop() method, the `data` pointer to a stack-allocated virNetClientIOEventData structure ended up being used in virNetClientIOEventFD callback while the data pointer's stack frame was concurrently being \"freed\" when returning from virNetClientIOEventLoop().\n\nQuoting libvirt maintainer Daniel P. Berrangé: The 'virtproxyd' daemon can be used to trigger requests which could potentially exercise the bug. If libvirt is configured with fine grained access control, this could in theory let a user escape their otherwise limited access. A local unprivileged user can access virtproxyd without authenticating. Remote users would need to authenticate before they could exercise it."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17998708",
+						"comment_count": "1",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2024-05-02 12:31:33 +0000",
+						"thetext": "Red Hat would like to thank Martin Širokov for reporting this issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17998714",
+						"comment_count": "2",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2024-05-02 12:33:37 +0000",
+						"thetext": "Created libvirt tracking bugs for this issue:\n\nAffects: fedora-all [bug 2278618]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18003590",
+						"comment_count": "4",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2024-05-06 09:35:54 +0000",
+						"thetext": "Upstream fix:\nhttps://gitlab.com/libvirt/libvirt/-/commit/8074d64dc2eca846d6a61efe1a9b7428a0ce1dd1"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2278618,
+			"security": true,
+			"title": "CVE-2024-4418 libvirt: stack use-after-free in virNetClientIOEventLoop() [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2278618",
+				"creation_ts": "2024-05-02 12:33:19 +0000",
+				"short_desc": "CVE-2024-4418 libvirt: stack use-after-free in virNetClientIOEventLoop() [fedora-all]",
+				"delta_ts": "2024-06-05 16:47:46 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "2278616",
+						"alias": "CVE-2024-4418",
+						"creation_ts": "2024-05-02 12:29:32 +0000",
+						"short_desc": "CVE-2024-4418 libvirt: stack use-after-free in virNetClientIOEventLoop()",
+						"delta_ts": "2024-05-06 09:40:29 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"2278618"
+						],
+						"blocked": [
+							{
+								"bug_id": "2278620",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "17998703",
+								"comment_count": "0",
+								"who": {
+									"text": "mcascell",
+									"name": "Mauro Matteo Cascella"
+								},
+								"bug_when": "2024-05-02 12:29:32 +0000",
+								"thetext": "A race condition leading to a stack use-after-free bug was found in libvirt. Due to a bad assumption in the virNetClientIOEventLoop() method, the `data` pointer to a stack-allocated virNetClientIOEventData structure ended up being used in virNetClientIOEventFD callback while the data pointer's stack frame was concurrently being \"freed\" when returning from virNetClientIOEventLoop().\n\nQuoting libvirt maintainer Daniel P. Berrangé: The 'virtproxyd' daemon can be used to trigger requests which could potentially exercise the bug. If libvirt is configured with fine grained access control, this could in theory let a user escape their otherwise limited access. A local unprivileged user can access virtproxyd without authenticating. Remote users would need to authenticate before they could exercise it."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17998708",
+								"comment_count": "1",
+								"who": {
+									"text": "mcascell",
+									"name": "Mauro Matteo Cascella"
+								},
+								"bug_when": "2024-05-02 12:31:33 +0000",
+								"thetext": "Red Hat would like to thank Martin Širokov for reporting this issue."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17998714",
+								"comment_count": "2",
+								"who": {
+									"text": "mcascell",
+									"name": "Mauro Matteo Cascella"
+								},
+								"bug_when": "2024-05-02 12:33:37 +0000",
+								"thetext": "Created libvirt tracking bugs for this issue:\n\nAffects: fedora-all [bug 2278618]"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18003590",
+								"comment_count": "4",
+								"who": {
+									"text": "mcascell",
+									"name": "Mauro Matteo Cascella"
+								},
+								"bug_when": "2024-05-06 09:35:54 +0000",
+								"thetext": "Upstream fix:\nhttps://gitlab.com/libvirt/libvirt/-/commit/8074d64dc2eca846d6a61efe1a9b7428a0ce1dd1"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17998712",
+						"comment_count": "0",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2024-05-02 12:33:19 +0000",
+						"thetext": "\nMore information about this security flaw is available in the following bug:\n\nhttp://bugzilla.redhat.com/show_bug.cgi?id=2278616\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17998713",
+						"comment_count": "1",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2024-05-02 12:33:23 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2278616,2278618\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18052898",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-06-05 11:53:38 +0000",
+						"thetext": "FEDORA-2024-ee96e0c470 (libvirt-10.1.0-2.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-ee96e0c470"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18053183",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-06-05 16:47:46 +0000",
+						"thetext": "FEDORA-2024-c2e7b82022 (libvirt-9.7.0-4.fc39) has been submitted as an update to Fedora 39.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-c2e7b82022"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "libvirt-9.7.0-4.fc39",
+			"release_id": 70,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "libvirt-docs",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-lxc-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-debugsource",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-qemu-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-libxl-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-libs-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-libs",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-qemu",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-core-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-client-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-nwfilter-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-network-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-nodedev-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-wireshark-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-interface-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-secret-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-proxy-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-devel",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-core",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-client",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-lxc",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-network",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-wireshark",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-libxl",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-nwfilter",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-common",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-nodedev",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-interface",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-secret",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-proxy",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-common-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-plugin-sanlock",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-login-shell",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-gluster",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-nss",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-log-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-lock-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-lock",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-log",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-rbd",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-logical",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi-direct",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-disk",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-scsi",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-plugin-lockd",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-mpath",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-rbd-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi-direct-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-gluster-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-plugin-sanlock-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-logical-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-disk-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-nss-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-plugin-lockd-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-login-shell-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-scsi-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-client-qemu",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-mpath-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-config-nwfilter",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-config-network",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-qemu",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-kvm",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-lxc",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "libvirt-daemon-xen",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "aarch64"
+					}
+				],
+				"i686": [
+					{
+						"name": "libvirt-libs",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-debugsource",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-libs-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-docs",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-qemu-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-qemu",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-lxc-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-vbox-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-client-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-core-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-nwfilter-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-network-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-nodedev-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-devel",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-interface-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-secret-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-wireshark-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-proxy-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-client",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-lxc",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-vbox",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-wireshark",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-core",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-network",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-nwfilter",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-nodedev",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-interface",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-secret",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-proxy",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-common-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-common",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-log-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-lock-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi-direct-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-gluster-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-log",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-lock",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-plugin-sanlock-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-logical-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-disk-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-nss-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-zfs-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-plugin-lockd-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-scsi-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-login-shell-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-client-qemu",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-mpath-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-plugin-sanlock",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-nss",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-login-shell",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-gluster",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-logical",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-plugin-lockd",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-disk",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi-direct",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-config-nwfilter",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-scsi",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-zfs",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-mpath",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-config-network",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-qemu",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-kvm",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-lxc",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "libvirt-daemon-vbox",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "mingw32-libvirt",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw64-libvirt",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw64-libvirt-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "mingw32-libvirt-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "noarch"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "libvirt-debugsource",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-docs",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-libs-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-libs",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-qemu-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-qemu",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-lxc-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-client-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-core-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-nwfilter-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-network-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-wireshark-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-nodedev-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-devel",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-core",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-interface-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-secret-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-client",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-proxy-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-lxc",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-network",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-wireshark",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-nwfilter",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-nodedev",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-interface",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-secret",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-common",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-proxy",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-common-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-plugin-sanlock",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-login-shell",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-nss",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-gluster",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-log-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-lock-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-lock",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-log",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-rbd",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-logical",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi-direct",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-disk",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-scsi",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-zfs",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-plugin-lockd",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-mpath",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-rbd-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi-direct-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-plugin-sanlock-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-gluster-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-nss-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-logical-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-disk-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-plugin-lockd-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-login-shell-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-zfs-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-client-qemu",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-scsi-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-mpath-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-config-nwfilter",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-config-network",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-qemu",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-kvm",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "libvirt-daemon-lxc",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "libvirt-libs",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-debugsource",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-libs-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-docs",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-qemu-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-qemu",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-lxc-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-client-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-core-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-nwfilter-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-wireshark-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-network-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-nodedev-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-devel",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-interface-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-secret-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-proxy-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-client",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-lxc",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-wireshark",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-core",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-network",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-nwfilter",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-nodedev",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-interface",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-secret",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-proxy",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-common-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-common",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-log-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-lock-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-rbd-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi-direct-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-plugin-sanlock-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-log",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-gluster-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-lock",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-logical-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-nss-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-disk-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-plugin-lockd-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-login-shell-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-client-qemu",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-scsi-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-plugin-sanlock",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-mpath-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-rbd",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-nss",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-login-shell",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-gluster",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-logical",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-disk",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-plugin-lockd",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi-direct",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-scsi",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-config-nwfilter",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-mpath",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-config-network",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-qemu",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-kvm",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "libvirt-daemon-lxc",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "libvirt",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "libvirt-daemon-driver-libxl-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-common-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-debugsource",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-nwfilter",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi-direct-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-lxc",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-lock-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-nodedev-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-qemu",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-libs-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-nwfilter-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-network",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-common",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-network-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-proxy-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-docs",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-devel",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-core-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-vbox-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-nodedev",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-log-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-rbd-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-lxc-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-gluster-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-wireshark-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-libs",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-core",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-libxl",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-interface",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-qemu-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-secret",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-proxy",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-vbox",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-log",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-wireshark",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-client",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-interface-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-secret-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-client-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-plugin-sanlock-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-logical-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-lock",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-disk-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-nss-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-plugin-lockd-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-zfs-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-login-shell-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-scsi-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-client-qemu",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-mpath-debuginfo",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-plugin-sanlock",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-rbd",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-login-shell",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-gluster",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-nss",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-logical",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi-direct",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-disk",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-plugin-lockd",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-scsi",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-zfs",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-iscsi",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-config-nwfilter",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage-mpath",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-config-network",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-driver-storage",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-qemu",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-kvm",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-lxc",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-xen",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "libvirt-daemon-vbox",
+						"version": "9.7.0",
+						"release": "4.fc39",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3548989,
+			"text": "This update has been submitted for testing by berrange. ",
+			"timestamp": "2024-06-05 16:47:39",
+			"update_id": 615506,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3548990,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2024-06-05 16:47:40",
+			"update_id": 615506,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3548991,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2024-06-05 16:47:41",
+			"update_id": 615506,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"critpath_groups": "critical-path-compose",
+	"date_submitted": "2024-06-05 16:47:39",
+	"notes": "Fix crash in event loop (CVE-2024-4418)\nFix I/O stall when multiple threads issue RPC calls\nFix leak of GSource object\nFix leak of udev object reference",
+	"release": {
+		"branch": "f39",
+		"candidate_tag": "f39-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f39",
+		"eol": "2024-11-12",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 39",
+		"mail_template": "fedora_errata_template",
+		"name": "F39",
+		"override_tag": "f39-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f39-signing-pending",
+		"pending_stable_tag": "f39-updates-pending",
+		"pending_testing_tag": "f39-updates-testing-pending",
+		"stable_tag": "f39-updates",
+		"state": "current",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f39-updates-testing",
+		"version": "39"
+	},
+	"request": "testing",
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "medium",
+	"stable_days": 14,
+	"stable_karma": 3,
+	"status": "pending",
+	"suggest": "unspecified",
+	"test_gating_status": "waiting",
+	"title": "libvirt-9.7.0-4.fc39",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2024-c2e7b82022",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2024-c2e7b82022",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/bbbcdadcc58b8dcdca568db0bd584a8aa3fcb130dd2df5dbb680ab0ce81bdfc5?s=24&d=retro",
+		"email": "berrange@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "virtmaint-sig"
+			},
+			{
+				"name": "gitlibosinfo"
+			},
+			{
+				"name": "hgvirt-viewer"
+			},
+			{
+				"name": "gitnetcf"
+			},
+			{
+				"name": "hgvirt-manager"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "hgolpc"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "gitvirt-tools"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "hgpython-virtinst"
+			}
+		],
+		"id": 1455,
+		"name": "berrange",
+		"openid": "berrange.id.fedoraproject.org"
+	},
+	"version_hash": "5742b4f25c6f4633e08265b0905a2cf90824eeda"
+}
