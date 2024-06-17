@@ -381,7 +381,7 @@
 								"bug_id": "2263790",
 								"creation_ts": "2024-02-11 22:36:05 +0000",
 								"short_desc": "Review Request: python-yq - Command-line YAML/XML processor - jq wrapper for YAML/XML documents",
-								"delta_ts": "2024-06-13 11:42:54 +0000",
+								"delta_ts": "2024-06-17 14:37:08 +0000",
 								"bug_status": "ASSIGNED",
 								"bug_file_loc": "https://pypi.org/project/yq/",
 								"keywords": "AutomationTriaged",
@@ -389,6 +389,34 @@
 								"bug_severity": "unspecified",
 								"depends_on": [
 									"2276522"
+								],
+								"blocked": [
+									{
+										"bug_id": "2292652",
+										"creation_ts": "2024-06-17 13:01:03 +0000",
+										"short_desc": "yq command should support alternatives",
+										"delta_ts": "2024-06-17 13:01:34 +0000",
+										"bug_status": "NEW",
+										"bug_file_loc": "https://bugzilla.redhat.com/show_bug.cgi?id=2263790",
+										"priority": "unspecified",
+										"bug_severity": "medium",
+										"depends_on": [
+											"2263790"
+										],
+										"long_desc": [
+											{
+												"isprivate": "0",
+												"commentid": "18068916",
+												"comment_count": "0",
+												"who": {
+													"text": "pemensik",
+													"name": "Petr Menšík"
+												},
+												"bug_when": "2024-06-17 13:01:03 +0000",
+												"thetext": "There are two concurrent projects offering yq tool with roughly the same functionality. At least they provide common interface, which can be used with both such tools.\n\nhttps://pypi.org/project/yq/ seems to be older variant used for the same thing. While it seems less polished, it seems to have more functionality.\n\nAccording to packaging guidelines, compatible commands should use alternatives\n- https://docs.fedoraproject.org/en-US/packaging-guidelines/Conflicts/#_binary_name_conflicts\n\nThose projects both behave similarly in basic usage, so I think they should recommend. I have made python3-yq package non-conflicting with yq, but python3-yq-alt to provide alternative name. I think yq component should also provide alternative name\n\nReproducible: Always\n\nSteps to Reproduce:\n1. sudo dnf install yq\n2. sudo dnf install python3-yq-alt from bug #2263790\n3.\nActual Results:  \nThey conflict hard.\n\n$ LANG=en_US.UTF-8 sudo dnf install results_python-yq/3.4.3/12.fc39/python3-yq{,-alt}-3.4.3-12.fc39.noarch.rpm \nLast metadata expiration check: 0:00:30 ago on Mon 17 Jun 2024 02:56:02 PM CEST.\nError: \n Problem: problem with installed package yq-4.43.1-2.fc39.x86_64\n  - package python3-yq-alt-3.4.3-12.fc39.noarch from @commandline conflicts with yq provided by yq-4.43.1-2.fc39.x86_64 from @System\n  - package python3-yq-alt-3.4.3-12.fc39.noarch from @commandline conflicts with yq provided by yq-4.43.1-2.fc39.x86_64 from updates\n  - conflicting requests\n(try to add '--allowerasing' to command line to replace conflicting packages or '--skip-broken' to skip uninstallable packages)\n\n\nExpected Results:  \nBoth can be installed while both can be preferred variant for yq name. Non-default tool should be available under alternative name.\n\nCheck review bug #2263790."
+											}
+										]
+									}
 								],
 								"long_desc": [
 									{
@@ -665,6 +693,61 @@
 										},
 										"bug_when": "2024-06-13 11:42:54 +0000",
 										"thetext": "I've done some more reading of packaging guidelines and from what I can tell, using alternatives is the preferred way? See:\nhttps://docs.fedoraproject.org/en-US/packaging-guidelines/Conflicts/#_incompatible_binary_files_with_conflicting_naming_and_stubborn_upstreams\nhttps://docs.fedoraproject.org/en-US/packaging-guidelines/Conflicts/#_binary_name_conflicts\n\nFrom user perspective, there probably will never be a use-case for having the both executables installed, but on the other hand, why not. It would save us splitting the package and any potential issues with the usage of conflicts. \nMaybe(likely) I'm missing something. @Michel, if it's not too much to ask, could you explain why the Conflicts is considered the better option here please?"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "18068788",
+										"comment_count": "25",
+										"who": {
+											"text": "pemensik",
+											"name": "Petr Menšík"
+										},
+										"bug_when": "2024-06-17 12:19:31 +0000",
+										"thetext": "I agree alternatives seems the correct way to choose, since those tools seems to have compatible common interface.\n\nBut because we arrive after Go project, even though it seems it is newer, I made xqp alternative name for xq tool. They are not candidates for alternatives, since they do not share common parsing options. I made yqp provided by python3-yq package and conflicting yq name provided by python3-yq-alt, which still uses alternatives. But until also golang project uses alternatives, it conflicts with yq."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "18068795",
+										"comment_count": "26",
+										"who": {
+											"text": "pemensik",
+											"name": "Petr Menšík"
+										},
+										"bug_when": "2024-06-17 12:21:34 +0000",
+										"thetext": "Spec URL: https://github.com/pemensik/yq/raw/fedora/python-yq.spec\nSRPM URL: https://pemensik.fedorapeople.org/srpm/python-yq-3.4.3-12.fc41.src.rpm\n\n/usr/bin/yq is provided only by python3-yq-alt, which conflicts with yq package explicitly. I think alternatives should be used for them, but this makes both installable on the same system, until yq is modified."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "18068833",
+										"comment_count": "27",
+										"who": {
+											"text": "fedora-review-bot",
+											"name": "Fedora Review Service"
+										},
+										"bug_when": "2024-06-17 12:29:32 +0000",
+										"thetext": "Created attachment 2037572\nThe .spec file difference from Copr build 7608901 to 7620822"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "18068834",
+										"comment_count": "28",
+										"who": {
+											"text": "fedora-review-bot",
+											"name": "Fedora Review Service"
+										},
+										"bug_when": "2024-06-17 12:29:35 +0000",
+										"thetext": "Copr build:\nhttps://copr.fedorainfracloud.org/coprs/build/7620822\n(succeeded)\n\nReview template:\nhttps://download.copr.fedorainfracloud.org/results/@fedora-review/fedora-review-2263790-python-yq/fedora-rawhide-x86_64/07620822-python-yq/fedora-review/review.txt\n\nPlease take a look if any issues were found.\n\n\n---\nThis comment was created by the fedora-review-service\nhttps://github.com/FrostyX/fedora-review-service\n\nIf you want to trigger a new Copr build, add a comment containing new\nSpec and SRPM URLs or [fedora-review-service-build] string."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "18069110",
+										"comment_count": "29",
+										"who": {
+											"text": "mhoyer",
+											"name": "Martin Hoyer"
+										},
+										"bug_when": "2024-06-17 14:37:08 +0000",
+										"thetext": "Thanks Petr!\nMight I suggest starting with `pyp2spec yq --license Apache-2.0`, as there are some inconsistencies with the reference? For example:\n\nURL:            https://pypi.org/project/yq/\nVCS:            git:%{srcforge}\nSource0:        %{pypi_source yq}\n---\nURL:            https://github.com/kislyuk/yq\nSource:         %{pypi_source yq}\n\n(also it's not srcforge)\n\nOther than that:\n> BuildRequires:  sed\nI believe this is redundant\n\n> Requires(post): %{_bindir}/alternatives\nNot saying it's wrong, but `update-alternatives` is being used in the guidelines - https://docs.fedoraproject.org/en-US/packaging-guidelines/Alternatives/\n\n> Patch1:         yq-tomlkit-f39.patch\nAgain, nothing wrong with that, but since there already is sed workaround for the setuptools_scm, also for F39, why not have two seds instead?\n\n> %{?python_provide:%python_provide python3-%{srcname}}\nI believe this is also redundant\n\n>sed -e 's/^version_file/#write_to/' -i pyproject.toml\nJust curious why is write_to commented out"
 									}
 								]
 							}
@@ -1375,7 +1458,7 @@
 								"bug_id": "2263790",
 								"creation_ts": "2024-02-11 22:36:05 +0000",
 								"short_desc": "Review Request: python-yq - Command-line YAML/XML processor - jq wrapper for YAML/XML documents",
-								"delta_ts": "2024-06-13 11:42:54 +0000",
+								"delta_ts": "2024-06-17 14:37:08 +0000",
 								"bug_status": "ASSIGNED",
 								"bug_file_loc": "https://pypi.org/project/yq/",
 								"keywords": "AutomationTriaged",
@@ -1383,6 +1466,34 @@
 								"bug_severity": "unspecified",
 								"depends_on": [
 									"2276522"
+								],
+								"blocked": [
+									{
+										"bug_id": "2292652",
+										"creation_ts": "2024-06-17 13:01:03 +0000",
+										"short_desc": "yq command should support alternatives",
+										"delta_ts": "2024-06-17 13:01:34 +0000",
+										"bug_status": "NEW",
+										"bug_file_loc": "https://bugzilla.redhat.com/show_bug.cgi?id=2263790",
+										"priority": "unspecified",
+										"bug_severity": "medium",
+										"depends_on": [
+											"2263790"
+										],
+										"long_desc": [
+											{
+												"isprivate": "0",
+												"commentid": "18068916",
+												"comment_count": "0",
+												"who": {
+													"text": "pemensik",
+													"name": "Petr Menšík"
+												},
+												"bug_when": "2024-06-17 13:01:03 +0000",
+												"thetext": "There are two concurrent projects offering yq tool with roughly the same functionality. At least they provide common interface, which can be used with both such tools.\n\nhttps://pypi.org/project/yq/ seems to be older variant used for the same thing. While it seems less polished, it seems to have more functionality.\n\nAccording to packaging guidelines, compatible commands should use alternatives\n- https://docs.fedoraproject.org/en-US/packaging-guidelines/Conflicts/#_binary_name_conflicts\n\nThose projects both behave similarly in basic usage, so I think they should recommend. I have made python3-yq package non-conflicting with yq, but python3-yq-alt to provide alternative name. I think yq component should also provide alternative name\n\nReproducible: Always\n\nSteps to Reproduce:\n1. sudo dnf install yq\n2. sudo dnf install python3-yq-alt from bug #2263790\n3.\nActual Results:  \nThey conflict hard.\n\n$ LANG=en_US.UTF-8 sudo dnf install results_python-yq/3.4.3/12.fc39/python3-yq{,-alt}-3.4.3-12.fc39.noarch.rpm \nLast metadata expiration check: 0:00:30 ago on Mon 17 Jun 2024 02:56:02 PM CEST.\nError: \n Problem: problem with installed package yq-4.43.1-2.fc39.x86_64\n  - package python3-yq-alt-3.4.3-12.fc39.noarch from @commandline conflicts with yq provided by yq-4.43.1-2.fc39.x86_64 from @System\n  - package python3-yq-alt-3.4.3-12.fc39.noarch from @commandline conflicts with yq provided by yq-4.43.1-2.fc39.x86_64 from updates\n  - conflicting requests\n(try to add '--allowerasing' to command line to replace conflicting packages or '--skip-broken' to skip uninstallable packages)\n\n\nExpected Results:  \nBoth can be installed while both can be preferred variant for yq name. Non-default tool should be available under alternative name.\n\nCheck review bug #2263790."
+											}
+										]
+									}
 								],
 								"long_desc": [
 									{
@@ -1659,6 +1770,61 @@
 										},
 										"bug_when": "2024-06-13 11:42:54 +0000",
 										"thetext": "I've done some more reading of packaging guidelines and from what I can tell, using alternatives is the preferred way? See:\nhttps://docs.fedoraproject.org/en-US/packaging-guidelines/Conflicts/#_incompatible_binary_files_with_conflicting_naming_and_stubborn_upstreams\nhttps://docs.fedoraproject.org/en-US/packaging-guidelines/Conflicts/#_binary_name_conflicts\n\nFrom user perspective, there probably will never be a use-case for having the both executables installed, but on the other hand, why not. It would save us splitting the package and any potential issues with the usage of conflicts. \nMaybe(likely) I'm missing something. @Michel, if it's not too much to ask, could you explain why the Conflicts is considered the better option here please?"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "18068788",
+										"comment_count": "25",
+										"who": {
+											"text": "pemensik",
+											"name": "Petr Menšík"
+										},
+										"bug_when": "2024-06-17 12:19:31 +0000",
+										"thetext": "I agree alternatives seems the correct way to choose, since those tools seems to have compatible common interface.\n\nBut because we arrive after Go project, even though it seems it is newer, I made xqp alternative name for xq tool. They are not candidates for alternatives, since they do not share common parsing options. I made yqp provided by python3-yq package and conflicting yq name provided by python3-yq-alt, which still uses alternatives. But until also golang project uses alternatives, it conflicts with yq."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "18068795",
+										"comment_count": "26",
+										"who": {
+											"text": "pemensik",
+											"name": "Petr Menšík"
+										},
+										"bug_when": "2024-06-17 12:21:34 +0000",
+										"thetext": "Spec URL: https://github.com/pemensik/yq/raw/fedora/python-yq.spec\nSRPM URL: https://pemensik.fedorapeople.org/srpm/python-yq-3.4.3-12.fc41.src.rpm\n\n/usr/bin/yq is provided only by python3-yq-alt, which conflicts with yq package explicitly. I think alternatives should be used for them, but this makes both installable on the same system, until yq is modified."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "18068833",
+										"comment_count": "27",
+										"who": {
+											"text": "fedora-review-bot",
+											"name": "Fedora Review Service"
+										},
+										"bug_when": "2024-06-17 12:29:32 +0000",
+										"thetext": "Created attachment 2037572\nThe .spec file difference from Copr build 7608901 to 7620822"
+									},
+									{
+										"isprivate": "0",
+										"commentid": "18068834",
+										"comment_count": "28",
+										"who": {
+											"text": "fedora-review-bot",
+											"name": "Fedora Review Service"
+										},
+										"bug_when": "2024-06-17 12:29:35 +0000",
+										"thetext": "Copr build:\nhttps://copr.fedorainfracloud.org/coprs/build/7620822\n(succeeded)\n\nReview template:\nhttps://download.copr.fedorainfracloud.org/results/@fedora-review/fedora-review-2263790-python-yq/fedora-rawhide-x86_64/07620822-python-yq/fedora-review/review.txt\n\nPlease take a look if any issues were found.\n\n\n---\nThis comment was created by the fedora-review-service\nhttps://github.com/FrostyX/fedora-review-service\n\nIf you want to trigger a new Copr build, add a comment containing new\nSpec and SRPM URLs or [fedora-review-service-build] string."
+									},
+									{
+										"isprivate": "0",
+										"commentid": "18069110",
+										"comment_count": "29",
+										"who": {
+											"text": "mhoyer",
+											"name": "Martin Hoyer"
+										},
+										"bug_when": "2024-06-17 14:37:08 +0000",
+										"thetext": "Thanks Petr!\nMight I suggest starting with `pyp2spec yq --license Apache-2.0`, as there are some inconsistencies with the reference? For example:\n\nURL:            https://pypi.org/project/yq/\nVCS:            git:%{srcforge}\nSource0:        %{pypi_source yq}\n---\nURL:            https://github.com/kislyuk/yq\nSource:         %{pypi_source yq}\n\n(also it's not srcforge)\n\nOther than that:\n> BuildRequires:  sed\nI believe this is redundant\n\n> Requires(post): %{_bindir}/alternatives\nNot saying it's wrong, but `update-alternatives` is being used in the guidelines - https://docs.fedoraproject.org/en-US/packaging-guidelines/Alternatives/\n\n> Patch1:         yq-tomlkit-f39.patch\nAgain, nothing wrong with that, but since there already is sed workaround for the setuptools_scm, also for F39, why not have two seds instead?\n\n> %{?python_provide:%python_provide python3-%{srcname}}\nI believe this is also redundant\n\n>sed -e 's/^version_file/#write_to/' -i pyproject.toml\nJust curious why is write_to commented out"
 									}
 								]
 							}
