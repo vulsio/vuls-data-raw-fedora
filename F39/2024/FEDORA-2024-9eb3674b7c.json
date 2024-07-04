@@ -1,0 +1,1169 @@
+{
+	"alias": "FEDORA-2024-9eb3674b7c",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2290859,
+			"security": true,
+			"title": "[CVE-2024-6126] authenticated user can kill any process when enabling pam_env's user_readenv option",
+			"bugzilla": {
+				"bug_id": "2290859",
+				"creation_ts": "2024-06-07 10:09:52 +0000",
+				"short_desc": "[CVE-2024-6126] authenticated user can kill any process when enabling pam_env's user_readenv option",
+				"delta_ts": "2024-07-04 04:32:05 +0000",
+				"bug_status": "RELEASE_PENDING",
+				"keywords": "Security",
+				"priority": "high",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "2292897",
+						"alias": "CVE-2024-6126",
+						"creation_ts": "2024-06-18 14:00:49 +0000",
+						"short_desc": "CVE-2024-6126 cockpit: Authenticated user can kill any process when enabling pam_env's user_readenv option",
+						"delta_ts": "2024-07-04 04:20:47 +0000",
+						"bug_status": "MODIFIED",
+						"keywords": "Security",
+						"priority": "low",
+						"bug_severity": "low",
+						"depends_on": [
+							"2290859"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "18071027",
+								"comment_count": "0",
+								"who": {
+									"text": "ahanwate",
+									"name": "Avinash Hanwate"
+								},
+								"bug_when": "2024-06-18 14:00:49 +0000",
+								"thetext": "In the cockpit component pam-ssh-add uses a call to atoi() to convert the environment variable `SSH_AGENT_PID` to a integer. This assumes that this env variable has not been tampered with and it the env variable has been mangled this can lead to an overflow. The solution proposed is to replace it with a call to strtol() with error checking."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18071127",
+								"comment_count": "1",
+								"who": {
+									"text": "mpitt",
+									"name": "Martin Pitt"
+								},
+								"bug_when": "2024-06-18 15:29:08 +0000",
+								"thetext": "> if the env variable has been mangled this can lead to an overflow. The solution proposed is to replace it with a call to strtol() with error checking.\n\nNote: This is *not at all* the problem/solution. This was an initial misunderstanding/misreporting. The subject describes it better. See #2290859 for details."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18085373",
+								"comment_count": "2",
+								"who": {
+									"text": "mpitt",
+									"name": "Martin Pitt"
+								},
+								"bug_when": "2024-07-03 09:00:16 +0000",
+								"thetext": "The embargo got lifted. @ahanwate@redhat.com can you please remove the \"security\" group from #2290859 ? I am unable to do this myself. The bug should become public now. Thanks!"
+							}
+						]
+					}
+				],
+				"external_bugs": {
+					"text": "cockpit-project/cockpit/pull/20698",
+					"name": "Github"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "18055980",
+						"comment_count": "0",
+						"who": {
+							"text": "luna.dragon",
+							"name": "Luna D Dragon"
+						},
+						"bug_when": "2024-06-07 10:09:52 +0000",
+						"thetext": "Created attachment 2036696\npatch to replace atoi with strtol\n\nDescription of problem:\nIn the cockpit component pam-ssh-add uses a call to atoi() to convert the environment variable `SSH_AGENT_PID` to a integer. This assumes that this env variable has not been tampered with and it the env variable has been mangled this can lead to an overflow. The solution proposed is to replace it with a call to strtol() with error checking. Attached is a patch that does the same."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18056016",
+						"comment_count": "1",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-07 11:20:26 +0000",
+						"thetext": "Luna told me on chat that this was discovered by Paolo Perego from SUSE's security team. Credit should go to him.\n\nThis is set by pam_putenv() in start_agent(), in the same file. That part still runs as root. Sure, the user session process inherit this env variable and can change it, but I thought that these are copies, not the same memory as pam_putenv() uses. That would be rather wild, as these are different security domains. \n\natoi() *by itself* does not crash on invalid inputs, it just doesn't return precise errors. If number conversion fails, then it returns 0, and then pam_sm_close_session() will not do anything.\n\nSo *if* the user session can tamper with the pam handle's SSH_AGENT_PID, then the maximum possible exploit would be to kill arbitrary PIDs (i.e. local authenticated DoS). However, if that's possible, then the user session can also do heaven knows other things to corrupt the PAM handle..\n\nLuna, Paolo: How can that be exploited? Do you have any details? Thanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18056055",
+						"comment_count": "2",
+						"who": {
+							"text": "luna.dragon",
+							"name": "Luna D Dragon"
+						},
+						"bug_when": "2024-06-07 11:56:51 +0000",
+						"thetext": "so sorry for taking a while in theory one needs to set SSH_AGENT_PID in the file `$HOME/.pam_environment` during authentication for a user this is loaded and should replace any previously existing definition of the env var. for more information about .pam_environment. \n\nhttps://man7.org/linux/man-pages/man8/pam_env.8.html\nhttps://help.ubuntu.com/community/EnvironmentVariables#A.2BAH4-.2F.pam_environment"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18056063",
+						"comment_count": "3",
+						"who": {
+							"text": "luna.dragon",
+							"name": "Luna D Dragon"
+						},
+						"bug_when": "2024-06-07 12:17:34 +0000",
+						"thetext": "I've add Paolo to the issue"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18059524",
+						"comment_count": "4",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-10 07:54:08 +0000",
+						"thetext": "As a user, I created\n\n   echo \"SSH_AGENT_PID=pwned\" > ~/.pam_environment \n\nThe user_readenv option is deprecated, and not enabled in at least Fedora and RHEL 9. So I enabled it in Fedora 40 in  /etc/pam.d/password-auth\n\n\nCuriously this seems to be so deprecated that it even segfaults in the PAM module:\n\n  cockpit-session[1787]: pam_env(cockpit:session): deprecated reading of user environment enabled\n  cockpit-session[1787]: segfault at 0 ip 00007f48a141901f sp 00007ffd73c0c7b0 error 4 in pam_env.so[7f48a1418000+3000] likely on CPU 0 (core 0, socket 0)\n\n\nThis really isn't related to cockpit -- when I try to log in with ssh, it crashes in the same way. I'll report this, but that just means that the bug/exploit can't be tested in Fedora 40.\n\nuser_readenv is enabled by default in Debian 12, and ssh'ing into the VM with the above ~/.pam_environment does give me $SSH_AGENT_PID=pwned in the session. I confirm that pam-ssh-add's pam_sm_close_session() does see that changed value. This is indeed a rather major surprise, and I figure that's the reason for that warning:\n\n  Due to problematic security this functionality is deprecated since the 1.5.0 version and will be removed completely at some point in the future.\n\nSo I can see the local privilege escalation/DoS: by creating a ~/.pam_environment file in some distributions, users can SIGTERM an arbitrary process in the system.\n\nHowever, I don't understand how this is related to an \"integer overflow\" -- the current code parses \"pwned\" (or any other non-number) as 0, which the code ignores. Moving to strtol() doesn't change anything wrt. to that other than producing an extra warning. But if the user specifies a valid positive value, then you could still kill an arbitrary process with that.\n\n\nTo fix this in a better way, how about using pam_{set,get}_data() to store and retrieve the agent pid? That can't be tampered with by the user session."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18059536",
+						"comment_count": "5",
+						"who": {
+							"text": "luna.dragon",
+							"name": "Luna D Dragon"
+						},
+						"bug_when": "2024-06-10 08:00:12 +0000",
+						"thetext": "This can be integer overflowed if you set the SSH_AGENT_PID to be extremely large. it can cause the overflow. Along with this yes we should move to pam_{set,get}_data() I'll add a patch later today to make this change as well. Should i submit a pr upstream as normal or do we want to handle this in a different manner?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18059559",
+						"comment_count": "6",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-10 08:31:36 +0000",
+						"thetext": "> if you set the SSH_AGENT_PID to be extremely large. it can cause the overflow.\n\nYes, but what does that *mean*? There's no crash or arbitrary code execution, a too high string value will just make atoi() return 0. I.e. representing this as an integer overflow is misleading IMHO -- it's a mild local privilege escalation (local authenticated DoS).\n\nI'm already working on a patch, currently testing it on Debian stable.\n\nRight now this bugzilla is private, so I won't send a (public) upstream PR) without your consent. As the impact is very low, I'm happy to handle this as a public issue without an embargo. What do you think?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18059614",
+						"comment_count": "7",
+						"who": {
+							"text": "luna.dragon",
+							"name": "Luna D Dragon"
+						},
+						"bug_when": "2024-06-10 08:56:30 +0000",
+						"thetext": "I believe we should reach out to distributions who are vulnerable to this (at this point I believe it should only be debian) and confirm with them that they are okay with a public issue without an embargo. Otherwise I'm okay with making this issue public"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18059615",
+						"comment_count": "8",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-10 08:57:01 +0000",
+						"thetext": "Created attachment 2036918\npam-ssh-add: Store agent pid in PAM data\n\nTested patch. This is a bit involved as we now need to pick apart the KEY=VALUE format, but not too bad. With additional message() debugging I confirmed that the correct pid makes it all the way through.\n\nPaolo or RH Security team, can you please assign a CVE?\n\nNote that this is still private until Paolo/Luna tell us it's ok to publish.\n\nThanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18059617",
+						"comment_count": "9",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-10 09:00:50 +0000",
+						"thetext": "I haven't checked Ubuntu yet, and I'm not currently in a position to do so (in a train). Will check this afternoon.\n\nWe should also drop the user_readenv option from tools/cockpit.debian.pam, as that's deprecated. But as of today, the option is still enabled in Debian testing."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18059639",
+						"comment_count": "10",
+						"who": {
+							"text": "paolo.perego",
+							"name": "Paolo Perego"
+						},
+						"bug_when": "2024-06-10 09:14:16 +0000",
+						"thetext": "Hi Martin, since you're upstream, I think RH Security Team can assign the CVE to this one."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18059693",
+						"comment_count": "11",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-10 10:09:30 +0000",
+						"thetext": "I contacted the Debian and Ubuntu security teams if they want an embargo."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18059696",
+						"comment_count": "12",
+						"who": {
+							"text": "paolo.perego",
+							"name": "Paolo Perego"
+						},
+						"bug_when": "2024-06-10 10:12:11 +0000",
+						"thetext": "For SUSE I can say it would be nice to have the embargo"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18060892",
+						"comment_count": "13",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-11 11:22:52 +0000",
+						"thetext": "Debian responded and they don't need/want an embargo. Ubuntu hasn't responded. So Paolo, please define an embargo date. Please note that this makes validation of the patch hard: I can run a couple of tests locally, but we really need our full CI to fully validate it. In other words, we won't have an upstream release ready when the embargo lifts. I'll also defer the Fedora/RHEL/Debian releases until after it gets public and gets a new upstream release. But you can prepare an updated SUSE package already then.\n\nSecurity team, can we have a CVE here? I'm having a hard time finding the right bz user to ping, so adding BaseOS security for now."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18063826",
+						"comment_count": "14",
+						"who": {
+							"text": "paolo.perego",
+							"name": "Paolo Perego"
+						},
+						"bug_when": "2024-06-13 08:19:39 +0000",
+						"thetext": "Hi Martin, I found this responsible disclosure process I think we can follow: https://access.redhat.com/articles/red_hat_cna_vulnerability_disclosure_policy\n\nSince you're upstream, it's common it's you to define the coordinated release date of the vulnerability when the patch will be ready"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18070637",
+						"comment_count": "15",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-18 06:39:27 +0000",
+						"thetext": "As apparently the security team didn't actually see this bz, I asked secalert@ directly now. I also asked them whether they want an embargo. From my side I'd be ok with two weeks, so something like July 3? Does that work for you? (As I said, I don't really want/need one in the first place). I'll work on a more complete patch with an integration test case in the next days."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18070760",
+						"comment_count": "16",
+						"who": {
+							"text": "paolo.perego",
+							"name": "Paolo Perego"
+						},
+						"bug_when": "2024-06-18 08:56:33 +0000",
+						"thetext": "To me is absolute fine. @Luna is it ok to you July 3rd as disclosure date?\nMartin: are you (RH) issuing a CVE for this? Is it also possible to have the patch attached to this ticket so Luna can apply easily to the package he maintains at SUSE?\n\nThank you so much\nPaolo"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18070770",
+						"comment_count": "17",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-18 09:18:11 +0000",
+						"thetext": "Paolo: Yes, I asked RH security for a CVE this morning. There is already a patch attached, but not yet with an integration test. I'll post both here ASAP."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18071130",
+						"comment_count": "18",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-18 15:30:12 +0000",
+						"thetext": "This got assigned CVE-2024-6126."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18071970",
+						"comment_count": "19",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-19 08:49:23 +0000",
+						"thetext": "To mop up this lose end: I reported the pam_env.so crash in Fedora as bug #2293045. The reproducer can still be tested on RHEL, Debian, Ubuntu."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18072014",
+						"comment_count": "20",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-19 09:11:03 +0000",
+						"thetext": "Comment on attachment 2036696\npatch to replace atoi with strtol\n\nThis doesn't address the root cause/vulnerability."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18072028",
+						"comment_count": "21",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-19 09:22:53 +0000",
+						"thetext": "Created attachment 2037779\npam-ssh-add: Store agent pid in PAM data [CVE-2024-6126]\n\nUpdated patch. This fixes a crash, and adds an integration test. Locally tested against RHEL 9.4 and Debian testing (test doesn't work with Fedora as the pam option is broken, see above). I am reasonably confident in this now.\n\nHowever, I can't subject it to the full force of our CI until this goes public. Hence I will not actually land this anywhere until then. But you are welcome to apply the patch to OpenSUSE already."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18072034",
+						"comment_count": "22",
+						"who": {
+							"text": "paolo.perego",
+							"name": "Paolo Perego"
+						},
+						"bug_when": "2024-06-19 09:29:37 +0000",
+						"thetext": "Thank you so much.\nAre you (or RH security team) going to announce the CVE on oss-security mailing list, is it correct?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18072041",
+						"comment_count": "23",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-19 09:31:57 +0000",
+						"thetext": "I'm not on that list. As the finder, can you do that?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18072060",
+						"comment_count": "24",
+						"who": {
+							"text": "paolo.perego",
+							"name": "Paolo Perego"
+						},
+						"bug_when": "2024-06-19 09:41:10 +0000",
+						"thetext": "RedHat Security team is on that list. Please can you ask them if they are going to publicly announce?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18072064",
+						"comment_count": "25",
+						"who": {
+							"text": "allison.karlitskaya",
+							"name": "Allison Karlitskaya"
+						},
+						"bug_when": "2024-06-19 09:45:21 +0000",
+						"thetext": "I think the patch is much more complicated than it needs to be: why not just store the pid in a global variable?  pam_sm_close_session() runs in the same process, no?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18072078",
+						"comment_count": "26",
+						"who": {
+							"text": "allison.karlitskaya",
+							"name": "Allison Karlitskaya"
+						},
+						"bug_when": "2024-06-19 09:51:08 +0000",
+						"thetext": "Also: pants and suspenders: why not set the euid before killing the process?  We run_as_user(), so why not kill_as_user()?\n\nConsider that the user could have killed the ssh-agent PID themselves and in the meantime this PID could have been reassigned to some other thing... perhaps the user even has control over that: they could create lots of processes and then cause the system to create their desired process with the target PID, possibly repeating the process many times to get it right, before finally logging out to take the selected process down..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18072082",
+						"comment_count": "27",
+						"who": {
+							"text": "allison.karlitskaya",
+							"name": "Allison Karlitskaya"
+						},
+						"bug_when": "2024-06-19 09:55:32 +0000",
+						"thetext": "I actually consider the PID reuse issue to be more serious since it doesn't depend on this deprecated/removed mode of another pam module with known security issues...  This one is indisputably on us.  I think I'd really like to see kill_as_user() here..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18072185",
+						"comment_count": "28",
+						"who": {
+							"text": "luna.dragon",
+							"name": "Luna D Dragon"
+						},
+						"bug_when": "2024-06-19 12:20:39 +0000",
+						"thetext": "Hi, sorry I've taken a few days off for some university stuff. I'll be back around July 1st. July 3rd as a disclosure date works for me"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18072332",
+						"comment_count": "29",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-19 15:04:39 +0000",
+						"thetext": "Created attachment 2037812\npam-ssh-add: Fix insecure killing of session ssh-agent [CVE-2024-6126]\n\nThanks Allison for the review! Reworked accordingly and re-tested on RHEL 9.4 and Debian testing."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18072413",
+						"comment_count": "30",
+						"who": {
+							"text": "allison.karlitskaya",
+							"name": "Allison Karlitskaya"
+						},
+						"bug_when": "2024-06-19 17:53:10 +0000",
+						"thetext": "Some comments:\n - you store the gid, but don't use it\n - the setuid() might be easier if you fork() first and _exit() the child, but then you'd have to wait().  Matter of taste.\n - I was surprised to find the pw_uid saved, instead of just calling getuid().  Matter of taste.\n\nOtherwise this looks significantly better than the first round and I don't see any other obvious issues with it.\n\nOn another topic: what's the rationale behind the embargo?  It seems weird to announce this issue without being able to point to it having been fixed upstream."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18073065",
+						"comment_count": "31",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-20 04:40:03 +0000",
+						"thetext": "(In reply to Allison Karlitskaya from comment #30)\n> Some comments:\n>  - you store the gid, but don't use it\n\nRight, leftover. kill(2) says that it only looks at the uid, so not necessary to change the gid as well. Dropped.\n\nI'll attach an updated version.\n\n>  - the setuid() might be easier if you fork() first and _exit() the child,\n> but then you'd have to wait().  Matter of taste.\n\nToo many moving parts for my taste.\n\n>  - I was surprised to find the pw_uid saved, instead of just calling\n> getuid().  Matter of taste.\n\nIndeed setuid() is only called in setup_child(), so getuid() *should* work. auth_pwd is the target user, so conceptually it seems safer and cleaner to me to use that -- same as setup_child() does.\n\n> On another topic: what's the rationale behind the embargo?  It seems weird\n> to announce this issue without being able to point to it having been fixed\n> upstream.\n\nDistributions often do that to coordinate patches and prepare updates so that they have fixed packages at the time of the announcement. I suppose that's what OpenSUSE wants to do. But that's a question for Paolo (who called for the embargo).\n\nThanks!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18073073",
+						"comment_count": "32",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-20 04:40:33 +0000",
+						"thetext": "Created attachment 2037822\npam-ssh-add: Fix insecure killing of session ssh-agent [CVE-2024-6126]"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18073169",
+						"comment_count": "33",
+						"who": {
+							"text": "allison.karlitskaya",
+							"name": "Allison Karlitskaya"
+						},
+						"bug_when": "2024-06-20 05:57:46 +0000",
+						"thetext": "Another few things after reading again:\n - the 'global' variables are actually file-scope and should be labelled 'static'\n - the error checking on `kill()` seems like it might be overdone, particularly considering that pid reuse is a normal thing that can happen.  I'd drop the check and make this strictly \"best\" effort.\n - related to above: restoring root's uid really ought to be like a finally { } block after the kill() but if you hit the error case on kill() you return from the function with the uid still set as the user."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18073171",
+						"comment_count": "34",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-20 06:02:09 +0000",
+						"thetext": "Created attachment 2037824\npam-ssh-add: Fix insecure killing of session ssh-agent [CVE-2024-6126]\n\nThanks Allison! Good points. Fixed."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18073739",
+						"comment_count": "35",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-06-20 13:22:20 +0000",
+						"thetext": "Paolo: So that patch is now agreed upon. We'll apply it upstream on July 3 and make a new upstream release. In the meantime, feel free to prepare an OpenSUSE update with it."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18079961",
+						"comment_count": "36",
+						"who": {
+							"text": "paolo.perego",
+							"name": "Paolo Perego"
+						},
+						"bug_when": "2024-06-26 14:10:55 +0000",
+						"thetext": "Thank you Martin!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18084114",
+						"comment_count": "37",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-07-02 05:37:15 +0000",
+						"thetext": "Subscribing Jelle, as he will review the upstream PR tomorrow. Jelle, this already went through around 5 rounds of reviews with the reporters and Lis. But please have a look at the patch and let's discuss questions/suggestions here.\n\nSo far the plan is that I'll propose an upstream PR tomorrow with this patch (preferably around European morning), which we should land immediately, then cut a new release and do a blog post, and I'll update the Debian packages. Paolo, Luna, are you all set for a patched OpenSUSE release tomorrow? Do you want to do the publishing at a particular hour? (I don't think it's that important to time it that precisely, but as reporters you have the last word on that)."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18084815",
+						"comment_count": "38",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-07-02 17:18:22 +0000",
+						"thetext": "Release note draft, feedback appreciated!\n\n\n## pam-ssh-add: Fix insecure killing of session ssh-agent [CVE-2024-6126]\n\nThe [`pam_env` PAM module](https://man7.org/linux/man-pages/man8/pam_env.8.html) has a (deprecated) `user_readenv` option. Some distributions like Debian or Ubuntu enable this option by default, so Cockpit's PAM config in `/etc/pam.d/cockpit` enables it as well there. It's also possible to manually enable that option in other distributions such as Fedora or Red Hat Enterprise Linux.\n\nCockpit's own `pam_ssh_add` module had a vulnerability when `user_readenv` is enabled. A local authenticated user could craft a `~/.pam_environment` file which would kill an arbitrary process on the system with root privileges when logging out of a Cockpit session. This could cause a Denial of Service. Version 320 fixes this problem.\n\nThis is tracked as [CVE-2024-2947](https://www.cve.org/CVERecord?id=CVE-2024-2947). If you need to backport this to older cockpit versions, you can apply the [upstream patch](https://github.com/cockpit-project/cockpit/commit/XXXTODO).\n\nIf you cannot install the new version or the patch, and you have potentially malicious local user on a system running Cockpit, you can mitigate this vulnerability by removing the `user_readenv=1` option from the `pam_env.so` line in `/etc/pam.d/cockpit`. This will disable reading any extra environment variables in user's `~/.pam_environment` files; the most common use of that is to set a local different from the system default.\n\nMany thanks to Paolo Perego <paolo.perego@suse.com> for discovering, and Luna Dragon <luna.dragon@suse.com> for reporting this issue!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18085193",
+						"comment_count": "39",
+						"who": {
+							"text": "luna.dragon",
+							"name": "Luna D Dragon"
+						},
+						"bug_when": "2024-07-03 02:34:23 +0000",
+						"thetext": "(In reply to Martin Pitt from comment #37)\n> Subscribing Jelle, as he will review the upstream PR tomorrow. Jelle, this\n> already went through around 5 rounds of reviews with the reporters and Lis.\n> But please have a look at the patch and let's discuss questions/suggestions\n> here.\n> \n> So far the plan is that I'll propose an upstream PR tomorrow with this patch\n> (preferably around European morning), which we should land immediately, then\n> cut a new release and do a blog post, and I'll update the Debian packages.\n> Paolo, Luna, are you all set for a patched OpenSUSE release tomorrow? Do you\n> want to do the publishing at a particular hour? (I don't think it's that\n> important to time it that precisely, but as reporters you have the last word\n> on that).\n\nhi, can you give me a heads up just before you do this? I'd like to time pr's for older products where we don't have the freedom to update cockpit and then pull in the new release into everything else"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18085219",
+						"comment_count": "40",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-07-03 04:42:37 +0000",
+						"thetext": "Luna: Sure! Does 09:00 UTC / 11:00 CEST work for you? Also, I really don't mind if you make this public earlier than upstream, so just go ahead."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18085258",
+						"comment_count": "41",
+						"who": {
+							"text": "luna.dragon",
+							"name": "Luna D Dragon"
+						},
+						"bug_when": "2024-07-03 05:56:56 +0000",
+						"thetext": "hi, 9:00 utc works for me. I'll push a fix to everything we can't update and I'll update the rest when the new release is made"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18085322",
+						"comment_count": "42",
+						"who": {
+							"text": "paolo.perego",
+							"name": "Paolo Perego"
+						},
+						"bug_when": "2024-07-03 07:06:44 +0000",
+						"thetext": "9 utc works for me as well. Thank you for constant update and all the effort spent in coordinating and mitigation. \nRelease note is ok to me.\nKudos"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18085323",
+						"comment_count": "43",
+						"who": {
+							"text": "paolo.perego",
+							"name": "Paolo Perego"
+						},
+						"bug_when": "2024-07-03 07:06:55 +0000",
+						"thetext": "9 utc works for me as well. Thank you for constant update and all the effort spent in coordinating and mitigation. \nRelease note is ok to me.\nKudos"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18085376",
+						"comment_count": "44",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-07-03 09:04:20 +0000",
+						"thetext": "Embargo is lifted. I sent https://github.com/cockpit-project/cockpit/pull/20698 with the upstream patch, and will see to land and release it quickly. I asked @ahanwate@redhat.com to make this bug public, as I can't.\n\nThanks everyone, nice work together!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18087256",
+						"comment_count": "46",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-07-04 04:31:20 +0000",
+						"thetext": "FEDORA-2024-9eb3674b7c (cockpit-320-1.fc39) has been submitted as an update to Fedora 39.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-9eb3674b7c"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18087258",
+						"comment_count": "47",
+						"who": {
+							"text": "mpitt",
+							"name": "Martin Pitt"
+						},
+						"bug_when": "2024-07-04 04:32:05 +0000",
+						"thetext": "Also fixed in Fedora 40: https://bodhi.fedoraproject.org/updates/FEDORA-2024-d8bbe82ac1"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "cockpit-320-1.fc39",
+			"release_id": 70,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "cockpit-ws",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "cockpit-debuginfo",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "cockpit-bridge",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "cockpit-tests",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "cockpit-debugsource",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "cockpit-pcp",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "cockpit",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					}
+				],
+				"i686": [
+					{
+						"name": "cockpit-debuginfo",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "cockpit-bridge",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "cockpit-ws",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "cockpit-debugsource",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "cockpit-tests",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "cockpit",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "cockpit-system",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "cockpit-networkmanager",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "cockpit-packagekit",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "cockpit-storaged",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "cockpit-doc",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "cockpit-sosreport",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "cockpit-selinux",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "cockpit-kdump",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "noarch"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "cockpit-debuginfo",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "cockpit-debugsource",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "cockpit-bridge",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "cockpit-ws",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "cockpit-tests",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "cockpit-pcp",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "cockpit",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "cockpit-debuginfo",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "cockpit-bridge",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "cockpit-ws",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "cockpit-debugsource",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "cockpit-tests",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "cockpit-pcp",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "cockpit",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "cockpit",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "cockpit-debuginfo",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "cockpit-debugsource",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "cockpit-bridge",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "cockpit-ws",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "cockpit-tests",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "cockpit-pcp",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "cockpit",
+						"version": "320",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3598329,
+			"text": "This update has been submitted for testing by packit. ",
+			"timestamp": "2024-07-03 13:07:42",
+			"update_id": 625060,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3598330,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2024-07-03 13:07:43",
+			"update_id": 625060,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3598356,
+			"text": "martinpitt edited this update.",
+			"timestamp": "2024-07-03 13:22:21",
+			"update_id": 625060,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3598417,
+			"text": "This update's test gating status has been changed to 'passed'.",
+			"timestamp": "2024-07-03 14:21:02",
+			"update_id": 625060,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3598849,
+			"karma": 1,
+			"testcase_feedback": [
+				{
+					"comment_id": 3598849,
+					"testcase": {
+						"id": 522,
+						"name": "QA:Testcase cockpit"
+					},
+					"testcase_id": 522
+				},
+				{
+					"comment_id": 3598849,
+					"testcase": {
+						"id": 122,
+						"name": "QA:Testcase realmd join cockpit"
+					},
+					"testcase_id": 122
+				}
+			],
+			"timestamp": "2024-07-03 20:41:52",
+			"update_id": 625060,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/8364563f7a3e319a0f7ddf27dbe9945f8351d415cc7ae99cd3275291defec2b0?s=24&d=retro",
+				"email": "eugenemah@gmail.com",
+				"groups": [
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedora-hams"
+					}
+				],
+				"id": 2935,
+				"name": "imabug",
+				"openid": "imabug.id.fedoraproject.org"
+			},
+			"user_id": 2935
+		},
+		{
+			"id": 3599204,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2024-07-04 02:02:33",
+			"update_id": 625060,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3599359,
+			"karma": 1,
+			"testcase_feedback": [
+				{
+					"comment_id": 3599359,
+					"testcase": {
+						"id": 522,
+						"name": "QA:Testcase cockpit"
+					},
+					"testcase_id": 522
+				},
+				{
+					"comment_id": 3599359,
+					"testcase": {
+						"id": 122,
+						"name": "QA:Testcase realmd join cockpit"
+					},
+					"testcase_id": 122
+				}
+			],
+			"text": "Upgrade and pages work.",
+			"timestamp": "2024-07-04 04:10:26",
+			"update_id": 625060,
+			"user": {
+				"avatar": "https://seccdn.libravatar.org/avatar/1a0accce8f54d96b6cb238ad3e79cee60c8b7d819f1f7acd6b6a260d87061d27?s=24&d=retro",
+				"email": "mpitt@redhat.com",
+				"groups": [
+					{
+						"name": "packager"
+					},
+					{
+						"name": "ipausers"
+					},
+					{
+						"name": "fedora-contributor"
+					},
+					{
+						"name": "signed_fpca"
+					},
+					{
+						"name": "fedorabugs"
+					},
+					{
+						"name": "cockpitteam"
+					},
+					{
+						"name": "ocp-cico-cockpit"
+					}
+				],
+				"id": 3506,
+				"name": "martinpitt",
+				"openid": "martinpitt.id.fedoraproject.org"
+			},
+			"user_id": 3506
+		},
+		{
+			"id": 3599360,
+			"text": "This update has been submitted for stable by bodhi. ",
+			"timestamp": "2024-07-04 04:10:26",
+			"update_id": 625060,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3599363,
+			"text": "martinpitt edited this update.",
+			"timestamp": "2024-07-04 04:31:17",
+			"update_id": 625060,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"critpath_groups": "critical-path-server",
+	"date_approved": "2024-07-04 04:10:26",
+	"date_modified": "2024-07-04 04:31:17",
+	"date_pushed": "2024-07-04 02:01:21",
+	"date_submitted": "2024-07-03 13:07:41",
+	"date_testing": "2024-07-04 02:01:21",
+	"karma": 2,
+	"meets_testing_requirements": true,
+	"notes": "Automatic update for cockpit-320-1.fc39.\n\n##### **Changelog for cockpit**\n\n```\n* Wed Jul 03 2024 Packit <hello@packit.dev> - 320-1\n- pam-ssh-add: Fix insecure killing of session ssh-agent [CVE-2024-6126]\n- sosreport: Read report directory from sos config (fix page on Debian/Ubuntu)\n\n```\n\n",
+	"pushed": true,
+	"release": {
+		"branch": "f39",
+		"candidate_tag": "f39-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f39",
+		"eol": "2024-11-12",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 39",
+		"mail_template": "fedora_errata_template",
+		"name": "F39",
+		"override_tag": "f39-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f39-signing-pending",
+		"pending_stable_tag": "f39-updates-pending",
+		"pending_testing_tag": "f39-updates-testing-pending",
+		"stable_tag": "f39-updates",
+		"state": "current",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f39-updates-testing",
+		"version": "39"
+	},
+	"request": "stable",
+	"require_testcases": true,
+	"severity": "unspecified",
+	"stable_days": 14,
+	"stable_karma": 2,
+	"status": "testing",
+	"suggest": "unspecified",
+	"test_cases": [
+		{
+			"id": 522,
+			"name": "QA:Testcase cockpit"
+		},
+		{
+			"id": 122,
+			"name": "QA:Testcase realmd join cockpit"
+		}
+	],
+	"test_gating_status": "passed",
+	"title": "cockpit-320-1.fc39",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2024-9eb3674b7c",
+	"unstable_karma": -1,
+	"updateid": "FEDORA-2024-9eb3674b7c",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/ba2759503e74cbe8da239fcd8d60fdb309dba00f27d94935cde83120b84ca05d?s=24&d=retro",
+		"email": "user-cont-team+packit-fas@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "centosproject-email-aliases"
+			},
+			{
+				"name": "git-packit-team"
+			},
+			{
+				"name": "sig-cloud"
+			},
+			{
+				"name": "bodhi_update_bots"
+			}
+		],
+		"id": 6406,
+		"name": "packit",
+		"openid": "packit.id.fedoraproject.org"
+	},
+	"version_hash": "28b2d94357110380d7347a29a49319922db16470"
+}
