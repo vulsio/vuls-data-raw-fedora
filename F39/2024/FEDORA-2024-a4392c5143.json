@@ -1,0 +1,336 @@
+{
+	"alias": "FEDORA-2024-a4392c5143",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2295956,
+			"feedback": [
+				{
+					"bug_id": 2295956,
+					"comment": {
+						"id": 3600898,
+						"karma": 1,
+						"text": "Works fine, no issues found, thanks.",
+						"timestamp": "2024-07-05 16:10:06",
+						"update_id": 625306,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/be7a7768c5f347a9d33ebb3486a83f6bb5b1b531234f68f3373f08e9cc3a837c?s=24&d=retro",
+							"email": "kioshi242@proton.me",
+							"groups": [
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "signed_fpca"
+								}
+							],
+							"id": 7765,
+							"name": "boxjellyfish",
+							"openid": "boxjellyfish.id.fedoraproject.org"
+						},
+						"user_id": 7765
+					},
+					"comment_id": 3600898
+				},
+				{
+					"bug_id": 2295956,
+					"comment": {
+						"id": 3600943,
+						"karma": 1,
+						"timestamp": "2024-07-05 17:37:06",
+						"update_id": 625306,
+						"user": {
+							"avatar": "https://seccdn.libravatar.org/avatar/2f0284d6841c87ac761ef1909ade66a6f05ae89a3f741b6e125f64e949315716?s=24&d=retro",
+							"email": "daimarstein@pm.me",
+							"groups": [
+								{
+									"name": "ipausers"
+								},
+								{
+									"name": "fedora-contributor"
+								},
+								{
+									"name": "signed_fpca"
+								},
+								{
+									"name": "fedora-socialmedia"
+								},
+								{
+									"name": "marketing"
+								},
+								{
+									"name": "designteam"
+								}
+							],
+							"id": 7096,
+							"name": "steiner",
+							"openid": "steiner.id.fedoraproject.org"
+						},
+						"user_id": 7096
+					},
+					"comment_id": 3600943
+				}
+			],
+			"security": true,
+			"title": "CVE-2024-38519 yt-dlp: File system modification and RCE through improper file-extension sanitization [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2295956",
+				"creation_ts": "2024-07-05 13:06:44 +0000",
+				"short_desc": "CVE-2024-38519 yt-dlp: File system modification and RCE through improper file-extension sanitization [fedora-all]",
+				"delta_ts": "2024-07-05 13:56:58 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "RAWHIDE",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "2295203",
+						"alias": "CVE-2024-38519",
+						"creation_ts": "2024-07-02 18:00:32 +0000",
+						"short_desc": "CVE-2024-38519 yt-dlp: File system modification and RCE through improper file-extension sanitization",
+						"delta_ts": "2024-07-05 13:15:12 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"2295956"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "18084849",
+								"comment_count": "0",
+								"who": {
+									"text": "bzimport",
+									"name": "OSIDB Bzimport"
+								},
+								"bug_when": "2024-07-02 18:00:32 +0000",
+								"thetext": "### Summary\n`yt-dlp` does not limit the extensions of downloaded files, which could lead to arbitrary filenames being created in the download folder (and path traversal on Windows). Since `yt-dlp` also reads config from the working directory (and on Windows executables will be executed from the yt-dlp directory) this could lead to arbitrary code being executed.\n\n### Patches\n`yt-dlp` version 2024.07.01 fixes this issue by whitelisting the allowed extensions.\nThis means some very uncommon extensions might not get downloaded; however, it will also limit the possible exploitation surface.\n\n### Workarounds\nIt is recommended to upgrade yt-dlp to version 2024.07.01 as soon as possible, **always** have `.%(ext)s` at the end of the output template, and make sure you trust the websites that you are downloading from. Also, make sure to never download to a directory within PATH or other sensitive locations like your user directory, `system32`, or other binaries locations.\n\nFor users not able to upgrade:\n- Make sure the extension of the media to download is a common video/audio/sub/... one\n- Try to avoid the generic extractor (`--ies default,-generic`)\n- Keep the default output template (`-o \"%(title)s [%(id)s].%(ext)s`)\n- Omit any of the subtitle options (`--write-subs`, `--write-auto-subs`, `--all-subs`, `--write-srt`)\n- Use `--ignore-config --config-location ...` to not load config from common locations\n\n### Details\nOne potential exploitation might look like this:\n\nFrom a mimetype we do not know, we default to trimming the leading bit and using the remainder. Given a webpage that contains\n```html\n<script type=\"application/ld+json\">\n{\n    \"@context\": \"https://schema.org\",\n    \"@type\": \"VideoObject\",\n    \"name\": \"ffmpeg\",\n    \"encodingFormat\": \"video/exe\",\n    \"contentUrl\": \"https://example.com/video.mp4\"\n}\n</script>\n```\nthis will try and download a file called `ffmpeg.exe` (`-o \"%(title)s.%(ext)s`).\n`ffmpeg.exe` will be searched for in the current directory, and so upon the next run arbitrary code can be executed.\n\nAlternatively, when engineering a file called `yt-dlp.conf` to be created, the config file could contain `--exec ...` and so would also execute arbitrary code.\n\n### Acknowledgement\nA big thanks to @JarLob for independently finding a new application of the same underlying issue.\nMore can be read about on the dedicated GitHub Security Lab disclosure here: [Path traversal saving subtitles (GHSL-2024-090)](<https://securitylab.github.com/advisories/GHSL-2024-090_yt-dlp>)\n\n### References\n- https://github.com/yt-dlp/yt-dlp/security/advisories/GHSA-79w7-vh3h-8g4j\n- https://nvd.nist.gov/vuln/detail/CVE-2024-38519\n- https://github.com/yt-dlp/yt-dlp/releases/tag/2024.07.01\n- https://github.com/yt-dlp/yt-dlp/commit/5ce582448ececb8d9c30c8c31f58330090ced03a\n- https://securitylab.github.com/advisories/GHSL-2024-090_yt-dlp"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "18088609",
+						"comment_count": "0",
+						"who": {
+							"text": "mcascell",
+							"name": "Mauro Matteo Cascella"
+						},
+						"bug_when": "2024-07-05 13:06:44 +0000",
+						"thetext": "More information about this security flaw is available in the following bug:\n\nhttps://bugzilla.redhat.com/show_bug.cgi?id=2295203\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18088652",
+						"comment_count": "1",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-07-05 13:55:30 +0000",
+						"thetext": "FEDORA-2024-0ba1c1a435 (yt-dlp-2024.07.02-1.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-0ba1c1a435"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18088653",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-07-05 13:55:37 +0000",
+						"thetext": "FEDORA-2024-a4392c5143 (yt-dlp-2024.07.02-1.fc39) has been submitted as an update to Fedora 39.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-a4392c5143"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18088655",
+						"comment_count": "3",
+						"who": {
+							"text": "mikel",
+							"name": "Mikel Olasagasti Uranga"
+						},
+						"bug_when": "2024-07-05 13:56:58 +0000",
+						"thetext": "https://bodhi.fedoraproject.org/updates/FEDORA-2024-bf00848f44\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-0ba1c1a435\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-a4392c5143"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "yt-dlp-2024.07.02-1.fc39",
+			"release_id": 70,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "yt-dlp-fish-completion",
+						"version": "2024.07.02",
+						"release": "1.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "yt-dlp-zsh-completion",
+						"version": "2024.07.02",
+						"release": "1.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "yt-dlp-bash-completion",
+						"version": "2024.07.02",
+						"release": "1.fc39",
+						"arch": "noarch"
+					},
+					{
+						"name": "yt-dlp",
+						"version": "2024.07.02",
+						"release": "1.fc39",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "yt-dlp",
+						"version": "2024.07.02",
+						"release": "1.fc39",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3599604,
+			"text": "This update has been submitted for testing by mikelo2. ",
+			"timestamp": "2024-07-04 13:33:43",
+			"update_id": 625307,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3599605,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2024-07-04 13:33:44",
+			"update_id": 625307,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3600167,
+			"text": "This update has been pushed to testing.",
+			"timestamp": "2024-07-05 01:51:58",
+			"update_id": 625307,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3600707,
+			"text": "mikelo2 edited this update.",
+			"timestamp": "2024-07-05 13:55:34",
+			"update_id": 625307,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath_groups": "",
+	"date_modified": "2024-07-05 13:55:34",
+	"date_pushed": "2024-07-05 01:51:26",
+	"date_submitted": "2024-07-04 13:33:43",
+	"date_testing": "2024-07-05 01:51:26",
+	"notes": "Update to 2024.07.02\n",
+	"pushed": true,
+	"release": {
+		"branch": "f39",
+		"candidate_tag": "f39-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f39",
+		"eol": "2024-11-12",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 39",
+		"mail_template": "fedora_errata_template",
+		"name": "F39",
+		"override_tag": "f39-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f39-signing-pending",
+		"pending_stable_tag": "f39-updates-pending",
+		"pending_testing_tag": "f39-updates-testing-pending",
+		"stable_tag": "f39-updates",
+		"state": "current",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f39-updates-testing",
+		"version": "39"
+	},
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "unspecified",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "testing",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "yt-dlp-2024.07.02-1.fc39",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2024-a4392c5143",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2024-a4392c5143",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/dd0c8d57c11abcb45b6aa01206fe9429ae22ca8ad99fbe46f31550f156be5e49?s=24&d=retro",
+		"email": "mikel@olasagasti.info",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "go-sig"
+			}
+		],
+		"id": 5300,
+		"name": "mikelo2",
+		"openid": "mikelo2.id.fedoraproject.org"
+	},
+	"version_hash": "af0931ffbeb4876963b363013fc80785a490a1b5"
+}
