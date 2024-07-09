@@ -1,0 +1,962 @@
+{
+	"alias": "FEDORA-2024-c395d8fef4",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2296625,
+			"security": true,
+			"title": "CVE-2024-3596 freeradius: forgery attack [fedora-39]",
+			"bugzilla": {
+				"bug_id": "2296625",
+				"creation_ts": "2024-07-09 14:40:43 +0000",
+				"short_desc": "CVE-2024-3596 freeradius: forgery attack [fedora-39]",
+				"delta_ts": "2024-07-09 14:50:12 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Security, SecurityTracking",
+				"priority": "high",
+				"bug_severity": "high",
+				"blocked": [
+					{
+						"bug_id": "2263240",
+						"alias": "CVE-2024-3596",
+						"creation_ts": "2024-02-07 19:10:42 +0000",
+						"short_desc": "CVE-2024-3596 freeradius: forgery attack",
+						"delta_ts": "2024-07-09 16:58:55 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "high",
+						"bug_severity": "high",
+						"depends_on": [
+							"2296625",
+							"2296624"
+						],
+						"blocked": [
+							{
+								"bug_id": "2263241",
+								"error": "NotPermitted"
+							}
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "17878945",
+								"comment_count": "0",
+								"who": {
+									"text": "ntait",
+									"name": "Nick Tait"
+								},
+								"bug_when": "2024-02-07 19:10:42 +0000",
+								"thetext": "Affected Vendor\nIETF\nEvery vendor who implements a product supporting RADIUS\n\nAffected Product\nRFC 2865\n\nAffected Version\nRFC 2865\n\nSignificant ICS/OT impact?\nno\n\nReporter\nNadia Heninger [nadiah@cs.ucsd.edu] University of California San Diego\n\nVendor contacted?\nyes We have reached out to the IETF. This vulnerability will affect a large number of vendors and we have not reached out to any individual vendors yet.\n\nDescription\nWe have an efficient forgery attack against the Response Authenticator\nused to authenticate RADIUS server Access-Accept or Access-Reject\nmessages. This is a protocol vulnerability against RFC 2865 and\napplies to RADIUS/UDP. It allows a man-in-the-middle attacker to\nforge a valid Access-Accept response to a client request that has been\nrejected by the RADIUS server, and gain access to the network\nresources and devices for which the RADIUS client may authorize users.\n\nThe Response Authenticator is an MD5 hash of values from the RADIUS\nclient request and server response together with a fixed shared secret\n(unknown to our attacker) that is shared between the RADIUS client and\nserver. The first byte of an Access-Accept and Access-Reject message\ndiffer. The attacker executes a so-called chosen-prefix collision\nattack on MD5 to change the message type in the first byte and any\nrelevant packet attributes while ensuring that the Access-Reject and\nforged Access-Accept both produce the same Response Authenticator.\nOnce an MD5 chosen-prefix hash collision has been computed, any fixed\nvalue appended to the two messages will continue to produce an MD5\nhash collision. In particular, the attacker can compute a collision\nwith known values such that when the client or server append the\nsecret to compute the Response Authenticator, it will still produce\nthe same hash value.\n\nComputing an MD5 chosen-prefix hash collision requires predicting the\nAccess-Reject message and appending as few as 80 bytes of collision block\ngibberish to the Access-Request sent to the server. In our attack, the\nattacker encapsulates this collision-block gibberish in Proxy-State\nattributes that are required by the RFC to be returned by the server in\nits response and are hence also present in the Access-Reject produced\nby the server. These gibberish values ensure the Response Authenticator\ncomputed from the Access-Reject and will be a correct Response Authenticator\nfor the forged Access-Accept.\nExploit\nTo exploit this vulnerability, an attacker needs man-in-the-middle\nnetwork access between the RADIUS client and server, and the client\nand server must be using RADIUS/UDP to communicate. The attacker also\nneeds to be able to trigger a RADIUS client Access-Request, by for\nexample entering a username and (incorrect) password at a login prompt\non a victim device. The simplest case is when the client is using PAP\nauthentication.\n\nThe attacker observes the Access-Request packet (in particular the\nrandom ID and Request Authenticator values included in the request)\nand predicts the attributes that will be returned in the Access-Reject\nresponse that is expected to be returned by the server.\n\nThe attacker then computes an MD5 chosen-prefix collision online,\nbefore the client times out its request. With our computing power, we\nare currently able to compute such a collision in as little as 5 to 6\nminutes; we expect to continue to improve this, and a well-resourced\nattacker with the ability to implement this attack on FPGAs would\ncertainly be able to improve this time to seconds.\n\nOnce the attacker has computed the MD5 collision, the attacker inserts\nthe corresponding collision blocks into one or more Proxy-State\nattributes in the request, and removes any Message-Authenticator\nattributes from the request. (This is allowed and undetectable when\nusing PAP authentication.) The attacker sends this modified client\nrequest to the RADIUS server.\n\nThe attacker then receives the expected Access-Reject response from\nthe RADIUS server, and copies the Response Authenticator value from\nthe Access-Reject to the colliding Access-Accept packet that it\nforges. This packet will include some Proxy-State attributes\ncontaining the collision block gibberish; we have verified that these\nattributes are accepted by clients.\n\nThe attacker then forwards its modified Access-Accept response to the\nclient, which should successfully let the attacker log in.\n\nWe have attached a file poc.md showing logs and values with a sample colliding request.\nImpact\nAn attacker gains access to any resource for which RADIUS is used for\nauthentication/authorization. RADIUS/UDP appears to be commonly used\nwithin enterprise networks and organizations to provide admin access\nto routing infrastructure, user logins for VPNs, for Wi-Fi access via\nWPA-enterprise, and as a lightweight authentication mechanism for a\nvariety of networked devices and hardware. RADIUS is supported by\ncloud authentication services like Duo and Okta as well.\nDiscovery\nThis vulnerability was discovered by Mike Milano, Sharon Goldberg,\nNadia Heninger, Dan Shumow, Marc Stevens, Miro Haller, and Adam Suhl.\nWe discovered it by reading the RFC, examining the behavior of the\nRADIUS client and server implementations we currently have access to\n(FreeRadius, Okta, a Cisco ASA 5505), and optimizing Marc Stevens's\nHashclash MD5 collision software for our particular case.\n\nHas been exploited? no\n\nIs public? no\n\nDisclosure Plans? yes\nWe plan to submit a paper to the Usenix Security conference. The paper will be confidential except to the program committee. The submission deadline is February 8 and the conference takes place August 14-16. We are fine with coordinating the public disclosure deadline with vendors."
+							}
+						]
+					}
+				],
+				"external_bugs": {
+					"text": "FREEIPA-11311",
+					"name": "Red Hat Issue Tracker"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "18093525",
+						"comment_count": "0",
+						"who": {
+							"text": "saroy",
+							"name": "Sandipan Roy"
+						},
+						"bug_when": "2024-07-09 14:40:43 +0000",
+						"thetext": "More information about this security flaw is available in the following bug:\n\nhttps://bugzilla.redhat.com/show_bug.cgi?id=2263240\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18093531",
+						"comment_count": "1",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-07-09 14:50:12 +0000",
+						"thetext": "FEDORA-2024-c395d8fef4 (freeradius-3.2.5-1.fc39) has been submitted as an update to Fedora 39.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-c395d8fef4"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "freeradius-3.2.5-1.fc39",
+			"release_id": 70,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "freeradius-rest",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-perl",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-mysql",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-krb5",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3-freeradius",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-utils-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3-freeradius-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-debugsource",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-devel",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-postgresql",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-rest-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-perl-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-mysql-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-krb5-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-postgresql-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-sqlite",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-ldap-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-unixODBC",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-utils",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-doc",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-sqlite-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-ldap",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-unixODBC-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "freeradius-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					}
+				],
+				"i686": [
+					{
+						"name": "freeradius-doc",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-debugsource",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-utils-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-utils",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-devel",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-mysql",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-ldap-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-rest-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-ldap",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-perl-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-postgresql",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "python3-freeradius-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-sqlite",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-mysql-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-rest",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-sqlite-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-perl",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-postgresql-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-krb5-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "python3-freeradius",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-unixODBC-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-krb5",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "freeradius-unixODBC",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "freeradius-utils-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-doc",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-mysql",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-utils",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-debugsource",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-postgresql",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-sqlite",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-devel",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-ldap",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-rest",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-perl",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3-freeradius",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-krb5",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-unixODBC",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-ldap-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-rest-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-perl-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3-freeradius-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-mysql-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-sqlite-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-postgresql-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-krb5-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "freeradius-unixODBC-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "freeradius-doc",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-debugsource",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-utils-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-utils",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-devel",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-ldap-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-mysql",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-rest-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-ldap",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-perl-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-postgresql",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3-freeradius-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-sqlite",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-rest",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-mysql-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-perl",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-sqlite-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-postgresql-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3-freeradius",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-krb5-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-unixODBC-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-krb5",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "freeradius-unixODBC",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "freeradius",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "freeradius-devel",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-doc",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-debugsource",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-perl-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-utils-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-rest-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-postgresql",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-postgresql-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-sqlite-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-utils",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-sqlite",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3-freeradius-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-unixODBC-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-krb5-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-rest",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-mysql",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3-freeradius",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-ldap-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-unixODBC",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-mysql-debuginfo",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-krb5",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-perl",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius-ldap",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "freeradius",
+						"version": "3.2.5",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3605213,
+			"text": "This update has been submitted for testing by antorres. ",
+			"timestamp": "2024-07-09 14:50:09",
+			"update_id": 626295,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3605214,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2024-07-09 14:50:10",
+			"update_id": 626295,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath_groups": "",
+	"date_submitted": "2024-07-09 14:50:09",
+	"notes": "Update to upstream release 3.2.5",
+	"release": {
+		"branch": "f39",
+		"candidate_tag": "f39-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f39",
+		"eol": "2024-11-12",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 39",
+		"mail_template": "fedora_errata_template",
+		"name": "F39",
+		"override_tag": "f39-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f39-signing-pending",
+		"pending_stable_tag": "f39-updates-pending",
+		"pending_testing_tag": "f39-updates-testing-pending",
+		"stable_tag": "f39-updates",
+		"state": "current",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f39-updates-testing",
+		"version": "39"
+	},
+	"request": "testing",
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "high",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "pending",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "freeradius-3.2.5-1.fc39",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2024-c395d8fef4",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2024-c395d8fef4",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/b24eb187178a4396f91ad3f9bd75016079b2f8f1f66d7e9ee26ee6a8b9dac941?s=24&d=retro",
+		"email": "antorres@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "gitfreeipa"
+			}
+		],
+		"id": 6195,
+		"name": "antorres",
+		"openid": "antorres.id.fedoraproject.org"
+	},
+	"version_hash": "33a1539d5ce6757a8efbecd8ad313aa8c586e06d"
+}
