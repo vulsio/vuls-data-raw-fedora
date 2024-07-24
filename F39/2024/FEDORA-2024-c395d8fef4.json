@@ -23,7 +23,7 @@
 						"alias": "CVE-2024-3596",
 						"creation_ts": "2024-02-07 19:10:42 +0000",
 						"short_desc": "CVE-2024-3596 freeradius: forgery attack",
-						"delta_ts": "2024-07-10 09:19:21 +0000",
+						"delta_ts": "2024-07-24 13:32:19 +0000",
 						"bug_status": "NEW",
 						"keywords": "Security",
 						"priority": "high",
@@ -38,6 +38,10 @@
 								"error": "NotPermitted"
 							}
 						],
+						"external_bugs": {
+							"text": "RHSA-2024:4829",
+							"name": "Red Hat Product Errata"
+						},
 						"long_desc": [
 							{
 								"isprivate": "0",
@@ -49,6 +53,39 @@
 								},
 								"bug_when": "2024-02-07 19:10:42 +0000",
 								"thetext": "Affected Vendor\nIETF\nEvery vendor who implements a product supporting RADIUS\n\nAffected Product\nRFC 2865\n\nAffected Version\nRFC 2865\n\nSignificant ICS/OT impact?\nno\n\nReporter\nNadia Heninger [nadiah@cs.ucsd.edu] University of California San Diego\n\nVendor contacted?\nyes We have reached out to the IETF. This vulnerability will affect a large number of vendors and we have not reached out to any individual vendors yet.\n\nDescription\nWe have an efficient forgery attack against the Response Authenticator\nused to authenticate RADIUS server Access-Accept or Access-Reject\nmessages. This is a protocol vulnerability against RFC 2865 and\napplies to RADIUS/UDP. It allows a man-in-the-middle attacker to\nforge a valid Access-Accept response to a client request that has been\nrejected by the RADIUS server, and gain access to the network\nresources and devices for which the RADIUS client may authorize users.\n\nThe Response Authenticator is an MD5 hash of values from the RADIUS\nclient request and server response together with a fixed shared secret\n(unknown to our attacker) that is shared between the RADIUS client and\nserver. The first byte of an Access-Accept and Access-Reject message\ndiffer. The attacker executes a so-called chosen-prefix collision\nattack on MD5 to change the message type in the first byte and any\nrelevant packet attributes while ensuring that the Access-Reject and\nforged Access-Accept both produce the same Response Authenticator.\nOnce an MD5 chosen-prefix hash collision has been computed, any fixed\nvalue appended to the two messages will continue to produce an MD5\nhash collision. In particular, the attacker can compute a collision\nwith known values such that when the client or server append the\nsecret to compute the Response Authenticator, it will still produce\nthe same hash value.\n\nComputing an MD5 chosen-prefix hash collision requires predicting the\nAccess-Reject message and appending as few as 80 bytes of collision block\ngibberish to the Access-Request sent to the server. In our attack, the\nattacker encapsulates this collision-block gibberish in Proxy-State\nattributes that are required by the RFC to be returned by the server in\nits response and are hence also present in the Access-Reject produced\nby the server. These gibberish values ensure the Response Authenticator\ncomputed from the Access-Reject and will be a correct Response Authenticator\nfor the forged Access-Accept.\nExploit\nTo exploit this vulnerability, an attacker needs man-in-the-middle\nnetwork access between the RADIUS client and server, and the client\nand server must be using RADIUS/UDP to communicate. The attacker also\nneeds to be able to trigger a RADIUS client Access-Request, by for\nexample entering a username and (incorrect) password at a login prompt\non a victim device. The simplest case is when the client is using PAP\nauthentication.\n\nThe attacker observes the Access-Request packet (in particular the\nrandom ID and Request Authenticator values included in the request)\nand predicts the attributes that will be returned in the Access-Reject\nresponse that is expected to be returned by the server.\n\nThe attacker then computes an MD5 chosen-prefix collision online,\nbefore the client times out its request. With our computing power, we\nare currently able to compute such a collision in as little as 5 to 6\nminutes; we expect to continue to improve this, and a well-resourced\nattacker with the ability to implement this attack on FPGAs would\ncertainly be able to improve this time to seconds.\n\nOnce the attacker has computed the MD5 collision, the attacker inserts\nthe corresponding collision blocks into one or more Proxy-State\nattributes in the request, and removes any Message-Authenticator\nattributes from the request. (This is allowed and undetectable when\nusing PAP authentication.) The attacker sends this modified client\nrequest to the RADIUS server.\n\nThe attacker then receives the expected Access-Reject response from\nthe RADIUS server, and copies the Response Authenticator value from\nthe Access-Reject to the colliding Access-Accept packet that it\nforges. This packet will include some Proxy-State attributes\ncontaining the collision block gibberish; we have verified that these\nattributes are accepted by clients.\n\nThe attacker then forwards its modified Access-Accept response to the\nclient, which should successfully let the attacker log in.\n\nWe have attached a file poc.md showing logs and values with a sample colliding request.\nImpact\nAn attacker gains access to any resource for which RADIUS is used for\nauthentication/authorization. RADIUS/UDP appears to be commonly used\nwithin enterprise networks and organizations to provide admin access\nto routing infrastructure, user logins for VPNs, for Wi-Fi access via\nWPA-enterprise, and as a lightweight authentication mechanism for a\nvariety of networked devices and hardware. RADIUS is supported by\ncloud authentication services like Duo and Okta as well.\nDiscovery\nThis vulnerability was discovered by Mike Milano, Sharon Goldberg,\nNadia Heninger, Dan Shumow, Marc Stevens, Miro Haller, and Adam Suhl.\nWe discovered it by reading the RFC, examining the behavior of the\nRADIUS client and server implementations we currently have access to\n(FreeRadius, Okta, a Cisco ASA 5505), and optimizing Marc Stevens's\nHashclash MD5 collision software for our particular case.\n\nHas been exploited? no\n\nIs public? no\n\nDisclosure Plans? yes\nWe plan to submit a paper to the Usenix Security conference. The paper will be confidential except to the program committee. The submission deadline is February 8 and the conference takes place August 14-16. We are fine with coordinating the public disclosure deadline with vendors."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18108046",
+								"comment_count": "2",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2024-07-24 13:22:08 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8.6 Advanced Mission Critical Update Support\n  Red Hat Enterprise Linux 8.6 Update Services for SAP Solutions\n  Red Hat Enterprise Linux 8.6 Telecommunications Update Service\n\nVia RHSA-2024:4826 https://access.redhat.com/errata/RHSA-2024:4826"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18108108",
+								"comment_count": "3",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2024-07-24 13:31:59 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 9.2 Extended Update Support\n\nVia RHSA-2024:4828 https://access.redhat.com/errata/RHSA-2024:4828"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18108109",
+								"comment_count": "4",
+								"who": {
+									"text": "errata-xmlrpc",
+									"name": "errata-xmlrpc"
+								},
+								"bug_when": "2024-07-24 13:32:17 +0000",
+								"thetext": "This issue has been addressed in the following products:\n\n  Red Hat Enterprise Linux 8.8 Extended Update Support\n\nVia RHSA-2024:4829 https://access.redhat.com/errata/RHSA-2024:4829"
 							}
 						]
 					}
