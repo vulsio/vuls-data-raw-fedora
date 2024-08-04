@@ -1,0 +1,499 @@
+{
+	"alias": "FEDORA-2024-4d686ae1b5",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2252618,
+			"title": "Tor.service fails to start",
+			"bugzilla": {
+				"bug_id": "2252618",
+				"creation_ts": "2023-12-03 03:48:36 +0000",
+				"short_desc": "Tor.service fails to start",
+				"delta_ts": "2024-08-03 21:09:39 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Desktop",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "17788872",
+						"comment_count": "0",
+						"who": {
+							"text": "upcz5mw0",
+							"name": "bitestring"
+						},
+						"bug_when": "2023-12-03 03:48:36 +0000",
+						"thetext": "In Fedora 39 (Silverblue), /var/lib/tor is owned by a different user called setroubleshoot or some random user ID. Everytime `rpm-ostree upgrade` is executed the ownership seems to be changed from `toranon` to a different user. Thus systemd service keeps failing\n\n```\n> sudo systemctl start tor\ntor.service: Failed with result 'exit-code'.\ntor.service: Control process exited, code=exited, status=1/FAILURE\nDec 03 08:47:28.341 [err] Reading config failed--see warnings above.\nDec 03 08:47:28.341 [warn] Failed to parse/validate config: Couldn't access private data directory \"/var/lib/tor/keys\"\nDec 03 08:47:28.341 [warn] Directory /var/lib/tor/keys cannot be read: Permission denied\nDec 03 08:47:28.334 [notice] Read configuration file \"/etc/tor/torrc\".\nDec 03 08:47:28.334 [notice] Read configuration file \"/usr/share/tor/defaults-torrc\".\nDec 03 08:47:28.334 [notice] Tor can't help you if you use it wrong! Learn how to be safe at https://support.torproject.org/faq/staying-anonymous/\nDec 03 08:47:28.334 [notice] Tor 0.4.8.9 running on Linux with Libevent 2.1.12-stable, OpenSSL 3.1.1, Zlib 1.2.13, Liblzma 5.4.4, Libzstd 1.5.5 and Glibc 2.38 as libc.\n```\n\nReproducible: Always\n\nSteps to Reproduce:\n1. Install `rpm-ostree install tor`\n2. Reboot\n3. Start the service `sudo systemctl start tor`\nActual Results:  \ntor.service: Failed with result 'exit-code'.\ntor.service: Control process exited, code=exited, status=1/FAILURE\nDec 03 08:47:28.341 [err] Reading config failed--see warnings above.\nDec 03 08:47:28.341 [warn] Failed to parse/validate config: Couldn't access private data directory \"/var/lib/tor/keys\"\nDec 03 08:47:28.341 [warn] Directory /var/lib/tor/keys cannot be read: Permission denied\nDec 03 08:47:28.334 [notice] Read configuration file \"/etc/tor/torrc\".\nDec 03 08:47:28.334 [notice] Read configuration file \"/usr/share/tor/defaults-torrc\".\nDec 03 08:47:28.334 [notice] Tor can't help you if you use it wrong! Learn how to be safe at https://support.torproject.org/faq/staying-anonymous/\nDec 03 08:47:28.334 [notice] Tor 0.4.8.9 running on Linux with Libevent 2.1.12-stable, OpenSSL 3.1.1, Zlib 1.2.13, Liblzma 5.4.4, Libzstd 1.5.5 and Glibc 2.38 as libc.\n\nExpected Results:  \nService should start successfully.\n\nChanging ownership of all files in `/var/lib/tor/` seems to fix the problem.\n\n```\n> cd /var/lib/tor/\n> chown toranon:toranon *\n> systemctl start tor\n```\n\nfixes the issue."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17801834",
+						"comment_count": "1",
+						"who": {
+							"text": "miabbott",
+							"name": "Micah Abbott"
+						},
+						"bug_when": "2023-12-11 15:27:24 +0000",
+						"thetext": "I'm not a packaging expert, but it appears that the spec files is manually using `useradd` to configure the `toranon` user:\n\nhttps://src.fedoraproject.org/rpms/tor/blob/rawhide/f/tor.spec#_129-134\n\n...but probably should be using the sysusers.d approach:\n\nhttps://docs.fedoraproject.org/en-US/packaging-guidelines/UsersAndGroups/#_allocation_strategies"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "17802001",
+						"comment_count": "2",
+						"who": {
+							"text": "upcz5mw0",
+							"name": "bitestring"
+						},
+						"bug_when": "2023-12-11 17:48:00 +0000",
+						"thetext": "Linking another Fedora Discussion thread\n\nhttps://discussion.fedoraproject.org/t/tor-service-fail-to-start-on-silverblue-f39/98725"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18076114",
+						"comment_count": "3",
+						"who": {
+							"text": "tsilvs",
+							"name": "Vsevolod"
+						},
+						"bug_when": "2024-06-22 09:46:11 +0000",
+						"thetext": "Can confirm that this issue persists on Fedora Silverblue 40. `toranon` user workarounds don't work, because SystemD Login management service prevents it from being created."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18129665",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-08-03 21:05:32 +0000",
+						"thetext": "FEDORA-2024-c015cf3a38 (tor-0.4.8.12-1.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-c015cf3a38"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18129670",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-08-03 21:09:39 +0000",
+						"thetext": "FEDORA-2024-4d686ae1b5 (tor-0.4.8.12-1.fc39) has been submitted as an update to Fedora 39.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-4d686ae1b5"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2281499,
+			"security": true,
+			"title": "CVE-2024-35312 tor: STUB circuits incorrect length [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2281499",
+				"creation_ts": "2024-05-19 14:58:31 +0000",
+				"short_desc": "CVE-2024-35312 tor: STUB circuits incorrect length [fedora-all]",
+				"delta_ts": "2024-08-03 21:09:42 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "2281498",
+						"alias": "CVE-2024-35312",
+						"creation_ts": "2024-05-19 14:58:26 +0000",
+						"short_desc": "CVE-2024-35312 tor: STUB circuits incorrect length",
+						"delta_ts": "2024-05-19 14:58:45 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"2281499",
+							"2281500"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "18020987",
+								"comment_count": "0",
+								"who": {
+									"text": "ybuenos"
+								},
+								"bug_when": "2024-05-19 14:58:26 +0000",
+								"thetext": "In Tor Arti before 1.2.3, STUB circuits incorrectly have a length of 2 (with lite vanguards), aka TROVE-2024-003.\n\nhttps://gitlab.torproject.org/tpo/core/arti/-/issues/1409"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18020992",
+								"comment_count": "1",
+								"who": {
+									"text": "ybuenos"
+								},
+								"bug_when": "2024-05-19 14:58:45 +0000",
+								"thetext": "Created tor tracking bugs for this issue:\n\nAffects: epel-all [bug 2281500]\nAffects: fedora-all [bug 2281499]"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "18020988",
+						"comment_count": "0",
+						"who": {
+							"text": "ybuenos"
+						},
+						"bug_when": "2024-05-19 14:58:31 +0000",
+						"thetext": "\nMore information about this security flaw is available in the following bug:\n\nhttp://bugzilla.redhat.com/show_bug.cgi?id=2281498\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18020989",
+						"comment_count": "1",
+						"who": {
+							"text": "ybuenos"
+						},
+						"bug_when": "2024-05-19 14:58:34 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2281498,2281499\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18129666",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-08-03 21:05:35 +0000",
+						"thetext": "FEDORA-2024-c015cf3a38 (tor-0.4.8.12-1.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-c015cf3a38"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18129671",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-08-03 21:09:42 +0000",
+						"thetext": "FEDORA-2024-4d686ae1b5 (tor-0.4.8.12-1.fc39) has been submitted as an update to Fedora 39.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-4d686ae1b5"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2281503,
+			"security": true,
+			"title": "CVE-2024-35313 tor: STUB circuits incorrect length [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2281503",
+				"creation_ts": "2024-05-19 15:00:53 +0000",
+				"short_desc": "CVE-2024-35313 tor: STUB circuits incorrect length [fedora-all]",
+				"delta_ts": "2024-08-03 21:09:45 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "2281501",
+						"alias": "CVE-2024-35313",
+						"creation_ts": "2024-05-19 15:00:44 +0000",
+						"short_desc": "CVE-2024-35313 tor: STUB circuits incorrect length",
+						"delta_ts": "2024-05-19 15:01:03 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"2281502",
+							"2281503"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "18020993",
+								"comment_count": "0",
+								"who": {
+									"text": "ybuenos"
+								},
+								"bug_when": "2024-05-19 15:00:44 +0000",
+								"thetext": "In Tor Arti before 1.2.3, circuits sometimes incorrectly have a length of 3 (with full vanguards), aka TROVE-2024-004.\n\nhttps://gitlab.torproject.org/tpo/core/arti/-/issues/1400"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18020998",
+								"comment_count": "1",
+								"who": {
+									"text": "ybuenos"
+								},
+								"bug_when": "2024-05-19 15:01:03 +0000",
+								"thetext": "Created tor tracking bugs for this issue:\n\nAffects: epel-all [bug 2281502]\nAffects: fedora-all [bug 2281503]"
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "18020996",
+						"comment_count": "0",
+						"who": {
+							"text": "ybuenos"
+						},
+						"bug_when": "2024-05-19 15:00:53 +0000",
+						"thetext": "\nMore information about this security flaw is available in the following bug:\n\nhttp://bugzilla.redhat.com/show_bug.cgi?id=2281501\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18020997",
+						"comment_count": "1",
+						"who": {
+							"text": "ybuenos"
+						},
+						"bug_when": "2024-05-19 15:00:56 +0000",
+						"thetext": "Use the following template to for the 'fedpkg update' request to submit an\nupdate for this issue as it contains the top-level parent bug(s) as well as\nthis tracking bug.  This will ensure that all associated bugs get updated\nwhen new packages are pushed to stable.\n\n=====\n\n# bugfix, security, enhancement, newpackage (required)\ntype=security\n\n# low, medium, high, urgent (required)\nseverity=medium\n\n# testing, stable\nrequest=testing\n\n# Bug numbers: 1234,9876\nbugs=2281501,2281503\n\n# Description of your update\nnotes=Security fix for [PUT CVEs HERE]\n\n# Enable request automation based on the stable/unstable karma thresholds\nautokarma=True\nstable_karma=3\nunstable_karma=-3\n\n# Automatically close bugs when this marked as stable\nclose_bugs=True\n\n# Suggest that users restart after update\nsuggest_reboot=False\n\n======\n\nAdditionally, you may opt to use the bodhi web interface to submit updates:\n\nhttps://bodhi.fedoraproject.org/updates/new"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18129667",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-08-03 21:05:38 +0000",
+						"thetext": "FEDORA-2024-c015cf3a38 (tor-0.4.8.12-1.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-c015cf3a38"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18129672",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-08-03 21:09:45 +0000",
+						"thetext": "FEDORA-2024-4d686ae1b5 (tor-0.4.8.12-1.fc39) has been submitted as an update to Fedora 39.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-4d686ae1b5"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "tor-0.4.8.12-1.fc39",
+			"release_id": 70,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "tor-debuginfo",
+						"version": "0.4.8.12",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "tor",
+						"version": "0.4.8.12",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					},
+					{
+						"name": "tor-debugsource",
+						"version": "0.4.8.12",
+						"release": "1.fc39",
+						"arch": "aarch64"
+					}
+				],
+				"i686": [
+					{
+						"name": "tor",
+						"version": "0.4.8.12",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "tor-debuginfo",
+						"version": "0.4.8.12",
+						"release": "1.fc39",
+						"arch": "i686"
+					},
+					{
+						"name": "tor-debugsource",
+						"version": "0.4.8.12",
+						"release": "1.fc39",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "tor-debuginfo",
+						"version": "0.4.8.12",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "tor",
+						"version": "0.4.8.12",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "tor-debugsource",
+						"version": "0.4.8.12",
+						"release": "1.fc39",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "tor-debuginfo",
+						"version": "0.4.8.12",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "tor",
+						"version": "0.4.8.12",
+						"release": "1.fc39",
+						"arch": "s390x"
+					},
+					{
+						"name": "tor-debugsource",
+						"version": "0.4.8.12",
+						"release": "1.fc39",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "tor",
+						"version": "0.4.8.12",
+						"release": "1.fc39",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "tor-debuginfo",
+						"version": "0.4.8.12",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "tor",
+						"version": "0.4.8.12",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					},
+					{
+						"name": "tor-debugsource",
+						"version": "0.4.8.12",
+						"release": "1.fc39",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3647194,
+			"text": "This update has been submitted for testing by maha. ",
+			"timestamp": "2024-08-03 21:09:37",
+			"update_id": 634516,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3647195,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2024-08-03 21:09:37",
+			"update_id": 634516,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath_groups": "",
+	"date_submitted": "2024-08-03 21:09:37",
+	"locked": true,
+	"notes": "update to latest upstream release https://forum.torproject.org/t/stable-release-0-4-8-12/13060",
+	"release": {
+		"branch": "f39",
+		"candidate_tag": "f39-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f39",
+		"eol": "2024-11-12",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 39",
+		"mail_template": "fedora_errata_template",
+		"name": "F39",
+		"override_tag": "f39-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f39-signing-pending",
+		"pending_stable_tag": "f39-updates-pending",
+		"pending_testing_tag": "f39-updates-testing-pending",
+		"stable_tag": "f39-updates",
+		"state": "current",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f39-updates-testing",
+		"version": "39"
+	},
+	"request": "testing",
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "medium",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "pending",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "tor-0.4.8.12-1.fc39",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2024-4d686ae1b5",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2024-4d686ae1b5",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/f3bba56af48af8a1e627cdc47bf405ca802208a6a821d89d3216b3908577574a?s=24&d=retro",
+		"email": "mh@scrit.ch",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			}
+		],
+		"id": 246,
+		"name": "maha",
+		"openid": "maha.id.fedoraproject.org"
+	},
+	"version_hash": "b5a587d69dc367dec842beb6f1c7df33020d18c4"
+}
