@@ -1,0 +1,776 @@
+{
+	"alias": "FEDORA-2024-9fe1974c0f",
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2303107,
+			"title": "gpgme Python 3.13.0rc1: SystemError: Objects/dictobject.c:3774: bad argument to internal function",
+			"bugzilla": {
+				"bug_id": "2303107",
+				"creation_ts": "2024-08-06 11:55:40 +0000",
+				"short_desc": "gpgme Python 3.13.0rc1: SystemError: Objects/dictobject.c:3774: bad argument to internal function",
+				"delta_ts": "2024-08-07 17:02:15 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Regression",
+				"priority": "unspecified",
+				"bug_severity": "high",
+				"external_bugs": {
+					"text": "python3.13/pull-request/95",
+					"name": "Fedora Package Sources"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "18134771",
+						"comment_count": "0",
+						"who": {
+							"text": "ksrot",
+							"name": "Karel Srot"
+						},
+						"bug_when": "2024-08-06 11:55:40 +0000",
+						"thetext": "Just observed this on the latest Rawhide.\nBefore python3 package update things were working fine.\n\n$ rpm -q python3 python3-gpg\npython3-3.13.0~b4-3.fc41.x86_64\npython3-gpg-1.23.2-5.fc41.x86_64\n$ python3\nPython 3.13.0b4 (main, Jul 30 2024, 00:00:00) [GCC 14.1.1 20240701 (Red Hat 14.1.1-7)] on linux\nType \"help\", \"copyright\", \"credits\" or \"license\" for more information.\n>>> import gpg\n>>> with open('gpg-key.pub', \"rb\") as fd:\n...     key = fd.read()\n...     \n>>> with open('signature-gpg-genuine.sig', \"rb\") as fd:\n...     sig = fd.read()\n...     \n>>> with open('x509_evm.pem', \"rb\") as fd:\n...     body = fd.read()\n...     \n>>> import tempfile\n>>> with tempfile.TemporaryDirectory() as gpg_homedir:\n...     ctx = gpg.Context(home_dir=gpg_homedir)\n...     result = ctx.key_import(key)\n...     _, result = ctx.verify(body, sig)\n...     \n>>> print(result)\nVerifyResult(file_name=None, is_mime=0, signatures=[Signature(chain_model=False, exp_timestamp=0, fpr='2F9995AB27F987B6E9A0F53F3356F5658E67C76B', hash_algo=8, is_de_vs=False, key=None, notations=[], pka_address=None, pka_trust=0, pubkey_algo=1, status=0, summary=0, timestamp=1722944064, validity=0, validity_reason=0, wrong_key_usage=False)])\n\nAfter the update to the latest python3:\n\n$ rpm -q python3 python3-gpg\npython3-3.13.0~rc1-1.fc41.x86_64\npython3-gpg-1.23.2-5.fc41.x86_64\n\n\n>>> with tempfile.TemporaryDirectory() as gpg_homedir:\n...     ctx = gpg.Context(home_dir=gpg_homedir)\n...     result = ctx.key_import(key)\n...     _, result = ctx.verify(body, sig)\n...     \nTraceback (most recent call last):\n  File \"<python-input-5>\", line 4, in <module>\n    _, result = ctx.verify(body, sig)\n                ~~~~~~~~~~^^^^^^^^^^^\n  File \"/usr/lib64/python3.13/site-packages/gpg/core.py\", line 556, in verify\n    results = (self.__read__(sink, data), self.op_verify_result())\n                                          ~~~~~~~~~~~~~~~~~~~~~^^\n  File \"/usr/lib64/python3.13/site-packages/gpg/core.py\", line 171, in wrapper\n    return _funcwrap(self, *args)\n  File \"/usr/lib64/python3.13/site-packages/gpg/core.py\", line 153, in _funcwrap\n    result = func(slf.wrapped, *args)\n  File \"/usr/lib64/python3.13/site-packages/gpg/gpgme.py\", line 1381, in gpgme_op_verify_result\n    return _gpgme.gpgme_op_verify_result(ctx)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^\n  File \"<frozen importlib._bootstrap>\", line 649, in parent\nSystemError: /builddir/build/BUILD/python3.13-3.13.0_rc1-build/Python-3.13.0rc1/Objects/dictobject.c:3774: bad argument to internal function\n\n\nReproducible: Always\n\nSteps to Reproduce:\nSee above\nActual Results:  \nTraceback\n\nExpected Results:  \nNo traceback, signature is verified"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18134772",
+						"comment_count": "1",
+						"who": {
+							"text": "ksrot",
+							"name": "Karel Srot"
+						},
+						"bug_when": "2024-08-06 11:56:11 +0000",
+						"thetext": "Created attachment 2043554\nreproducer"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18134778",
+						"comment_count": "2",
+						"who": {
+							"text": "ksrot",
+							"name": "Karel Srot"
+						},
+						"bug_when": "2024-08-06 11:57:03 +0000",
+						"thetext": "Switching to python3.13 per request"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18134783",
+						"comment_count": "3",
+						"who": {
+							"text": "mhroncok",
+							"name": "Miro Hrončok"
+						},
+						"bug_when": "2024-08-06 11:58:51 +0000",
+						"thetext": "This is from https://github.com/python/cpython/blob/v3.13.0rc1/Objects/dictobject.c#L3774 -- the line was not added recently (in fact it has been there for years)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18134792",
+						"comment_count": "4",
+						"who": {
+							"text": "mhroncok",
+							"name": "Miro Hrončok"
+						},
+						"bug_when": "2024-08-06 11:59:50 +0000",
+						"thetext": "https://koschei.fedoraproject.org/package/gpgme FTBFS since rc1 with the same error."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18134794",
+						"comment_count": "5",
+						"who": {
+							"text": "mhroncok",
+							"name": "Miro Hrončok"
+						},
+						"bug_when": "2024-08-06 12:00:46 +0000",
+						"thetext": "https://github.com/python/cpython/issues/122728 was reported by our Gentoo friends 3 hours ago."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18134837",
+						"comment_count": "6",
+						"who": {
+							"text": "vstinner",
+							"name": "Victor Stinner"
+						},
+						"bug_when": "2024-08-06 12:27:52 +0000",
+						"thetext": "I proposed a fix upstream: https://github.com/python/cpython/pull/122735"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18136509",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-08-07 13:51:30 +0000",
+						"thetext": "FEDORA-2024-9fe1974c0f (python3.13-3.13.0~rc1-2.fc41) has been submitted as an update to Fedora 41.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-9fe1974c0f"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18136691",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-08-07 16:24:03 +0000",
+						"thetext": "FEDORA-2024-9fe1974c0f (python3.13-3.13.0~rc1-2.fc41) has been pushed to the Fedora 41 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18136721",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-08-07 17:02:09 +0000",
+						"thetext": "FEDORA-2024-c452738920 (python3.13-3.13.0~rc1-2.fc39) has been submitted as an update to Fedora 39.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-c452738920"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18136723",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-08-07 17:02:15 +0000",
+						"thetext": "FEDORA-2024-bec5d0df1f (python3.13-3.13.0~rc1-2.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-bec5d0df1f"
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2303160,
+			"security": true,
+			"title": "CVE-2024-6923 python3.13: email module doesn't properly quotes newlines in email headers, allowing header injection [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2303160",
+				"creation_ts": "2024-08-06 13:44:38 +0000",
+				"short_desc": "CVE-2024-6923 python3.13: email module doesn't properly quotes newlines in email headers, allowing header injection [fedora-all]",
+				"delta_ts": "2024-08-07 17:02:19 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "2302255",
+						"alias": "CVE-2024-6923",
+						"creation_ts": "2024-08-01 14:30:31 +0000",
+						"short_desc": "CVE-2024-6923 cpython: python: email module doesn't properly quotes newlines in email headers, allowing header injection",
+						"delta_ts": "2024-08-06 13:45:10 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"2303155",
+							"2303156",
+							"2303157",
+							"2303158",
+							"2303159",
+							"2303161",
+							"2303162",
+							"2303163",
+							"2303164",
+							"2303160"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "18125651",
+								"comment_count": "0",
+								"who": {
+									"text": "bzimport",
+									"name": "OSIDB Bzimport"
+								},
+								"bug_when": "2024-08-01 14:30:31 +0000",
+								"thetext": "There is a MEDIUM severity vulnerability affecting CPython.\n\nThe \nemail module didn’t properly quote newlines for email headers when \nserializing an email message allowing for header injection when an email\n is serialized."
+							}
+						]
+					}
+				],
+				"external_bugs": {
+					"text": "python3.13/pull-request/95",
+					"name": "Fedora Package Sources"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "18134969",
+						"comment_count": "0",
+						"who": {
+							"text": "mbenatto",
+							"name": "Marco Benatto"
+						},
+						"bug_when": "2024-08-06 13:44:38 +0000",
+						"thetext": "More information about this security flaw is available in the following bug:\n\nhttps://bugzilla.redhat.com/show_bug.cgi?id=2302255\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18135259",
+						"comment_count": "1",
+						"who": {
+							"text": "mhroncok",
+							"name": "Miro Hrončok"
+						},
+						"bug_when": "2024-08-06 20:10:12 +0000",
+						"thetext": "I am patching Python 3.13 for bz2303107, so I'll do this together."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18136510",
+						"comment_count": "2",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-08-07 13:51:34 +0000",
+						"thetext": "FEDORA-2024-9fe1974c0f (python3.13-3.13.0~rc1-2.fc41) has been submitted as an update to Fedora 41.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-9fe1974c0f"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18136692",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-08-07 16:24:05 +0000",
+						"thetext": "FEDORA-2024-9fe1974c0f (python3.13-3.13.0~rc1-2.fc41) has been pushed to the Fedora 41 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18136722",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-08-07 17:02:12 +0000",
+						"thetext": "FEDORA-2024-c452738920 (python3.13-3.13.0~rc1-2.fc39) has been submitted as an update to Fedora 39.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-c452738920"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18136724",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-08-07 17:02:19 +0000",
+						"thetext": "FEDORA-2024-bec5d0df1f (python3.13-3.13.0~rc1-2.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-bec5d0df1f"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "python3.13-3.13.0~rc1-2.fc41",
+			"release_id": 80,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "python3",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3.13-debugsource",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3.13-freethreading-debug",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3-idle",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3-tkinter",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3-devel",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3-libs",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3-debug",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3.13-debuginfo",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3-test",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3.13-freethreading",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "aarch64"
+					}
+				],
+				"i686": [
+					{
+						"name": "python3-libs",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "i686"
+					},
+					{
+						"name": "python3.13-debuginfo",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "i686"
+					},
+					{
+						"name": "python3-test",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "i686"
+					},
+					{
+						"name": "python3.13-freethreading",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "i686"
+					},
+					{
+						"name": "python3.13-debugsource",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "i686"
+					},
+					{
+						"name": "python3.13-freethreading-debug",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "i686"
+					},
+					{
+						"name": "python3-debug",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "i686"
+					},
+					{
+						"name": "python3-idle",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "i686"
+					},
+					{
+						"name": "python3-tkinter",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "i686"
+					},
+					{
+						"name": "python3-devel",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "i686"
+					},
+					{
+						"name": "python3",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "python-unversioned-command",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "noarch"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "python3.13-debugsource",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3-idle",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3-debug",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3-libs",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3.13-debuginfo",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3.13-freethreading-debug",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3-test",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3.13-freethreading",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3-tkinter",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3-devel",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "python3.13-debuginfo",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3-test",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3.13-freethreading",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3-libs",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3.13-debugsource",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3.13-freethreading-debug",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3-debug",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3-idle",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3-tkinter",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3-devel",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "python3.13",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "python3-tkinter",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3.13-freethreading-debug",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3-idle",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3.13-debugsource",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3-devel",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3-libs",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3-debug",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3.13-debuginfo",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3-test",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3.13-freethreading",
+						"version": "3.13.0~rc1",
+						"release": "2.fc41",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3650602,
+			"text": "This update was automatically created",
+			"timestamp": "2024-08-07 13:51:27",
+			"update_id": 635162,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3650603,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2024-08-07 13:51:29",
+			"update_id": 635162,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3650741,
+			"text": "This update's test gating status has been changed to 'passed'.",
+			"timestamp": "2024-08-07 16:22:41",
+			"update_id": 635162,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3650742,
+			"text": "This update has been submitted for stable by bodhi",
+			"timestamp": "2024-08-07 16:24:01",
+			"update_id": 635162,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"critpath_groups": "core critical-path-anaconda critical-path-apps critical-path-base critical-path-build critical-path-compose critical-path-deepin-desktop critical-path-gnome critical-path-kde critical-path-lxde critical-path-lxqt critical-path-server critical-path-standard critical-path-xfce",
+	"date_approved": "2024-08-07 16:24:00",
+	"date_pushed": "2024-08-07 16:24:00",
+	"date_stable": "2024-08-07 16:24:00",
+	"date_submitted": "2024-08-07 13:51:27",
+	"date_testing": "2024-08-07 14:25:53",
+	"meets_testing_requirements": true,
+	"notes": "Automatic update for python3.13-3.13.0~rc1-2.fc41.\n\n##### **Changelog**\n\n```\n* Tue Aug  6 2024 Miro Hrončok <mhroncok@redhat.com> - 3.13.0~rc1-2\n- Fix SystemError in PyEval_GetLocals()\n- Fixes: rhbz#2303107\n- Security fix for CVE-2024-6923\n- Fixes: rhbz#2303160\n\n```",
+	"pushed": true,
+	"release": {
+		"branch": "rawhide",
+		"candidate_tag": "f41-updates-candidate",
+		"create_automatic_updates": true,
+		"dist_tag": "f41",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 41",
+		"mail_template": "fedora_errata_template",
+		"name": "F41",
+		"override_tag": "f41-override",
+		"package_manager": "unspecified",
+		"pending_signing_tag": "f41-signing-pending",
+		"pending_stable_tag": "f41-updates-pending",
+		"pending_testing_tag": "f41-updates-testing-pending",
+		"stable_tag": "f41",
+		"state": "pending",
+		"testing_tag": "f41-updates-testing",
+		"version": "41"
+	},
+	"severity": "unspecified",
+	"stable_karma": 3,
+	"status": "stable",
+	"suggest": "unspecified",
+	"test_gating_status": "passed",
+	"title": "python3.13-3.13.0~rc1-2.fc41",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2024-9fe1974c0f",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2024-9fe1974c0f",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/abc4a68ebd4cf08a8dad9a21fa109dad532d58a985ae3bb35ff423b49aedf37e?s=24&d=retro",
+		"email": "thrnciar@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "python-sig"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "gitcopr"
+			},
+			{
+				"name": "python-packagers-sig"
+			},
+			{
+				"name": "trust admins"
+			}
+		],
+		"id": 5427,
+		"name": "thrnciar",
+		"openid": "thrnciar.id.fedoraproject.org"
+	},
+	"version_hash": "aad08e856751f9e98d6bff6007aa86c2388b58e1"
+}
