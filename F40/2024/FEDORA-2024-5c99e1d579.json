@@ -1,0 +1,424 @@
+{
+	"alias": "FEDORA-2024-5c99e1d579",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 1547484,
+			"title": "Encryption password disclosure",
+			"bugzilla": {
+				"bug_id": "1547484",
+				"error": "NotPermitted"
+			}
+		},
+		{
+			"bug_id": 2316073,
+			"security": true,
+			"title": "7z wrapper jeopardizing the effort to hide password from commandline parameters",
+			"bugzilla": {
+				"bug_id": "2316073",
+				"creation_ts": "2024-10-02 09:15:17 +0000",
+				"short_desc": "7z wrapper jeopardizing the effort to hide password from commandline parameters",
+				"delta_ts": "2024-10-04 02:04:27 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Security",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "18210802",
+						"comment_count": "0",
+						"who": {
+							"text": "rebus",
+							"name": "Michal Ambroz"
+						},
+						"bug_when": "2024-10-02 09:15:17 +0000",
+						"thetext": "Hello,\nthe 7z (/usr/libexec/p7zip/7z) is trying to clear the password from the process command attributes as soon as it is not needed anymore. \nUnfortunately in Fedora we have a wrapper /usr/bin/7z which is doing nothing else than executing /usr/libexec/p7zip/7z , which will still reveal the password.\n\nRunning for example:\n7z a test.7z test.dd -mx=9 -ppassword123\n\nWill result in this process listing:\nrebus  2713410  0.0  0.0 228500  3612 pts/24   S+   10:45   0:00 /usr/bin/sh /usr/bin/7z a test.7z test.dd -mx=9 -ppassword123\nrebus  2713411  121  0.4 1079920 154904 pts/24 R+   10:45   0:08 /usr/libexec/p7zip/7z a test.7z test.dd -mx=9 -p***********\n\n\nPossible solutions:\n1) using the wrapper with a \"exec statement to replace the current process\"\n2) use just a link file\n3) compile the 7z in such a way that it can be placed directly to /usr/bin/7z and search the 7z.so in some expectable library location\n\nAs using the link file would break 7z, and changing the 7z location needs much more work on the code, I guess using the exec is the right way to go.\n\nThe usr/bin/7z should read like this:\n#!/usr/bin/sh\nexec \"/usr/libexec/p7zip/7z\" \"$@\"\n\n\n\n\n\n\n\n\n\n\n\nReproducible: Always\n\nSteps to Reproduce:\n1. run in one terminal this loop \nwhile true ; do ps aux|grep -e '[7]z' ; done | less\n\n2. prepare some reasonably big file\ndd if=/dev/zero of=test.dd bs=1M count=100\n\n3. try to zip the file with password \n7z a test.7z test.dd -mx=9 -ppassword123\n\n\nActual Results:  \nrebus  2713410  0.0  0.0 228500  3612 pts/24   S+   10:45   0:00 /usr/bin/sh /usr/bin/7z a test.7z test.dd -mx=9 -ppassword123\nrebus  2713411  121  0.4 1079920 154904 pts/24 R+   10:45   0:08 /usr/libexec/p7zip/7z a test.7z test.dd -mx=9 -p***********\n\nExpected Results:  \nrebus  2713411  121  0.4 1079920 154904 pts/24 R+   10:45   0:08 /usr/libexec/p7zip/7z a test.7z test.dd -mx=9 -p***********\n\n-------------------- cut here -------------\nFor completenes\nUsing link file results in this error:\nsudo rm /usr/bin/7z\nsudo ln -s /usr/libexec/p7zip/7z /usr/bin/7z\n$ 7z a test.7z test.dd -mx=9 -ppassword123\n\n7-Zip [64] 16.02 : Copyright (c) 1999-2016 Igor Pavlov : 2016-05-21\np7zip Version 16.02 (locale=en_US.UTF-8,Utf16=on,HugeFiles=on,64 bits,8 CPUs Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz (806EC),ASM,AES-NI)\n\nCan't load './7z.dll' (./7z.so: cannot open shared object file: No such file or directory)\n\n\nERROR:\n7-Zip cannot find the code that works with archives."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18211455",
+						"comment_count": "1",
+						"who": {
+							"text": "rebus",
+							"name": "Michal Ambroz"
+						},
+						"bug_when": "2024-10-02 22:05:59 +0000",
+						"thetext": "I have created push request for that:\nhttps://src.fedoraproject.org/rpms/p7zip/pull-request/6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18211767",
+						"comment_count": "2",
+						"who": {
+							"text": "rebus",
+							"name": "Michal Ambroz"
+						},
+						"bug_when": "2024-10-03 06:37:56 +0000",
+						"thetext": "Reported the issue upstream, but as upstream p7zip project is abandoned I wont expect much change there.\nhttps://sourceforge.net/p/p7zip/patches/38/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18212009",
+						"comment_count": "3",
+						"who": {
+							"text": "sergio",
+							"name": "Sergio Basto"
+						},
+						"bug_when": "2024-10-03 11:12:45 +0000",
+						"thetext": "thank you, 7zip was unified  and the \"p\" for ported has dropped\nso the project now is in https://sourceforge.net/projects/sevenzip/files/\n\nI'm planning build this [1] soon\n\n[1] \nhttps://sourceforge.net/projects/sevenzip/files/7-Zip/24.08/"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18212859",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-10-04 02:02:37 +0000",
+						"thetext": "FEDORA-2024-ec78ab2c45 (p7zip-16.02-31.fc39) has been submitted as an update to Fedora 39.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-ec78ab2c45"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18212861",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-10-04 02:03:21 +0000",
+						"thetext": "FEDORA-2024-5c99e1d579 (p7zip-16.02-31.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-5c99e1d579"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18212863",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-10-04 02:03:44 +0000",
+						"thetext": "FEDORA-2024-6ecf5236ae (p7zip-16.02-31.fc41) has been submitted as an update to Fedora 41.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-6ecf5236ae"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18212865",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-10-04 02:04:02 +0000",
+						"thetext": "FEDORA-EPEL-2024-8de34d4fda (p7zip-16.02-31.el9) has been submitted as an update to Fedora EPEL 9.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2024-8de34d4fda"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18212868",
+						"comment_count": "8",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-10-04 02:04:27 +0000",
+						"thetext": "FEDORA-EPEL-2024-851c74616f (p7zip-16.02-31.el8) has been submitted as an update to Fedora EPEL 8.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2024-851c74616f"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "p7zip-16.02-31.fc40",
+			"release_id": 76,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "p7zip-plugins-debuginfo",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "p7zip-plugins",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "p7zip-gui",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "p7zip",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "p7zip-debugsource",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "aarch64"
+					}
+				],
+				"i686": [
+					{
+						"name": "p7zip-plugins-debuginfo",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "i686"
+					},
+					{
+						"name": "p7zip",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "i686"
+					},
+					{
+						"name": "p7zip-plugins",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "i686"
+					},
+					{
+						"name": "p7zip-debugsource",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "i686"
+					},
+					{
+						"name": "p7zip-gui",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "i686"
+					}
+				],
+				"noarch": [
+					{
+						"name": "p7zip-doc",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "noarch"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "p7zip-plugins-debuginfo",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "p7zip",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "p7zip-plugins",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "p7zip-gui",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "p7zip-debugsource",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "p7zip-plugins-debuginfo",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "s390x"
+					},
+					{
+						"name": "p7zip-plugins",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "s390x"
+					},
+					{
+						"name": "p7zip-debugsource",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "s390x"
+					},
+					{
+						"name": "p7zip",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "s390x"
+					},
+					{
+						"name": "p7zip-gui",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "p7zip",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "p7zip-plugins-debuginfo",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "p7zip-plugins",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "p7zip-debugsource",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "p7zip",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "p7zip-gui",
+						"version": "16.02",
+						"release": "31.fc40",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3754631,
+			"text": "This update has been submitted for testing by sergiomb. ",
+			"timestamp": "2024-10-04 02:03:16",
+			"update_id": 655155,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3754632,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2024-10-04 02:03:16",
+			"update_id": 655155,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath_groups": "",
+	"date_submitted": "2024-10-04 02:03:15",
+	"notes": "Fix wrapper to hide password from process history",
+	"release": {
+		"branch": "f40",
+		"candidate_tag": "f40-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f40",
+		"eol": "2025-05-13",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 40",
+		"mail_template": "fedora_errata_template",
+		"name": "F40",
+		"override_tag": "f40-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f40-signing-pending",
+		"pending_stable_tag": "f40-updates-pending",
+		"pending_testing_tag": "f40-updates-testing-pending",
+		"stable_tag": "f40-updates",
+		"state": "current",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f40-updates-testing",
+		"version": "40"
+	},
+	"request": "testing",
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "medium",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "pending",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "p7zip-16.02-31.fc40",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2024-5c99e1d579",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2024-5c99e1d579",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/7704b19ee9a5ceec13acb44db0e3f95bf189b1735143ac708dd8b0ae9ca177d4?s=24&d=retro",
+		"email": "sergio@serjux.com",
+		"groups": [
+			{
+				"name": "nodejs-sig"
+			},
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "clamav"
+			},
+			{
+				"name": "multimedia-sig"
+			}
+		],
+		"id": 271,
+		"name": "sergiomb",
+		"openid": "sergiomb.id.fedoraproject.org"
+	},
+	"version_hash": "3990efa88aefde70d97e23dea453a780f4ee71d6"
+}
