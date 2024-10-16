@@ -1,0 +1,154 @@
+{
+	"alias": "FEDORA-2024-300397332b",
+	"autokarma": true,
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "llvm-test-suite-18.1.8-3.fc40",
+			"release_id": 76,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "llvm-test-suite",
+						"version": "18.1.8",
+						"release": "3.fc40",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "llvm-test-suite",
+						"version": "18.1.8",
+						"release": "3.fc40",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"comments": [
+		{
+			"id": 3773645,
+			"text": "This update has been submitted for testing by kkleine. ",
+			"timestamp": "2024-10-16 09:33:53",
+			"update_id": 658678,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3773646,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2024-10-16 09:33:53",
+			"update_id": 658678,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3773650,
+			"text": "This update has obsoleted [llvm-test-suite-18.1.8-2.fc40](https://bodhi.fedoraproject.org/updates/FEDORA-2024-67b9f7f7ef), and has inherited its bugs and notes.",
+			"timestamp": "2024-10-16 09:33:54",
+			"update_id": 658678,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3773987,
+			"text": "This update's test gating status has been changed to 'passed'.",
+			"timestamp": "2024-10-16 10:05:03",
+			"update_id": 658678,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath_groups": "",
+	"date_submitted": "2024-10-16 09:33:53",
+	"notes": "Remove ClamAV subdirectory because of viruses in input files:\n\nThese were the findings:\n\n```\nMultiSource/Applications/ClamAV/inputs/rtf-test/rtf1.rtf: Eicar-Signature\nMultiSource/Applications/ClamAV/inputs/clam.zip: Clamav.Test.File-6\nMultiSource/Applications/ClamAV/inputs/rtf-test/docCLAMexe.rtf: Clamav.Test.File-6\nMultiSource/Applications/ClamAV/inputs/rtf-test/Doc11.rtf: Clamav.Test.File-6\nMultiSource/Applications/ClamAV/inputs/rtf-test/Doc1.rtf: Clamav.Test.File-6\nMultiSource/Applications/ClamAV/inputs/clam.cab: Clamav.Test.File-6\nMultiSource/Applications/ClamAV/inputs/rtf-test/Doc2.rtf: Clamav.Test.File-6\nMultiSource/Applications/ClamAV/inputs/clam.exe.bz2: Clamav.Test.File-6\nMultiSource/Applications/ClamAV/inputs/rtf-test/doc3.rtf: Clamav.Test.File-6\nMultiSource/Applications/ClamAV/inputs/clam.exe: Clamav.Test.File-6\nMultiSource/Applications/ClamAV/inputs/rtf-test/Doc22.rtf: Clamav.Test.File-6\n```\n\n\n----\n\nRemove broken links in source tarball\n\nBefore it wasn't possible to pass `-DTEST_SUITE_SUBDIRS=CTMark` to cmake\nwhen configuring the llvm-test-suite:\n\n```\n-- Adding directory CTMark\nCMake Error at CTMark/CMakeLists.txt:1 (add_subdirectory):\n  add_subdirectory given source \"7zip\" which is not an existing directory.\n\nCMake Error at CTMark/CMakeLists.txt:5 (add_subdirectory):\n  add_subdirectory given source \"lencod\" which is not an existing directory.\n```\n\nThe llvm-test-suite command script `pkg_test_suite.sh` removes\ndirectories with BAD or unreviewed licenses. Currently this leaves at\nleast two directories in a broken state:\n\n```\n/usr/share/llvm-test-suite/CTMark/7zip -> ../MultiSource/Benchmarks/7zip\n/usr/share/llvm-test-suite/CTMark/lencod -> ../MultiSource/Applications/JM/lencod\n```\n\nIn both cases the link target is non-existent.\n\nTherefore I find any broken symbolic links, remove them and adapt the\n`CMakeLists.txt` to not have the `add_subdirectory(broken_link)` entry in\nit. Here's an excerpt of what the `pkg_test_suite.sh` script shows when\nrunning as a proof of the work it does now.\n\n```\n++ find test-suite-19.1.0.src -type l '!' -exec test -e '{}' ';' -print\n+ broken_symlinks='test-suite-19.1.0.src/CTMark/7zip\ntest-suite-19.1.0.src/CTMark/lencod'\n+ for f in $broken_symlinks\n+ test -L test-suite-19.1.0.src/CTMark/7zip\n+ rm -fv test-suite-19.1.0.src/CTMark/7zip\nremoved 'test-suite-19.1.0.src/CTMark/7zip'\n++ dirname test-suite-19.1.0.src/CTMark/7zip\n+ basedir=test-suite-19.1.0.src/CTMark\n++ basename test-suite-19.1.0.src/CTMark/7zip\n+ dir=7zip\n+ cmake_file=test-suite-19.1.0.src/CTMark/CMakeLists.txt\n+ test -f test-suite-19.1.0.src/CTMark/CMakeLists.txt\n+ sed -i 's/add_subdirectory(7zip)//g' test-suite-19.1.0.src/CTMark/CMakeLists.txt\n+ for f in $broken_symlinks\n+ test -L test-suite-19.1.0.src/CTMark/lencod\n+ rm -fv test-suite-19.1.0.src/CTMark/lencod\nremoved 'test-suite-19.1.0.src/CTMark/lencod'\n++ dirname test-suite-19.1.0.src/CTMark/lencod\n+ basedir=test-suite-19.1.0.src/CTMark\n++ basename test-suite-19.1.0.src/CTMark/lencod\n+ dir=lencod\n+ cmake_file=test-suite-19.1.0.src/CTMark/CMakeLists.txt\n+ test -f test-suite-19.1.0.src/CTMark/CMakeLists.txt\n+ sed -i 's/add_subdirectory(lencod)//g' test-suite-19.1.0.src/CTMark/CMakeLists.txt\n```\n\n\n",
+	"release": {
+		"branch": "f40",
+		"candidate_tag": "f40-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f40",
+		"eol": "2025-05-13",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 40",
+		"mail_template": "fedora_errata_template",
+		"name": "F40",
+		"override_tag": "f40-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f40-signing-pending",
+		"pending_stable_tag": "f40-updates-pending",
+		"pending_testing_tag": "f40-updates-testing-pending",
+		"stable_tag": "f40-updates",
+		"state": "current",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f40-updates-testing",
+		"version": "40"
+	},
+	"request": "testing",
+	"severity": "low",
+	"stable_days": 7,
+	"stable_karma": 3,
+	"status": "pending",
+	"suggest": "unspecified",
+	"test_gating_status": "passed",
+	"title": "llvm-test-suite-18.1.8-3.fc40",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2024-300397332b",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2024-300397332b",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/2160df30ee1a4684d45e15f9fbb730b2fe2f4cca5ad255b8809ff085ea580398?s=24&d=retro",
+		"email": "kkleine@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "fedora-llvm-team"
+			},
+			{
+				"name": "trust admins"
+			}
+		],
+		"id": 6480,
+		"name": "kkleine",
+		"openid": "kkleine.id.fedoraproject.org"
+	},
+	"version_hash": "540d47c7c009d4c23d3c608bcc9ae78a86f336f4"
+}
