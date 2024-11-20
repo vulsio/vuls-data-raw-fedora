@@ -1,0 +1,362 @@
+{
+	"alias": "FEDORA-EPEL-2024-3672733748",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2326411,
+			"security": true,
+			"title": "CVE-2024-11249 rust-zlib-rs: zlib-rs stack overflow during decompression with malicious input [epel-9]",
+			"bugzilla": {
+				"bug_id": "2326411",
+				"creation_ts": "2024-11-15 08:02:03 +0000",
+				"short_desc": "CVE-2024-11249 rust-zlib-rs: zlib-rs stack overflow during decompression with malicious input [epel-9]",
+				"delta_ts": "2024-11-20 14:45:42 +0000",
+				"bug_status": "MODIFIED",
+				"keywords": "Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "2326335",
+						"alias": "GHSA-j3px-q95c-9683",
+						"creation_ts": "2024-11-14 19:01:52 +0000",
+						"short_desc": "CVE-2024-11249 zlib-rs: zlib-rs stack overflow during decompression with malicious input",
+						"delta_ts": "2024-11-15 15:18:08 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"2326411",
+							"2326413",
+							"2326414",
+							"2326412"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "18267781",
+								"comment_count": "0",
+								"who": {
+									"text": "bzimport",
+									"name": "OSIDB Bzimport"
+								},
+								"bug_when": "2024-11-14 19:01:52 +0000",
+								"thetext": "A denial of service vulnerability was found in zlib-rs, triggered by specially constructed input. This input causes a stack overflow, resulting in the process using zlib-rs to crash.\n\n### Impact\n\nDue to the way LLVM handles the zlib-rs codebase, tail calls were not guaranteed. This caused certain input patterns to result in a large number of stack frames being required, quickly resulting in a stack overflow. These are unlikely to occur in practice, but a dedicated attacker can construct malicious input files.\n\nAfter stack overflows were found by @inahga with a fuzzer, we dove into the assembly, and found some cases where the stack grew\n\n```asm\n.LBB109_326:\n    mov rdi, rbx\n    call zlib_rs::inflate::State::type_do\n    jmp .LBB109_311\n\n.LBB109_311:\n    lea rsp, [rbp - 40]\n    pop rbx\n    pop r12\n    pop r13\n    pop r14\n    pop r15\n    pop rbp\n    .cfi_def_cfa rsp, 8\n    ret\n```\n\nLLVM wants to centralize the cleanup before the return (many other blocks jump to `LBB109_311`), thereby invalidating a tail call to `type_do`. We were not able to get rid of this call without introducing one elsewhere: we just don't currently have the power to tell LLVM what we want it to do.\n\nSo, we switch back to loop+match waiting for changes to rust to make a more efficient implementation possible. Performance-wise, the damage is relatively minimal: we're just slower in cases where we already were slower than C. We are faster in cases where the relevant code is barely touched (in these cases the logic quickly moves into a hot inner loop and just spends most of its time there).\n\n### Patches\nVersion 0.4.0 patches the problem and is no longer vulnerable.\n\n### Workarounds\nUsers of zlib-rs should upgrade to the latest version. Users could alternatively run zlib-rs in a separate process to prevent a stack overflow crashing the entire program. In some situations a signal handler can be used to catch a stack overflow happening."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "18268311",
+						"comment_count": "0",
+						"who": {
+							"text": "mfindra",
+							"name": "Michal Findra"
+						},
+						"bug_when": "2024-11-15 08:02:03 +0000",
+						"thetext": "More information about this security flaw is available in the following bug:\n\nhttps://bugzilla.redhat.com/show_bug.cgi?id=2326335\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18274070",
+						"comment_count": "1",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2024-11-20 14:45:42 +0000",
+						"thetext": "FEDORA-EPEL-2024-3672733748 (rust-rustls-0.23.17-1.el9 and rust-zlib-rs-0.4.0-1.el9) has been submitted as an update to Fedora EPEL 9.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2024-3672733748"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "rust-rustls-0.23.17-1.el9",
+			"release_id": 61,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "rust-rustls+ring-devel",
+						"version": "0.23.17",
+						"release": "1.el9",
+						"arch": "noarch"
+					},
+					{
+						"name": "rust-rustls+default-devel",
+						"version": "0.23.17",
+						"release": "1.el9",
+						"arch": "noarch"
+					},
+					{
+						"name": "rust-rustls+log-devel",
+						"version": "0.23.17",
+						"release": "1.el9",
+						"arch": "noarch"
+					},
+					{
+						"name": "rust-rustls+tls12-devel",
+						"version": "0.23.17",
+						"release": "1.el9",
+						"arch": "noarch"
+					},
+					{
+						"name": "rust-rustls+read_buf-devel",
+						"version": "0.23.17",
+						"release": "1.el9",
+						"arch": "noarch"
+					},
+					{
+						"name": "rust-rustls+logging-devel",
+						"version": "0.23.17",
+						"release": "1.el9",
+						"arch": "noarch"
+					},
+					{
+						"name": "rust-rustls+custom-provider-devel",
+						"version": "0.23.17",
+						"release": "1.el9",
+						"arch": "noarch"
+					},
+					{
+						"name": "rust-rustls+brotli-devel",
+						"version": "0.23.17",
+						"release": "1.el9",
+						"arch": "noarch"
+					},
+					{
+						"name": "rust-rustls-devel",
+						"version": "0.23.17",
+						"release": "1.el9",
+						"arch": "noarch"
+					},
+					{
+						"name": "rust-rustls+rustversion-devel",
+						"version": "0.23.17",
+						"release": "1.el9",
+						"arch": "noarch"
+					},
+					{
+						"name": "rust-rustls+hashbrown-devel",
+						"version": "0.23.17",
+						"release": "1.el9",
+						"arch": "noarch"
+					},
+					{
+						"name": "rust-rustls+zlib-devel",
+						"version": "0.23.17",
+						"release": "1.el9",
+						"arch": "noarch"
+					},
+					{
+						"name": "rust-rustls+std-devel",
+						"version": "0.23.17",
+						"release": "1.el9",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "rust-rustls",
+						"version": "0.23.17",
+						"release": "1.el9",
+						"arch": "src"
+					}
+				]
+			}
+		},
+		{
+			"epoch": 0,
+			"nvr": "rust-zlib-rs-0.4.0-1.el9",
+			"release_id": 61,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"noarch": [
+					{
+						"name": "rust-zlib-rs+std-devel",
+						"version": "0.4.0",
+						"release": "1.el9",
+						"arch": "noarch"
+					},
+					{
+						"name": "rust-zlib-rs+rust-allocator-devel",
+						"version": "0.4.0",
+						"release": "1.el9",
+						"arch": "noarch"
+					},
+					{
+						"name": "rust-zlib-rs+default-devel",
+						"version": "0.4.0",
+						"release": "1.el9",
+						"arch": "noarch"
+					},
+					{
+						"name": "rust-zlib-rs+c-allocator-devel",
+						"version": "0.4.0",
+						"release": "1.el9",
+						"arch": "noarch"
+					},
+					{
+						"name": "rust-zlib-rs-devel",
+						"version": "0.4.0",
+						"release": "1.el9",
+						"arch": "noarch"
+					}
+				],
+				"src": [
+					{
+						"name": "rust-zlib-rs",
+						"version": "0.4.0",
+						"release": "1.el9",
+						"arch": "src"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3820583,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2024-11-20 14:45:40",
+			"update_id": 667387,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3820593,
+			"text": "This update has been submitted for testing by bodhi. ",
+			"timestamp": "2024-11-20 14:47:30",
+			"update_id": 667387,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3820594,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2024-11-20 14:47:31",
+			"update_id": 667387,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath_groups": "",
+	"date_submitted": "2024-11-20 14:45:40",
+	"from_tag": "epel9-build-side-100710",
+	"notes": "- Update the rustls crate to version 0.23.17.\n- Update the zlib-rs crate to version 0.4.0.\n\nThe update to zlib-rs v0.4.0 also addresses CVE-2024-11249 (stack overflow during decompression with malicious input). This issue had no actual impact in Fedora, because no applications yet use the the zlib-rs feature of rustls and rustls is the only dependent package of zlib-rs.\n",
+	"release": {
+		"branch": "epel9",
+		"candidate_tag": "epel9-testing-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "epel9",
+		"id_prefix": "FEDORA-EPEL",
+		"long_name": "Fedora EPEL 9",
+		"mail_template": "fedora_epel_legacy_errata_template",
+		"name": "EPEL-9",
+		"override_tag": "epel9-override",
+		"package_manager": "unspecified",
+		"pending_signing_tag": "epel9-signing-pending",
+		"pending_stable_tag": "epel9-pending",
+		"pending_testing_tag": "epel9-testing-pending",
+		"stable_tag": "epel9",
+		"state": "current",
+		"testing_tag": "epel9-testing",
+		"version": "9"
+	},
+	"request": "testing",
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "medium",
+	"stable_days": 7,
+	"stable_karma": 2,
+	"status": "pending",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "rust-rustls-0.23.17-1.el9 rust-zlib-rs-0.4.0-1.el9",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2024-3672733748",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-EPEL-2024-3672733748",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/67f4ac6a6b20752d6c2ff1f21b29d10c6fcdd05a35ffccdca789fe670dfc3efb?s=24&d=retro",
+		"email": "decathorpe@gmail.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "fesco"
+			},
+			{
+				"name": "rust-sig"
+			},
+			{
+				"name": "packaging-committee"
+			},
+			{
+				"name": "libreoffice-sig"
+			},
+			{
+				"name": "multimedia-sig"
+			},
+			{
+				"name": "diversity-pride"
+			},
+			{
+				"name": "pantheon-sig"
+			},
+			{
+				"name": "trust admins"
+			},
+			{
+				"name": "cosmic-sig"
+			}
+		],
+		"id": 388,
+		"name": "decathorpe",
+		"openid": "decathorpe.id.fedoraproject.org"
+	},
+	"version_hash": "72464fb493e4893f52105b022cfe3913084ecf19"
+}
