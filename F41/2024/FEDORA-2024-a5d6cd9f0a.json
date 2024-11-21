@@ -21,168 +21,6 @@
 				],
 				"blocked": [
 					{
-						"bug_id": "2255591",
-						"creation_ts": "2023-12-22 10:00:22 +0000",
-						"short_desc": "DNSSEC validation failure with FUTURE crypto-policies with RSASHA1-NSEC3-SHA1 algorithm",
-						"delta_ts": "2024-11-20 17:13:19 +0000",
-						"bug_status": "ON_QA",
-						"keywords": "Triaged",
-						"priority": "unspecified",
-						"bug_severity": "high",
-						"depends_on": [
-							"2301344"
-						],
-						"external_bugs": {
-							"text": "unbound/pull-request/17",
-							"name": "Fedora Package Sources"
-						},
-						"long_desc": [
-							{
-								"isprivate": "0",
-								"commentid": "17814572",
-								"comment_count": "0",
-								"who": {
-									"text": "tis",
-									"name": "Tuomo Soini"
-								},
-								"bug_when": "2023-12-22 10:00:22 +0000",
-								"thetext": "Created attachment 2005355\nunbound log with verbosity 4\n\nPackage version: unbound-1.19.0-1.fc39.x86_64\n\nChange crypto policy to FUTURE removing sha1 from supported encryption algoritms.\n\nupdate-crypto-policies --set FUTURE\n\nNow verification of RSASHA1 signatures causes insecure responses like expected. But current code doesn't handle RSASHA1-NSEC3-SHA1, so for example  command:\n\ndig nvd.nist.gov aaaa\n\nQuery fails with NXDOMAIN. Expected response would be insecure one, not verification failure.\n\nSame error can be produced on CentOS Stream 9 by building unbound-1.19.0 with sha1 enabled (centos/rhel package build with --disable-sha1)."
-							},
-							{
-								"isprivate": "0",
-								"commentid": "17843637",
-								"comment_count": "1",
-								"who": {
-									"text": "pemensik",
-									"name": "Petr Menšík"
-								},
-								"bug_when": "2024-01-16 16:38:25 +0000",
-								"thetext": "Indeed. Tested on Fedora Rawhide. With default policy it works nice:\n\n# unbound-host -rvD nvd.nist.gov\nnvd.nist.gov is an alias for nvd.glb.nist.gov. (secure)\nnvd.glb.nist.gov has address 54.85.30.225 (secure)\nnvd.glb.nist.gov has IPv6 address 2600:1f18:268d:1d01:f609:5e91:8a48:f546 (secure)\nnvd.glb.nist.gov has no mail handler record (secure)\n\nBut after changing to FUTURE, it starts failing.\n\n# unbound-host -rvD nvd.nist.gov\nnvd.nist.gov is an alias for nvd.glb.nist.gov. (BOGUS (security failure))\nnvd.glb.nist.gov has address 54.85.30.225 (BOGUS (security failure))\nvalidation failure <nvd.nist.gov. A IN>: no keys have a DS with algorithm RSASHA1-NSEC3-SHA1 from 10.2.70.215 for key nist.gov. while building chain of trust\nnvd.glb.nist.gov has IPv6 address 2600:1f18:268d:1d01:f609:5e91:8a48:f546 (BOGUS (security failure))\nvalidation failure <nvd.nist.gov. AAAA IN>: key for validation nist.gov. is marked as invalid because of a previous no keys have a DS with algorithm RSASHA1-NSEC3-SHA1\nnvd.glb.nist.gov has no mail handler record (BOGUS (security failure))\nvalidation failure <nvd.nist.gov. MX IN>: key for validation nist.gov. is marked as invalid because of a previous no keys have a DS with algorithm RSASHA1-NSEC3-SHA1\n\n# unbound-host -rvD nist.gov -t DNSKEY\nnist.gov has DNSKEY record 256 3 7 AwEAAcUoQZuzU98xu6uC4L7WBehqKF480X6zTaeDYmju8tWBYk9kZHE3+Wvy98TieCWCmhUJ18PjPWQI06N8BDa50zj1sY0A8D1ZSHjzO2XKmdsDu+h5fCWELKUHxiKLQrjrch1paWPSBDHVHhpXHnmGt2fUi53mtVipgsKmEVbBG79V (BOGUS (security failure))\nnist.gov has DNSKEY record 256 3 7 AwEAAcgw0dLYv0aU45GIGobpM8xKVUhj/UV0rzeBLmIIyD7lDQqC7uAh6lf0z8MM0xlgR/MG0XNlBDbc2ytETLMRuB3ja0VDjNmtTvRuOoHAcZzDeGF6avDsQuRDUMYgxD0M2O6kDr6oAYJCFF5K39HAVJi7y8ena1FCvEYaY5J9USN9 (BOGUS (security failure))\nnist.gov has DNSKEY record 257 3 7 AwEAAZsKqv2KvXxDVSE1GV6Mve+H00TKcmKRA1J6Z8vDksegaYT2i1AwCsYZZ3N+QGoTxcOpKPFwNj7AgsXiJ5r5TyA4sMpDmDn7V6OobOfjtOZtvLuZwJNQrCxqJHektDS/FOxIjLpkjb0roJsnyf/lfpqmbGBOGt2qtAVAJ9sEPtsSM9iwth7gqnKnDvtBE81jm1aBpvlnBbHxr+5D+S41Y+sWywiDZgXYNJIhGLCWYX4o664U8y1yARxtS/QD3cVEpCtGC5xdHrfV3zEO9rDvhLMZBjDlRQk0czyQ3shv01dRR90RxKXP8x7F6nqjHnxVvd6/w5SiFUA+SZCO5DYtreU= (BOGUS (security failure))\nvalidation failure <nist.gov. DNSKEY IN>: no keys have a DS with algorithm RSASHA1-NSEC3-SHA1 from 10.11.5.160 for key nist.gov. while building chain of trust\n\n# unbound-host -rvD nist.gov -t DS\nnist.gov has DS record 35565 7 2 A051B24A47293959EEE0D5E21D74D2BD60B814DF03237DFD60FFDD1DD6AA25AE (secure)\nnist.gov has DS record 57228 7 2 27782FD40AA9408FFB98D93C4C095BBD652459CBD3FC2F58549A7399E4789A61 (secure)\nnist.gov has DS record 35565 7 1 DB68A6356C64A8CC24357D3FE42E1B4194A96245 (secure)\n\nThis is why we have disabled SHA1 on RHEL/CentOS 9, where disabled SHA1 is a default. I admit we lack any test ensuring also different crypto policies have working SHA1 verification.\n\n# update-crypto-policies --set DEFAULT:SHA1\nSetting system policy to DEFAULT:SHA1\nNote: System-wide crypto policies are applied on application start-up.\nIt is recommended to restart the system for the change of policies\nto fully take place.\n# unbound-host -rvD nist.gov -t DNSKEY\nnist.gov has DNSKEY record 257 3 7 AwEAAZsKqv2KvXxDVSE1GV6Mve+H00TKcmKRA1J6Z8vDksegaYT2i1AwCsYZZ3N+QGoTxcOpKPFwNj7AgsXiJ5r5TyA4sMpDmDn7V6OobOfjtOZtvLuZwJNQrCxqJHektDS/FOxIjLpkjb0roJsnyf/lfpqmbGBOGt2qtAVAJ9sEPtsSM9iwth7gqnKnDvtBE81jm1aBpvlnBbHxr+5D+S41Y+sWywiDZgXYNJIhGLCWYX4o664U8y1yARxtS/QD3cVEpCtGC5xdHrfV3zEO9rDvhLMZBjDlRQk0czyQ3shv01dRR90RxKXP8x7F6nqjHnxVvd6/w5SiFUA+SZCO5DYtreU= (secure)\nnist.gov has DNSKEY record 256 3 7 AwEAAcUoQZuzU98xu6uC4L7WBehqKF480X6zTaeDYmju8tWBYk9kZHE3+Wvy98TieCWCmhUJ18PjPWQI06N8BDa50zj1sY0A8D1ZSHjzO2XKmdsDu+h5fCWELKUHxiKLQrjrch1paWPSBDHVHhpXHnmGt2fUi53mtVipgsKmEVbBG79V (secure)\nnist.gov has DNSKEY record 256 3 7 AwEAAcgw0dLYv0aU45GIGobpM8xKVUhj/UV0rzeBLmIIyD7lDQqC7uAh6lf0z8MM0xlgR/MG0XNlBDbc2ytETLMRuB3ja0VDjNmtTvRuOoHAcZzDeGF6avDsQuRDUMYgxD0M2O6kDr6oAYJCFF5K39HAVJi7y8ena1FCvEYaY5J9USN9 (secure)\n# update-crypto-policies --set DEFAULT:NO-SHA1\nSetting system policy to DEFAULT:NO-SHA1\nNote: System-wide crypto policies are applied on application start-up.\nIt is recommended to restart the system for the change of policies\nto fully take place.\n# unbound-host -rvD nist.gov -t DNSKEY\nnist.gov has DNSKEY record 257 3 7 AwEAAZsKqv2KvXxDVSE1GV6Mve+H00TKcmKRA1J6Z8vDksegaYT2i1AwCsYZZ3N+QGoTxcOpKPFwNj7AgsXiJ5r5TyA4sMpDmDn7V6OobOfjtOZtvLuZwJNQrCxqJHektDS/FOxIjLpkjb0roJsnyf/lfpqmbGBOGt2qtAVAJ9sEPtsSM9iwth7gqnKnDvtBE81jm1aBpvlnBbHxr+5D+S41Y+sWywiDZgXYNJIhGLCWYX4o664U8y1yARxtS/QD3cVEpCtGC5xdHrfV3zEO9rDvhLMZBjDlRQk0czyQ3shv01dRR90RxKXP8x7F6nqjHnxVvd6/w5SiFUA+SZCO5DYtreU= (BOGUS (security failure))\nnist.gov has DNSKEY record 256 3 7 AwEAAcUoQZuzU98xu6uC4L7WBehqKF480X6zTaeDYmju8tWBYk9kZHE3+Wvy98TieCWCmhUJ18PjPWQI06N8BDa50zj1sY0A8D1ZSHjzO2XKmdsDu+h5fCWELKUHxiKLQrjrch1paWPSBDHVHhpXHnmGt2fUi53mtVipgsKmEVbBG79V (BOGUS (security failure))\nnist.gov has DNSKEY record 256 3 7 AwEAAcgw0dLYv0aU45GIGobpM8xKVUhj/UV0rzeBLmIIyD7lDQqC7uAh6lf0z8MM0xlgR/MG0XNlBDbc2ytETLMRuB3ja0VDjNmtTvRuOoHAcZzDeGF6avDsQuRDUMYgxD0M2O6kDr6oAYJCFF5K39HAVJi7y8ena1FCvEYaY5J9USN9 (BOGUS (security failure))\nvalidation failure <nist.gov. DNSKEY IN>: no keys have a DS with algorithm RSASHA1-NSEC3-SHA1 from 10.11.5.160 for key nist.gov. while building chain of trust"
-							},
-							{
-								"isprivate": "0",
-								"commentid": "17843711",
-								"comment_count": "2",
-								"who": {
-									"text": "tis",
-									"name": "Tuomo Soini"
-								},
-								"bug_when": "2024-01-16 17:08:00 +0000",
-								"thetext": "See upstream bug report, and complete analysis there."
-							},
-							{
-								"isprivate": "0",
-								"commentid": "18212069",
-								"comment_count": "3",
-								"who": {
-									"text": "pemensik",
-									"name": "Petr Menšík"
-								},
-								"bug_when": "2024-10-03 11:45:53 +0000",
-								"thetext": "This happens to be default since f41 branch. It needs similar disabling of SHA1 like RHEL9+ has."
-							},
-							{
-								"isprivate": "0",
-								"commentid": "18212106",
-								"comment_count": "4",
-								"who": {
-									"text": "tis",
-									"name": "Tuomo Soini"
-								},
-								"bug_when": "2024-10-03 12:24:49 +0000",
-								"thetext": "This exacat case works just fine without disabling sha1 in build time.\n\nBut I found another similar issue where crypto-policy blocking sha1 causes failure.\n\nNote: rfc still requires dns resolver to verify sha1 signatures. So it is not ok to disable sha1 at resolver build time."
-							},
-							{
-								"isprivate": "0",
-								"commentid": "18212181",
-								"comment_count": "5",
-								"who": {
-									"text": "tis",
-									"name": "Tuomo Soini"
-								},
-								"bug_when": "2024-10-03 13:37:28 +0000",
-								"thetext": "I ment: This exact case is fixed in latest unbound."
-							},
-							{
-								"isprivate": "0",
-								"commentid": "18212520",
-								"comment_count": "6",
-								"who": {
-									"text": "pemensik",
-									"name": "Petr Menšík"
-								},
-								"bug_when": "2024-10-03 18:55:43 +0000",
-								"thetext": "Yes, I know. It uses the same fix as RHEL9. Disadvantage of this approach is it does not validate when update-crypto-policies --set DEFAULT:SHA1.\n\nWhich is not ideal, but it is the fastest fix of bug #2301344. It disables algorithm 5 and 7 in all crypto policies in all cases."
-							},
-							{
-								"isprivate": "0",
-								"commentid": "18263258",
-								"comment_count": "7",
-								"who": {
-									"text": "amoloney",
-									"name": "Aoife Moloney"
-								},
-								"bug_when": "2024-11-13 10:19:05 +0000",
-								"thetext": "This message is a reminder that Fedora Linux 39 is nearing its end of life.\nFedora will stop maintaining and issuing updates for Fedora Linux 39 on 2024-11-26.\nIt is Fedora's policy to close all bug reports from releases that are no longer\nmaintained. At that time this bug will be closed as EOL if it remains open with a\n'version' of '39'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, change the 'version' \nto a later Fedora Linux version. Note that the version field may be hidden.\nClick the \"Show advanced fields\" button if you do not see it.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora Linux 39 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora Linux, you are encouraged to change the 'version' to a later version\nprior to this bug being closed."
-							},
-							{
-								"isprivate": "0",
-								"commentid": "18267916",
-								"comment_count": "8",
-								"who": {
-									"text": "pemensik",
-									"name": "Petr Menšík"
-								},
-								"bug_when": "2024-11-14 21:43:42 +0000",
-								"thetext": "It seems latest unbound can pass when only tests are made to use SHA1. That can be done by simple 3 line openssl configuration.\n\ncat > sha1-ok.conf << EOF\n.include = /etc/ssl/openssl.cnf\n[evp_properties]\nrh-allow-sha1-signatures = yes\nEOF\nexport OPENSSL_CONF=\"$PWD/sha1-ok.conf\"\nmake check\n\nThis fixes problem with test, therefore build-time disabling of SHA1 can be removed."
-							},
-							{
-								"isprivate": "0",
-								"commentid": "18268342",
-								"comment_count": "9",
-								"who": {
-									"text": "pemensik",
-									"name": "Petr Menšík"
-								},
-								"bug_when": "2024-11-15 08:28:26 +0000",
-								"thetext": "This is now very actual for Fedora 41, where disabling of SHA1 happens on DEFAULT crypto policy. But I have found a way to get around this limitation. Above solution fixes passing tests. Will add simpler way to enable SHA1 validation."
-							},
-							{
-								"isprivate": "0",
-								"commentid": "18273000",
-								"comment_count": "10",
-								"who": {
-									"text": "updates",
-									"name": "Fedora Update System"
-								},
-								"bug_when": "2024-11-19 19:53:38 +0000",
-								"thetext": "FEDORA-2024-8bb71c1fd7 (unbound-1.22.0-7.fc42) has been submitted as an update to Fedora 42.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-8bb71c1fd7"
-							},
-							{
-								"isprivate": "0",
-								"commentid": "18273033",
-								"comment_count": "11",
-								"who": {
-									"text": "updates",
-									"name": "Fedora Update System"
-								},
-								"bug_when": "2024-11-19 20:07:45 +0000",
-								"thetext": "FEDORA-2024-aecc7c321e (unbound-1.22.0-7.fc41) has been submitted as an update to Fedora 41.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-aecc7c321e"
-							},
-							{
-								"isprivate": "0",
-								"commentid": "18274332",
-								"comment_count": "12",
-								"who": {
-									"text": "updates",
-									"name": "Fedora Update System"
-								},
-								"bug_when": "2024-11-20 17:13:19 +0000",
-								"thetext": "FEDORA-2024-aecc7c321e has been pushed to the Fedora 41 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --refresh --advisory=FEDORA-2024-aecc7c321e`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2024-aecc7c321e\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
-							}
-						]
-					},
-					{
 						"bug_id": "2260875",
 						"alias": "F41FTBFS",
 						"creation_ts": "2024-01-29 15:36:46 +0000",
@@ -1232,6 +1070,191 @@
 								},
 								"bug_when": "2024-02-15 23:12:48 +0000",
 								"thetext": "This bug appears to have been reported against 'rawhide' during the Fedora Linux 40 development cycle.\nChanging version to 40."
+							}
+						]
+					},
+					{
+						"bug_id": "2255591",
+						"creation_ts": "2023-12-22 10:00:22 +0000",
+						"short_desc": "DNSSEC validation failure with FUTURE crypto-policies with RSASHA1-NSEC3-SHA1 algorithm",
+						"delta_ts": "2024-11-21 09:47:27 +0000",
+						"bug_status": "CLOSED",
+						"resolution": "ERRATA",
+						"keywords": "Triaged",
+						"priority": "unspecified",
+						"bug_severity": "high",
+						"depends_on": [
+							"2301344"
+						],
+						"external_bugs": {
+							"text": "unbound/pull-request/17",
+							"name": "Fedora Package Sources"
+						},
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "17814572",
+								"comment_count": "0",
+								"who": {
+									"text": "tis",
+									"name": "Tuomo Soini"
+								},
+								"bug_when": "2023-12-22 10:00:22 +0000",
+								"thetext": "Created attachment 2005355\nunbound log with verbosity 4\n\nPackage version: unbound-1.19.0-1.fc39.x86_64\n\nChange crypto policy to FUTURE removing sha1 from supported encryption algoritms.\n\nupdate-crypto-policies --set FUTURE\n\nNow verification of RSASHA1 signatures causes insecure responses like expected. But current code doesn't handle RSASHA1-NSEC3-SHA1, so for example  command:\n\ndig nvd.nist.gov aaaa\n\nQuery fails with NXDOMAIN. Expected response would be insecure one, not verification failure.\n\nSame error can be produced on CentOS Stream 9 by building unbound-1.19.0 with sha1 enabled (centos/rhel package build with --disable-sha1)."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17843637",
+								"comment_count": "1",
+								"who": {
+									"text": "pemensik",
+									"name": "Petr Menšík"
+								},
+								"bug_when": "2024-01-16 16:38:25 +0000",
+								"thetext": "Indeed. Tested on Fedora Rawhide. With default policy it works nice:\n\n# unbound-host -rvD nvd.nist.gov\nnvd.nist.gov is an alias for nvd.glb.nist.gov. (secure)\nnvd.glb.nist.gov has address 54.85.30.225 (secure)\nnvd.glb.nist.gov has IPv6 address 2600:1f18:268d:1d01:f609:5e91:8a48:f546 (secure)\nnvd.glb.nist.gov has no mail handler record (secure)\n\nBut after changing to FUTURE, it starts failing.\n\n# unbound-host -rvD nvd.nist.gov\nnvd.nist.gov is an alias for nvd.glb.nist.gov. (BOGUS (security failure))\nnvd.glb.nist.gov has address 54.85.30.225 (BOGUS (security failure))\nvalidation failure <nvd.nist.gov. A IN>: no keys have a DS with algorithm RSASHA1-NSEC3-SHA1 from 10.2.70.215 for key nist.gov. while building chain of trust\nnvd.glb.nist.gov has IPv6 address 2600:1f18:268d:1d01:f609:5e91:8a48:f546 (BOGUS (security failure))\nvalidation failure <nvd.nist.gov. AAAA IN>: key for validation nist.gov. is marked as invalid because of a previous no keys have a DS with algorithm RSASHA1-NSEC3-SHA1\nnvd.glb.nist.gov has no mail handler record (BOGUS (security failure))\nvalidation failure <nvd.nist.gov. MX IN>: key for validation nist.gov. is marked as invalid because of a previous no keys have a DS with algorithm RSASHA1-NSEC3-SHA1\n\n# unbound-host -rvD nist.gov -t DNSKEY\nnist.gov has DNSKEY record 256 3 7 AwEAAcUoQZuzU98xu6uC4L7WBehqKF480X6zTaeDYmju8tWBYk9kZHE3+Wvy98TieCWCmhUJ18PjPWQI06N8BDa50zj1sY0A8D1ZSHjzO2XKmdsDu+h5fCWELKUHxiKLQrjrch1paWPSBDHVHhpXHnmGt2fUi53mtVipgsKmEVbBG79V (BOGUS (security failure))\nnist.gov has DNSKEY record 256 3 7 AwEAAcgw0dLYv0aU45GIGobpM8xKVUhj/UV0rzeBLmIIyD7lDQqC7uAh6lf0z8MM0xlgR/MG0XNlBDbc2ytETLMRuB3ja0VDjNmtTvRuOoHAcZzDeGF6avDsQuRDUMYgxD0M2O6kDr6oAYJCFF5K39HAVJi7y8ena1FCvEYaY5J9USN9 (BOGUS (security failure))\nnist.gov has DNSKEY record 257 3 7 AwEAAZsKqv2KvXxDVSE1GV6Mve+H00TKcmKRA1J6Z8vDksegaYT2i1AwCsYZZ3N+QGoTxcOpKPFwNj7AgsXiJ5r5TyA4sMpDmDn7V6OobOfjtOZtvLuZwJNQrCxqJHektDS/FOxIjLpkjb0roJsnyf/lfpqmbGBOGt2qtAVAJ9sEPtsSM9iwth7gqnKnDvtBE81jm1aBpvlnBbHxr+5D+S41Y+sWywiDZgXYNJIhGLCWYX4o664U8y1yARxtS/QD3cVEpCtGC5xdHrfV3zEO9rDvhLMZBjDlRQk0czyQ3shv01dRR90RxKXP8x7F6nqjHnxVvd6/w5SiFUA+SZCO5DYtreU= (BOGUS (security failure))\nvalidation failure <nist.gov. DNSKEY IN>: no keys have a DS with algorithm RSASHA1-NSEC3-SHA1 from 10.11.5.160 for key nist.gov. while building chain of trust\n\n# unbound-host -rvD nist.gov -t DS\nnist.gov has DS record 35565 7 2 A051B24A47293959EEE0D5E21D74D2BD60B814DF03237DFD60FFDD1DD6AA25AE (secure)\nnist.gov has DS record 57228 7 2 27782FD40AA9408FFB98D93C4C095BBD652459CBD3FC2F58549A7399E4789A61 (secure)\nnist.gov has DS record 35565 7 1 DB68A6356C64A8CC24357D3FE42E1B4194A96245 (secure)\n\nThis is why we have disabled SHA1 on RHEL/CentOS 9, where disabled SHA1 is a default. I admit we lack any test ensuring also different crypto policies have working SHA1 verification.\n\n# update-crypto-policies --set DEFAULT:SHA1\nSetting system policy to DEFAULT:SHA1\nNote: System-wide crypto policies are applied on application start-up.\nIt is recommended to restart the system for the change of policies\nto fully take place.\n# unbound-host -rvD nist.gov -t DNSKEY\nnist.gov has DNSKEY record 257 3 7 AwEAAZsKqv2KvXxDVSE1GV6Mve+H00TKcmKRA1J6Z8vDksegaYT2i1AwCsYZZ3N+QGoTxcOpKPFwNj7AgsXiJ5r5TyA4sMpDmDn7V6OobOfjtOZtvLuZwJNQrCxqJHektDS/FOxIjLpkjb0roJsnyf/lfpqmbGBOGt2qtAVAJ9sEPtsSM9iwth7gqnKnDvtBE81jm1aBpvlnBbHxr+5D+S41Y+sWywiDZgXYNJIhGLCWYX4o664U8y1yARxtS/QD3cVEpCtGC5xdHrfV3zEO9rDvhLMZBjDlRQk0czyQ3shv01dRR90RxKXP8x7F6nqjHnxVvd6/w5SiFUA+SZCO5DYtreU= (secure)\nnist.gov has DNSKEY record 256 3 7 AwEAAcUoQZuzU98xu6uC4L7WBehqKF480X6zTaeDYmju8tWBYk9kZHE3+Wvy98TieCWCmhUJ18PjPWQI06N8BDa50zj1sY0A8D1ZSHjzO2XKmdsDu+h5fCWELKUHxiKLQrjrch1paWPSBDHVHhpXHnmGt2fUi53mtVipgsKmEVbBG79V (secure)\nnist.gov has DNSKEY record 256 3 7 AwEAAcgw0dLYv0aU45GIGobpM8xKVUhj/UV0rzeBLmIIyD7lDQqC7uAh6lf0z8MM0xlgR/MG0XNlBDbc2ytETLMRuB3ja0VDjNmtTvRuOoHAcZzDeGF6avDsQuRDUMYgxD0M2O6kDr6oAYJCFF5K39HAVJi7y8ena1FCvEYaY5J9USN9 (secure)\n# update-crypto-policies --set DEFAULT:NO-SHA1\nSetting system policy to DEFAULT:NO-SHA1\nNote: System-wide crypto policies are applied on application start-up.\nIt is recommended to restart the system for the change of policies\nto fully take place.\n# unbound-host -rvD nist.gov -t DNSKEY\nnist.gov has DNSKEY record 257 3 7 AwEAAZsKqv2KvXxDVSE1GV6Mve+H00TKcmKRA1J6Z8vDksegaYT2i1AwCsYZZ3N+QGoTxcOpKPFwNj7AgsXiJ5r5TyA4sMpDmDn7V6OobOfjtOZtvLuZwJNQrCxqJHektDS/FOxIjLpkjb0roJsnyf/lfpqmbGBOGt2qtAVAJ9sEPtsSM9iwth7gqnKnDvtBE81jm1aBpvlnBbHxr+5D+S41Y+sWywiDZgXYNJIhGLCWYX4o664U8y1yARxtS/QD3cVEpCtGC5xdHrfV3zEO9rDvhLMZBjDlRQk0czyQ3shv01dRR90RxKXP8x7F6nqjHnxVvd6/w5SiFUA+SZCO5DYtreU= (BOGUS (security failure))\nnist.gov has DNSKEY record 256 3 7 AwEAAcUoQZuzU98xu6uC4L7WBehqKF480X6zTaeDYmju8tWBYk9kZHE3+Wvy98TieCWCmhUJ18PjPWQI06N8BDa50zj1sY0A8D1ZSHjzO2XKmdsDu+h5fCWELKUHxiKLQrjrch1paWPSBDHVHhpXHnmGt2fUi53mtVipgsKmEVbBG79V (BOGUS (security failure))\nnist.gov has DNSKEY record 256 3 7 AwEAAcgw0dLYv0aU45GIGobpM8xKVUhj/UV0rzeBLmIIyD7lDQqC7uAh6lf0z8MM0xlgR/MG0XNlBDbc2ytETLMRuB3ja0VDjNmtTvRuOoHAcZzDeGF6avDsQuRDUMYgxD0M2O6kDr6oAYJCFF5K39HAVJi7y8ena1FCvEYaY5J9USN9 (BOGUS (security failure))\nvalidation failure <nist.gov. DNSKEY IN>: no keys have a DS with algorithm RSASHA1-NSEC3-SHA1 from 10.11.5.160 for key nist.gov. while building chain of trust"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "17843711",
+								"comment_count": "2",
+								"who": {
+									"text": "tis",
+									"name": "Tuomo Soini"
+								},
+								"bug_when": "2024-01-16 17:08:00 +0000",
+								"thetext": "See upstream bug report, and complete analysis there."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18212069",
+								"comment_count": "3",
+								"who": {
+									"text": "pemensik",
+									"name": "Petr Menšík"
+								},
+								"bug_when": "2024-10-03 11:45:53 +0000",
+								"thetext": "This happens to be default since f41 branch. It needs similar disabling of SHA1 like RHEL9+ has."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18212106",
+								"comment_count": "4",
+								"who": {
+									"text": "tis",
+									"name": "Tuomo Soini"
+								},
+								"bug_when": "2024-10-03 12:24:49 +0000",
+								"thetext": "This exacat case works just fine without disabling sha1 in build time.\n\nBut I found another similar issue where crypto-policy blocking sha1 causes failure.\n\nNote: rfc still requires dns resolver to verify sha1 signatures. So it is not ok to disable sha1 at resolver build time."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18212181",
+								"comment_count": "5",
+								"who": {
+									"text": "tis",
+									"name": "Tuomo Soini"
+								},
+								"bug_when": "2024-10-03 13:37:28 +0000",
+								"thetext": "I ment: This exact case is fixed in latest unbound."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18212520",
+								"comment_count": "6",
+								"who": {
+									"text": "pemensik",
+									"name": "Petr Menšík"
+								},
+								"bug_when": "2024-10-03 18:55:43 +0000",
+								"thetext": "Yes, I know. It uses the same fix as RHEL9. Disadvantage of this approach is it does not validate when update-crypto-policies --set DEFAULT:SHA1.\n\nWhich is not ideal, but it is the fastest fix of bug #2301344. It disables algorithm 5 and 7 in all crypto policies in all cases."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18263258",
+								"comment_count": "7",
+								"who": {
+									"text": "amoloney",
+									"name": "Aoife Moloney"
+								},
+								"bug_when": "2024-11-13 10:19:05 +0000",
+								"thetext": "This message is a reminder that Fedora Linux 39 is nearing its end of life.\nFedora will stop maintaining and issuing updates for Fedora Linux 39 on 2024-11-26.\nIt is Fedora's policy to close all bug reports from releases that are no longer\nmaintained. At that time this bug will be closed as EOL if it remains open with a\n'version' of '39'.\n\nPackage Maintainer: If you wish for this bug to remain open because you\nplan to fix it in a currently maintained version, change the 'version' \nto a later Fedora Linux version. Note that the version field may be hidden.\nClick the \"Show advanced fields\" button if you do not see it.\n\nThank you for reporting this issue and we are sorry that we were not \nable to fix it before Fedora Linux 39 is end of life. If you would still like \nto see this bug fixed and are able to reproduce it against a later version \nof Fedora Linux, you are encouraged to change the 'version' to a later version\nprior to this bug being closed."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18267916",
+								"comment_count": "8",
+								"who": {
+									"text": "pemensik",
+									"name": "Petr Menšík"
+								},
+								"bug_when": "2024-11-14 21:43:42 +0000",
+								"thetext": "It seems latest unbound can pass when only tests are made to use SHA1. That can be done by simple 3 line openssl configuration.\n\ncat > sha1-ok.conf << EOF\n.include = /etc/ssl/openssl.cnf\n[evp_properties]\nrh-allow-sha1-signatures = yes\nEOF\nexport OPENSSL_CONF=\"$PWD/sha1-ok.conf\"\nmake check\n\nThis fixes problem with test, therefore build-time disabling of SHA1 can be removed."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18268342",
+								"comment_count": "9",
+								"who": {
+									"text": "pemensik",
+									"name": "Petr Menšík"
+								},
+								"bug_when": "2024-11-15 08:28:26 +0000",
+								"thetext": "This is now very actual for Fedora 41, where disabling of SHA1 happens on DEFAULT crypto policy. But I have found a way to get around this limitation. Above solution fixes passing tests. Will add simpler way to enable SHA1 validation."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18273000",
+								"comment_count": "10",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2024-11-19 19:53:38 +0000",
+								"thetext": "FEDORA-2024-8bb71c1fd7 (unbound-1.22.0-7.fc42) has been submitted as an update to Fedora 42.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-8bb71c1fd7"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18273033",
+								"comment_count": "11",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2024-11-19 20:07:45 +0000",
+								"thetext": "FEDORA-2024-aecc7c321e (unbound-1.22.0-7.fc41) has been submitted as an update to Fedora 41.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-aecc7c321e"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18274332",
+								"comment_count": "12",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2024-11-20 17:13:19 +0000",
+								"thetext": "FEDORA-2024-aecc7c321e has been pushed to the Fedora 41 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --refresh --advisory=FEDORA-2024-aecc7c321e`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2024-aecc7c321e\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18275561",
+								"comment_count": "13",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2024-11-21 07:53:23 +0000",
+								"thetext": "FEDORA-2024-deb9b3f394 (unbound-1.22.0-8.fc42) has been submitted as an update to Fedora 42.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2024-deb9b3f394"
+							},
+							{
+								"isprivate": "0",
+								"commentid": "18275919",
+								"comment_count": "14",
+								"who": {
+									"text": "updates",
+									"name": "Fedora Update System"
+								},
+								"bug_when": "2024-11-21 09:47:27 +0000",
+								"thetext": "FEDORA-2024-deb9b3f394 (unbound-1.22.0-8.fc42) has been pushed to the Fedora 42 stable repository.\nIf problem still persists, please make note of it in this bug report."
 							}
 						]
 					}
