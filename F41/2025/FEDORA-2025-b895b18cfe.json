@@ -10,8 +10,9 @@
 				"bug_id": "2342133",
 				"creation_ts": "2025-01-26 13:58:46 +0000",
 				"short_desc": "fastd-23 is available",
-				"delta_ts": "2025-01-28 01:20:34 +0000",
-				"bug_status": "ON_QA",
+				"delta_ts": "2025-02-04 00:32:11 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
 				"keywords": "FutureFeature, Triaged",
 				"priority": "unspecified",
 				"bug_severity": "unspecified",
@@ -114,6 +115,17 @@
 						},
 						"bug_when": "2025-01-28 01:20:34 +0000",
 						"thetext": "FEDORA-2025-29fc4fefd5 has been pushed to the Fedora 40 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --refresh --advisory=FEDORA-2025-29fc4fefd5`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2025-29fc4fefd5\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18356279",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2025-02-04 00:32:11 +0000",
+						"thetext": "FEDORA-EPEL-2025-c38ff34ea4 (fastd-23-2.el8) has been pushed to the Fedora EPEL 8 stable repository.\nIf problem still persists, please make note of it in this bug report."
 					}
 				]
 			}
@@ -143,10 +155,10 @@
 						"priority": "medium",
 						"bug_severity": "medium",
 						"depends_on": [
-							"2342335",
 							"2342336",
 							"2342337",
-							"2342338"
+							"2342338",
+							"2342335"
 						],
 						"long_desc": [
 							{
@@ -384,6 +396,7 @@
 	"date_pushed": "2025-01-27 01:22:40",
 	"date_submitted": "2025-01-26 15:07:29",
 	"date_testing": "2025-01-27 01:22:40",
+	"locked": true,
 	"meets_testing_requirements": true,
 	"notes": "\nThis release contains a number of small improvements and bugfixes, including mitigations for the LOW severity vulnerability `CVE-2025-24356`.\n\n## Bugfixes\n\n-   Add mitigations for fast-reconnect amplification attacks\n    \n    When receiving a data packet from an unknown IP address/port combination, fastd will assume that one of its connected peers has moved to a new address (for example due to internet lines with dynamic IP, or roaming between WWAN and a local internet connection) and initiate a reconnect by sending a handshake packet. This “fast reconnect” avoids having to wait for a session timeout (up to ~90s) until a new connection is established.\n    \n    Even a 1-byte UDP packet just containing the fastd packet type header can trigger a much larger handshake packet (~150 bytes of UDP payload). With fastd v22, this number is doubled, because two handshakes are sent (one in a pre-v22-compatible format and one in a new L2TP-style format). Including IPv4 and UDP headers, the resulting amplification factor is roughly 12-13.\n    \n    By sending data packets with a spoofed source address to fastd instances reachable on the internet, this amplification of UDP traffic might be used to facilitate a Distributed Denial of Service attack.\n    \n    fastd has always implemented rate limiting for handshakes to unknown IP addresses and ports to 1 handshake per 15s to avoid this kind of attack, however the rate is limited per-port and not per-address, thus still allowing handshakes to be sent to all 65535 UDP ports of the same IP address unlimited.\n    \n    The issue has been mitigated in fastd v23 by a number of changes:\n    \n    -   Rate-limiting has been changed changed to be applied per-address instead of per-port\n        \n    -   Only one handshake instead of two handshakes is sent for fast-reconnect (by determining from the format of the data packet whether a pre-v22 or L2TP-style handshake should be used)\n        \n    -   Require at least a full method header instead of just a single byte for a data packet to be considered valid. This does not have an effect on instances that enable the `null` method (regardless of `null` being actually in use), as a single-byte UDP packet is a valid `null` keepalive, but for all other methods the amplification factor is slightly reduced.\n        \n    \n    Only fastd instances that allow connections from arbitrary IP addresses are vulnerable. Instances in a “client” role that configure their peers using the `remote` config option (which includes the common deployment as part of the [Gluon](https://github.com/freifunk-gluon/gluon) wireless mesh firmware) will not respond to unexpected data packets with a handshake and are therefore unaffected.\n    \n    `CVE-2025-24356` has been assigned to this issue. The severity of this vulnerability is considered LOW.\n    \n    A GitHub security advisory can be found under [GHSA-pggg-vpfv-4rcv](https://github.com/neocturne/fastd/security/advisories/GHSA-pggg-vpfv-4rcv).\n    \n-   Fix config loading to fail on `offload l2tp no;` when L2TP offloading is unsupported by the fastd build or the kernel\n    \n-   Fix assembly Salsa20(/12) implementations accidentally generating the Linux- specific `.note.GNU-stack` ELF section on non-Linux systems\n    \n    This is unlikely to have caused any issues, as other systems should just ignore the unknown section.\n    \n-   Status socket: - Fix interface name information with L2TP offloading - Add per-peer MTU information\n    \n-   Documentation: - Fix incorrect “persist interface” examples - Improve explanation of `float` option\n    \n-   Build: - Fix build on macOS (again) - Fix build with Meson 0.49 (the minimum version marked as supported by fastd)\n    \n\n## Other changes\n\n-   Add support for Indirect Branch Tracking and Shadow Stacks on x86\n    \n    The assembly Salsa20(/12) implementations have been marked compatible with IBT and SHSTK, which are part of Intel CET (Control-flow Enforcement Technology) and can be enabled using the `-fcf-protection` GCC option.\n    \n-   The file `COPYRIGHT` has been renamed to `LICENSE`\n    \n-   The vendored version of libmnl that is used with `libmnl_builtin=true` has been updated to 1.0.5\n\n",
 	"pushed": true,
