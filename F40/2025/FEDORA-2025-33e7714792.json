@@ -1,0 +1,813 @@
+{
+	"alias": "FEDORA-2025-33e7714792",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2333852,
+			"title": "python 3.13.0 segfaults when importing modules (e.g. _datetime) after update to 3.13.1",
+			"bugzilla": {
+				"bug_id": "2333852",
+				"creation_ts": "2024-12-23 15:36:27 +0000",
+				"short_desc": "python 3.13.0 segfaults when importing modules (e.g. _datetime) after update to 3.13.1",
+				"delta_ts": "2025-02-04 02:25:01 +0000",
+				"bug_status": "ON_QA",
+				"keywords": "Reopened, Upgrades",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"external_bugs": {
+					"text": "python3.13/pull-request/135",
+					"name": "Fedora Package Sources"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "18309762",
+						"comment_count": "0",
+						"who": {
+							"text": "marmarek",
+							"name": "Marek Marczykowski"
+						},
+						"bug_when": "2024-12-23 15:36:27 +0000",
+						"thetext": "Python gets killed with SEGV when it gets updated between starting the script and importing a `dnf` module (likely affects other modules, it's just I was bitten by this one).\n\nReproducible: Always\n\nSteps to Reproduce:\n1. Start python3 on Fedora 41 when python3 is at 3.13.0-1, import logging\n2. Update python3 to 3.13.1-2 (or simply update everything)\n3. Import dnf (likely affects also other modules that have native parts)\nActual Results:  \nSegmentation fault\n\nExpected Results:  \nIdeally it should work. But at worst the import should fail with a message about incompatible Python version.\n\npython3-3.13.0-1.fc41.x86_64 before update\npython3-3.13.1-2.fc41.x86_64 after update\npython3-libdnf-0.73.4-1.fc41.x86_64 (python3-libdnf-0.73.4-2.fc41 is affected too)"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18309763",
+						"comment_count": "1",
+						"who": {
+							"text": "marmarek",
+							"name": "Marek Marczykowski"
+						},
+						"bug_when": "2024-12-23 15:39:30 +0000",
+						"thetext": "Created attachment 2063668\nMinimal reproducer"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18309764",
+						"comment_count": "2",
+						"who": {
+							"text": "marmarek",
+							"name": "Marek Marczykowski"
+						},
+						"bug_when": "2024-12-23 15:41:29 +0000",
+						"thetext": "Created attachment 2063669\nFull backtrace of a crash\n\nCrash report by coredumpctl / abrt is useless as it tries to use debug symbols for already updated python3. But launching gdb before produces good results."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18309784",
+						"comment_count": "3",
+						"who": {
+							"text": "marmarek",
+							"name": "Marek Marczykowski"
+						},
+						"bug_when": "2024-12-23 16:11:45 +0000",
+						"thetext": "I expect a question \"why you don't import dnf early\" or similar, so let me answer right away. The actual use case is more complicated and the `dnf update` call is actually `dnf install` of a bunch of packages, in some cases including `python3-libdnf`. And in some cases it does pull in a python3 update via dependencies. So, no, unfortunately I cannot import `dnf` earlier, because it may not be there yet..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18312903",
+						"comment_count": "4",
+						"who": {
+							"text": "mhroncok",
+							"name": "Miro Hrončok"
+						},
+						"bug_when": "2024-12-28 09:39:31 +0000",
+						"thetext": "So, you run Python. While running it, you update it, and then importing things crashes.\n\nI don't know if we can support this use case at all. Does the crash happen when you restart Python after the update? What do you suppose should happen? How should Python know this has happened?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18312990",
+						"comment_count": "5",
+						"who": {
+							"text": "marmarek",
+							"name": "Marek Marczykowski"
+						},
+						"bug_when": "2024-12-28 11:17:09 +0000",
+						"thetext": "I would expect things not to SEGV. Ideally, the ABI would not change\nbetween minor versions (3.13.0 -> 3.13.1), but that's likely unrealistic\nrequest. What I would like to happen is for Python to detect\nincompatible ABI and refuse to import the module, with a proper exception\n(ImportError?). Or maybe the issue is that the ABI theoretically is\nstable, but some structures that should be internal leaked to external\ncallers?\n\nIn this particular situation I do control when things are updated, so I\nalso know why the crash happened. But I imagine many multi-user systems\nwon't have this luxury and users will see random crashes when the admin\ninstall updates..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18313134",
+						"comment_count": "6",
+						"who": {
+							"text": "mhroncok",
+							"name": "Miro Hrončok"
+						},
+						"bug_when": "2024-12-28 14:39:31 +0000",
+						"thetext": "Ok, to reproduce, the dnf Python module is not needed:\n\n1. install Python 3.13.0 (e.g. via dnf --repo=fedora install python3)\n2. run: python3\n3. press Ctrl+z\n4. update Python to 3.13.1 (e.g. via dnf upgrade python3)\n5. run: fg\n6. do: import email.parser\nSegmentation fault (core dumped)\n\n\n\nAnyway, even if we attempt to fix this, we might not be bale to fix it for 3.13.0."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18314326",
+						"comment_count": "7",
+						"who": {
+							"text": "mhroncok",
+							"name": "Miro Hrončok"
+						},
+						"bug_when": "2024-12-30 10:11:13 +0000",
+						"thetext": "I have reported this upstream: https://github.com/python/cpython/issues/128341"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18317472",
+						"comment_count": "8",
+						"who": {
+							"text": "mhroncok",
+							"name": "Miro Hrončok"
+						},
+						"bug_when": "2025-01-03 10:07:55 +0000",
+						"thetext": "A specific workaround for this is to statically build the _datetime module into libpython. That would prevent this exact instance of this issue.\n\nBut we cannot retroactively do that for 3.13.0. For the in-place upgrade from 3.13.0, it would unfortunately present an exception, as the file would no longer exist on disk:\n\n>>> import _datetime\nTraceback (most recent call last):\n  File \"<stdin>\", line 1, in <module>\n    import _datetime\nModuleNotFoundError: No module named '_datetime'\n\nHowever, modules using the datetime module (no leading underscore) would still work with the Python implementation. And it's better than a traceback.\n\n---\n\n\nThere is another module, _pickle, with a problem, but it's an exception and not a segfault:\n\n>>> import _pickle\nTraceback (most recent call last):\n  File \"<stdin>\", line 1, in <module>\n    import _pickle\nAttributeError: getstate\n\n\nI will wait a bit to see if anything more helpful comes out of the upstream ticket, however. However, we have a workaround to apply if needed. We might as well engineer an integration test to prevent this kind of problem to happen with another stdlib module in the future."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18355931",
+						"comment_count": "9",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2025-02-03 17:18:34 +0000",
+						"thetext": "FEDORA-2025-75e0490ac7 (python3.13-3.13.1-4.fc42) has been submitted as an update to Fedora 42.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2025-75e0490ac7"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18355934",
+						"comment_count": "10",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2025-02-03 17:29:35 +0000",
+						"thetext": "FEDORA-2025-e3af684cc6 (python3.13-3.13.1-4.fc41) has been submitted as an update to Fedora 41.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2025-e3af684cc6"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18355935",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2025-02-03 17:29:38 +0000",
+						"thetext": "FEDORA-2025-6a28699d5d (python3.13-3.13.1-4.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2025-6a28699d5d"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18356138",
+						"comment_count": "12",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2025-02-03 20:16:52 +0000",
+						"thetext": "FEDORA-2025-75e0490ac7 (python3.13-3.13.1-4.fc42) has been pushed to the Fedora 42 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18356355",
+						"comment_count": "13",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2025-02-04 02:12:40 +0000",
+						"thetext": "FEDORA-2025-6a28699d5d has been pushed to the Fedora 40 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --refresh --advisory=FEDORA-2025-6a28699d5d`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2025-6a28699d5d\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18356382",
+						"comment_count": "14",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2025-02-04 02:25:01 +0000",
+						"thetext": "FEDORA-2025-e3af684cc6 has been pushed to the Fedora 41 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --refresh --advisory=FEDORA-2025-e3af684cc6`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2025-e3af684cc6\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2343274,
+			"security": true,
+			"title": "CVE-2025-0938 python3.13: URL parser allowed square brackets in domain names [fedora-all]",
+			"bugzilla": {
+				"bug_id": "2343274",
+				"creation_ts": "2025-01-31 20:54:28 +0000",
+				"short_desc": "CVE-2025-0938 python3.13: URL parser allowed square brackets in domain names [fedora-all]",
+				"delta_ts": "2025-02-05 22:12:34 +0000",
+				"bug_status": "CLOSED",
+				"resolution": "ERRATA",
+				"keywords": "Rebase, Security, SecurityTracking",
+				"priority": "medium",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "2343237",
+						"alias": "CVE-2025-0938",
+						"creation_ts": "2025-01-31 18:01:10 +0000",
+						"short_desc": "CVE-2025-0938 python: cpython: URL parser allowed square brackets in domain names",
+						"delta_ts": "2025-02-03 17:02:30 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"2343272",
+							"2343273",
+							"2343276",
+							"2343277",
+							"2343278",
+							"2343279",
+							"2343274",
+							"2343275"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "18354042",
+								"comment_count": "0",
+								"who": {
+									"text": "bzimport",
+									"name": "OSIDB Bzimport"
+								},
+								"bug_when": "2025-01-31 18:01:10 +0000",
+								"thetext": "The Python standard library functions `urllib.parse.urlsplit` and `urlparse` accepted domain names that included square brackets which isn't valid according to RFC 3986. Square brackets are only meant to be used as delimiters for specifying IPv6 and IPvFuture hosts in URLs. This could result in differential parsing across the Python URL parser and other specification-compliant URL parsers."
+							}
+						]
+					}
+				],
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "18354174",
+						"comment_count": "0",
+						"who": {
+							"text": "psampaio",
+							"name": "Pedro Sampaio"
+						},
+						"bug_when": "2025-01-31 20:54:28 +0000",
+						"thetext": "More information about this security flaw is available in the following bug:\n\nhttps://bugzilla.redhat.com/show_bug.cgi?id=2343237\n\nDisclaimer: Community trackers are created by Red Hat Product Security team on a best effort basis. Package maintainers are required to ascertain if the flaw indeed affects their package, before starting the update process."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18356399",
+						"comment_count": "1",
+						"who": {
+							"text": "cstratak",
+							"name": "Charalampos Stratakis"
+						},
+						"bug_when": "2025-02-04 03:47:34 +0000",
+						"thetext": "PRs:\nhttps://src.fedoraproject.org/rpms/python3.13/pull-request/138\nhttps://src.fedoraproject.org/rpms/python3.13/pull-request/139\nhttps://src.fedoraproject.org/rpms/python3.13/pull-request/140"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18357015",
+						"comment_count": "2",
+						"who": {
+							"text": "cstratak",
+							"name": "Charalampos Stratakis"
+						},
+						"bug_when": "2025-02-04 21:52:38 +0000",
+						"thetext": "Rebase instead of backport PR's:\nhttps://src.fedoraproject.org/rpms/python3.13/pull-request/141\nhttps://src.fedoraproject.org/rpms/python3.13/pull-request/142\nhttps://src.fedoraproject.org/rpms/python3.13/pull-request/143\nhttps://src.fedoraproject.org/rpms/python3.13/pull-request/144"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18357879",
+						"comment_count": "3",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2025-02-05 19:05:21 +0000",
+						"thetext": "FEDORA-2025-4c59dfb4cf (python3.13-3.13.2-1.fc42) has been submitted as an update to Fedora 42.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2025-4c59dfb4cf"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18357882",
+						"comment_count": "4",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2025-02-05 19:10:33 +0000",
+						"thetext": "FEDORA-2025-3126b24f4a (python3.13-3.13.2-1.fc43) has been submitted as an update to Fedora 43.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2025-3126b24f4a"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18357883",
+						"comment_count": "5",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2025-02-05 19:10:36 +0000",
+						"thetext": "FEDORA-2025-4c59dfb4cf (python3.13-3.13.2-1.fc42) has been pushed to the Fedora 42 stable repository.\nIf problem still persists, please make note of it in this bug report."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18358050",
+						"comment_count": "6",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2025-02-05 22:11:49 +0000",
+						"thetext": "FEDORA-2025-e911f71d99 (python3.13-3.13.2-1.fc41) has been submitted as an update to Fedora 41.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2025-e911f71d99"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18358051",
+						"comment_count": "7",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2025-02-05 22:12:34 +0000",
+						"thetext": "FEDORA-2025-33e7714792 (python3.13-3.13.2-1.fc40) has been submitted as an update to Fedora 40.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2025-33e7714792"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "python3.13-3.13.2-1.fc40",
+			"release_id": 76,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "python3.13-tkinter",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3.13-freethreading-debug",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3.13",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3.13-devel",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3.13-idle",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3.13-debug",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3.13-debugsource",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3.13-libs",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3.13-debuginfo",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3.13-test",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					},
+					{
+						"name": "python3.13-freethreading",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "aarch64"
+					}
+				],
+				"i686": [
+					{
+						"name": "python3.13-libs",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "i686"
+					},
+					{
+						"name": "python3.13-freethreading",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "i686"
+					},
+					{
+						"name": "python3.13-debuginfo",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "i686"
+					},
+					{
+						"name": "python3.13-test",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "i686"
+					},
+					{
+						"name": "python3.13-debugsource",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "i686"
+					},
+					{
+						"name": "python3.13-freethreading-debug",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "i686"
+					},
+					{
+						"name": "python3.13-debug",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "i686"
+					},
+					{
+						"name": "python3.13-idle",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "i686"
+					},
+					{
+						"name": "python3.13-tkinter",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "i686"
+					},
+					{
+						"name": "python3.13-devel",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "i686"
+					},
+					{
+						"name": "python3.13",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "i686"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "python3.13-debugsource",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3.13-idle",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3.13-debug",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3.13-freethreading-debug",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3.13-libs",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3.13-debuginfo",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3.13-test",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3.13-freethreading",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3.13-tkinter",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3.13-devel",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "python3.13",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "python3.13-debuginfo",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3.13-freethreading",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3.13-test",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3.13-libs",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3.13-debugsource",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3.13-freethreading-debug",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3.13-debug",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3.13-idle",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3.13-tkinter",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3.13-devel",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "s390x"
+					},
+					{
+						"name": "python3.13",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "python3.13",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "python3.13-debugsource",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3.13-debug",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3.13-libs",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3.13-debuginfo",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3.13-test",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3.13-freethreading",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3.13-freethreading-debug",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3.13-idle",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3.13-tkinter",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3.13-devel",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					},
+					{
+						"name": "python3.13",
+						"version": "3.13.2",
+						"release": "1.fc40",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3945066,
+			"text": "This update has been submitted for testing by cstratak. ",
+			"timestamp": "2025-02-05 22:12:31",
+			"update_id": 690676,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3945067,
+			"text": "This update's test gating status has been changed to 'ignored'.",
+			"timestamp": "2025-02-05 22:12:32",
+			"update_id": 690676,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3945069,
+			"text": "This update has obsoleted [python3.13-3.13.1-4.fc40](https://bodhi.fedoraproject.org/updates/FEDORA-2025-6a28699d5d), and has inherited its bugs and notes.",
+			"timestamp": "2025-02-05 22:12:32",
+			"update_id": 690676,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath_groups": "",
+	"date_submitted": "2025-02-05 22:12:31",
+	"locked": true,
+	"notes": "Update to 3.13.2\n\n----\n\nStatically build the `_datetime` module into libpython. This fixes a segfault when importing it from Python 3.13.0 updated to 3.13.1+ while running.\n",
+	"release": {
+		"branch": "f40",
+		"candidate_tag": "f40-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f40",
+		"eol": "2025-05-13",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 40",
+		"mail_template": "fedora_errata_template",
+		"name": "F40",
+		"override_tag": "f40-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f40-signing-pending",
+		"pending_stable_tag": "f40-updates-pending",
+		"pending_testing_tag": "f40-updates-testing-pending",
+		"stable_tag": "f40-updates",
+		"state": "current",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f40-updates-testing",
+		"version": "40"
+	},
+	"request": "testing",
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "medium",
+	"stable_days": 7,
+	"stable_karma": 1,
+	"status": "pending",
+	"suggest": "unspecified",
+	"test_gating_status": "ignored",
+	"title": "python3.13-3.13.2-1.fc40",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2025-33e7714792",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2025-33e7714792",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/af49eb5320c1c40d81a98d1fcdccc06c470c1458daab1a4f27be4cb170dbab3c?s=24&d=retro",
+		"email": "cstratak@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "provenpackager"
+			},
+			{
+				"name": "python-sig"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "modularity-wg"
+			},
+			{
+				"name": "python-packagers-sig"
+			}
+		],
+		"id": 2512,
+		"name": "cstratak",
+		"openid": "cstratak.id.fedoraproject.org"
+	},
+	"version_hash": "c3f5d857b30d1bed86a0ecc8bb8ba3126376ffd8"
+}
