@@ -1,0 +1,609 @@
+{
+	"alias": "FEDORA-2025-3dfc505946",
+	"autokarma": true,
+	"autotime": true,
+	"bugs": [
+		{
+			"bug_id": 2342078,
+			"title": "dnf errors relating to kernel-install when updating kernel, rpm-ostree-2025.2-1 is installed",
+			"bugzilla": {
+				"bug_id": "2342078",
+				"creation_ts": "2025-01-25 16:01:01 +0000",
+				"short_desc": "dnf errors relating to kernel-install when updating kernel, rpm-ostree-2025.2-1 is installed",
+				"delta_ts": "2025-01-31 04:34:24 +0000",
+				"bug_status": "ON_QA",
+				"priority": "unspecified",
+				"bug_severity": "high",
+				"external_bugs": {
+					"text": "FC-1416",
+					"name": "Red Hat Issue Tracker"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "18347792",
+						"comment_count": "0",
+						"who": {
+							"text": "bdm",
+							"name": "Brian Morrison"
+						},
+						"bug_when": "2025-01-25 16:01:01 +0000",
+						"thetext": "I have seen other similar dnf errors recently, but this is appearing in the dnf output after an attempt to update to kernel-6.12.11 ended up needing a lot of manual intervention with rpm and dracut and hand editing of various grubby entries, all the dnf errors were similar in particular the /usr/bin/rpm-ostree errors below:\n\n>>> Running pre-uninstall scriptlet: kernel-core-0:6.12.10-200.fc41.x86_64\n>>> Error in pre-uninstall scriptlet: kernel-core-0:6.12.10-200.fc41.x86_64\n>>> Scriptlet output:\n>>> /usr/lib/kernel/install.d/05-rpmostree.install: line 3: /usr/bin/rpm-ostree: Permission denied\n>>> /usr/lib/kernel/install.d/05-rpmostree.install: line 3: /usr/bin/rpm-ostree: Success\n>>> /usr/lib/kernel/install.d/05-rpmostree.install failed with exit status 126.\n>>> \n>>> [RPM] %preun(kernel-core-6.12.10-200.fc41.x86_64) scriptlet failed, exit status 126\n\nThe kernel update script I use is run under sudo and requests password as expected.\n\nThe rpm-ostree script called is this:\n\ncat /usr/lib/kernel/install.d/05-rpmostree.install\n#!/usr/bin/bash\n# This is the hook that has kernel-install call into rpm-ostree kernel-install\nexec /usr/bin/rpm-ostree kernel-install \"$@\"\n\nThe files mentioned have these permissions:\n\nll /usr/bin/kernel-install\n-rwxr-xr-x. 1 root root 60200 Jan  8 00:00 /usr/bin/kernel-install\nbdm@deangelis:~$ ll /usr/lib/kernel/install.d/05-rpmostree.install\n-rwxr-xr-x. 1 root root 140 Jan 24 00:00 /usr/lib/kernel/install.d/05-rpmostree.install\n\nAnother clue is that the kernel-core-6.12.11 package is listed 3 times:\n\nrpm -qa | grep kernel-core-6.12.11\nkernel-core-6.12.11-200.fc41.x86_64\nkernel-core-6.12.11-200.fc41.x86_64\nkernel-core-6.12.11-200.fc41.x86_64\n\nI cannot find a way to correct this, dnf doesn't produce any output when using:\n\nsudo dnf repoquery --duplicates\n\nand\n\nsudo dnf remove duplicates\n\nalso produces no output.\n\nThe same error is occurring where for some reason any dnf transaction appears to want to remove kernel-6.12.10 as well as perform the changes expected. This is the error seen above.\n\nI have tried sudo rpm --rebuilddb, it has made no difference.\n\nReproducible: Always\n\nSteps to Reproduce:\n1. Run sudo dnf update with any arguments added\n2.\n3.\nActual Results:  \nErrors from rpm-ostree\n\nExpected Results:  \nNo errors, which until about 3 or 4 days ago was normal."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18348464",
+						"comment_count": "1",
+						"who": {
+							"text": "jmarrero",
+							"name": "Joseph Marrero"
+						},
+						"bug_when": "2025-01-26 18:03:51 +0000",
+						"thetext": "Can you share the kernel update script you are using?\n\nAlso is this a coreos, silverblue or bootc environment?\n\nAre you upgrading the kernel with DNF in a container build or your script is doing something when the system is booted?\n\nIn 2025.2 we introduced a kernel-install integration which should allow you to use (in a container build) dnf to upgrade your kernel."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18348493",
+						"comment_count": "2",
+						"who": {
+							"text": "bdm",
+							"name": "Brian Morrison"
+						},
+						"bug_when": "2025-01-26 18:37:23 +0000",
+						"thetext": "Here is the script, it's nothing fancy or clever, arguments are supplied as 6.12.11 200 fc41 in the case of this problem\n\n#!/bin/sh\nsudo dnf -y upgrade \\\nhttps://kojipkgs.fedoraproject.org//packages/kernel/$1/$2.$3/x86_64/kernel-$1-$2.$3.x86_64.rpm \\\nhttps://kojipkgs.fedoraproject.org//packages/kernel/$1/$2.$3/x86_64/kernel-core-$1-$2.$3.x86_64.rpm \\\nhttps://kojipkgs.fedoraproject.org//packages/kernel/$1/$2.$3/x86_64/kernel-devel-$1-$2.$3.x86_64.rpm \\\nhttps://kojipkgs.fedoraproject.org//packages/kernel/$1/$2.$3/x86_64/kernel-devel-matched-$1-$2.$3.x86_64.rpm \\\nhttps://kojipkgs.fedoraproject.org//packages/kernel/$1/$2.$3/x86_64/kernel-modules-$1-$2.$3.x86_64.rpm \\\nhttps://kojipkgs.fedoraproject.org//packages/kernel/$1/$2.$3/x86_64/kernel-modules-core-$1-$2.$3.x86_64.rpm \\\nhttps://kojipkgs.fedoraproject.org//packages/kernel/$1/$2.$3/x86_64/kernel-modules-extra-$1-$2.$3.x86_64.rpm \\\nhttps://kojipkgs.fedoraproject.org//packages/kernel/$1/$2.$3/x86_64/kernel-uki-virt-$1-$2.$3.x86_64.rpm \\\nhttps://kojipkgs.fedoraproject.org//packages/kernel/$1/$2.$3/x86_64/kernel-uki-virt-addons-$1-$2.$3.x86_64.rpm \\\nhttps://kojipkgs.fedoraproject.org//packages/kernel/$1/$2.$3/x86_64/kernel-tools-$1-$2.$3.x86_64.rpm \\\nhttps://kojipkgs.fedoraproject.org//packages/kernel/$1/$2.$3/x86_64/kernel-tools-libs-$1-$2.$3.x86_64.rpm \\\nhttps://kojipkgs.fedoraproject.org//packages/kernel/$1/$2.$3/x86_64/libperf-$1-$2.$3.x86_64.rpm \\\nhttps://kojipkgs.fedoraproject.org//packages/kernel/$1/$2.$3/x86_64/perf-$1-$2.$3.x86_64.rpm \\\nhttps://kojipkgs.fedoraproject.org//packages/kernel/$1/$2.$3/x86_64/python3-perf-$1-$2.$3.x86_64.rpm\n\nThe system is a bare-metal x86_64 system running F41, updated from F40 for F41 beta.\n\nI am not at all experienced with any of the container stuff, so you may need to spell out what you need to know.\n\nThe problem began before the 2025.2 version was installed, but I don't know if it preceded 2025.1 or not."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18348574",
+						"comment_count": "3",
+						"who": {
+							"text": "jmarrero",
+							"name": "Joseph Marrero"
+						},
+						"bug_when": "2025-01-26 21:10:14 +0000",
+						"thetext": "\nCan I get the output of:\n\nls -ll /usr/bin/kernel-install*\n\ncat /etc/os-release\n\nand\n\ncat /usr/lib/kernel/install.conf"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18348585",
+						"comment_count": "4",
+						"who": {
+							"text": "bdm",
+							"name": "Brian Morrison"
+						},
+						"bug_when": "2025-01-26 21:44:17 +0000",
+						"thetext": "OK, please see below:\n\n\n$ ls -ll /usr/bin/kernel-install*\n-rwxr-xr-x. 1 root root 60200 Jan  8 00:00 /usr/bin/kernel-install\n\n\n$ cat /etc/os-release\nNAME=\"Fedora Linux\"\nVERSION=\"41 (Workstation Edition)\"\nRELEASE_TYPE=stable\nID=fedora\nVERSION_ID=41\nVERSION_CODENAME=\"\"\nPLATFORM_ID=\"platform:f41\"\nPRETTY_NAME=\"Fedora Linux 41 (Workstation Edition)\"\nANSI_COLOR=\"0;38;2;60;110;180\"\nLOGO=fedora-logo-icon\nCPE_NAME=\"cpe:/o:fedoraproject:fedora:41\"\nDEFAULT_HOSTNAME=\"fedora\"\nHOME_URL=\"https://fedoraproject.org/\"\nDOCUMENTATION_URL=\"https://docs.fedoraproject.org/en-US/fedora/f41/system-administrators-guide/\"\nSUPPORT_URL=\"https://ask.fedoraproject.org/\"\nBUG_REPORT_URL=\"https://bugzilla.redhat.com/\"\nREDHAT_BUGZILLA_PRODUCT=\"Fedora\"\nREDHAT_BUGZILLA_PRODUCT_VERSION=41\nREDHAT_SUPPORT_PRODUCT=\"Fedora\"\nREDHAT_SUPPORT_PRODUCT_VERSION=41\nSUPPORT_END=2025-12-15\nVARIANT=\"Workstation Edition\"\nVARIANT_ID=workstation\n\n\n$ cat /usr/lib/kernel/install.conf\n#  This file is part of systemd.\n#\n#  systemd is free software; you can redistribute it and/or modify it under the\n#  terms of the GNU Lesser General Public License as published by the Free\n#  Software Foundation; either version 2.1 of the License, or (at your option)\n#  any later version.\n#\n# See kernel-install(8) for details.\n\n#layout=bls|other|...\n#initrd_generator=dracut|...\n#uki_generator=ukify|..."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18348799",
+						"comment_count": "5",
+						"who": {
+							"text": "jmarrero",
+							"name": "Joseph Marrero"
+						},
+						"bug_when": "2025-01-27 01:01:29 +0000",
+						"thetext": "/usr/lib/kernel/install.d/05-rpmostree.install\n\nwas introduced in 2025.1, by downgrading to 2024.9 you should not hit this anymore. Both 2025.1 and 2025.2 of rpm-ostree should not make it to stable, I am guessing you have testing updates enabled or manually updated the rpm-ostree version to have gotten this update. Thanks for your report we need to investigate this a bit more to understand what is happening in this scenario."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18349307",
+						"comment_count": "6",
+						"who": {
+							"text": "walters",
+							"name": "Colin Walters"
+						},
+						"bug_when": "2025-01-27 13:22:57 +0000",
+						"thetext": "/usr/lib/kernel/install.d/05-rpmostree.install: line 3: /usr/bin/rpm-ostree: Permission denied\n\nAlso please:\n\nls -al /usr/bin/rpm-ostree"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18349350",
+						"comment_count": "7",
+						"who": {
+							"text": "walters",
+							"name": "Colin Walters"
+						},
+						"bug_when": "2025-01-27 13:45:59 +0000",
+						"thetext": "Also please e.g.:\n\ngrep rpm-ostree /var/log/audit.log\njournalctl -b --grep=rpm-ostree"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18349406",
+						"comment_count": "8",
+						"who": {
+							"text": "bdm",
+							"name": "Brian Morrison"
+						},
+						"bug_when": "2025-01-27 14:22:35 +0000",
+						"thetext": "Here we go:\n\nls -al /usr/bin/rpm-ostree\n-rwxr-xr-x. 1 root root 15153648 Jan 24 00:00 /usr/bin/rpm-ostree\n\n$ grep rpm-ostree /var/log/audit.log\ngrep: /var/log/audit.log: No such file or directory\n\nand the big one, but note that I have selinux=0 as a kernel argument:\n\nHere is a short excerpt with a wider window, which is still too narrow, but catches the path at least.\n\nJan 25 20:01:00 deangelis.fenrir.org.uk audit[621700]: AVC avc:  denied  { entrypoint } for  pid=621700 comm=\"05-rpmostree.in\" path=\"/usr/bin/rpm-ostree\" dev=\"dm-0\" ino=119942042 scontext=unconfined_u:system_r:rpm_script_t:s0-s>\nJan 25 20:01:03 deangelis.fenrir.org.uk setroubleshoot[621946]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file /usr/bin/rpm-ostree. For complete SELinux messages run: sealert -l ab96b9a2-31f1-4181-b6b7>\nJan 25 20:01:03 deangelis.fenrir.org.uk setroubleshoot[621946]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file /usr/bin/rpm-ostree.\n\n\n$ journalctl -b --grep=rpm-ostree\nJan 24 22:46:39 deangelis.fenrir.org.uk audit[21329]: AVC avc:  denied  { entrypoint } for  pid=21329 comm=\"05-rpmostree.in\" path=\"/usr/bin>\nJan 24 22:46:42 deangelis.fenrir.org.uk setroubleshoot[21467]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file /us>\nJan 24 22:46:42 deangelis.fenrir.org.uk setroubleshoot[21467]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file /us>\n                                                               \n                                                               *****  Plugin catchall (100. confidence) suggests   ************************>\n                                                               \n                                                               If you believe that 05-rpmostree.in should be allowed entrypoint access on t>\n                                                               Then you should report this as a bug.\n                                                               You can generate a local policy module to allow this access.\n                                                               Do\n                                                               allow this access for now by executing:\n                                                               # ausearch -c '05-rpmostree.in' --raw | audit2allow -M my-05rpmostreein\n                                                               # semodule -X 300 -i my-05rpmostreein.pp\n                                                               \nJan 25 14:57:25 deangelis.fenrir.org.uk audit[499313]: AVC avc:  denied  { entrypoint } for  pid=499313 comm=\"05-rpmostree.in\" path=\"/usr/b>\nJan 25 14:57:29 deangelis.fenrir.org.uk setroubleshoot[499341]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file /u>\nJan 25 14:57:29 deangelis.fenrir.org.uk setroubleshoot[499341]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file /u>\n                                                                \n                                                                *****  Plugin catchall (100. confidence) suggests   ***********************>\n                                                                \n                                                                If you believe that 05-rpmostree.in should be allowed entrypoint access on >\n                                                                Then you should report this as a bug.\n                                                                You can generate a local policy module to allow this access.\n                                                                Do\n                                                                allow this access for now by executing:\n                                                                # ausearch -c '05-rpmostree.in' --raw | audit2allow -M my-05rpmostreein\n                                                                # semodule -X 300 -i my-05rpmostreein.pp\n                                                                \nJan 25 20:01:00 deangelis.fenrir.org.uk audit[621700]: AVC avc:  denied  { entrypoint } for  pid=621700 comm=\"05-rpmostree.in\" path=\"/usr/b>\nJan 25 20:01:03 deangelis.fenrir.org.uk setroubleshoot[621946]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file /u>\nJan 25 20:01:03 deangelis.fenrir.org.uk setroubleshoot[621946]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file /u>\n                                                                \n                                                                *****  Plugin catchall (100. confidence) suggests   ***********************>\n                                                                \n                                                                If you believe that 05-rpmostree.in should be allowed entrypoint access on >\n                                                                Then you should report this as a bug.\n                                                                You can generate a local policy module to allow this access.\n                                                                Do\n                                                                allow this access for now by executing:\n                                                                # ausearch -c '05-rpmostree.in' --raw | audit2allow -M my-05rpmostreein\n                                                                # semodule -X 300 -i my-05rpmostreein.pp\n                                                                \nJan 25 23:05:37 deangelis.fenrir.org.uk audit[691013]: AVC avc:  denied  { entrypoint } for  pid=691013 comm=\"05-rpmostree.in\" path=\"/usr/b>\nJan 25 23:05:41 deangelis.fenrir.org.uk setroubleshoot[691028]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file /u>\nJan 25 23:05:41 deangelis.fenrir.org.uk setroubleshoot[691028]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file /u>\n                                                                \n                                                                *****  Plugin catchall (100. confidence) suggests   ***********************>\n                                                                \n                                                                If you believe that 05-rpmostree.in should be allowed entrypoint access on >\n                                                                Then you should report this as a bug.\n                                                                You can generate a local policy module to allow this access.\n                                                                Do\n                                                                allow this access for now by executing:\n                                                                # ausearch -c '05-rpmostree.in' --raw | audit2allow -M my-05rpmostreein\n                                                                # semodule -X 300 -i my-05rpmostreein.pp\n                                                                \nJan 26 15:51:54 deangelis.fenrir.org.uk audit[1200130]: AVC avc:  denied  { entrypoint } for  pid=1200130 comm=\"05-rpmostree.in\" path=\"/usr>\nJan 26 15:51:58 deangelis.fenrir.org.uk setroubleshoot[1200160]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file />\nJan 26 15:51:58 deangelis.fenrir.org.uk setroubleshoot[1200160]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file />\n                                                                 \n                                                                 *****  Plugin catchall (100. confidence) suggests   **********************>\n                                                                 \n                                                                 If you believe that 05-rpmostree.in should be allowed entrypoint access on>\n                                                                 Then you should report this as a bug.\n                                                                 You can generate a local policy module to allow this access.\n                                                                 Do\n                                                                 allow this access for now by executing:\n                                                                 # ausearch -c '05-rpmostree.in' --raw | audit2allow -M my-05rpmostreein\n                                                                 # semodule -X 300 -i my-05rpmostreein.pp\n                                                                 \nJan 26 17:27:39 deangelis.fenrir.org.uk sudo[1261152]:      bdm : TTY=pts/0 ; PWD=/home/bdm ; USER=root ; COMMAND=/usr/bin/dnf reinstall ht>\nJan 26 17:27:55 deangelis.fenrir.org.uk [RPM][1261218]: erase rpm-ostree-2025.2-1.fc41.x86_64: success\nJan 26 17:27:55 deangelis.fenrir.org.uk [RPM][1261218]: erase rpm-ostree-libs-2025.2-1.fc41.x86_64: success\nJan 26 17:27:55 deangelis.fenrir.org.uk [RPM][1261218]: install rpm-ostree-libs-2025.2-1.fc41.x86_64: success\nJan 26 17:27:55 deangelis.fenrir.org.uk [RPM][1261218]: install rpm-ostree-2025.2-1.fc41.x86_64: success\nJan 26 17:27:56 deangelis.fenrir.org.uk [RPM][1261218]: erase rpm-ostree-2025.2-1.fc41.x86_64: success\nJan 26 17:27:56 deangelis.fenrir.org.uk audit[1261361]: AVC avc:  denied  { entrypoint } for  pid=1261361 comm=\"05-rpmostree.in\" path=\"/usr>\nJan 26 17:27:56 deangelis.fenrir.org.uk [RPM][1261218]: erase rpm-ostree-libs-2025.2-1.fc41.x86_64: success\nJan 26 17:27:58 deangelis.fenrir.org.uk [RPM][1261218]: install rpm-ostree-libs-2025.2-1.fc41.x86_64: success\nJan 26 17:27:58 deangelis.fenrir.org.uk [RPM][1261218]: install rpm-ostree-2025.2-1.fc41.x86_64: success\nJan 26 17:27:58 deangelis.fenrir.org.uk audit[1261218]: SOFTWARE_UPDATE pid=1261218 uid=0 auid=1000 ses=3 subj=unconfined_u:unconfined_r:un>\nJan 26 17:27:58 deangelis.fenrir.org.uk audit[1261218]: SOFTWARE_UPDATE pid=1261218 uid=0 auid=1000 ses=3 subj=unconfined_u:unconfined_r:un>\nJan 26 17:28:00 deangelis.fenrir.org.uk setroubleshoot[1261809]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file />\nJan 26 17:28:00 deangelis.fenrir.org.uk setroubleshoot[1261809]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file />\n                                                                 \n                                                                 *****  Plugin catchall (100. confidence) suggests   **********************>\n                                                                 \n                                                                 If you believe that 05-rpmostree.in should be allowed entrypoint access on>\n                                                                 Then you should report this as a bug.\n                                                                 You can generate a local policy module to allow this access.\n                                                                 Do\n                                                                 allow this access for now by executing:\n                                                                 # ausearch -c '05-rpmostree.in' --raw | audit2allow -M my-05rpmostreein\n                                                                 # semodule -X 300 -i my-05rpmostreein.pp\n                                                                 \nJan 26 17:28:56 deangelis.fenrir.org.uk audit[1262649]: AVC avc:  denied  { entrypoint } for  pid=1262649 comm=\"05-rpmostree.in\" path=\"/usr>\nJan 26 17:29:00 deangelis.fenrir.org.uk setroubleshoot[1262663]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file />\nJan 26 17:29:00 deangelis.fenrir.org.uk setroubleshoot[1262663]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file />\n                                                                 \n                                                                 *****  Plugin catchall (100. confidence) suggests   **********************>\n                                                                 \n                                                                 If you believe that 05-rpmostree.in should be allowed entrypoint access on>\n                                                                 Then you should report this as a bug.\n                                                                 You can generate a local policy module to allow this access.\n                                                                 Do\n                                                                 allow this access for now by executing:\n                                                                 # ausearch -c '05-rpmostree.in' --raw | audit2allow -M my-05rpmostreein\n                                                                 # semodule -X 300 -i my-05rpmostreein.pp\n                                                                 \nJan 26 23:22:18 deangelis.fenrir.org.uk audit[1420060]: AVC avc:  denied  { entrypoint } for  pid=1420060 comm=\"05-rpmostree.in\" path=\"/usr>\nJan 26 23:22:21 deangelis.fenrir.org.uk setroubleshoot[1420083]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file />\nJan 26 23:22:21 deangelis.fenrir.org.uk setroubleshoot[1420083]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file />\n                                                                 \n                                                                 *****  Plugin catchall (100. confidence) suggests   **********************>\n                                                                 \n                                                                 If you believe that 05-rpmostree.in should be allowed entrypoint access on>\n                                                                 Then you should report this as a bug.\n                                                                 You can generate a local policy module to allow this access.\n                                                                 Do\n                                                                 allow this access for now by executing:\n                                                                 # ausearch -c '05-rpmostree.in' --raw | audit2allow -M my-05rpmostreein\n                                                                 # semodule -X 300 -i my-05rpmostreein.pp\n                                                                 \nJan 26 23:25:33 deangelis.fenrir.org.uk audit[1422176]: AVC avc:  denied  { entrypoint } for  pid=1422176 comm=\"05-rpmostree.in\" path=\"/usr>\nJan 26 23:25:36 deangelis.fenrir.org.uk setroubleshoot[1422204]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file />\nJan 26 23:25:36 deangelis.fenrir.org.uk setroubleshoot[1422204]: SELinux is preventing 05-rpmostree.in from entrypoint access on the file />\n                                                                 \n                                                                 *****  Plugin catchall (100. confidence) suggests   **********************>\n                                                                 \n                                                                 If you believe that 05-rpmostree.in should be allowed entrypoint access on>\n                                                                 Then you should report this as a bug.\n                                                                 You can generate a local policy module to allow this access.\n                                                                 Do\n                                                                 allow this access for now by executing:\n                                                                 # ausearch -c '05-rpmostree.in' --raw | audit2allow -M my-05rpmostreein\n                                                                 # semodule -X 300 -i my-05rpmostreein.pp\n\nDo you need any more before I revert the rpm-ostree version to 2024.9 ?"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18349469",
+						"comment_count": "9",
+						"who": {
+							"text": "walters",
+							"name": "Colin Walters"
+						},
+						"bug_when": "2025-01-27 15:11:39 +0000",
+						"thetext": "> Here is a short excerpt with a wider window, which is still too narrow, but catches the path at least.\n\nUse e.g. `journalctl --no-pager` to fix that.\n\n> Do you need any more before I revert the rpm-ostree version to 2024.9 ?\n\nNo that's fine, it's enough. Thanks for reporting this!"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18349542",
+						"comment_count": "10",
+						"who": {
+							"text": "walters",
+							"name": "Colin Walters"
+						},
+						"bug_when": "2025-01-27 16:24:56 +0000",
+						"thetext": "rpm-ostree 2025.3 will scope this down right now to just rawhide and c10s, which is not a fix but will reduce the blast radius a lot.\n\nFirst, I think we should forward this to the selinux-policy maintainers and get them to just allow this.\n\nHowever, we can't *rely* on that happening quickly, so I think we should also change our entrypoint shell script to basically:\n\nif !grep -q layout=ostree /usr/lib/kernel/install.conf; then exit 0; fi\n\nor so...basically reimplementing the trivial check in the existing shell script trampoline we have.\n\nAlternatively, we could produce a new Rust binary from our existing code but that has a relatively higher build time/mechanics overhead."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18353066",
+						"comment_count": "11",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2025-01-30 18:13:40 +0000",
+						"thetext": "FEDORA-2025-4c48f77d75 (rpm-ostree-2025.4-2.fc41) has been submitted as an update to Fedora 41.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2025-4c48f77d75"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18353068",
+						"comment_count": "12",
+						"who": {
+							"text": "jmarrero",
+							"name": "Joseph Marrero"
+						},
+						"bug_when": "2025-01-30 18:17:31 +0000",
+						"thetext": "Hi Brian,\n\nDo you mind installing the new updated rpm-ostree https://bodhi.fedoraproject.org/updates/FEDORA-2025-4c48f77d75\n \nI tested the changes here:\nhttps://github.com/coreos/rpm-ostree/pull/5262#issuecomment-2623408953\nand looks good, but wanted to make sure there was nothing else happening in case your environment is somehow different from my test environment."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18353151",
+						"comment_count": "13",
+						"who": {
+							"text": "bdm",
+							"name": "Brian Morrison"
+						},
+						"bug_when": "2025-01-30 20:25:45 +0000",
+						"thetext": "Since I reverted to rpm-ostree-2024.9 I have seen some further problems, as shown in this bug:\n\nhttps://bugzilla.redhat.com/show_bug.cgi?id=2342379\n\nSo something else is broken that I have not yet been able to fix, the other bug is listed against dracut but I genuinely am not sure why it has happened.\n\nI can hack the kernel update so that the system boots, but it used to work simply with updating the kernel rpms.\n\nI can probably try out the update you mention in comment 12 but some assistance in fixing the previous breakage would be appreciated."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18353220",
+						"comment_count": "14",
+						"who": {
+							"text": "bdm",
+							"name": "Brian Morrison"
+						},
+						"bug_when": "2025-01-30 21:40:10 +0000",
+						"thetext": "I have now installed the new rpm-ostree-2025.4 packages, so we'll see if anything else happens on the next kernel packages update."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18353239",
+						"comment_count": "15",
+						"who": {
+							"text": "bdm",
+							"name": "Brian Morrison"
+						},
+						"bug_when": "2025-01-30 21:53:49 +0000",
+						"thetext": "Also I realised that somehow, and I don't know when, the selinux setting on this system that I thought was disabled is actually enforcing.\n\nThat didn't help."
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18353526",
+						"comment_count": "16",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2025-01-31 04:34:24 +0000",
+						"thetext": "FEDORA-2025-4c48f77d75 has been pushed to the Fedora 41 testing repository.\nSoon you'll be able to install the update with the following command:\n`sudo dnf upgrade --enablerepo=updates-testing --refresh --advisory=FEDORA-2025-4c48f77d75`\nYou can provide feedback for this update here: https://bodhi.fedoraproject.org/updates/FEDORA-2025-4c48f77d75\n\nSee also https://fedoraproject.org/wiki/QA:Updates_Testing for more information on how to test updates."
+					}
+				]
+			}
+		},
+		{
+			"bug_id": 2344556,
+			"title": "rpm-ostree: openssl: CVE-2025-0977 / RUSTSEC-2025-0004: ssl::select_next_proto use after free",
+			"bugzilla": {
+				"bug_id": "2344556",
+				"creation_ts": "2025-02-09 15:14:28 +0000",
+				"short_desc": "rpm-ostree: openssl: CVE-2025-0977 / RUSTSEC-2025-0004: ssl::select_next_proto use after free",
+				"delta_ts": "2025-02-11 15:32:38 +0000",
+				"bug_status": "MODIFIED",
+				"priority": "unspecified",
+				"bug_severity": "medium",
+				"blocked": [
+					{
+						"bug_id": "2343447",
+						"alias": "RUSTSEC-2025-0004",
+						"creation_ts": "2025-02-03 01:01:53 +0000",
+						"short_desc": "CVE-2025-0977 rust-openssl: ssl::select_next_proto use after free",
+						"delta_ts": "2025-02-09 15:16:26 +0000",
+						"bug_status": "NEW",
+						"keywords": "Security",
+						"priority": "medium",
+						"bug_severity": "medium",
+						"depends_on": [
+							"2343477",
+							"2343478",
+							"2344551",
+							"2344552",
+							"2344553",
+							"2344554",
+							"2344555",
+							"2344556",
+							"2344557",
+							"2344558",
+							"2344559",
+							"2343479"
+						],
+						"long_desc": [
+							{
+								"isprivate": "0",
+								"commentid": "18355311",
+								"comment_count": "0",
+								"who": {
+									"text": "bzimport",
+									"name": "OSIDB Bzimport"
+								},
+								"bug_when": "2025-02-03 01:01:53 +0000",
+								"thetext": "In `openssl` versions before `0.10.70`, `ssl::select_next_proto` can return a slice pointing into the `server` argument's buffer but with a lifetime bound to the `client` argument. In situations where the `server` buffer's lifetime is shorter than the `client` buffer's, this can cause a use after free. This could cause the server to crash or to return arbitrary memory contents to the client.\n\n`openssl` 0.10.70 fixes the signature of `ssl::select_next_proto` to properly constrain the output buffer's lifetime to that of both input buffers.\n\nIn standard usage of `ssl::select_next_proto` in the callback passed to `SslContextBuilder::set_alpn_select_callback`, code is only affected if the `server` buffer is constructed *within* the callback. For example:\n\nNot vulnerable - the server buffer has a `'static` lifetime:\n```rust\nbuilder.set_alpn_select_callback(|_, client_protos| {\n    ssl::select_next_proto(b\"\\x02h2\", client_protos).ok_or_else(AlpnError::NOACK)\n});\n```\n\nNot vulnerable - the server buffer outlives the handshake:\n```rust\nlet server_protos = b\"\\x02h2\".to_vec();\nbuilder.set_alpn_select_callback(|_, client_protos| {\n    ssl::select_next_proto(&server_protos, client_protos).ok_or_else(AlpnError::NOACK)\n});\n```\n\nVulnerable - the server buffer is freed when the callback returns:\n```rust\nbuilder.set_alpn_select_callback(|_, client_protos| {\n    let server_protos = b\"\\x02h2\".to_vec();\n    ssl::select_next_proto(&server_protos, client_protos).ok_or_else(AlpnError::NOACK)\n});\n```"
+							}
+						]
+					}
+				],
+				"external_bugs": {
+					"text": "FC-1468",
+					"name": "Red Hat Issue Tracker"
+				},
+				"long_desc": [
+					{
+						"isprivate": "0",
+						"commentid": "18361041",
+						"comment_count": "0",
+						"who": {
+							"text": "decathorpe",
+							"name": "Fabio Valentini"
+						},
+						"bug_when": "2025-02-09 15:14:28 +0000",
+						"thetext": "The version of the \"openssl\" crate bundled in this package is vulnerable to CVE-2025-0977 / RUSTSEC-2025-0004.\n\nc.f. https://rustsec.org/advisories/RUSTSEC-2025-0004.html\n\nReproducible: Always"
+					},
+					{
+						"isprivate": "0",
+						"commentid": "18369788",
+						"comment_count": "1",
+						"who": {
+							"text": "updates",
+							"name": "Fedora Update System"
+						},
+						"bug_when": "2025-02-11 15:32:38 +0000",
+						"thetext": "FEDORA-2025-3dfc505946 (rpm-ostree-2025.5-2.fc41) has been submitted as an update to Fedora 41.\nhttps://bodhi.fedoraproject.org/updates/FEDORA-2025-3dfc505946"
+					}
+				]
+			}
+		}
+	],
+	"builds": [
+		{
+			"epoch": 0,
+			"nvr": "rpm-ostree-2025.5-2.fc41",
+			"release_id": 80,
+			"signed": true,
+			"type": "rpm",
+			"package": {
+				"aarch64": [
+					{
+						"name": "rpm-ostree-devel",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "aarch64"
+					},
+					{
+						"name": "rpm-ostree-libs-debuginfo",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "aarch64"
+					},
+					{
+						"name": "rpm-ostree",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "aarch64"
+					},
+					{
+						"name": "rpm-ostree-debuginfo",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "aarch64"
+					},
+					{
+						"name": "rpm-ostree-libs",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "aarch64"
+					},
+					{
+						"name": "rpm-ostree-debugsource",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "aarch64"
+					}
+				],
+				"ppc64le": [
+					{
+						"name": "rpm-ostree-libs-debuginfo",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "rpm-ostree-debuginfo",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "rpm-ostree",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "rpm-ostree-devel",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "rpm-ostree-libs",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "ppc64le"
+					},
+					{
+						"name": "rpm-ostree-debugsource",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "ppc64le"
+					}
+				],
+				"s390x": [
+					{
+						"name": "rpm-ostree",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "s390x"
+					},
+					{
+						"name": "rpm-ostree-debuginfo",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "s390x"
+					},
+					{
+						"name": "rpm-ostree-debugsource",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "s390x"
+					},
+					{
+						"name": "rpm-ostree-devel",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "s390x"
+					},
+					{
+						"name": "rpm-ostree-libs-debuginfo",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "s390x"
+					},
+					{
+						"name": "rpm-ostree-libs",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "s390x"
+					}
+				],
+				"src": [
+					{
+						"name": "rpm-ostree",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "src"
+					}
+				],
+				"x86_64": [
+					{
+						"name": "rpm-ostree-devel",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "x86_64"
+					},
+					{
+						"name": "rpm-ostree-debuginfo",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "x86_64"
+					},
+					{
+						"name": "rpm-ostree-libs-debuginfo",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "x86_64"
+					},
+					{
+						"name": "rpm-ostree",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "x86_64"
+					},
+					{
+						"name": "rpm-ostree-libs",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "x86_64"
+					},
+					{
+						"name": "rpm-ostree-debugsource",
+						"version": "2025.5",
+						"release": "2.fc41",
+						"arch": "x86_64"
+					}
+				]
+			}
+		}
+	],
+	"close_bugs": true,
+	"comments": [
+		{
+			"id": 3954726,
+			"text": "This update has been submitted for testing by jmarrero. ",
+			"timestamp": "2025-02-11 15:32:35",
+			"update_id": 692530,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3954727,
+			"text": "This update's test gating status has been changed to 'waiting'.",
+			"timestamp": "2025-02-11 15:32:35",
+			"update_id": 692530,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3954729,
+			"text": "This update has obsoleted [rpm-ostree-2025.4-2.fc41](https://bodhi.fedoraproject.org/updates/FEDORA-2025-4c48f77d75), and has inherited its bugs and notes.",
+			"timestamp": "2025-02-11 15:32:36",
+			"update_id": 692530,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3954737,
+			"text": "jmarrero edited this update.",
+			"timestamp": "2025-02-11 15:35:52",
+			"update_id": 692530,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		},
+		{
+			"id": 3954851,
+			"text": "This update's test gating status has been changed to 'passed'.",
+			"timestamp": "2025-02-11 17:41:50",
+			"update_id": 692530,
+			"user": {
+				"avatar": "https://apps.fedoraproject.org/img/icons/bodhi-24.png",
+				"id": 91,
+				"name": "bodhi",
+				"openid": "bodhi.id.fedoraproject.org"
+			},
+			"user_id": 91
+		}
+	],
+	"content_type": "rpm",
+	"critpath": true,
+	"critpath_groups": "critical-path-coreos",
+	"date_modified": "2025-02-11 15:35:52",
+	"date_submitted": "2025-02-11 15:32:35",
+	"notes": "Merge branch 'f42' into f41\n\n----\n\nMerge branch 'rawhide' into f41\n\n----\n\nFix merge conflict\n",
+	"release": {
+		"branch": "f41",
+		"candidate_tag": "f41-updates-candidate",
+		"composed_by_bodhi": true,
+		"create_automatic_updates": false,
+		"dist_tag": "f41",
+		"eol": "2025-11-11",
+		"id_prefix": "FEDORA",
+		"long_name": "Fedora 41",
+		"mail_template": "fedora_errata_template",
+		"name": "F41",
+		"override_tag": "f41-override",
+		"package_manager": "dnf",
+		"pending_signing_tag": "f41-signing-pending",
+		"pending_stable_tag": "f41-updates-pending",
+		"pending_testing_tag": "f41-updates-testing-pending",
+		"stable_tag": "f41-updates",
+		"state": "current",
+		"testing_repository": "updates-testing",
+		"testing_tag": "f41-updates-testing",
+		"version": "41"
+	},
+	"request": "testing",
+	"require_bugs": true,
+	"require_testcases": true,
+	"severity": "medium",
+	"stable_days": 14,
+	"stable_karma": 2,
+	"status": "pending",
+	"suggest": "unspecified",
+	"test_gating_status": "passed",
+	"title": "rpm-ostree-2025.5-2.fc41",
+	"type": "security",
+	"url": "https://bodhi.fedoraproject.org/updates/FEDORA-2025-3dfc505946",
+	"unstable_karma": -3,
+	"updateid": "FEDORA-2025-3dfc505946",
+	"user": {
+		"avatar": "https://seccdn.libravatar.org/avatar/ea56a19ab57d2ead0d8945cb5f6e6f9831fc8be870174fe3af7275749260ed59?s=24&d=retro",
+		"email": "jmarrero@redhat.com",
+		"groups": [
+			{
+				"name": "packager"
+			},
+			{
+				"name": "ipausers"
+			},
+			{
+				"name": "fedora-contributor"
+			},
+			{
+				"name": "signed_fpca"
+			},
+			{
+				"name": "fedorabugs"
+			},
+			{
+				"name": "sysadmin-coreos"
+			},
+			{
+				"name": "coreos-sig"
+			},
+			{
+				"name": "trust admins"
+			}
+		],
+		"id": 1033,
+		"name": "jmarrero",
+		"openid": "jmarrero.id.fedoraproject.org"
+	},
+	"version_hash": "4aefa906823f7da8726d4f997c006ea0cb65cccf"
+}
